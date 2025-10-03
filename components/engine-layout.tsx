@@ -94,14 +94,20 @@ export function EngineLayout({ children, engineType }: EngineLayoutProps) {
       }
     };
 
+    const handleCloseDrawer = () => {
+      setIsDrawerOpen(false);
+    };
+
     document.addEventListener('touchstart', handleTouchStart, { passive: false });
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
     document.addEventListener('touchend', handleTouchEnd);
+    window.addEventListener('closeMobileDrawer', handleCloseDrawer);
 
     return () => {
       document.removeEventListener('touchstart', handleTouchStart);
       document.removeEventListener('touchmove', handleTouchMove);
       document.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('closeMobileDrawer', handleCloseDrawer);
     };
   }, [isMobile]);
 
@@ -125,34 +131,32 @@ export function EngineLayout({ children, engineType }: EngineLayoutProps) {
             
             {/* Mobile Drawer Handle - Always visible 10% above bottom nav */}
             <div className="fixed bottom-16 left-0 right-0 z-50 lg:hidden">
-              {/* Drawer Handle */}
+              {/* Drawer Handle - Always visible */}
               <div 
-                className="bg-background border-t border-border rounded-t-lg cursor-pointer shadow-lg"
+                className="bg-background border-t border-border rounded-t-lg cursor-pointer shadow-lg h-12"
                 onClick={() => setIsDrawerOpen(true)}
               >
-                <div className="flex items-center justify-center p-3">
-                  <div className="w-12 h-1 bg-muted-foreground rounded-full" />
-                </div>
-                <div className="text-center pb-2">
-                  <span className="text-xs text-muted-foreground">Swipe up for controls</span>
+                <div className="flex items-center justify-center h-full">
+                  <div className="flex flex-col items-center space-y-1">
+                    <div className="w-12 h-1 bg-muted-foreground rounded-full" />
+                    <span className="text-xs text-muted-foreground">Swipe up for controls</span>
+                  </div>
                 </div>
               </div>
               
-              {/* Full Drawer Content */}
-              <div className={`
-                bg-background border-t border-border max-h-[calc(80vh-4rem)] overflow-hidden
-                transform transition-transform duration-300 ease-in-out
-                ${isDrawerOpen ? 'translate-y-0' : 'translate-y-full'}
-              `}>
-                <div className="h-[calc(80vh-7rem)] overflow-y-auto">
-                  <ControlBar 
-                    engineType={engineType} 
-                    onResult={handleRenderResult}
-                    onGenerationStart={handleGenerationStart}
-                    isMobile={true}
-                  />
+              {/* Full Drawer Content - Only visible when open */}
+              {isDrawerOpen && (
+                <div className="bg-background border-t border-border max-h-[calc(80vh-4rem)] overflow-hidden">
+                  <div className="h-[calc(80vh-7rem)] overflow-y-auto">
+                    <ControlBar 
+                      engineType={engineType} 
+                      onResult={handleRenderResult}
+                      onGenerationStart={handleGenerationStart}
+                      isMobile={true}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </>
         ) : (

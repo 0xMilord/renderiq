@@ -226,9 +226,9 @@ export function ControlBar({ engineType, onResult, onGenerationStart, isMobile =
 
   return (
     <div className={cn(
-      "bg-background border-r border-border flex flex-col transition-all duration-300 z-30",
-      isCollapsed ? "w-16" : "w-full lg:w-1/3 min-w-[280px] max-w-[400px]",
-      "h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)]"
+      "bg-background flex flex-col transition-all duration-300 z-30",
+      isMobile ? "w-full" : isCollapsed ? "w-16 border-r border-border" : "w-full lg:w-1/3 min-w-[280px] max-w-[400px] border-r border-border",
+      isMobile ? "h-full" : "h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)]"
     )}>
       {/* Header */}
       <div className="p-3 border-b border-border flex items-center justify-between flex-shrink-0">
@@ -281,7 +281,20 @@ export function ControlBar({ engineType, onResult, onGenerationStart, isMobile =
             </div>
           )}
         </div>
-        {!isMobile && (
+        {isMobile ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              // This will be handled by the parent component
+              const event = new CustomEvent('closeMobileDrawer');
+              window.dispatchEvent(event);
+            }}
+            className="p-1 h-6 w-6"
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        ) : (
           <Button
             variant="ghost"
             size="sm"
@@ -296,16 +309,18 @@ export function ControlBar({ engineType, onResult, onGenerationStart, isMobile =
       {!isCollapsed && (
         <div className="flex-1 flex flex-col min-h-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col h-full">
-            <TabsList className="grid w-full grid-cols-2 mx-3 mt-3 mb-2 flex-shrink-0 h-8">
-              <TabsTrigger value="image" className="flex items-center space-x-1 text-xs px-2">
-                <ImageIcon className="h-3 w-3" />
+            <div className="px-3 mt-3 mb-2 flex-shrink-0">
+              <TabsList className="grid w-full grid-cols-2 h-8">
+              <TabsTrigger value="image" className="flex items-center justify-center space-x-1 text-xs px-2 min-w-0">
+                <ImageIcon className="h-3 w-3 flex-shrink-0" />
                 <span className="truncate">Image</span>
               </TabsTrigger>
-              <TabsTrigger value="video" className="flex items-center space-x-1 text-xs px-2">
-                <Video className="h-3 w-3" />
+              <TabsTrigger value="video" className="flex items-center justify-center space-x-1 text-xs px-2 min-w-0">
+                <Video className="h-3 w-3 flex-shrink-0" />
                 <span className="truncate">Video</span>
               </TabsTrigger>
-            </TabsList>
+              </TabsList>
+            </div>
             
             <div className="flex-1 flex flex-col min-h-0">
               <TabsContent value="image" className="px-3 flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden data-[state=inactive]:!hidden">
@@ -319,7 +334,7 @@ export function ControlBar({ engineType, onResult, onGenerationStart, isMobile =
                   <div
                     {...getRootProps()}
                     className={cn(
-                      'border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors',
+                      'border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors aspect-video flex items-center justify-center',
                       isDragActive
                         ? 'border-primary bg-primary/10'
                         : 'border-border hover:border-muted-foreground'
@@ -382,10 +397,10 @@ export function ControlBar({ engineType, onResult, onGenerationStart, isMobile =
                       variant={imageType === type.value ? "default" : "outline"}
                       size="sm"
                       onClick={() => setImageType(type.value)}
-                      className="h-auto p-2 flex flex-col items-center space-y-1"
+                      className="h-auto p-1 flex flex-col items-center space-y-1 min-w-0"
                     >
-                      <span className="text-lg">{type.icon}</span>
-                      <span className="text-xs">{type.label}</span>
+                      <span className="text-sm">{type.icon}</span>
+                      <span className="text-xs truncate">{type.label}</span>
                     </Button>
                   ))}
                 </div>
@@ -418,17 +433,17 @@ export function ControlBar({ engineType, onResult, onGenerationStart, isMobile =
               {/* Styles */}
               <div className="space-y-3">
                 <Label className="text-sm font-medium">Styles</Label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-1">
                   {styles.map((style) => (
                     <Button
                       key={style.value}
                       variant={selectedStyle === style.value ? "default" : "outline"}
                       size="sm"
                       onClick={() => setSelectedStyle(style.value)}
-                      className="h-auto p-2 flex flex-col items-center space-y-1"
+                      className="h-auto p-1 flex flex-col items-center space-y-1 min-w-0"
                     >
-                      <span className="text-lg">{style.icon}</span>
-                      <span className="text-xs">{style.label}</span>
+                      <span className="text-sm">{style.icon}</span>
+                      <span className="text-xs truncate">{style.label}</span>
                     </Button>
                   ))}
                 </div>
@@ -437,19 +452,19 @@ export function ControlBar({ engineType, onResult, onGenerationStart, isMobile =
                {/* Render Mode */}
                <div className="space-y-2">
                  <Label className="text-sm font-medium">Render Mode</Label>
-                 <div className="grid grid-cols-2 gap-2">
+                 <div className="grid grid-cols-2 gap-1">
                    {renderModes.map((mode) => (
                      <Button
                        key={mode.value}
                        variant={renderMode === mode.value ? "default" : "outline"}
                        size="sm"
                        onClick={() => setRenderMode(mode.value)}
-                       className="h-auto p-2 flex flex-col items-center space-y-1"
+                       className="h-auto p-1 flex flex-col items-center space-y-1 min-w-0"
                      >
-                       <mode.icon className="h-4 w-4" />
-                       <div className="text-center">
-                         <div className="font-medium text-xs">{mode.label}</div>
-                         <div className="text-xs opacity-70 leading-tight">{mode.description}</div>
+                       <mode.icon className="h-3 w-3 flex-shrink-0" />
+                       <div className="text-center min-w-0">
+                         <div className="font-medium text-xs truncate">{mode.label}</div>
+                         <div className="text-xs opacity-70 leading-tight truncate">{mode.description}</div>
                        </div>
                      </Button>
                    ))}
@@ -459,19 +474,19 @@ export function ControlBar({ engineType, onResult, onGenerationStart, isMobile =
                {/* Render Speed */}
                <div className="space-y-2">
                  <Label className="text-sm font-medium">Render Speed</Label>
-                 <div className="grid grid-cols-2 gap-2">
+                 <div className="grid grid-cols-2 gap-1">
                    {renderSpeeds.map((speed) => (
                      <Button
                        key={speed.value}
                        variant={renderSpeed === speed.value ? "default" : "outline"}
                        size="sm"
                        onClick={() => setRenderSpeed(speed.value)}
-                       className="h-auto p-2 flex flex-col items-center space-y-1"
+                       className="h-auto p-1 flex flex-col items-center space-y-1 min-w-0"
                      >
-                       <speed.icon className="h-4 w-4" />
-                       <div className="text-center">
-                         <div className="font-medium text-xs">{speed.label}</div>
-                         <div className="text-xs opacity-70 leading-tight">{speed.description}</div>
+                       <speed.icon className="h-3 w-3 flex-shrink-0" />
+                       <div className="text-center min-w-0">
+                         <div className="font-medium text-xs truncate">{speed.label}</div>
+                         <div className="text-xs opacity-70 leading-tight truncate">{speed.description}</div>
                        </div>
                      </Button>
                    ))}
@@ -481,19 +496,19 @@ export function ControlBar({ engineType, onResult, onGenerationStart, isMobile =
               {/* Aspect Ratio */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Aspect Ratio</Label>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-4 gap-1">
                   {aspectRatios.map((ratio) => (
                     <Button
                       key={ratio.value}
                       variant={aspectRatio === ratio.value ? "default" : "outline"}
                       size="sm"
                       onClick={() => setAspectRatio(ratio.value)}
-                      className="h-auto p-2 flex flex-col items-center space-y-1"
+                      className="h-auto p-1 flex flex-col items-center space-y-1 min-w-0"
                     >
-                      <ratio.icon className="h-4 w-4" />
-                      <div className="text-center">
-                        <div className="font-medium text-xs">{ratio.label}</div>
-                        <div className="text-xs opacity-70">{ratio.description}</div>
+                      <ratio.icon className="h-3 w-3 flex-shrink-0" />
+                      <div className="text-center min-w-0">
+                        <div className="font-medium text-xs truncate">{ratio.label}</div>
+                        <div className="text-xs opacity-70 truncate">{ratio.description}</div>
                       </div>
                     </Button>
                   ))}

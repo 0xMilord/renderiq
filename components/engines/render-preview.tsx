@@ -169,7 +169,7 @@ export function RenderPreview({ result, isGenerating, progress = 0, engineType, 
   const description = getEngineDescription();
 
   return (
-    <div className="flex-1 bg-background flex flex-col min-w-0 overflow-hidden w-full lg:w-2/3 h-[calc(100vh-4rem)] pb-16 md:pb-0">
+    <div className="flex-1 bg-background flex flex-col min-w-0 overflow-hidden w-full lg:w-2/3 h-[calc(100vh-4rem)] pb-[7rem] md:pb-0">
       {/* Main Content */}
       <div className="flex-1 p-6 min-h-0 overflow-y-auto">
         <Card className="h-full">
