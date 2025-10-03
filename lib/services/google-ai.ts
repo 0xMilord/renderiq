@@ -5,13 +5,17 @@ export interface GoogleAIImageRequest {
   style: string;
   quality: 'standard' | 'high' | 'ultra';
   aspectRatio: string;
-  uploadedImage?: File;
+  uploadedImageData?: string;
+  uploadedImageType?: string;
+  negativePrompt?: string;
+  imageType?: string;
 }
 
 export interface GoogleAIImageResponse {
   success: boolean;
   data?: {
-    url: string;
+    imageUrl: string;
+    imageData: string;
     id: string;
     prompt: string;
     style: string;
@@ -67,14 +71,15 @@ export class GoogleAIService {
       prompt: request.prompt, 
       style: request.style, 
       aspectRatio: request.aspectRatio,
-      quality: request.quality
+      quality: request.quality,
+      hasUploadedImage: !!request.uploadedImageData
     });
     
     try {
       const startTime = Date.now();
       
       // Enhanced prompt for architectural visualization
-      const enhancedPrompt = this.buildImagePrompt(request.prompt, request.style);
+      const enhancedPrompt = this.buildImagePrompt(request.prompt, request.style, request.negativePrompt, request.imageType);
       
       console.log('🎨 GoogleAI: Enhanced prompt created', { enhancedPrompt });
       
@@ -88,8 +93,31 @@ export class GoogleAIService {
       
       console.log('🎨 GoogleAI: Generating with aspect ratio', { aspectRatioConfig });
       
+      // Prepare content for Gemini API
+      let content;
+      
+      if (request.uploadedImageData && request.uploadedImageType) {
+        console.log('🎨 GoogleAI: Using uploaded image data for multimodal generation');
+        
+        // Create multimodal content with image and text
+        content = [
+          {
+            text: enhancedPrompt
+          },
+          {
+            inlineData: {
+              mimeType: request.uploadedImageType,
+              data: request.uploadedImageData
+            }
+          }
+        ];
+      } else {
+        // Text-only generation
+        content = enhancedPrompt;
+      }
+      
       // Use the correct configuration format for Gemini 2.5 Flash Image
-      const result = await model.generateContent(enhancedPrompt);
+      const result = await model.generateContent(content);
       
       console.log('🎨 GoogleAI: Received response from Gemini');
       const response = await result.response;
@@ -229,7 +257,8 @@ export class GoogleAIService {
     }
   }
 
-  private buildImagePrompt(userPrompt: string, style: string): string {
+
+  private buildImagePrompt(userPrompt: string, style: string, negativePrompt?: string, imageType?: string): string {
     const basePrompt = `Create a photorealistic architectural image of: ${userPrompt}`;
 
     const styleModifiers = {
@@ -251,7 +280,32 @@ export class GoogleAIService {
 
     const styleModifier = styleModifiers[style as keyof typeof styleModifiers] || styleModifiers.realistic;
 
-    return `${basePrompt}, ${styleModifier}. Professional architectural visualization, high quality, detailed, realistic lighting and materials, suitable for architectural presentation.`;
+    // Add image type modifier
+    let imageTypeModifier = '';
+    if (imageType) {
+      const imageTypeModifiers = {
+        '3d-mass': 'as a 3D massing model with clean geometric forms',
+        'photo': 'as a realistic photograph with natural lighting',
+        'drawing': 'as an architectural drawing with technical precision',
+        'wireframe': 'as a wireframe model showing structural elements',
+        'construction': 'as a construction documentation image',
+      };
+      imageTypeModifier = imageTypeModifiers[imageType as keyof typeof imageTypeModifiers] || '';
+    }
+
+    // Build the final prompt
+    let finalPrompt = `${basePrompt}, ${styleModifier}`;
+    if (imageTypeModifier) {
+      finalPrompt += `, ${imageTypeModifier}`;
+    }
+    finalPrompt += '. Professional architectural visualization, high quality, detailed, realistic lighting and materials, suitable for architectural presentation.';
+
+    // Add negative prompt if provided
+    if (negativePrompt && negativePrompt.trim()) {
+      finalPrompt += ` Avoid: ${negativePrompt.trim()}.`;
+    }
+
+    return finalPrompt;
   }
 
   private buildVideoPrompt(userPrompt: string, style: string, duration: number): string {

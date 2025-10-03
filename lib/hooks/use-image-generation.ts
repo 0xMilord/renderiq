@@ -3,6 +3,21 @@
 import { useState } from 'react';
 import { ImageGenerationResult } from '@/lib/services/image-generation';
 
+// Helper function to convert File to base64
+function convertFileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Remove the data URL prefix (e.g., "data:image/png;base64,")
+      const base64 = result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export function useImageGeneration() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<ImageGenerationResult | null>(null);
@@ -17,6 +32,8 @@ export function useImageGeneration() {
     duration?: number;
     uploadedImage?: File;
     projectId?: string;
+    negativePrompt?: string;
+    imageType?: string;
   }) => {
     try {
       console.log('🚀 Starting image generation via API');
@@ -36,11 +53,22 @@ export function useImageGeneration() {
       }
       
       if (params.uploadedImage) {
-        formData.append('uploadedImage', params.uploadedImage);
+        // Convert image to base64 on client side
+        const base64Image = await convertFileToBase64(params.uploadedImage);
+        formData.append('uploadedImageData', base64Image);
+        formData.append('uploadedImageType', params.uploadedImage.type);
       }
 
       if (params.projectId) {
         formData.append('projectId', params.projectId);
+      }
+      
+      if (params.negativePrompt) {
+        formData.append('negativePrompt', params.negativePrompt);
+      }
+      
+      if (params.imageType) {
+        formData.append('imageType', params.imageType);
       }
 
       console.log('📤 Sending request to API:', { 

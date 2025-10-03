@@ -17,26 +17,32 @@ export function EngineLayout({ children, engineType }: EngineLayoutProps) {
 
   const handleRenderResult = (result: unknown) => {
     console.log('🎉 EngineLayout: Render result received:', result);
+    console.log('🎉 EngineLayout: Result type:', typeof result);
+    console.log('🎉 EngineLayout: Result has imageUrl:', !!(result as any)?.imageUrl);
+    console.log('🎉 EngineLayout: Result imageUrl value:', (result as any)?.imageUrl);
     setRenderResult(result);
+    setProgress(100); // Complete the progress
     setIsGenerating(false);
-    console.log('✅ EngineLayout: State updated - isGenerating: false, result set');
+    console.log('✅ EngineLayout: State updated - isGenerating: false, progress: 100%, result set');
   };
 
   const handleGenerationStart = () => {
     console.log('🚀 EngineLayout: Generation started');
     setIsGenerating(true);
     setProgress(0);
+    setRenderResult(null); // Clear previous result
     console.log('📊 EngineLayout: Starting progress simulation');
     
     // Simulate progress updates
     const interval = setInterval(() => {
       setProgress(prev => {
-        if (prev >= 90) {
-          console.log('⏸️ EngineLayout: Progress simulation paused at 90%');
+        if (prev >= 95) {
+          console.log('⏸️ EngineLayout: Progress simulation paused at 95%');
           clearInterval(interval);
-          return prev;
+          return 95; // Cap at 95%
         }
-        const newProgress = prev + Math.random() * 10;
+        const increment = Math.random() * 5; // Smaller increments
+        const newProgress = Math.min(prev + increment, 95); // Cap at 95%
         console.log(`📈 EngineLayout: Progress update: ${newProgress.toFixed(1)}%`);
         return newProgress;
       });

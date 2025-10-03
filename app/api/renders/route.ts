@@ -27,10 +27,13 @@ export async function POST(request: NextRequest) {
     const quality = formData.get('quality') as 'standard' | 'high' | 'ultra';
     const aspectRatio = formData.get('aspectRatio') as string;
     const type = formData.get('type') as 'image' | 'video';
-    const uploadedImage = formData.get('uploadedImage') as File | null;
+    const uploadedImageData = formData.get('uploadedImageData') as string | null;
+    const uploadedImageType = formData.get('uploadedImageType') as string | null;
     const projectId = formData.get('projectId') as string;
+    const negativePrompt = formData.get('negativePrompt') as string | null;
+    const imageType = formData.get('imageType') as string | null;
 
-    console.log('📝 Render parameters:', { prompt, style, quality, aspectRatio, type, hasImage: !!uploadedImage, projectId });
+    console.log('📝 Render parameters:', { prompt, style, quality, aspectRatio, type, hasImage: !!uploadedImageData, projectId });
 
     if (!prompt || !style || !quality || !aspectRatio || !type) {
       console.log('❌ Missing required parameters');
@@ -68,6 +71,8 @@ export async function POST(request: NextRequest) {
         style,
         quality,
         aspectRatio,
+        negativePrompt: negativePrompt || undefined,
+        imageType: imageType || undefined,
       },
       status: 'pending',
     });
@@ -86,7 +91,10 @@ export async function POST(request: NextRequest) {
         quality,
         aspectRatio,
         type,
-        uploadedImage: uploadedImage || undefined,
+        uploadedImageData: uploadedImageData || undefined,
+        uploadedImageType: uploadedImageType || undefined,
+        negativePrompt: negativePrompt || undefined,
+        imageType: imageType || undefined,
       });
 
       if (!result.success || !result.data) {
@@ -103,6 +111,7 @@ export async function POST(request: NextRequest) {
       let uploadResult;
       if (result.data.imageData) {
         // Use base64 data directly
+        console.log('📤 Uploading base64 image data to storage');
         const buffer = Buffer.from(result.data.imageData, 'base64');
         uploadResult = await StorageService.uploadFile(
           buffer,
@@ -112,6 +121,7 @@ export async function POST(request: NextRequest) {
         );
       } else if (result.data.imageUrl) {
         // Fallback to URL fetch (for video or other cases)
+        console.log('📤 Fetching image from URL for storage');
         const response = await fetch(result.data.imageUrl);
         const blob = await response.blob();
         const outputFile = new File([blob], `render_${render.id}.${type === 'video' ? 'mp4' : 'png'}`);
@@ -121,13 +131,18 @@ export async function POST(request: NextRequest) {
           user.id
         );
       } else {
+        console.error('❌ No image data available:', { 
+          hasImageData: !!result.data.imageData, 
+          hasImageUrl: !!result.data.imageUrl,
+          dataKeys: Object.keys(result.data)
+        });
         throw new Error('No image data or URL received from generation service');
       }
 
       console.log('✅ File uploaded to storage:', uploadResult.url);
 
       // Update render with output URL
-      await RendersDAL.updateOutput(render.id, uploadResult.url, uploadResult.key, 'completed', result.data.processingTime);
+      await RendersDAL.updateOutput(render.id, uploadResult.url, uploadResult.key, 'completed', Math.round(result.data.processingTime));
 
       console.log('🎉 Render completed successfully');
 

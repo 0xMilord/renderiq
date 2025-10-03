@@ -43,6 +43,8 @@ export function RenderPreview({ result, isGenerating, progress = 0, engineType }
   useEffect(() => {
     if (result) {
       console.log('👁️ RenderPreview: New result received, incrementing views:', result);
+      console.log('👁️ RenderPreview: Result has imageUrl:', !!result.imageUrl);
+      console.log('👁️ RenderPreview: Result imageUrl value:', result.imageUrl);
       setViews(prev => prev + 1);
     }
   }, [result]);
@@ -174,9 +176,9 @@ export function RenderPreview({ result, isGenerating, progress = 0, engineType }
                   <div className="w-64 space-y-2">
                     <div className="flex justify-between text-sm text-muted-foreground">
                       <span>Progress</span>
-                      <span>{Math.round(progress)}%</span>
+                      <span>{Math.round(Math.min(progress, 100))}%</span>
                     </div>
-                    <Progress value={progress} className="h-2" />
+                    <Progress value={Math.min(progress, 100)} className="h-2" />
                   </div>
                 </div>
               </div>
@@ -192,12 +194,15 @@ export function RenderPreview({ result, isGenerating, progress = 0, engineType }
                       poster={result.thumbnail}
                     />
                   ) : (
-                    <Image
-                      src={result.imageUrl}
-                      alt={`Generated ${engineType} render`}
-                      fill
-                      className="object-cover"
-                    />
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Image
+                        src={result.imageUrl}
+                        alt={`Generated ${engineType} render`}
+                        width={800}
+                        height={450}
+                        className="max-w-full max-h-full object-contain rounded-lg"
+                      />
+                    </div>
                   )}
                 </div>
 

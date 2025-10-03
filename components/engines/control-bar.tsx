@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -80,6 +80,7 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
   
   // State
   const [activeTab, setActiveTab] = useState('image');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [prompt, setPrompt] = useState('');
   const [negativePrompt, setNegativePrompt] = useState('');
@@ -90,6 +91,27 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
   const [imageType, setImageType] = useState('3d-mass');
   const [duration, setDuration] = useState(5);
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Watch for result changes and pass to parent
+  useEffect(() => {
+    if (result && onResult) {
+      console.log('🔄 ControlBar: Result changed, passing to parent:', result);
+      console.log('🔄 ControlBar: Result has imageUrl:', !!result.imageUrl);
+      console.log('🔄 ControlBar: Result imageUrl value:', result.imageUrl);
+      onResult(result);
+    }
+  }, [result, onResult]);
+
+  // Create preview URL for uploaded file
+  useEffect(() => {
+    if (uploadedFile) {
+      const url = URL.createObjectURL(uploadedFile);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setPreviewUrl(null);
+    }
+  }, [uploadedFile]);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -115,7 +137,11 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
   });
 
   const removeFile = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
     setUploadedFile(null);
+    setPreviewUrl(null);
   };
 
   const getCreditsCost = () => {
@@ -168,16 +194,11 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
       type: activeTab as 'image' | 'video',
       duration: activeTab === 'video' ? duration : undefined,
       uploadedImage: uploadedFile || undefined,
+      negativePrompt: negativePrompt || undefined,
+      imageType: imageType || undefined,
     });
 
     console.log('📥 ControlBar: Generate result received:', result);
-
-    if (result && onResult) {
-      console.log('📤 ControlBar: Passing result to parent component');
-      onResult(result);
-    } else {
-      console.log('⚠️ ControlBar: No result or onResult callback');
-    }
 
     console.log('🔄 ControlBar: Refreshing credits');
     refreshCredits();
@@ -245,17 +266,38 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <div className="flex items-center space-x-2 p-2 border border-border rounded-lg">
-                      <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                    {/* Image Preview */}
+                    <div className="relative aspect-video bg-muted rounded-lg overflow-hidden border border-border">
+                      {previewUrl ? (
+                        <img
+                          src={previewUrl}
+                          alt="Uploaded preview"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                      )}
+                      <Button 
+                        variant="destructive" 
+                        size="sm" 
+                        className="absolute top-2 right-2 h-6 w-6 p-0"
+                        onClick={removeFile}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    
+                    {/* File Info */}
+                    <div className="flex items-center space-x-2 p-2 border border-border rounded-lg bg-muted/50">
+                      <ImageIcon className="h-4 w-4 text-muted-foreground" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{uploadedFile.name}</p>
+                        <p className="text-xs font-medium truncate">{uploadedFile.name}</p>
                         <p className="text-xs text-muted-foreground">
                           {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
                         </p>
                       </div>
-                      <Button variant="ghost" size="sm" onClick={removeFile}>
-                        <X className="h-4 w-4" />
-                      </Button>
                     </div>
                   </div>
                 )}

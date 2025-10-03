@@ -35,7 +35,10 @@ export class ImageGenerationService {
     quality: 'standard' | 'high' | 'ultra';
     aspectRatio: string;
     type: 'image' | 'video';
-    uploadedImage?: File;
+    uploadedImageData?: string;
+    uploadedImageType?: string;
+    negativePrompt?: string;
+    imageType?: string;
   }): Promise<{ success: boolean; data?: ImageGenerationResult; error?: string }> {
     console.log('🎨 ImageGenService: Starting image generation', {
       prompt: params.prompt,
@@ -43,7 +46,7 @@ export class ImageGenerationService {
       quality: params.quality,
       aspectRatio: params.aspectRatio,
       type: params.type,
-      hasUploadedImage: !!params.uploadedImage
+      hasUploadedImage: !!params.uploadedImageData
     });
 
     try {
@@ -54,7 +57,10 @@ export class ImageGenerationService {
         style: params.style,
         quality: params.quality,
         aspectRatio: params.aspectRatio,
-        uploadedImage: params.uploadedImage,
+        uploadedImageData: params.uploadedImageData,
+        uploadedImageType: params.uploadedImageType,
+        negativePrompt: params.negativePrompt,
+        imageType: params.imageType,
       });
 
       if (!result.success || !result.data) {
@@ -71,7 +77,8 @@ export class ImageGenerationService {
       });
 
       const imageResult: ImageGenerationResult = {
-        imageUrl: result.data.url,
+        imageUrl: result.data.imageUrl,
+        imageData: result.data.imageData,
         prompt: result.data.prompt,
         style: result.data.style,
         quality: result.data.quality,
