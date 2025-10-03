@@ -85,7 +85,7 @@ export async function addCredits(
         userId: user.id, 
         amount, 
         type,
-        newBalance: result.newBalance 
+        newBalance: 'newBalance' in result ? result.newBalance : 'unknown' 
       });
       revalidatePath('/billing');
       revalidatePath('/profile');
@@ -151,7 +151,7 @@ export async function deductCredits(
       console.log('✅ BillingAction: Credits deducted successfully', { 
         userId: user.id, 
         amount, 
-        newBalance: result.newBalance 
+        newBalance: 'newBalance' in result ? result.newBalance : 'unknown'
       });
       revalidatePath('/billing');
       revalidatePath('/profile');
@@ -176,7 +176,7 @@ export async function deductCredits(
   }
 }
 
-export async function getCreditTransactions(page = 1, limit = 20) {
+export async function getCreditTransactions() {
   try {
     const supabase = await createClient();
     const { data: { user }, error } = await supabase.auth.getUser();

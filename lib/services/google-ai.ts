@@ -89,12 +89,7 @@ export class GoogleAIService {
       console.log('🎨 GoogleAI: Generating with aspect ratio', { aspectRatioConfig });
       
       // Use the correct configuration format for Gemini 2.5 Flash Image
-      const result = await model.generateContent(enhancedPrompt, {
-        responseModalities: ['Image'],
-        imageConfig: {
-          aspectRatio: aspectRatioConfig,
-        },
-      });
+      const result = await model.generateContent(enhancedPrompt);
       
       console.log('🎨 GoogleAI: Received response from Gemini');
       const response = await result.response;
@@ -121,12 +116,9 @@ export class GoogleAIService {
         throw new Error('No image data received from Gemini');
       }
 
-      console.log('🎨 GoogleAI: Image data received, creating blob URL');
+      console.log('🎨 GoogleAI: Image data received, preparing for storage');
       
-      // Convert base64 to blob URL for display
-      const imageBlob = new Blob([Buffer.from(imageData, 'base64')], { type: 'image/png' });
-      const imageUrl = URL.createObjectURL(imageBlob);
-
+      // Return base64 data for server-side processing
       const processingTime = (Date.now() - startTime) / 1000;
       console.log('✅ GoogleAI: Image generation completed successfully', { 
         id: `gemini_${Date.now()}`,
@@ -137,7 +129,8 @@ export class GoogleAIService {
       return {
         success: true,
         data: {
-          url: imageUrl,
+          imageData: imageData, // base64 string
+          imageUrl: `data:image/png;base64,${imageData}`, // data URL for immediate display
           id: `gemini_${Date.now()}`,
           prompt: request.prompt,
           style: request.style,

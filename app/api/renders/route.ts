@@ -100,12 +100,29 @@ export async function POST(request: NextRequest) {
       console.log('✅ Generation successful, uploading to storage');
 
       // Upload generated image/video to storage
-      const outputFile = new File([await fetch(result.data.imageUrl).then(r => r.blob())], `render_${render.id}.${type === 'video' ? 'mp4' : 'png'}`);
-      const uploadResult = await StorageService.uploadFile(
-        outputFile,
-        'renders',
-        user.id
-      );
+      let uploadResult;
+      if (result.data.imageData) {
+        // Use base64 data directly
+        const buffer = Buffer.from(result.data.imageData, 'base64');
+        uploadResult = await StorageService.uploadFile(
+          buffer,
+          'renders',
+          user.id,
+          `render_${render.id}.png`
+        );
+      } else if (result.data.imageUrl) {
+        // Fallback to URL fetch (for video or other cases)
+        const response = await fetch(result.data.imageUrl);
+        const blob = await response.blob();
+        const outputFile = new File([blob], `render_${render.id}.${type === 'video' ? 'mp4' : 'png'}`);
+        uploadResult = await StorageService.uploadFile(
+          outputFile,
+          'renders',
+          user.id
+        );
+      } else {
+        throw new Error('No image data or URL received from generation service');
+      }
 
       console.log('✅ File uploaded to storage:', uploadResult.url);
 

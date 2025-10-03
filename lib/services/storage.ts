@@ -8,20 +8,83 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 export class StorageService {
   static async uploadFile(
-    file: File,
+    file: File | Buffer,
     bucket: string,
-    folder?: string
+    folder?: string,
+    fileName?: string
   ): Promise<{ url: string; key: string }> {
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${nanoid()}.${fileExt}`;
-      const filePath = folder ? `${folder}/${fileName}` : fileName;
+      let finalFileName: string;
+      let fileBuffer: Buffer;
+
+      if (file instanceof File) {
+        const fileExt = file.name.split('.').pop();
+        finalFileName = fileName || `${nanoid()}.${fileExt}`;
+        fileBuffer = Buffer.from(await file.arrayBuffer());
+      } else {
+        finalFileName = fileName || `${nanoid()}.png`;
+        fileBuffer = file;
+      }
+
+      const filePath = folder ? `${folder}/${finalFileName}` : finalFileName;
 
       const { data, error } = await supabase.storage
         .from(bucket)
-        .upload(filePath, file, {
+        .upload(filePath, fileBuffer, {
           cacheControl: '3600',
           upsert: false,
+          contentType: file instanceof File ? file.type : 'image/png',
+        });
+
+      if (error) {
+        throw new Error(`Upload failed: ${error.message}`);
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(filePath);
+
+      return {
+        url: publicUrl,
+        key: data.path,
+      };
+    } catch (error) {
+      throw new Error(`Storage upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  static async uploadFromUrl(
+    imageUrl: string,
+    bucket: string,
+    folder?: string,
+    fileName?: string
+  ): Promise<{ url: string; key: string }> {
+    try {
+      // Handle blob URLs by converting to buffer
+      let buffer: Buffer;
+      
+      if (imageUrl.startsWith('blob:')) {
+        // For blob URLs, we need to handle this differently
+        // This should not happen in server-side code
+        throw new Error('Blob URLs cannot be processed on server side');
+      } else {
+        // Fetch from regular URL
+        const response = await fetch(imageUrl);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch image: ${response.statusText}`);
+        }
+        buffer = Buffer.from(await response.arrayBuffer());
+      }
+
+      const finalFileName = fileName || `${nanoid()}.png`;
+      const filePath = folder ? `${folder}/${finalFileName}` : finalFileName;
+
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .upload(filePath, buffer, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: 'image/png',
         });
 
       if (error) {

@@ -2,7 +2,8 @@ import { z } from 'zod';
 import { GoogleAIService } from './google-ai';
 
 const ImageGenerationResult = z.object({
-  imageUrl: z.string().url(),
+  imageUrl: z.string().optional(),
+  imageData: z.string().optional(),
   prompt: z.string(),
   style: z.string(),
   quality: z.string(),
