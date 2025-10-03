@@ -1,6 +1,9 @@
 import { ImageGenerationService } from './image-generation';
 import { StorageService } from './storage';
 import { ProjectsDAL, RendersDAL } from '@/lib/dal/projects';
+import { db } from '@/lib/db';
+import { renderVersions } from '@/lib/db/schema';
+import { eq, desc } from 'drizzle-orm';
 import type { CreateRenderData } from '@/lib/types';
 
 export class RenderService {
@@ -206,6 +209,24 @@ export class RenderService {
           undefined,
           processingTime
         );
+        
+        // Create render version - we'll need to get the file storage ID
+        // For now, we'll create a placeholder version
+        try {
+          await this.createRenderVersion(renderId, {
+            prompt: renderData.prompt,
+            settings: renderData.settings,
+            outputFileId: '', // This would need to be the actual file storage ID
+            changes: {
+              type: 'initial_generation',
+              timestamp: new Date().toISOString()
+            }
+          });
+        } catch (versionError) {
+          console.warn('⚠️ Failed to create render version:', versionError);
+          // Don't fail the entire operation for version creation
+        }
+        
         console.log('🎉 [processRender] Render completed successfully');
       } else {
         console.error('❌ [processRender] Generation failed:', result.error);
@@ -266,6 +287,62 @@ export class RenderService {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to get renders',
+      };
+    }
+  }
+
+  async createRenderVersion(renderId: string, versionData: {
+    prompt: string;
+    settings: Record<string, any>;
+    outputFileId: string;
+    changes: Record<string, any>;
+  }) {
+    try {
+      // Get the current version number
+      const existingVersions = await db
+        .select()
+        .from(renderVersions)
+        .where(eq(renderVersions.renderId, renderId))
+        .orderBy(desc(renderVersions.version));
+
+      const nextVersion = existingVersions.length > 0 ? existingVersions[0].version + 1 : 1;
+
+      const [version] = await db
+        .insert(renderVersions)
+        .values({
+          renderId,
+          version: nextVersion,
+          prompt: versionData.prompt,
+          settings: versionData.settings,
+          outputFileId: versionData.outputFileId,
+          changes: versionData.changes,
+        })
+        .returning();
+
+      console.log('✅ Render version created:', version.id);
+      return { success: true, data: version };
+    } catch (error) {
+      console.error('❌ Failed to create render version:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to create render version',
+      };
+    }
+  }
+
+  async getRenderVersions(renderId: string) {
+    try {
+      const versions = await db
+        .select()
+        .from(renderVersions)
+        .where(eq(renderVersions.renderId, renderId))
+        .orderBy(desc(renderVersions.version));
+
+      return { success: true, data: versions };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get render versions',
       };
     }
   }

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { EngineSidebar } from './engine-sidebar';
 import { ControlBar } from './engines/control-bar';
 import { RenderPreview } from './engines/render-preview';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface EngineLayoutProps {
   children: React.ReactNode;
@@ -14,6 +15,8 @@ export function EngineLayout({ children, engineType }: EngineLayoutProps) {
   const [renderResult, setRenderResult] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   const handleRenderResult = (result: unknown) => {
     console.log('🎉 EngineLayout: Render result received:', result);
@@ -49,19 +52,117 @@ export function EngineLayout({ children, engineType }: EngineLayoutProps) {
     }, 1000);
   };
 
+  // Handle swipe gestures for mobile drawer
+  useEffect(() => {
+    if (!isMobile) return;
+
+    let startY = 0;
+    let currentY = 0;
+    let isDragging = false;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      startY = e.touches[0].clientY;
+      isDragging = true;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDragging) return;
+      currentY = e.touches[0].clientY;
+      const deltaY = currentY - startY;
+      
+      // Prevent default scrolling when swiping up/down
+      if (Math.abs(deltaY) > 10) {
+        e.preventDefault();
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      
+      const deltaY = currentY - startY;
+      const threshold = 50;
+      
+      if (Math.abs(deltaY) > threshold) {
+        if (deltaY > 0) {
+          // Swipe down - close drawer
+          setIsDrawerOpen(false);
+        } else {
+          // Swipe up - open drawer
+          setIsDrawerOpen(true);
+        }
+      }
+    };
+
+    document.addEventListener('touchstart', handleTouchStart, { passive: false });
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd);
+
+    return () => {
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isMobile]);
+
   return (
     <div className="relative bg-background w-full h-screen overflow-hidden">
       {/* Slim Sidebar - Fixed position */}
       <EngineSidebar />
       
       {/* Main Content Area - Starts right after collapsed sidebar */}
-      <div className="flex ml-16 flex-col lg:flex-row" style={{ height: 'calc(100vh - 4rem)', width: 'calc(100% - 4rem)' }}>
-        {/* Control Bar - 1/3 width on desktop, full width on mobile */}
-        <ControlBar 
-          engineType={engineType} 
-          onResult={handleRenderResult}
-          onGenerationStart={handleGenerationStart}
-        />
+      <div className="flex ml-0 lg:ml-16 flex-col lg:flex-row h-[calc(100vh-4rem)] w-full lg:w-[calc(100%-4rem)]">
+        {/* Control Bar - Desktop: 1/3 width, Mobile: Swipeable drawer */}
+        {isMobile ? (
+          <>
+            {/* Mobile Drawer Overlay */}
+            {isDrawerOpen && (
+              <div 
+                className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+                onClick={() => setIsDrawerOpen(false)}
+              />
+            )}
+            
+            {/* Mobile Drawer Handle - Always visible 10% above bottom nav */}
+            <div className="fixed bottom-16 left-0 right-0 z-50 lg:hidden">
+              {/* Drawer Handle */}
+              <div 
+                className="bg-background border-t border-border rounded-t-lg cursor-pointer shadow-lg"
+                onClick={() => setIsDrawerOpen(true)}
+              >
+                <div className="flex items-center justify-center p-3">
+                  <div className="w-12 h-1 bg-muted-foreground rounded-full" />
+                </div>
+                <div className="text-center pb-2">
+                  <span className="text-xs text-muted-foreground">Swipe up for controls</span>
+                </div>
+              </div>
+              
+              {/* Full Drawer Content */}
+              <div className={`
+                bg-background border-t border-border max-h-[calc(80vh-4rem)] overflow-hidden
+                transform transition-transform duration-300 ease-in-out
+                ${isDrawerOpen ? 'translate-y-0' : 'translate-y-full'}
+              `}>
+                <div className="h-[calc(80vh-7rem)] overflow-y-auto">
+                  <ControlBar 
+                    engineType={engineType} 
+                    onResult={handleRenderResult}
+                    onGenerationStart={handleGenerationStart}
+                    isMobile={true}
+                  />
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <ControlBar 
+            engineType={engineType} 
+            onResult={handleRenderResult}
+            onGenerationStart={handleGenerationStart}
+            isMobile={false}
+          />
+        )}
         
         {/* Render Preview - 2/3 width on desktop, full width on mobile */}
         <RenderPreview 
@@ -69,6 +170,8 @@ export function EngineLayout({ children, engineType }: EngineLayoutProps) {
           isGenerating={isGenerating}
           progress={progress}
           engineType={engineType}
+          isMobile={isMobile}
+          onOpenDrawer={() => setIsDrawerOpen(true)}
         />
       </div>
     </div>

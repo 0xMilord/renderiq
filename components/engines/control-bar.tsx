@@ -27,15 +27,19 @@ import {
   Square,
   Monitor,
   Tablet,
-  Camera
+  Camera,
+  Plus,
+  ChevronDown
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import { CreateProjectModal } from '@/components/projects/create-project-modal';
 
 interface ControlBarProps {
   engineType: 'exterior' | 'interior' | 'furniture' | 'site-plan';
   onResult?: (result: unknown) => void;
   onGenerationStart?: () => void;
+  isMobile?: boolean;
 }
 
 const styles = [
@@ -75,7 +79,7 @@ const imageTypes = [
   { value: 'construction', label: 'Construction', icon: '🚧' },
 ];
 
-export function ControlBar({ engineType, onResult, onGenerationStart }: ControlBarProps) {
+export function ControlBar({ engineType, onResult, onGenerationStart, isMobile = false }: ControlBarProps) {
   const { credits, refreshCredits } = useCredits();
   const { generate, reset, isGenerating, result, error } = useImageGeneration();
   const { projects, loading: projectsLoading } = useProjects();
@@ -95,6 +99,7 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [isPublic, setIsPublic] = useState(true);
+  const [showCreateProjectModal, setShowCreateProjectModal] = useState(false);
 
   // Watch for result changes and pass to parent
   useEffect(() => {
@@ -227,17 +232,65 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
     )}>
       {/* Header */}
       <div className="p-3 border-b border-border flex items-center justify-between flex-shrink-0">
-        <h2 className="font-semibold text-foreground capitalize text-sm">
-          {isCollapsed ? engineType.charAt(0).toUpperCase() : `${engineType} AI`}
-        </h2>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-1 h-6 w-6"
-        >
-          <ChevronUp className={cn("h-3 w-3 transition-transform", isCollapsed && "rotate-180")} />
-        </Button>
+        <div className="flex items-center space-x-2 flex-1 min-w-0">
+          <h2 className="font-semibold text-foreground capitalize text-sm">
+            {isCollapsed ? engineType.charAt(0).toUpperCase() : `${engineType} AI`}
+          </h2>
+          {!isCollapsed && (
+            <div className="flex items-center space-x-2">
+              <Select value={selectedProjectId} onValueChange={(value) => {
+                if (value === 'create') {
+                  setShowCreateProjectModal(true);
+                } else {
+                  setSelectedProjectId(value);
+                }
+              }}>
+                <SelectTrigger className="w-32 h-6 text-xs">
+                  <SelectValue placeholder="Project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projectsLoading ? (
+                    <SelectItem value="loading" disabled>Loading...</SelectItem>
+                  ) : projects.length > 0 ? (
+                    projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="no-projects" disabled>No projects</SelectItem>
+                  )}
+                  <SelectItem value="create" className="text-primary">
+                    <div className="flex items-center space-x-1">
+                      <Plus className="h-3 w-3" />
+                      <span>Create Project</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {/* Public Toggle */}
+              <div className="flex items-center space-x-1">
+                <Switch
+                  checked={isPublic}
+                  onCheckedChange={setIsPublic}
+                  className="scale-75"
+                />
+                <span className="text-xs text-muted-foreground">Public</span>
+              </div>
+            </div>
+          )}
+        </div>
+        {!isMobile && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="p-1 h-6 w-6"
+          >
+            <ChevronUp className={cn("h-3 w-3 transition-transform", isCollapsed && "rotate-180")} />
+          </Button>
+        )}
       </div>
 
       {!isCollapsed && (
@@ -258,47 +311,6 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
               <TabsContent value="image" className="px-3 flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden data-[state=inactive]:!hidden">
               {/* Scrollable Content */}
               <div className="flex-1 overflow-y-auto space-y-3 pb-2">
-                {/* Project Selection */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Project *</Label>
-                  <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a project" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {projectsLoading ? (
-                        <SelectItem value="loading" disabled>Loading projects...</SelectItem>
-                      ) : projects.length > 0 ? (
-                        projects.map((project) => (
-                          <SelectItem key={project.id} value={project.id}>
-                            {project.name}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="no-projects" disabled>No projects found</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                  {!selectedProjectId && (
-                    <p className="text-xs text-muted-foreground">
-                      Please select a project to generate renders
-                    </p>
-                  )}
-                </div>
-
-                {/* Visibility Control */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium">Public Gallery</Label>
-                    <Switch
-                      checked={isPublic}
-                      onCheckedChange={setIsPublic}
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {isPublic ? 'Your render will be visible in the public gallery' : 'Your render will be private'}
-                  </p>
-                </div>
 
                 {/* Upload Section */}
                 <div className="space-y-2">
@@ -681,6 +693,11 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
           </Tabs>
         </div>
       )}
+
+      {/* Create Project Modal */}
+      <CreateProjectModal>
+        <div className="hidden" />
+      </CreateProjectModal>
     </div>
   );
 }

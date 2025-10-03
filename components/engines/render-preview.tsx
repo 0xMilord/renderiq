@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Download, 
   Share2, 
@@ -14,7 +15,11 @@ import {
   RefreshCw,
   Image as ImageIcon,
   Zap,
-  Clock
+  Clock,
+  Settings,
+  History,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -33,12 +38,17 @@ interface RenderPreviewProps {
   isGenerating: boolean;
   progress?: number;
   engineType: 'exterior' | 'interior' | 'furniture' | 'site-plan';
+  isMobile?: boolean;
+  onOpenDrawer?: () => void;
 }
 
-export function RenderPreview({ result, isGenerating, progress = 0, engineType }: RenderPreviewProps) {
+export function RenderPreview({ result, isGenerating, progress = 0, engineType, isMobile = false, onOpenDrawer }: RenderPreviewProps) {
   const [likes, setLikes] = useState(0);
   const [views, setViews] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
+  const [activeTab, setActiveTab] = useState('current');
+  const [versions, setVersions] = useState<any[]>([]);
+  const [currentVersionIndex, setCurrentVersionIndex] = useState(0);
 
   useEffect(() => {
     if (result) {
@@ -159,7 +169,7 @@ export function RenderPreview({ result, isGenerating, progress = 0, engineType }
   const description = getEngineDescription();
 
   return (
-    <div className="flex-1 bg-background flex flex-col min-w-0 overflow-hidden w-full lg:w-2/3" style={{ height: 'calc(100vh - 4rem)' }}>
+    <div className="flex-1 bg-background flex flex-col min-w-0 overflow-hidden w-full lg:w-2/3 h-[calc(100vh-4rem)] pb-16 md:pb-0">
       {/* Main Content */}
       <div className="flex-1 p-6 min-h-0 overflow-y-auto">
         <Card className="h-full">
@@ -184,24 +194,84 @@ export function RenderPreview({ result, isGenerating, progress = 0, engineType }
               </div>
             ) : result ? (
               <div className="h-full flex flex-col">
+                {/* Version Tabs */}
+                {versions.length > 0 && (
+                  <div className="border-b border-border">
+                    <Tabs value={activeTab} onValueChange={setActiveTab}>
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="current" className="flex items-center space-x-2">
+                          <ImageIcon className="h-4 w-4" />
+                          <span>Current</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="versions" className="flex items-center space-x-2">
+                          <History className="h-4 w-4" />
+                          <span>Versions ({versions.length})</span>
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  </div>
+                )}
+
                 {/* Image/Video Display */}
                 <div className="flex-1 bg-muted rounded-t-lg overflow-hidden">
-                  {result.type === 'video' ? (
-                    <video
-                      src={result.imageUrl}
-                      controls
-                      className="w-full h-full object-cover"
-                      poster={result.thumbnail}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Image
+                  {activeTab === 'current' ? (
+                    result.type === 'video' ? (
+                      <video
                         src={result.imageUrl}
-                        alt={`Generated ${engineType} render`}
-                        width={800}
-                        height={450}
-                        className="max-w-full max-h-full object-contain rounded-lg"
+                        controls
+                        className="w-full h-full object-cover"
+                        poster={result.thumbnail}
                       />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Image
+                          src={result.imageUrl}
+                          alt={`Generated ${engineType} render`}
+                          width={800}
+                          height={450}
+                          className="max-w-full max-h-full object-contain rounded-lg"
+                        />
+                      </div>
+                    )
+                  ) : (
+                    <div className="h-full flex flex-col">
+                      {/* Version Navigation */}
+                      {versions.length > 1 && (
+                        <div className="flex items-center justify-between p-2 border-b border-border bg-muted/50">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentVersionIndex(Math.max(0, currentVersionIndex - 1))}
+                            disabled={currentVersionIndex === 0}
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <span className="text-sm text-muted-foreground">
+                            Version {currentVersionIndex + 1} of {versions.length}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentVersionIndex(Math.min(versions.length - 1, currentVersionIndex + 1))}
+                            disabled={currentVersionIndex === versions.length - 1}
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                      
+                      {/* Version Image */}
+                      <div className="flex-1 flex items-center justify-center">
+                        {versions[currentVersionIndex] && (
+                          <Image
+                            src={versions[currentVersionIndex].imageUrl || '/placeholder-image.jpg'}
+                            alt={`Version ${currentVersionIndex + 1}`}
+                            width={800}
+                            height={450}
+                            className="max-w-full max-h-full object-contain rounded-lg"
+                          />
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
