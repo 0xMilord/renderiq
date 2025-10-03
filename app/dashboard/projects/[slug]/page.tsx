@@ -36,7 +36,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useRenders } from '@/lib/hooks/use-renders';
+import { ChainList } from '@/components/projects/chain-list';
 import type { Render, Project } from '@/lib/db/schema';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type ViewMode = 'default' | 'compact' | 'list';
 
@@ -52,7 +54,14 @@ export default function ProjectSlugPage() {
   const [filterStatus, setFilterStatus] = useState('all');
 
   // Use the renders hook with proper architecture
-  const { renders, loading: rendersLoading, error: rendersError } = useRenders(project?.id || null);
+  const { renders, chains, loading: rendersLoading, error: rendersError, fetchChains } = useRenders(project?.id || null);
+
+  // Fetch chains when project is loaded
+  useEffect(() => {
+    if (project?.id) {
+      fetchChains();
+    }
+  }, [project?.id, fetchChains]);
 
   useEffect(() => {
     console.log('🔍 [ProjectSlugPage] Finding project by slug:', slug);
@@ -203,8 +212,27 @@ export default function ProjectSlugPage() {
           </div>
         </div>
 
-        {/* Search and Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        {/* Tabs for Chains and Renders */}
+        <Tabs defaultValue="renders" className="w-full">
+          <TabsList className="mb-6">
+            <TabsTrigger value="renders">All Renders</TabsTrigger>
+            <TabsTrigger value="chains">Render Chains</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="chains">
+            <ChainList 
+              chains={chains.map(chain => ({
+                ...chain,
+                renderCount: renders.filter(r => r.chainId === chain.id).length,
+                renders: renders.filter(r => r.chainId === chain.id).slice(0, 5)
+              }))} 
+              projectId={project.id} 
+            />
+          </TabsContent>
+
+          <TabsContent value="renders">
+            {/* Search and Filters */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -291,6 +319,8 @@ export default function ProjectSlugPage() {
             )}
           </div>
         )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

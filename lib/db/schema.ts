@@ -1,6 +1,5 @@
 import { pgTable, text, timestamp, uuid, integer, boolean, jsonb, decimal, bigint } from 'drizzle-orm/pg-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
-import { z } from 'zod';
 
 // Users table with enhanced profile
 export const users = pgTable('users', {
@@ -133,7 +132,17 @@ export const projectVersions = pgTable('project_versions', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
-// Renders table with enhanced tracking
+// Render chains table for version control
+export const renderChains = pgTable('render_chains', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }).notNull(),
+  name: text('name').notNull(),
+  description: text('description'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Renders table with enhanced tracking and version control
 export const renders = pgTable('renders', {
   id: uuid('id').primaryKey().defaultRandom(),
   projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }),
@@ -157,6 +166,18 @@ export const renders = pgTable('renders', {
   estimatedCompletionAt: timestamp('estimated_completion_at'),
   startedAt: timestamp('started_at'),
   completedAt: timestamp('completed_at'),
+  // Version control fields
+  parentRenderId: uuid('parent_render_id').references((): any => renders.id),
+  chainId: uuid('chain_id').references(() => renderChains.id),
+  chainPosition: integer('chain_position'),
+  referenceRenderId: uuid('reference_render_id').references((): any => renders.id),
+  contextData: jsonb('context_data').$type<{
+    successfulElements?: string[];
+    previousPrompts?: string[];
+    userFeedback?: string;
+    chainEvolution?: string;
+  }>(),
+  thumbnailUrl: text('thumbnail_url'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -170,6 +191,9 @@ export const renderVersions = pgTable('render_versions', {
   settings: jsonb('settings').$type<Record<string, any>>(),
   outputFileId: uuid('output_file_id').references(() => fileStorage.id),
   changes: jsonb('changes').$type<Record<string, any>>(),
+  referenceRenderId: uuid('reference_render_id').references(() => renders.id),
+  contextPrompt: text('context_prompt'),
+  thumbnailUrl: text('thumbnail_url'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -284,6 +308,9 @@ export const selectProjectSchema = createSelectSchema(projects);
 export const insertProjectVersionSchema = createInsertSchema(projectVersions);
 export const selectProjectVersionSchema = createSelectSchema(projectVersions);
 
+export const insertRenderChainSchema = createInsertSchema(renderChains);
+export const selectRenderChainSchema = createSelectSchema(renderChains);
+
 export const insertRenderSchema = createInsertSchema(renders);
 export const selectRenderSchema = createSelectSchema(renders);
 
@@ -335,6 +362,9 @@ export type NewProject = typeof projects.$inferInsert;
 
 export type ProjectVersion = typeof projectVersions.$inferSelect;
 export type NewProjectVersion = typeof projectVersions.$inferInsert;
+
+export type RenderChain = typeof renderChains.$inferSelect;
+export type NewRenderChain = typeof renderChains.$inferInsert;
 
 export type Render = typeof renders.$inferSelect;
 export type NewRender = typeof renders.$inferInsert;

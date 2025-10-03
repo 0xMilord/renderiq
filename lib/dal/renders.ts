@@ -1,14 +1,23 @@
 import { db } from '@/lib/db';
-import { renders } from '@/lib/db/schema';
+import { renders, renderChains } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
+import { ContextData, CreateRenderWithChainData } from '@/lib/types/render-chain';
 
 export interface CreateRenderData {
   projectId?: string | null;
   userId: string;
   type: 'image' | 'video';
   prompt: string;
-  settings: Record<string, any>;
+  settings: {
+    style: string;
+    quality: 'standard' | 'high' | 'ultra';
+    aspectRatio: string;
+    duration?: number;
+  };
   status: 'pending' | 'processing' | 'completed' | 'failed';
+  chainId?: string;
+  chainPosition?: number;
+  referenceRenderId?: string;
 }
 
 export interface UpdateRenderData {
@@ -32,6 +41,9 @@ export class RendersDAL {
         prompt: data.prompt,
         settings: data.settings,
         status: data.status,
+        chainId: data.chainId,
+        chainPosition: data.chainPosition,
+        referenceRenderId: data.referenceRenderId,
       })
       .returning();
 
@@ -58,17 +70,13 @@ export class RendersDAL {
       ? and(eq(renders.userId, userId), eq(renders.projectId, projectId))
       : eq(renders.userId, userId);
 
-    let query = db
+    const query = db
       .select()
       .from(renders)
       .where(whereCondition)
       .orderBy(desc(renders.createdAt));
 
-    if (limit) {
-      query = query.limit(limit);
-    }
-
-    const userRenders = await query;
+    const userRenders = limit ? await query.limit(limit) : await query;
     console.log(`✅ Found ${userRenders.length} renders for user`);
     return userRenders;
   }
@@ -136,5 +144,111 @@ export class RendersDAL {
 
     console.log(`✅ Found ${rendersByStatus.length} renders with status: ${status}`);
     return rendersByStatus;
+  }
+
+  // Version control methods
+  static async getByChainId(chainId: string) {
+    console.log('🔍 Fetching renders by chain ID:', chainId);
+    
+    const chainRenders = await db
+      .select()
+      .from(renders)
+      .where(eq(renders.chainId, chainId))
+      .orderBy(desc(renders.chainPosition));
+
+    console.log(`✅ Found ${chainRenders.length} renders in chain`);
+    return chainRenders;
+  }
+
+  static async getWithContext(renderId: string) {
+    console.log('🔍 Fetching render with context:', renderId);
+    
+    const [render] = await db
+      .select()
+      .from(renders)
+      .where(eq(renders.id, renderId))
+      .limit(1);
+
+    if (!render) {
+      return null;
+    }
+
+    // Fetch related renders
+    const [parentRender] = render.parentRenderId 
+      ? await db.select().from(renders).where(eq(renders.id, render.parentRenderId)).limit(1)
+      : [null];
+
+    const [referenceRender] = render.referenceRenderId
+      ? await db.select().from(renders).where(eq(renders.id, render.referenceRenderId)).limit(1)
+      : [null];
+
+    const [chain] = render.chainId
+      ? await db.select().from(renderChains).where(eq(renderChains.id, render.chainId)).limit(1)
+      : [null];
+
+    return {
+      ...render,
+      parentRender,
+      referenceRender,
+      chain,
+    };
+  }
+
+  static async updateContext(renderId: string, context: ContextData) {
+    console.log('🔄 Updating render context:', { renderId, context });
+    
+    const [updatedRender] = await db
+      .update(renders)
+      .set({
+        contextData: context,
+        updatedAt: new Date(),
+      })
+      .where(eq(renders.id, renderId))
+      .returning();
+
+    console.log('✅ Render context updated:', updatedRender.id);
+    return updatedRender;
+  }
+
+  static async getReferenceRenders(projectId: string) {
+    console.log('🔍 Fetching reference renders for project:', projectId);
+    
+    const referenceRenders = await db
+      .select()
+      .from(renders)
+      .where(
+        and(
+          eq(renders.projectId, projectId),
+          eq(renders.status, 'completed')
+        )
+      )
+      .orderBy(desc(renders.createdAt));
+
+    console.log(`✅ Found ${referenceRenders.length} reference renders`);
+    return referenceRenders;
+  }
+
+  static async createWithChain(data: CreateRenderWithChainData) {
+    console.log('📝 Creating render with chain context:', data);
+    
+    const [render] = await db
+      .insert(renders)
+      .values({
+        projectId: data.projectId,
+        userId: data.userId,
+        type: data.type,
+        prompt: data.prompt,
+        settings: data.settings,
+        status: data.status,
+        chainId: data.chainId,
+        referenceRenderId: data.referenceRenderId,
+        parentRenderId: data.parentRenderId,
+        chainPosition: data.chainPosition,
+        contextData: data.contextData,
+      })
+      .returning();
+
+    console.log('✅ Render with chain created:', render.id);
+    return render;
   }
 }

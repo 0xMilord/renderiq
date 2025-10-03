@@ -216,4 +216,12 @@ export class RendersDAL {
     
     return { liked: true, likes: newLikes };
   }
+
+  static async getByChainId(chainId: string): Promise<Render[]> {
+    return db
+      .select()
+      .from(renders)
+      .where(eq(renders.chainId, chainId))
+      .orderBy(renders.chainPosition, desc(renders.createdAt));
+  }
 }

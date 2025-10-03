@@ -22,6 +22,8 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { RenderChainViz } from './render-chain-viz';
+import { Render } from '@/lib/db/schema';
 
 interface RenderResult {
   imageUrl: string;
@@ -40,9 +42,23 @@ interface RenderPreviewProps {
   engineType: 'exterior' | 'interior' | 'furniture' | 'site-plan';
   isMobile?: boolean;
   onOpenDrawer?: () => void;
+  // Chain visualization props
+  chainRenders?: Render[];
+  selectedRenderId?: string;
+  onSelectRender?: (renderId: string) => void;
 }
 
-export function RenderPreview({ result, isGenerating, progress = 0, engineType, isMobile = false, onOpenDrawer }: RenderPreviewProps) {
+export function RenderPreview({ 
+  result, 
+  isGenerating, 
+  progress = 0, 
+  engineType, 
+  isMobile = false, 
+  onOpenDrawer,
+  chainRenders = [],
+  selectedRenderId,
+  onSelectRender
+}: RenderPreviewProps) {
   const [likes, setLikes] = useState(0);
   const [views, setViews] = useState(0);
   const [isLiked, setIsLiked] = useState(false);

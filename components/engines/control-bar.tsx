@@ -13,6 +13,8 @@ import { Switch } from '@/components/ui/switch';
 import { useCredits } from '@/lib/hooks/use-credits';
 import { useImageGeneration } from '@/lib/hooks/use-image-generation';
 import { useProjects } from '@/lib/hooks/use-projects';
+import { useRenders } from '@/lib/hooks/use-renders';
+import { VersionSelector } from './version-selector';
 import { 
   Upload, 
   X, 
@@ -39,6 +41,7 @@ interface ControlBarProps {
   engineType: 'exterior' | 'interior' | 'furniture' | 'site-plan';
   onResult?: (result: unknown) => void;
   onGenerationStart?: () => void;
+  onProjectChange?: (projectId: string) => void;
   isMobile?: boolean;
 }
 
@@ -79,12 +82,8 @@ const imageTypes = [
   { value: 'construction', label: 'Construction', icon: '🚧' },
 ];
 
-export function ControlBar({ engineType, onResult, onGenerationStart, isMobile = false }: ControlBarProps) {
-  const { credits, refreshCredits } = useCredits();
-  const { generate, reset, isGenerating, result, error } = useImageGeneration();
-  const { projects, loading: projectsLoading } = useProjects();
-  
-  // State
+export function ControlBar({ engineType, chainId: initialChainId, onResult, onGenerationStart, onProjectChange, isMobile = false }: ControlBarProps) {
+  // State - must be declared before hooks that use them
   const [activeTab, setActiveTab] = useState('image');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -100,6 +99,30 @@ export function ControlBar({ engineType, onResult, onGenerationStart, isMobile =
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [isPublic, setIsPublic] = useState(true);
   const [showCreateProjectModal, setShowCreateProjectModal] = useState(false);
+  const [selectedVersionId, setSelectedVersionId] = useState<string>();
+  const [referenceRenderId, setReferenceRenderId] = useState<string>();
+  const [chainId, setChainId] = useState<string | undefined>(initialChainId);
+
+  // Set chainId from prop
+  useEffect(() => {
+    if (initialChainId) {
+      setChainId(initialChainId);
+      console.log('📍 Using chain from prop:', initialChainId);
+    }
+  }, [initialChainId]);
+
+  // Hooks - using state declared above
+  const { credits, refreshCredits } = useCredits();
+  const { generate, reset, isGenerating, result, error } = useImageGeneration();
+  const { projects, loading: projectsLoading } = useProjects();
+  const { renders } = useRenders(selectedProjectId);
+
+  // Notify parent when project changes
+  useEffect(() => {
+    if (selectedProjectId && onProjectChange) {
+      onProjectChange(selectedProjectId);
+    }
+  }, [selectedProjectId, onProjectChange]);
 
   // Watch for result changes and pass to parent
   useEffect(() => {
@@ -213,6 +236,8 @@ export function ControlBar({ engineType, onResult, onGenerationStart, isMobile =
       negativePrompt: negativePrompt || undefined,
       imageType: imageType || undefined,
       projectId: selectedProjectId,
+      chainId: chainId,
+      referenceRenderId: referenceRenderId,
       isPublic,
     });
 
@@ -231,12 +256,13 @@ export function ControlBar({ engineType, onResult, onGenerationStart, isMobile =
       isMobile ? "h-full" : "h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)]"
     )}>
       {/* Header */}
-      <div className="p-3 border-b border-border flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center space-x-2 flex-1 min-w-0">
-          <h2 className="font-semibold text-foreground capitalize text-sm">
-            {isCollapsed ? engineType.charAt(0).toUpperCase() : `${engineType} AI`}
-          </h2>
-          {!isCollapsed && (
+      <div className="p-3 border-b border-border flex flex-col gap-2 flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2 flex-1 min-w-0">
+            <h2 className="font-semibold text-foreground capitalize text-sm">
+              {isCollapsed ? engineType.charAt(0).toUpperCase() : `${engineType} AI`}
+            </h2>
+            {!isCollapsed && (
             <div className="flex items-center space-x-2">
               <Select value={selectedProjectId} onValueChange={(value) => {
                 if (value === 'create') {
@@ -280,7 +306,37 @@ export function ControlBar({ engineType, onResult, onGenerationStart, isMobile =
               </div>
             </div>
           )}
+          </div>
         </div>
+        
+        {/* Version Selector */}
+        {!isCollapsed && selectedProjectId && renders.length > 0 && (
+          <div className="px-3 pb-2">
+            <VersionSelector
+              renders={renders}
+              selectedVersionId={selectedVersionId}
+              onSelectVersion={(id) => setSelectedVersionId(id)}
+              onUseAsReference={async (id) => {
+                setReferenceRenderId(id);
+                // Load the referenced render's image as uploaded file
+                const referencedRender = renders.find(r => r.id === id);
+                if (referencedRender?.outputUrl) {
+                  try {
+                    // Fetch the image and convert to File
+                    const response = await fetch(referencedRender.outputUrl);
+                    const blob = await response.blob();
+                    const file = new File([blob], 'reference-image.jpg', { type: 'image/jpeg' });
+                    setUploadedFile(file);
+                    console.log('✅ ControlBar: Loaded reference image as uploaded file');
+                  } catch (error) {
+                    console.error('❌ ControlBar: Failed to load reference image:', error);
+                  }
+                }
+              }}
+            />
+          </div>
+        )}
+        
         {isMobile ? (
           <Button
             variant="ghost"

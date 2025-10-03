@@ -32,6 +32,8 @@ export function useImageGeneration() {
     duration?: number;
     uploadedImage?: File;
     projectId?: string;
+    chainId?: string;
+    referenceRenderId?: string;
     negativePrompt?: string;
     imageType?: string;
     isPublic?: boolean;
@@ -62,6 +64,14 @@ export function useImageGeneration() {
 
       if (params.projectId) {
         formData.append('projectId', params.projectId);
+      }
+
+      if (params.chainId) {
+        formData.append('chainId', params.chainId);
+      }
+
+      if (params.referenceRenderId) {
+        formData.append('referenceRenderId', params.referenceRenderId);
       }
       
       if (params.negativePrompt) {

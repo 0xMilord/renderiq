@@ -5,18 +5,25 @@ import { EngineSidebar } from './engine-sidebar';
 import { ControlBar } from './engines/control-bar';
 import { RenderPreview } from './engines/render-preview';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useRenders } from '@/lib/hooks/use-renders';
 
 interface EngineLayoutProps {
   children: React.ReactNode;
   engineType: 'exterior' | 'interior' | 'furniture' | 'site-plan';
+  chainId?: string;
 }
 
-export function EngineLayout({ children, engineType }: EngineLayoutProps) {
+export function EngineLayout({ children, engineType, chainId }: EngineLayoutProps) {
   const [renderResult, setRenderResult] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedRenderId, setSelectedRenderId] = useState<string | null>(null);
   const isMobile = useIsMobile();
+  
+  // Fetch renders for the selected project
+  const { renders } = useRenders(selectedProjectId);
 
   const handleRenderResult = (result: unknown) => {
     console.log('🎉 EngineLayout: Render result received:', result);
@@ -27,6 +34,31 @@ export function EngineLayout({ children, engineType }: EngineLayoutProps) {
     setProgress(100); // Complete the progress
     setIsGenerating(false);
     console.log('✅ EngineLayout: State updated - isGenerating: false, progress: 100%, result set');
+  };
+  
+  const handleSelectRender = (renderId: string) => {
+    console.log('🎯 EngineLayout: Render selected:', renderId);
+    setSelectedRenderId(renderId);
+    
+    // Find the selected render and set it as the result
+    const selectedRender = renders.find(r => r.id === renderId);
+    if (selectedRender && selectedRender.outputUrl) {
+      setRenderResult({
+        imageUrl: selectedRender.outputUrl,
+        type: selectedRender.type,
+        style: selectedRender.settings?.style,
+        quality: selectedRender.settings?.quality,
+        aspectRatio: selectedRender.settings?.aspectRatio,
+        processingTime: selectedRender.processingTime,
+      });
+    }
+  };
+  
+  const handleProjectChange = (projectId: string) => {
+    console.log('📁 EngineLayout: Project changed:', projectId);
+    setSelectedProjectId(projectId);
+    setSelectedRenderId(null);
+    setRenderResult(null);
   };
 
   const handleGenerationStart = () => {
@@ -152,6 +184,7 @@ export function EngineLayout({ children, engineType }: EngineLayoutProps) {
                       engineType={engineType} 
                       onResult={handleRenderResult}
                       onGenerationStart={handleGenerationStart}
+                      onProjectChange={handleProjectChange}
                       isMobile={true}
                     />
                   </div>
@@ -164,6 +197,7 @@ export function EngineLayout({ children, engineType }: EngineLayoutProps) {
             engineType={engineType} 
             onResult={handleRenderResult}
             onGenerationStart={handleGenerationStart}
+            onProjectChange={handleProjectChange}
             isMobile={false}
           />
         )}
@@ -176,6 +210,9 @@ export function EngineLayout({ children, engineType }: EngineLayoutProps) {
           engineType={engineType}
           isMobile={isMobile}
           onOpenDrawer={() => setIsDrawerOpen(true)}
+          chainRenders={renders}
+          selectedRenderId={selectedRenderId || undefined}
+          onSelectRender={handleSelectRender}
         />
       </div>
     </div>

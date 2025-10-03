@@ -1,6 +1,9 @@
 import { ImageGenerationService } from './image-generation';
 import { StorageService } from './storage';
-import { ProjectsDAL, RendersDAL } from '@/lib/dal/projects';
+import { ProjectsDAL } from '@/lib/dal/projects';
+import { RendersDAL as RendersDALNew } from '@/lib/dal/renders';
+import { RenderChainService } from './render-chain';
+import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { db } from '@/lib/db';
 import { renderVersions } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
@@ -64,7 +67,7 @@ export class RenderService {
     }
   }
 
-  async createRender(renderData: CreateRenderData) {
+  async createRender(renderData: CreateRenderData & { chainId?: string; referenceRenderId?: string }) {
     try {
       // Get project details
       const project = await ProjectsDAL.getById(renderData.projectId);
@@ -72,14 +75,53 @@ export class RenderService {
         return { success: false, error: 'Project not found' };
       }
 
-      // Create render record
-      const render = await RendersDAL.create({
+      // Get or create chain for this project
+      let chainId = renderData.chainId;
+      
+      if (!chainId) {
+        console.log('🔗 [createRender] No chain specified, finding or creating default chain');
+        
+        // Check if project already has a default chain
+        const existingChains = await RenderChainsDAL.getByProjectId(renderData.projectId);
+        
+        if (existingChains.length > 0) {
+          // Use the most recent chain
+          chainId = existingChains[0].id;
+          console.log('✅ [createRender] Using existing chain:', chainId);
+        } else {
+          // Create a new default chain
+          const chainName = `${project.name} - Iterations`;
+          const newChain = await RenderChainsDAL.create({
+            projectId: renderData.projectId,
+            name: chainName,
+            description: 'Automatic chain for render iterations',
+          });
+          chainId = newChain.id;
+          console.log('✅ [createRender] Created new chain:', chainId);
+        }
+      }
+
+      // Get chain position
+      const chainRenders = await RendersDALNew.getByChainId(chainId);
+      const chainPosition = chainRenders.length;
+
+      // Create render record with chain info
+      const render = await RendersDALNew.create({
         projectId: renderData.projectId,
         userId: project.userId,
         type: renderData.type,
         prompt: renderData.prompt,
         settings: renderData.settings,
         status: 'pending',
+        chainId: chainId,
+        chainPosition: chainPosition,
+        referenceRenderId: renderData.referenceRenderId,
+      });
+
+      console.log('✅ [createRender] Render created with chain:', { 
+        renderId: render.id, 
+        chainId,
+        chainPosition 
       });
 
       // Start background processing
@@ -103,7 +145,7 @@ export class RenderService {
       console.log('🎨 [processRender] Starting render processing:', { renderId, type: renderData.type });
       
       // Update status to processing
-      await RendersDAL.updateStatus(renderId, 'processing');
+      await RendersDALNew.updateStatus(renderId, 'processing');
 
       const startTime = Date.now();
 
@@ -201,7 +243,7 @@ export class RenderService {
         }
 
         console.log('✅ [processRender] Upload successful, updating render status...');
-        await RendersDAL.updateStatus(
+        await RendersDALNew.updateStatus(
           renderId,
           'completed',
           fileUrl,
@@ -230,7 +272,7 @@ export class RenderService {
         console.log('🎉 [processRender] Render completed successfully');
       } else {
         console.error('❌ [processRender] Generation failed:', result.error);
-        await RendersDAL.updateStatus(
+        await RendersDALNew.updateStatus(
           renderId,
           'failed',
           undefined,
@@ -241,7 +283,7 @@ export class RenderService {
       }
     } catch (error) {
       console.error('❌ [processRender] Processing failed:', error);
-      await RendersDAL.updateStatus(
+      await RendersDALNew.updateStatus(
         renderId,
         'failed',
         undefined,
@@ -265,7 +307,7 @@ export class RenderService {
 
   async getRenderStatus(renderId: string) {
     try {
-      const render = await RendersDAL.getById(renderId);
+      const render = await RendersDALNew.getById(renderId);
       if (!render) {
         return { success: false, error: 'Render not found' };
       }
@@ -281,7 +323,7 @@ export class RenderService {
 
   async getProjectRenders(projectId: string) {
     try {
-      const renders = await RendersDAL.getByProjectId(projectId);
+      const renders = await RendersDALNew.getByProjectId(projectId);
       return { success: true, data: renders };
     } catch (error) {
       return {
@@ -293,9 +335,9 @@ export class RenderService {
 
   async createRenderVersion(renderId: string, versionData: {
     prompt: string;
-    settings: Record<string, any>;
+    settings: Record<string, unknown>;
     outputFileId: string;
-    changes: Record<string, any>;
+    changes: Record<string, unknown>;
   }) {
     try {
       // Get the current version number

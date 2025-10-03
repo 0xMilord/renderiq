@@ -6,6 +6,8 @@ import { z } from 'zod';
 import { RenderService } from '@/lib/services/render';
 import { ProjectsDAL } from '@/lib/dal/projects';
 import { RendersDAL } from '@/lib/dal/projects';
+import { RenderChainsDAL } from '@/lib/dal/render-chains';
+import { RenderChainService } from '@/lib/services/render-chain';
 import { createClient } from '@/lib/supabase/server';
 import { uploadSchema, createRenderSchema } from '@/lib/types';
 import { db } from '@/lib/db';
@@ -345,6 +347,176 @@ export async function getRendersByProject(projectId: string) {
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get renders',
+    };
+  }
+}
+
+// ============================================================================
+// RENDER CHAIN MANAGEMENT ACTIONS
+// ============================================================================
+
+export async function createRenderChain(
+  projectId: string,
+  name: string,
+  description?: string
+) {
+  try {
+    const supabase = await createClient();
+    if (!supabase) {
+      return { success: false, error: 'Failed to initialize database connection' };
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    // Verify project ownership
+    const project = await ProjectsDAL.getById(projectId);
+    if (!project || project.userId !== user.id) {
+      return { success: false, error: 'Access denied' };
+    }
+
+    const chain = await RenderChainService.createChain(projectId, name, description);
+    revalidatePath(`/engine`);
+    return { success: true, data: chain };
+  } catch (error) {
+    console.error('Error in createRenderChain:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to create render chain',
+    };
+  }
+}
+
+export async function getProjectChains(projectId: string) {
+  try {
+    const supabase = await createClient();
+    if (!supabase) {
+      return { success: false, error: 'Failed to initialize database connection' };
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    // Verify project ownership
+    const project = await ProjectsDAL.getById(projectId);
+    if (!project || project.userId !== user.id) {
+      return { success: false, error: 'Access denied' };
+    }
+
+    const chains = await RenderChainService.getProjectChains(projectId);
+    return { success: true, data: chains };
+  } catch (error) {
+    console.error('Error in getProjectChains:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get render chains',
+    };
+  }
+}
+
+export async function addRenderToChain(
+  chainId: string,
+  renderId: string,
+  position?: number
+) {
+  try {
+    const supabase = await createClient();
+    if (!supabase) {
+      return { success: false, error: 'Failed to initialize database connection' };
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    // Verify render ownership
+    const render = await RendersDAL.getById(renderId);
+    if (!render || render.userId !== user.id) {
+      return { success: false, error: 'Access denied' };
+    }
+
+    await RenderChainService.addRenderToChain(chainId, renderId, position);
+    revalidatePath(`/engine`);
+    return { success: true };
+  } catch (error) {
+    console.error('Error in addRenderToChain:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to add render to chain',
+    };
+  }
+}
+
+export async function selectRenderVersion(renderId: string, asReference: boolean) {
+  try {
+    const supabase = await createClient();
+    if (!supabase) {
+      return { success: false, error: 'Failed to initialize database connection' };
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    // Verify render ownership
+    const render = await RendersDAL.getById(renderId);
+    if (!render || render.userId !== user.id) {
+      return { success: false, error: 'Access denied' };
+    }
+
+    // Return the render with context
+    const renderWithContext = await RendersDAL.getWithContext(renderId);
+    return { success: true, data: renderWithContext };
+  } catch (error) {
+    console.error('Error in selectRenderVersion:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to select render version',
+    };
+  }
+}
+
+export async function getRenderChain(chainId: string) {
+  try {
+    const supabase = await createClient();
+    if (!supabase) {
+      return { success: false, error: 'Failed to initialize database connection' };
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    const chain = await RenderChainService.getChain(chainId);
+    
+    if (!chain) {
+      return { success: false, error: 'Chain not found' };
+    }
+
+    // Verify project ownership
+    const project = await ProjectsDAL.getById(chain.projectId);
+    if (!project || project.userId !== user.id) {
+      return { success: false, error: 'Access denied' };
+    }
+
+    return { success: true, data: chain };
+  } catch (error) {
+    console.error('Error in getRenderChain:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get render chain',
     };
   }
 }

@@ -1,4 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { Render } from '@/lib/db/schema';
+import { ChainContext } from '@/lib/types/render-chain';
+import { ContextPromptService } from './context-prompt';
 
 export interface GoogleAIImageRequest {
   prompt: string;
@@ -9,6 +12,9 @@ export interface GoogleAIImageRequest {
   uploadedImageType?: string;
   negativePrompt?: string;
   imageType?: string;
+  // Context awareness fields
+  referenceRender?: Render;
+  chainContext?: ChainContext;
 }
 
 export interface GoogleAIImageResponse {
@@ -78,10 +84,21 @@ export class GoogleAIService {
     try {
       const startTime = Date.now();
       
-      // Enhanced prompt for architectural visualization
-      const enhancedPrompt = this.buildImagePrompt(request.prompt, request.style, request.negativePrompt, request.imageType);
+      // Build context-aware prompt
+      const enhancedPrompt = await this.buildContextAwareImagePrompt(
+        request.prompt,
+        request.style,
+        request.negativePrompt,
+        request.imageType,
+        request.referenceRender,
+        request.chainContext
+      );
       
-      console.log('🎨 GoogleAI: Enhanced prompt created', { enhancedPrompt });
+      console.log('🎨 GoogleAI: Context-aware prompt created', { 
+        enhancedPrompt,
+        hasReferenceRender: !!request.referenceRender,
+        hasChainContext: !!request.chainContext
+      });
       
       // Use Gemini 2.5 Flash Image for image generation
       const model = this.genAI.getGenerativeModel({ 
@@ -257,6 +274,35 @@ export class GoogleAIService {
     }
   }
 
+
+  /**
+   * Build context-aware image prompt with reference and chain context
+   */
+  private async buildContextAwareImagePrompt(
+    userPrompt: string,
+    style: string,
+    negativePrompt?: string,
+    imageType?: string,
+    referenceRender?: Render,
+    chainContext?: ChainContext
+  ): Promise<string> {
+    // Use ContextPromptService to build enhanced prompt
+    const contextPrompt = await ContextPromptService.buildContextAwarePrompt(
+      userPrompt,
+      referenceRender,
+      chainContext,
+      style,
+      imageType
+    );
+
+    // Build the architectural prompt with context
+    return this.buildImagePrompt(
+      contextPrompt.enhancedPrompt,
+      style,
+      negativePrompt,
+      imageType
+    );
+  }
 
   private buildImagePrompt(userPrompt: string, style: string, negativePrompt?: string, imageType?: string): string {
     const basePrompt = `Create a photorealistic architectural image of: ${userPrompt}`;

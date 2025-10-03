@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { ImageGenerationService } from '@/lib/services/image-generation';
 import { addCredits, deductCredits } from '@/lib/actions/billing.actions';
 import { RendersDAL, ProjectsDAL } from '@/lib/dal/projects';
+import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { StorageService } from '@/lib/services/storage';
 
 const imageService = ImageGenerationService.getInstance();
@@ -30,11 +31,24 @@ export async function POST(request: NextRequest) {
     const uploadedImageData = formData.get('uploadedImageData') as string | null;
     const uploadedImageType = formData.get('uploadedImageType') as string | null;
     const projectId = formData.get('projectId') as string;
+    const chainId = formData.get('chainId') as string | null;
+    const referenceRenderId = formData.get('referenceRenderId') as string | null;
     const negativePrompt = formData.get('negativePrompt') as string | null;
     const imageType = formData.get('imageType') as string | null;
     const isPublic = formData.get('isPublic') === 'true';
 
-    console.log('📝 Render parameters:', { prompt, style, quality, aspectRatio, type, hasImage: !!uploadedImageData, projectId, isPublic });
+    console.log('📝 Render parameters:', { 
+      prompt, 
+      style, 
+      quality, 
+      aspectRatio, 
+      type, 
+      hasImage: !!uploadedImageData, 
+      projectId, 
+      chainId,
+      referenceRenderId,
+      isPublic 
+    });
 
     if (!prompt || !style || !quality || !aspectRatio || !type || !projectId) {
       console.log('❌ Missing required parameters');
@@ -68,6 +82,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Project not found or access denied' }, { status: 403 });
     }
 
+    // Get or create chain for this project
+    let finalChainId = chainId;
+    
+    if (!finalChainId) {
+      console.log('🔗 No chain specified, finding or creating default chain');
+      
+      // Check if project already has a default chain
+      const existingChains = await RenderChainsDAL.getByProjectId(projectId);
+      
+      if (existingChains.length > 0) {
+        // Use the most recent chain
+        finalChainId = existingChains[0].id;
+        console.log('✅ Using existing chain:', finalChainId);
+      } else {
+        // Create a new default chain
+        const chainName = project ? `${project.name} - Iterations` : 'Default Chain';
+        const newChain = await RenderChainsDAL.create({
+          projectId,
+          name: chainName,
+          description: 'Automatic chain for render iterations',
+        });
+        finalChainId = newChain.id;
+        console.log('✅ Created new chain:', finalChainId);
+      }
+    } else {
+      console.log('🔗 Using chain from request:', finalChainId);
+    }
+
+    // Get chain position
+    const chainRenders = await RendersDAL.getByChainId(finalChainId);
+    const chainPosition = chainRenders.length;
+
+    console.log('📍 Chain position:', chainPosition);
+
     // Create render record in database
     console.log('💾 Creating render record in database');
     const render = await RendersDAL.create({
@@ -81,9 +129,12 @@ export async function POST(request: NextRequest) {
         aspectRatio,
       },
       status: 'pending',
+      chainId: finalChainId,
+      chainPosition,
+      referenceRenderId: referenceRenderId || undefined,
     });
 
-    console.log('✅ Render record created:', render.id);
+    console.log('✅ Render record created:', render.id, 'in chain:', finalChainId, 'at position:', chainPosition);
 
     // Update render status to processing
     await RendersDAL.updateStatus(render.id, 'processing');
