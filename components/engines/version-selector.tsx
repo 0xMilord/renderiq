@@ -31,8 +31,19 @@ export const VersionSelector: React.FC<VersionSelectorProps> = ({
 
   const completedRenders = renders.filter(r => r.status === 'completed' && r.outputUrl);
   
+  // Debug logging
+  console.log('🔍 VersionSelector: Debug info:', {
+    totalRenders: renders.length,
+    completedRenders: completedRenders.length,
+    renders: renders.map(r => ({ id: r.id, status: r.status, hasOutputUrl: !!r.outputUrl }))
+  });
+  
   if (completedRenders.length === 0) {
-    return null;
+    return (
+      <div className="text-xs text-muted-foreground p-2 bg-muted rounded">
+        No completed renders yet ({renders.length} total renders)
+      </div>
+    );
   }
 
   const selectedRender = completedRenders.find(r => r.id === selectedVersionId);

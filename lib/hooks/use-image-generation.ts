@@ -90,8 +90,12 @@ export function useImageGeneration() {
         prompt: params.prompt, 
         style: params.style, 
         type: params.type,
-        hasImage: !!params.uploadedImage 
+        hasImage: !!params.uploadedImage,
+        chainId: params.chainId,
+        referenceRenderId: params.referenceRenderId,
+        projectId: params.projectId
       });
+      console.log('🔍 Hook: Received chainId param:', params.chainId);
 
       const response = await fetch('/api/renders', {
         method: 'POST',

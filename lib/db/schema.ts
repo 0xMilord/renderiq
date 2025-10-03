@@ -154,6 +154,9 @@ export const renders = pgTable('renders', {
     quality: 'standard' | 'high' | 'ultra';
     aspectRatio: string;
     duration?: number; // for videos
+    imageType?: string;
+    negativePrompt?: string;
+    renderMode?: string;
   }>(),
   outputUrl: text('output_url'),
   outputKey: text('output_key'),

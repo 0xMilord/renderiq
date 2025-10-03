@@ -6,11 +6,8 @@ export default async function ExteriorAIChainPage({
   params: Promise<{ chainId: string }> 
 }) {
   const { chainId } = await params;
+  console.log('📄 ExteriorAIChainPage: Received chainId from params:', chainId);
   
-  return (
-    <EngineLayout engineType="exterior" chainId={chainId}>
-      <div />
-    </EngineLayout>
-  );
+  return <EngineLayout engineType="exterior" chainId={chainId} />;
 }
 

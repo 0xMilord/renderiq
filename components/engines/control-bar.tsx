@@ -13,76 +13,97 @@ import { Switch } from '@/components/ui/switch';
 import { useCredits } from '@/lib/hooks/use-credits';
 import { useImageGeneration } from '@/lib/hooks/use-image-generation';
 import { useProjects } from '@/lib/hooks/use-projects';
-import { useRenders } from '@/lib/hooks/use-renders';
-import { VersionSelector } from './version-selector';
+import { useRenderChain } from '@/lib/hooks/use-render-chain';
 import { 
   Upload, 
   X, 
   AlertCircle, 
   Image as ImageIcon, 
   Video, 
-  Target,
   Sparkles,
-  Zap,
-  Sun,
   ChevronUp,
-  Square,
-  Monitor,
-  Tablet,
-  Camera,
-  Plus,
-  ChevronDown
+  Plus
 } from 'lucide-react';
+import { 
+  FaBuilding, 
+  FaDesktop, 
+  FaMoon, 
+  FaSnowflake, 
+  FaCloudRain, 
+  FaPencilAlt, 
+  FaPalette, 
+  FaImage,
+  FaCubes,
+  FaCamera,
+  FaPencilRuler,
+  FaProjectDiagram,
+  FaHardHat,
+  FaSquare,
+  FaTv,
+  FaTabletAlt
+} from 'react-icons/fa';
+import { Slider } from '@/components/ui/slider';
+import { VersionSelector } from './version-selector';
+import { RenderChainViz } from './render-chain-viz';
+import { useEngineStore } from '@/lib/stores/engine-store';
+import { Render } from '@/lib/db/schema';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { CreateProjectModal } from '@/components/projects/create-project-modal';
 
+export interface AutoFillData {
+  prompt: string;
+  style: string;
+  quality: string;
+  aspectRatio: string;
+  renderMode?: string;
+  negativePrompt?: string;
+  imageType?: string;
+  imageUrl?: string;
+}
+
 interface ControlBarProps {
   engineType: 'exterior' | 'interior' | 'furniture' | 'site-plan';
+  chainId?: string;
+  iterateImageUrl?: string | null;
+  autoFillTrigger?: AutoFillData | null;
   onResult?: (result: unknown) => void;
   onGenerationStart?: () => void;
   onProjectChange?: (projectId: string) => void;
+  onVersionSelect?: (render: Render) => void;
   isMobile?: boolean;
 }
 
 const styles = [
-  { value: 'none', label: 'None', icon: '🚫' },
-  { value: 'realistic', label: 'Realistic', icon: '🏢' },
-  { value: 'cgi', label: 'CGI', icon: '💻' },
-  { value: 'night', label: 'Night', icon: '🌙' },
-  { value: 'snow', label: 'Snow', icon: '❄️' },
-  { value: 'rain', label: 'Rain', icon: '🌧️' },
-  { value: 'sketch', label: 'Sketch', icon: '✏️' },
-  { value: 'watercolor', label: 'Watercolor', icon: '🎨' },
-  { value: 'illustration', label: 'Illustration', icon: '🖼️' },
+  { value: 'none', label: 'None', icon: X, color: 'text-muted-foreground' },
+  { value: 'realistic', label: 'Realistic', icon: FaBuilding, color: 'text-primary' },
+  { value: 'cgi', label: 'CGI', icon: FaDesktop, color: 'text-primary' },
+  { value: 'night', label: 'Night', icon: FaMoon, color: 'text-primary' },
+  { value: 'snow', label: 'Snow', icon: FaSnowflake, color: 'text-primary' },
+  { value: 'rain', label: 'Rain', icon: FaCloudRain, color: 'text-primary' },
+  { value: 'sketch', label: 'Sketch', icon: FaPencilAlt, color: 'text-primary' },
+  { value: 'watercolor', label: 'Watercolor', icon: FaPalette, color: 'text-primary' },
+  { value: 'illustration', label: 'Illustration', icon: FaImage, color: 'text-primary' },
 ];
 
-const renderModes = [
-  { value: 'exact', label: 'Exact', icon: Target, description: 'Precise geometry' },
-  { value: 'creative', label: 'Creative', icon: Sparkles, description: 'Artistic style' },
-];
-
-const renderSpeeds = [
-  { value: 'fast', label: 'Fast', icon: Zap, description: 'Fast: Quicker, Lower quality.' },
-  { value: 'best', label: 'Best', icon: Sun, description: 'Best: Slower, Higher quality.' },
-];
 
 const aspectRatios = [
-  { value: '1:1', label: 'Square', icon: Square, description: '1:1' },
-  { value: '16:9', label: 'Wide', icon: Monitor, description: '16:9' },
-  { value: '4:3', label: 'Standard', icon: Tablet, description: '4:3' },
-  { value: '3:2', label: 'Photo', icon: Camera, description: '3:2' },
+  { value: '1:1', label: 'Square', icon: FaSquare, color: 'text-primary', description: '1:1' },
+  { value: '16:9', label: 'Wide', icon: FaTv, color: 'text-primary', description: '16:9' },
+  { value: '4:3', label: 'Standard', icon: FaTabletAlt, color: 'text-primary', description: '4:3' },
+  { value: '3:2', label: 'Photo', icon: FaCamera, color: 'text-primary', description: '3:2' },
 ];
 
 const imageTypes = [
-  { value: '3d-mass', label: '3D Mass', icon: '🏗️' },
-  { value: 'photo', label: 'Photo', icon: '📸' },
-  { value: 'drawing', label: 'Drawing', icon: '✏️' },
-  { value: 'wireframe', label: 'Wireframe', icon: '🔗' },
-  { value: 'construction', label: 'Construction', icon: '🚧' },
+  { value: '3d-mass', label: '3D Mass', icon: FaCubes, color: 'text-primary' },
+  { value: 'photo', label: 'Photo', icon: FaCamera, color: 'text-primary' },
+  { value: 'drawing', label: 'Drawing', icon: FaPencilRuler, color: 'text-primary' },
+  { value: 'wireframe', label: 'Wireframe', icon: FaProjectDiagram, color: 'text-primary' },
+  { value: 'construction', label: 'Build', icon: FaHardHat, color: 'text-primary' },
 ];
 
-export function ControlBar({ engineType, chainId: initialChainId, onResult, onGenerationStart, onProjectChange, isMobile = false }: ControlBarProps) {
+export function ControlBar({ engineType, chainId: initialChainId, iterateImageUrl, autoFillTrigger, onResult, onGenerationStart, onProjectChange, onVersionSelect, isMobile = false }: ControlBarProps) {
+  console.log('🎛️ ControlBar mounted with initialChainId:', initialChainId);
   // State - must be declared before hooks that use them
   const [activeTab, setActiveTab] = useState('image');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -98,24 +119,241 @@ export function ControlBar({ engineType, chainId: initialChainId, onResult, onGe
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [isPublic, setIsPublic] = useState(true);
-  const [showCreateProjectModal, setShowCreateProjectModal] = useState(false);
-  const [selectedVersionId, setSelectedVersionId] = useState<string>();
-  const [referenceRenderId, setReferenceRenderId] = useState<string>();
   const [chainId, setChainId] = useState<string | undefined>(initialChainId);
+  const [addToChain, setAddToChain] = useState(false);
+  
+  // Slider states for render mode and speed (0-100, 20% increments)
+  const [renderModeValue, setRenderModeValue] = useState([0]); // 0 = exact, 100 = creative
+  const [renderSpeedValue, setRenderSpeedValue] = useState([0]); // 0 = fast, 100 = best
+  
+  // Version selection states
+  const [selectedVersionId, setSelectedVersionId] = useState<string | undefined>();
+  const [referenceRenderId, setReferenceRenderId] = useState<string | undefined>();
 
-  // Set chainId from prop
+  // Set chainId from prop - sync with prop changes only
   useEffect(() => {
+    console.log('🔍 ControlBar chainId effect triggered:', { 
+      initialChainId, 
+      currentChainId: chainId
+    });
     if (initialChainId) {
       setChainId(initialChainId);
-      console.log('📍 Using chain from prop:', initialChainId);
+      console.log('📍 Updated chainId state to:', initialChainId);
+    } else {
+      console.log('⚠️ No initialChainId provided to ControlBar');
     }
-  }, [initialChainId]);
+  }, [initialChainId, chainId]); // Include chainId in dependencies
 
   // Hooks - using state declared above
   const { credits, refreshCredits } = useCredits();
   const { generate, reset, isGenerating, result, error } = useImageGeneration();
   const { projects, loading: projectsLoading } = useProjects();
-  const { renders } = useRenders(selectedProjectId);
+  const { chain, renders: chainRenders } = useRenderChain(chainId);
+  
+  // Engine store
+  const {
+    prompt: storePrompt,
+    style: storeStyle,
+    aspectRatio: storeAspectRatio,
+    negativePrompt: storeNegativePrompt,
+    imageType: storeImageType,
+    uploadedFile: storeUploadedFile,
+    setPrompt: setStorePrompt,
+    setStyle: setStoreStyle,
+    setQuality: setStoreQuality,
+    setAspectRatio: setStoreAspectRatio,
+    setNegativePrompt: setStoreNegativePrompt,
+    setImageType: setStoreImageType,
+    setUploadedFile: setStoreUploadedFile,
+    autoFill
+  } = useEngineStore();
+  
+  // Debug logging for version selector
+  console.log('🔍 ControlBar: Version selector debug:', {
+    chainId,
+    chainRenders: chainRenders?.length || 0,
+    hasChain: !!chain,
+    chainRendersData: chainRenders
+  });
+  
+  // Handle version selection with auto-fill
+  const handleVersionSelect = async (renderId: string) => {
+    console.log('🔄 ControlBar: Version selected from render chain:', renderId);
+    console.log('🔄 ControlBar: Available chain renders:', chainRenders?.map(r => ({ id: r.id, status: r.status, hasOutputUrl: !!r.outputUrl })));
+    setSelectedVersionId(renderId);
+    
+    const selectedRender = chainRenders?.find(r => r.id === renderId);
+    if (!selectedRender) {
+      console.error('❌ ControlBar: Selected render not found');
+      return;
+    }
+    
+    console.log('📋 ControlBar: Auto-filling form with render data:', selectedRender);
+    console.log('📋 ControlBar: Render settings:', selectedRender.settings);
+    console.log('📋 ControlBar: Current state before changes:', {
+      prompt,
+      selectedStyle,
+      renderSpeed,
+      aspectRatio,
+      imageType,
+      negativePrompt,
+      uploadedFile: !!uploadedFile
+    });
+    
+    // Auto-fill form fields
+    if (selectedRender.prompt) {
+      console.log('📝 ControlBar: Setting prompt:', selectedRender.prompt);
+      setPrompt(selectedRender.prompt);
+      setStorePrompt(selectedRender.prompt);
+    }
+    
+    if (selectedRender.settings?.style) {
+      console.log('🎨 ControlBar: Setting style:', selectedRender.settings.style);
+      setSelectedStyle(selectedRender.settings.style);
+      setStoreStyle(selectedRender.settings.style);
+    }
+    
+    if (selectedRender.settings?.quality) {
+      const quality = selectedRender.settings.quality;
+      const speed = quality === 'high' ? 'best' : 'fast';
+      console.log('⚡ ControlBar: Setting quality:', quality, '-> speed:', speed);
+      setRenderSpeed(speed);
+      setStoreQuality(quality);
+      // Update slider value based on quality
+      setRenderSpeedValue(quality === 'high' ? [100] : [0]);
+    }
+    
+    if (selectedRender.settings?.aspectRatio) {
+      console.log('📐 ControlBar: Setting aspect ratio:', selectedRender.settings.aspectRatio);
+      setAspectRatio(selectedRender.settings.aspectRatio);
+      setStoreAspectRatio(selectedRender.settings.aspectRatio);
+    }
+    
+    // Add image type handling
+    if (selectedRender.settings?.imageType) {
+      console.log('🖼️ ControlBar: Setting image type:', selectedRender.settings.imageType);
+      setImageType(selectedRender.settings.imageType);
+      setStoreImageType(selectedRender.settings.imageType);
+    }
+    
+    // Add negative prompt handling
+    if (selectedRender.settings?.negativePrompt) {
+      console.log('🚫 ControlBar: Setting negative prompt:', selectedRender.settings.negativePrompt);
+      setNegativePrompt(selectedRender.settings.negativePrompt);
+      setStoreNegativePrompt(selectedRender.settings.negativePrompt);
+    }
+    
+    // Load the image as uploaded file for preview
+    if (selectedRender.outputUrl) {
+      try {
+        console.log('🖼️ ControlBar: Loading version image:', selectedRender.outputUrl);
+        const response = await fetch(selectedRender.outputUrl);
+        const blob = await response.blob();
+        const file = new File([blob], `version-${selectedRender.id}.jpg`, { type: 'image/jpeg' });
+        setUploadedFile(file);
+        setStoreUploadedFile(file);
+        console.log('✅ ControlBar: Version image loaded as uploaded file');
+      } catch (error) {
+        console.error('❌ ControlBar: Failed to load version image:', error);
+      }
+    }
+    
+    // Auto-fill using engine store
+    const autoFillData: AutoFillData = {
+      prompt: selectedRender.prompt,
+      style: selectedRender.settings?.style || 'realistic',
+      quality: selectedRender.settings?.quality || 'standard',
+      aspectRatio: selectedRender.settings?.aspectRatio || '16:9',
+      renderMode: 'exact', // Default render mode
+      imageUrl: selectedRender.outputUrl,
+    };
+    
+    autoFill(autoFillData);
+    
+    // Notify parent component about version selection for main render area
+    if (onVersionSelect) {
+      console.log('📢 ControlBar: Notifying parent of version selection:', selectedRender);
+      console.log('📢 ControlBar: Calling onVersionSelect with render:', selectedRender);
+      onVersionSelect(selectedRender);
+      console.log('✅ ControlBar: onVersionSelect called successfully');
+    } else {
+      console.log('⚠️ ControlBar: onVersionSelect callback not provided');
+    }
+    
+    // Log final state after all changes
+    console.log('✅ ControlBar: Version selection complete. Final state:', {
+      prompt,
+      selectedStyle,
+      renderSpeed,
+      aspectRatio,
+      imageType,
+      negativePrompt,
+      uploadedFile: !!uploadedFile,
+      renderModeValue,
+      renderSpeedValue
+    });
+  };
+  
+  // Sync slider values with existing state
+  useEffect(() => {
+    setRenderMode(renderModeValue[0] === 0 ? 'exact' : 'creative');
+  }, [renderModeValue]);
+  
+  useEffect(() => {
+    setRenderSpeed(renderSpeedValue[0] === 0 ? 'fast' : 'best');
+  }, [renderSpeedValue]);
+  
+  // Sync local state with engine store
+  useEffect(() => {
+    if (storePrompt !== prompt) setPrompt(storePrompt);
+  }, [storePrompt, prompt]);
+  
+  useEffect(() => {
+    if (storeStyle !== selectedStyle) setSelectedStyle(storeStyle);
+  }, [storeStyle, selectedStyle]);
+  
+  useEffect(() => {
+    if (storeAspectRatio !== aspectRatio) setAspectRatio(storeAspectRatio);
+  }, [storeAspectRatio, aspectRatio]);
+  
+  useEffect(() => {
+    if (storeImageType !== imageType) setImageType(storeImageType);
+  }, [storeImageType, imageType]);
+  
+  useEffect(() => {
+    if (storeNegativePrompt !== negativePrompt) setNegativePrompt(storeNegativePrompt);
+  }, [storeNegativePrompt, negativePrompt]);
+  
+  useEffect(() => {
+    if (storeUploadedFile !== uploadedFile) setUploadedFile(storeUploadedFile);
+  }, [storeUploadedFile, uploadedFile]);
+
+  // Auto-select project when chain is loaded
+  useEffect(() => {
+    if (chain && chain.projectId && !selectedProjectId) {
+      console.log('🔗 ControlBar: Auto-selecting project from chain:', chain.projectId);
+      setSelectedProjectId(chain.projectId);
+    }
+  }, [chain, selectedProjectId]);
+
+  // Handle iterate image - convert URL to File
+  useEffect(() => {
+    if (iterateImageUrl) {
+      console.log('🔄 ControlBar: Iterate image URL received:', iterateImageUrl);
+      const loadIterateImage = async () => {
+        try {
+          const response = await fetch(iterateImageUrl);
+          const blob = await response.blob();
+          const file = new File([blob], 'iterate-image.jpg', { type: 'image/jpeg' });
+          setUploadedFile(file);
+          console.log('✅ ControlBar: Iterate image loaded as file');
+        } catch (error) {
+          console.error('❌ ControlBar: Failed to load iterate image:', error);
+        }
+      };
+      loadIterateImage();
+    }
+  }, [iterateImageUrl]);
 
   // Notify parent when project changes
   useEffect(() => {
@@ -144,6 +382,73 @@ export function ControlBar({ engineType, chainId: initialChainId, onResult, onGe
       setPreviewUrl(null);
     }
   }, [uploadedFile]);
+
+  // Auto-fill form when trigger changes
+  useEffect(() => {
+    if (autoFillTrigger) {
+      console.log('📋 ControlBar: Auto-filling form with data:', autoFillTrigger);
+      
+      // Fill prompt
+      if (autoFillTrigger.prompt) {
+        setPrompt(autoFillTrigger.prompt);
+        console.log('✏️ Set prompt:', autoFillTrigger.prompt);
+      }
+      
+      // Fill style
+      if (autoFillTrigger.style) {
+        setSelectedStyle(autoFillTrigger.style);
+        console.log('🎨 Set style:', autoFillTrigger.style);
+      }
+      
+      // Fill quality
+      if (autoFillTrigger.quality) {
+        setRenderSpeed(autoFillTrigger.quality === 'high' ? 'best' : 'fast');
+        console.log('⚡ Set quality:', autoFillTrigger.quality);
+      }
+      
+      // Fill aspect ratio
+      if (autoFillTrigger.aspectRatio) {
+        setAspectRatio(autoFillTrigger.aspectRatio);
+        console.log('📐 Set aspect ratio:', autoFillTrigger.aspectRatio);
+      }
+      
+      // Fill render mode
+      if (autoFillTrigger.renderMode) {
+        setRenderMode(autoFillTrigger.renderMode);
+        console.log('🎯 Set render mode:', autoFillTrigger.renderMode);
+      }
+      
+      // Fill negative prompt
+      if (autoFillTrigger.negativePrompt) {
+        setNegativePrompt(autoFillTrigger.negativePrompt);
+        console.log('🚫 Set negative prompt:', autoFillTrigger.negativePrompt);
+      }
+      
+      // Fill image type
+      if (autoFillTrigger.imageType) {
+        setImageType(autoFillTrigger.imageType);
+        console.log('🖼️ Set image type:', autoFillTrigger.imageType);
+      }
+      
+      // Load the image as uploaded file if available
+      if (autoFillTrigger.imageUrl) {
+        const loadImage = async () => {
+          try {
+            const response = await fetch(autoFillTrigger.imageUrl!);
+            const blob = await response.blob();
+            const file = new File([blob], 'version-image.jpg', { type: 'image/jpeg' });
+            setUploadedFile(file);
+            console.log('✅ ControlBar: Loaded version image as uploaded file');
+          } catch (error) {
+            console.error('❌ ControlBar: Failed to load version image:', error);
+          }
+        };
+        loadImage();
+      }
+      
+      console.log('✅ ControlBar: Form auto-filled successfully');
+    }
+  }, [autoFillTrigger]);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -225,6 +530,13 @@ export function ControlBar({ engineType, chainId: initialChainId, onResult, onGe
     }
     
     console.log('🚀 ControlBar: Calling generate function');
+    console.log('🚀 ControlBar: About to generate with chainId:', chainId);
+    console.log('🔍 ControlBar: Current state before generate:', {
+      chainId,
+      initialChainId,
+      selectedProjectId
+    });
+    
     const result = await generate({
       prompt,
       style: selectedStyle,
@@ -236,9 +548,9 @@ export function ControlBar({ engineType, chainId: initialChainId, onResult, onGe
       negativePrompt: negativePrompt || undefined,
       imageType: imageType || undefined,
       projectId: selectedProjectId,
-      chainId: chainId,
-      referenceRenderId: referenceRenderId,
+      chainId: addToChain ? (chainId || initialChainId) : undefined, // Only pass chainId if addToChain is true
       isPublic,
+      referenceRenderId: referenceRenderId || undefined,
     });
 
     console.log('📥 ControlBar: Generate result received:', result);
@@ -251,7 +563,7 @@ export function ControlBar({ engineType, chainId: initialChainId, onResult, onGe
 
   return (
     <div className={cn(
-      "bg-background flex flex-col transition-all duration-300 z-30",
+      "bg-background flex flex-col transition-all duration-300 z-30 overflow-x-hidden",
       isMobile ? "w-full" : isCollapsed ? "w-16 border-r border-border" : "w-full lg:w-1/3 min-w-[280px] max-w-[400px] border-r border-border",
       isMobile ? "h-full" : "h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)]"
     )}>
@@ -266,7 +578,8 @@ export function ControlBar({ engineType, chainId: initialChainId, onResult, onGe
             <div className="flex items-center space-x-2">
               <Select value={selectedProjectId} onValueChange={(value) => {
                 if (value === 'create') {
-                  setShowCreateProjectModal(true);
+                  // Handle create project - could open a modal or navigate
+                  console.log('Create project clicked');
                 } else {
                   setSelectedProjectId(value);
                 }
@@ -304,38 +617,30 @@ export function ControlBar({ engineType, chainId: initialChainId, onResult, onGe
                 />
                 <span className="text-xs text-muted-foreground">Public</span>
               </div>
+              
+              {/* Add to Chain Toggle */}
+              <div className="flex items-center space-x-1">
+                <Switch
+                  checked={addToChain}
+                  onCheckedChange={setAddToChain}
+                  className="scale-75"
+                />
+                <span className="text-xs text-muted-foreground">Chain</span>
+              </div>
             </div>
           )}
+            </div>
           </div>
-        </div>
-        
-        {/* Version Selector */}
-        {!isCollapsed && selectedProjectId && renders.length > 0 && (
-          <div className="px-3 pb-2">
+          
+          {/* Version Selector */}
+          <div className="mt-2">
             <VersionSelector
-              renders={renders}
+              renders={chainRenders || []}
               selectedVersionId={selectedVersionId}
-              onSelectVersion={(id) => setSelectedVersionId(id)}
-              onUseAsReference={async (id) => {
-                setReferenceRenderId(id);
-                // Load the referenced render's image as uploaded file
-                const referencedRender = renders.find(r => r.id === id);
-                if (referencedRender?.outputUrl) {
-                  try {
-                    // Fetch the image and convert to File
-                    const response = await fetch(referencedRender.outputUrl);
-                    const blob = await response.blob();
-                    const file = new File([blob], 'reference-image.jpg', { type: 'image/jpeg' });
-                    setUploadedFile(file);
-                    console.log('✅ ControlBar: Loaded reference image as uploaded file');
-                  } catch (error) {
-                    console.error('❌ ControlBar: Failed to load reference image:', error);
-                  }
-                }
-              }}
+              onSelectVersion={handleVersionSelect}
+              onUseAsReference={setReferenceRenderId}
             />
           </div>
-        )}
         
         {isMobile ? (
           <Button
@@ -447,18 +752,24 @@ export function ControlBar({ engineType, chainId: initialChainId, onResult, onGe
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Image Type</Label>
                 <div className="grid grid-cols-5 gap-1">
-                  {imageTypes.map((type) => (
-                    <Button
-                      key={type.value}
-                      variant={imageType === type.value ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setImageType(type.value)}
-                      className="h-auto p-1 flex flex-col items-center space-y-1 min-w-0"
-                    >
-                      <span className="text-sm">{type.icon}</span>
-                      <span className="text-xs truncate">{type.label}</span>
-                    </Button>
-                  ))}
+                  {imageTypes.map((type) => {
+                    const IconComponent = type.icon;
+                    return (
+                      <Button
+                        key={type.value}
+                        variant={imageType === type.value ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          setImageType(type.value);
+                          setStoreImageType(type.value);
+                        }}
+                        className="h-auto p-1 flex flex-col items-center space-y-1 min-w-0 overflow-hidden"
+                      >
+                        <IconComponent className={cn("h-3 w-3 flex-shrink-0", imageType === type.value ? "text-white" : type.color)} />
+                        <span className="text-xs truncate w-full text-center">{type.label}</span>
+                      </Button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -468,7 +779,10 @@ export function ControlBar({ engineType, chainId: initialChainId, onResult, onGe
                 <Textarea
                   id="prompt"
                   value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
+                  onChange={(e) => {
+                    setPrompt(e.target.value);
+                    setStorePrompt(e.target.value); // Update store
+                  }}
                   placeholder="Describe your image. e.g. villa, modern architecture, daylight, beige stone facade"
                   rows={3}
                   className="resize-none"
@@ -481,7 +795,10 @@ export function ControlBar({ engineType, chainId: initialChainId, onResult, onGe
                 <Input
                   id="negative-prompt"
                   value={negativePrompt}
-                  onChange={(e) => setNegativePrompt(e.target.value)}
+                  onChange={(e) => {
+                    setNegativePrompt(e.target.value);
+                    setStoreNegativePrompt(e.target.value);
+                  }}
                   placeholder="Remove unwanted elements"
                 />
               </div>
@@ -490,62 +807,70 @@ export function ControlBar({ engineType, chainId: initialChainId, onResult, onGe
               <div className="space-y-3">
                 <Label className="text-sm font-medium">Styles</Label>
                 <div className="grid grid-cols-3 gap-1">
-                  {styles.map((style) => (
-                    <Button
-                      key={style.value}
-                      variant={selectedStyle === style.value ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setSelectedStyle(style.value)}
-                      className="h-auto p-1 flex flex-col items-center space-y-1 min-w-0"
-                    >
-                      <span className="text-sm">{style.icon}</span>
-                      <span className="text-xs truncate">{style.label}</span>
-                    </Button>
-                  ))}
+                  {styles.map((style) => {
+                    const IconComponent = style.icon;
+                    return (
+                      <Button
+                        key={style.value}
+                        variant={selectedStyle === style.value ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                        setSelectedStyle(style.value);
+                        setStoreStyle(style.value);
+                      }}
+                        className="h-auto p-1 flex flex-col items-center space-y-1 min-w-0"
+                      >
+                        <IconComponent className={cn("h-4 w-4", selectedStyle === style.value ? "text-white" : style.color)} />
+                        <span className="text-xs truncate">{style.label}</span>
+                      </Button>
+                    );
+                  })}
                 </div>
               </div>
 
-               {/* Render Mode */}
+               {/* Render Mode Slider */}
                <div className="space-y-2">
-                 <Label className="text-sm font-medium">Render Mode</Label>
-                 <div className="grid grid-cols-2 gap-1">
-                   {renderModes.map((mode) => (
-                     <Button
-                       key={mode.value}
-                       variant={renderMode === mode.value ? "default" : "outline"}
-                       size="sm"
-                       onClick={() => setRenderMode(mode.value)}
-                       className="h-auto p-1 flex flex-col items-center space-y-1 min-w-0"
-                     >
-                       <mode.icon className="h-3 w-3 flex-shrink-0" />
-                       <div className="text-center min-w-0">
-                         <div className="font-medium text-xs truncate">{mode.label}</div>
-                         <div className="text-xs opacity-70 leading-tight truncate">{mode.description}</div>
-                       </div>
-                     </Button>
-                   ))}
+                 <div className="flex items-center justify-between">
+                   <Label className="text-sm font-medium">Render Mode</Label>
+                   <span className="text-xs text-muted-foreground">
+                     {renderMode === 'exact' ? 'Exact' : 'Creative'}
+                   </span>
+                 </div>
+                 <div className="px-2">
+                   <Slider
+                     value={renderModeValue}
+                     onValueChange={setRenderModeValue}
+                     max={100}
+                     step={20}
+                     className="w-full"
+                   />
+                   <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                     <span>Exact</span>
+                     <span>Creative</span>
+                   </div>
                  </div>
                </div>
 
-               {/* Render Speed */}
+               {/* Render Speed Slider */}
                <div className="space-y-2">
-                 <Label className="text-sm font-medium">Render Speed</Label>
-                 <div className="grid grid-cols-2 gap-1">
-                   {renderSpeeds.map((speed) => (
-                     <Button
-                       key={speed.value}
-                       variant={renderSpeed === speed.value ? "default" : "outline"}
-                       size="sm"
-                       onClick={() => setRenderSpeed(speed.value)}
-                       className="h-auto p-1 flex flex-col items-center space-y-1 min-w-0"
-                     >
-                       <speed.icon className="h-3 w-3 flex-shrink-0" />
-                       <div className="text-center min-w-0">
-                         <div className="font-medium text-xs truncate">{speed.label}</div>
-                         <div className="text-xs opacity-70 leading-tight truncate">{speed.description}</div>
-                       </div>
-                     </Button>
-                   ))}
+                 <div className="flex items-center justify-between">
+                   <Label className="text-sm font-medium">Render Speed</Label>
+                   <span className="text-xs text-muted-foreground">
+                     {renderSpeed === 'fast' ? 'Fast' : 'Best'}
+                   </span>
+                 </div>
+                 <div className="px-2">
+                   <Slider
+                     value={renderSpeedValue}
+                     onValueChange={setRenderSpeedValue}
+                     max={100}
+                     step={20}
+                     className="w-full"
+                   />
+                   <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                     <span>Fast</span>
+                     <span>Best</span>
+                   </div>
                  </div>
                </div>
 
@@ -553,23 +878,39 @@ export function ControlBar({ engineType, chainId: initialChainId, onResult, onGe
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Aspect Ratio</Label>
                 <div className="grid grid-cols-4 gap-1">
-                  {aspectRatios.map((ratio) => (
-                    <Button
-                      key={ratio.value}
-                      variant={aspectRatio === ratio.value ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setAspectRatio(ratio.value)}
-                      className="h-auto p-1 flex flex-col items-center space-y-1 min-w-0"
-                    >
-                      <ratio.icon className="h-3 w-3 flex-shrink-0" />
-                      <div className="text-center min-w-0">
-                        <div className="font-medium text-xs truncate">{ratio.label}</div>
-                        <div className="text-xs opacity-70 truncate">{ratio.description}</div>
-                      </div>
-                    </Button>
-                  ))}
+                  {aspectRatios.map((ratio) => {
+                    const IconComponent = ratio.icon;
+                    return (
+                      <Button
+                        key={ratio.value}
+                        variant={aspectRatio === ratio.value ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          setAspectRatio(ratio.value);
+                          setStoreAspectRatio(ratio.value);
+                        }}
+                        className="h-auto p-1 flex flex-col items-center space-y-1 min-w-0"
+                      >
+                        <IconComponent className={cn("h-4 w-4", aspectRatio === ratio.value ? "text-white" : ratio.color)} />
+                        <div className="text-center min-w-0">
+                          <div className="font-medium text-xs truncate">{ratio.label}</div>
+                          <div className="text-xs opacity-70 truncate">{ratio.description}</div>
+                        </div>
+                      </Button>
+                    );
+                  })}
                 </div>
               </div>
+              </div>
+
+              {/* Chain Visualization */}
+              <div className="mt-4">
+                <RenderChainViz
+                  renders={chainRenders || []}
+                  selectedRenderId={selectedVersionId}
+                  onSelectRender={handleVersionSelect}
+                  isMobile={isMobile}
+                />
               </div>
 
               {/* Pinned Generate Button */}

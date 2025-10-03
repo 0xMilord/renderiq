@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RenderChainViz } from './render-chain-viz';
+import { VersionSelector } from './version-selector';
 import { Render } from '@/lib/db/schema';
 
 interface RenderResult {
@@ -46,6 +47,8 @@ interface RenderPreviewProps {
   chainRenders?: Render[];
   selectedRenderId?: string;
   onSelectRender?: (renderId: string) => void;
+  onIterate?: (imageUrl: string) => void;
+  onVersionSelect?: (render: Render) => void;
 }
 
 export function RenderPreview({ 
@@ -57,13 +60,27 @@ export function RenderPreview({
   onOpenDrawer,
   chainRenders = [],
   selectedRenderId,
-  onSelectRender
+  onSelectRender,
+  onIterate,
+  onVersionSelect
 }: RenderPreviewProps) {
+  console.log('🖼️ RenderPreview: Component rendered with result:', result);
+  console.log('🖼️ RenderPreview: isGenerating:', isGenerating);
+  console.log('🖼️ RenderPreview: selectedRenderId:', selectedRenderId);
   const [likes, setLikes] = useState(0);
   const [views, setViews] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
   const [activeTab, setActiveTab] = useState('current');
   const [versions, setVersions] = useState<any[]>([]);
+
+  // Debug result changes
+  useEffect(() => {
+    console.log('🖼️ RenderPreview: Result changed:', result);
+    if (result) {
+      console.log('🖼️ RenderPreview: Result has imageUrl:', !!result.imageUrl);
+      console.log('🖼️ RenderPreview: Result imageUrl value:', result.imageUrl);
+    }
+  }, [result]);
   const [currentVersionIndex, setCurrentVersionIndex] = useState(0);
 
   useEffect(() => {
@@ -323,6 +340,42 @@ export function RenderPreview({
                         <Share2 className="h-4 w-4 mr-1" />
                         Share
                       </Button>
+                      {onIterate && (
+                        <Button 
+                          variant="default" 
+                          size="sm" 
+                          onClick={() => {
+                            console.log('🔄 RenderPreview: Iterate button clicked');
+                            if (result?.imageUrl) {
+                              onIterate(result.imageUrl);
+                              console.log('✅ RenderPreview: Iterate callback triggered with:', result.imageUrl);
+                            }
+                          }}
+                        >
+                          <RefreshCw className="h-4 w-4 mr-1" />
+                          Iterate
+                        </Button>
+                      )}
+                      {onVersionSelect && chainRenders.length > 0 && (
+                        <VersionSelector
+                          renders={chainRenders}
+                          selectedVersionId={selectedRenderId}
+                          onSelectVersion={(id) => {
+                            const selectedRender = chainRenders.find(r => r.id === id);
+                            if (selectedRender && onSelectRender) {
+                              console.log('👁️ RenderPreview: Version selected for preview:', selectedRender.id);
+                              onSelectRender(selectedRender.id);
+                            }
+                          }}
+                          onUseAsReference={(id) => {
+                            const selectedRender = chainRenders.find(r => r.id === id);
+                            if (selectedRender) {
+                              console.log('📋 RenderPreview: Version selected for auto-fill:', selectedRender);
+                              onVersionSelect(selectedRender);
+                            }
+                          }}
+                        />
+                      )}
                     </div>
                   </div>
 

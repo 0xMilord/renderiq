@@ -20,10 +20,15 @@ export const RenderChainViz: React.FC<RenderChainVizProps> = ({
   onSelectRender,
   isMobile = false,
 }) => {
+  console.log('🔗 RenderChainViz: Received renders:', renders);
+  console.log('🔗 RenderChainViz: onSelectRender function:', typeof onSelectRender);
+  
   // Sort renders by chain position
   const sortedRenders = [...renders]
     .filter(r => r.status === 'completed' && r.outputUrl)
     .sort((a, b) => (a.chainPosition || 0) - (b.chainPosition || 0));
+    
+  console.log('🔗 RenderChainViz: Sorted renders:', sortedRenders);
 
   if (sortedRenders.length === 0) {
     return null;
@@ -44,7 +49,11 @@ export const RenderChainViz: React.FC<RenderChainVizProps> = ({
             {sortedRenders.map((render, index) => (
               <div key={render.id} className="flex items-center gap-3">
                 <button
-                  onClick={() => onSelectRender(render.id)}
+                  onClick={() => {
+                    console.log('🔗 RenderChainViz: Render clicked:', render.id);
+                    console.log('🔗 RenderChainViz: Calling onSelectRender with:', render.id);
+                    onSelectRender(render.id);
+                  }}
                   className={cn(
                     'relative flex-shrink-0 rounded-lg overflow-hidden transition-all',
                     'hover:ring-2 hover:ring-primary hover:shadow-lg',

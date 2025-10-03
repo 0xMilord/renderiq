@@ -6,20 +6,43 @@ import { ControlBar } from './engines/control-bar';
 import { RenderPreview } from './engines/render-preview';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useRenders } from '@/lib/hooks/use-renders';
+import { AutoFillData } from './engines/control-bar';
+import { Render } from '@/lib/db/schema';
 
 interface EngineLayoutProps {
-  children: React.ReactNode;
   engineType: 'exterior' | 'interior' | 'furniture' | 'site-plan';
   chainId?: string;
 }
 
-export function EngineLayout({ children, engineType, chainId }: EngineLayoutProps) {
-  const [renderResult, setRenderResult] = useState(null);
+interface RenderResult {
+  imageUrl: string;
+  type?: 'video' | 'image';
+  thumbnail?: string;
+  style?: string;
+  quality?: string;
+  aspectRatio?: string;
+  processingTime?: number;
+}
+
+export function EngineLayout({ engineType, chainId }: EngineLayoutProps) {
+  console.log('🏗️ EngineLayout initialized with chainId:', chainId);
+  const [renderResult, setRenderResult] = useState<RenderResult | null>(null);
+  
+  // Debug renderResult changes
+  useEffect(() => {
+    console.log('🖼️ EngineLayout: renderResult changed:', renderResult);
+    if (renderResult) {
+      console.log('🖼️ EngineLayout: renderResult has imageUrl:', !!renderResult.imageUrl);
+      console.log('🖼️ EngineLayout: renderResult imageUrl value:', renderResult.imageUrl);
+    }
+  }, [renderResult]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [selectedRenderId, setSelectedRenderId] = useState<string | null>(null);
+  const [iterateImageUrl, setIterateImageUrl] = useState<string | null>(null);
+  const [autoFillTrigger, setAutoFillTrigger] = useState<AutoFillData | null>(null);
   const isMobile = useIsMobile();
   
   // Fetch renders for the selected project
@@ -28,9 +51,10 @@ export function EngineLayout({ children, engineType, chainId }: EngineLayoutProp
   const handleRenderResult = (result: unknown) => {
     console.log('🎉 EngineLayout: Render result received:', result);
     console.log('🎉 EngineLayout: Result type:', typeof result);
-    console.log('🎉 EngineLayout: Result has imageUrl:', !!(result as any)?.imageUrl);
-    console.log('🎉 EngineLayout: Result imageUrl value:', (result as any)?.imageUrl);
-    setRenderResult(result);
+    const typedResult = result as RenderResult | null;
+    console.log('🎉 EngineLayout: Result has imageUrl:', !!typedResult?.imageUrl);
+    console.log('🎉 EngineLayout: Result imageUrl value:', typedResult?.imageUrl);
+    setRenderResult(typedResult);
     setProgress(100); // Complete the progress
     setIsGenerating(false);
     console.log('✅ EngineLayout: State updated - isGenerating: false, progress: 100%, result set');
@@ -59,6 +83,88 @@ export function EngineLayout({ children, engineType, chainId }: EngineLayoutProp
     setSelectedProjectId(projectId);
     setSelectedRenderId(null);
     setRenderResult(null);
+  };
+
+  const handleIterate = (imageUrl: string) => {
+    console.log('🔄 EngineLayout: Iterate requested with image:', imageUrl);
+    setIterateImageUrl(imageUrl);
+    
+    // Create a mock render object for auto-fill
+    const mockRender: Render = {
+      id: 'iterate-' + Date.now(),
+      projectId: selectedProjectId || '',
+      userId: '', // Will be filled by the backend
+      type: 'image',
+      prompt: '', // Will be filled from current form state
+      settings: {
+        style: 'realistic',
+        quality: 'standard',
+        aspectRatio: '16:9'
+      },
+      outputUrl: imageUrl,
+      outputKey: '',
+      status: 'completed',
+      errorMessage: null,
+      processingTime: null,
+      creditsCost: 1,
+      priority: 0,
+      queuePosition: null,
+      estimatedCompletionAt: null,
+      startedAt: null,
+      completedAt: new Date(),
+      chainId: chainId || null,
+      chainPosition: null,
+      parentRenderId: null,
+      referenceRenderId: null,
+      contextData: null,
+      thumbnailUrl: imageUrl,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    // Trigger version selection to auto-fill the form
+    handleVersionSelect(mockRender);
+  };
+
+  const handleVersionSelect = (render: Render) => {
+    console.log('📋 EngineLayout: Version selected for auto-fill and main display:', render);
+    console.log('📋 EngineLayout: Render settings:', render.settings);
+    console.log('📋 EngineLayout: Current renderResult before update:', renderResult);
+    console.log('📋 EngineLayout: Render outputUrl:', render.outputUrl);
+    
+    // Update the main render area with the selected version
+    if (render.outputUrl) {
+      const newRenderResult = {
+        imageUrl: render.outputUrl,
+        type: render.type || 'image',
+        style: render.settings?.style,
+        quality: render.settings?.quality,
+        aspectRatio: render.settings?.aspectRatio,
+        processingTime: render.processingTime,
+      };
+      console.log('🖼️ EngineLayout: Setting new render result:', newRenderResult);
+      setRenderResult(newRenderResult);
+      console.log('✅ EngineLayout: Main render area updated with version image');
+    } else {
+      console.log('⚠️ EngineLayout: No outputUrl found for selected render');
+    }
+    
+    const settings = render.settings as Record<string, string | number> | null;
+    
+    const autoFillData: AutoFillData = {
+      prompt: render.prompt || '',
+      style: (settings?.style as string) || 'realistic',
+      quality: (settings?.quality as string) || 'standard',
+      aspectRatio: (settings?.aspectRatio as string) || '16:9',
+      renderMode: settings?.renderMode as string | undefined,
+      negativePrompt: settings?.negativePrompt as string | undefined,
+      imageType: settings?.imageType as string | undefined,
+      imageUrl: render.outputUrl || undefined,
+    };
+    
+    console.log('📋 EngineLayout: Created auto-fill data:', autoFillData);
+    setAutoFillTrigger(autoFillData);
+    console.log('✅ EngineLayout: Auto-fill triggered with data:', autoFillData);
   };
 
   const handleGenerationStart = () => {
@@ -181,10 +287,14 @@ export function EngineLayout({ children, engineType, chainId }: EngineLayoutProp
                 <div className="bg-background border-t border-border max-h-[calc(80vh-4rem)] overflow-hidden">
                   <div className="h-[calc(80vh-7rem)] overflow-y-auto">
                     <ControlBar 
-                      engineType={engineType} 
+                      engineType={engineType}
+                      chainId={chainId}
+                      iterateImageUrl={iterateImageUrl}
+                      autoFillTrigger={autoFillTrigger}
                       onResult={handleRenderResult}
                       onGenerationStart={handleGenerationStart}
                       onProjectChange={handleProjectChange}
+                      onVersionSelect={handleVersionSelect}
                       isMobile={true}
                     />
                   </div>
@@ -194,10 +304,14 @@ export function EngineLayout({ children, engineType, chainId }: EngineLayoutProp
           </>
         ) : (
           <ControlBar 
-            engineType={engineType} 
+            engineType={engineType}
+            chainId={chainId}
+            iterateImageUrl={iterateImageUrl}
+            autoFillTrigger={autoFillTrigger}
             onResult={handleRenderResult}
             onGenerationStart={handleGenerationStart}
             onProjectChange={handleProjectChange}
+            onVersionSelect={handleVersionSelect}
             isMobile={false}
           />
         )}
@@ -213,6 +327,8 @@ export function EngineLayout({ children, engineType, chainId }: EngineLayoutProp
           chainRenders={renders}
           selectedRenderId={selectedRenderId || undefined}
           onSelectRender={handleSelectRender}
+          onIterate={handleIterate}
+          onVersionSelect={handleVersionSelect}
         />
       </div>
     </div>
