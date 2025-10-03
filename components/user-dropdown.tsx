@@ -102,28 +102,31 @@ export function UserDropdown() {
           AI Engines
         </DropdownMenuLabel>
         <DropdownMenuItem asChild>
-          <Link href="/engine/interior-ai" className="flex items-center">
-            <Palette className="mr-2 h-4 w-4" />
-            <span>Interior AI</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
           <Link href="/engine/exterior-ai" className="flex items-center">
             <Palette className="mr-2 h-4 w-4" />
             <span>Exterior AI</span>
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/engine/furniture-ai" className="flex items-center">
+        <DropdownMenuItem disabled className="flex items-center justify-between">
+          <div className="flex items-center">
+            <Palette className="mr-2 h-4 w-4" />
+            <span>Interior AI</span>
+          </div>
+          <span className="text-xs text-muted-foreground">Coming Soon</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem disabled className="flex items-center justify-between">
+          <div className="flex items-center">
             <Palette className="mr-2 h-4 w-4" />
             <span>Furniture AI</span>
-          </Link>
+          </div>
+          <span className="text-xs text-muted-foreground">Coming Soon</span>
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/engine/site-plan-ai" className="flex items-center">
+        <DropdownMenuItem disabled className="flex items-center justify-between">
+          <div className="flex items-center">
             <Palette className="mr-2 h-4 w-4" />
             <span>Site Plan AI</span>
-          </Link>
+          </div>
+          <span className="text-xs text-muted-foreground">Coming Soon</span>
         </DropdownMenuItem>
         
         <DropdownMenuSeparator />

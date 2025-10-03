@@ -40,18 +40,21 @@ export function Navbar() {
               </button>
               <div className="absolute top-full left-0 mt-2 w-48 bg-popover rounded-md shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                 <div className="py-1">
-                  <Link href="/engine/interior-ai" className="block px-4 py-2 text-sm text-popover-foreground hover:bg-accent">
-                    Interior AI
-                  </Link>
                   <Link href="/engine/exterior-ai" className="block px-4 py-2 text-sm text-popover-foreground hover:bg-accent">
                     Exterior AI
                   </Link>
-                  <Link href="/engine/furniture-ai" className="block px-4 py-2 text-sm text-popover-foreground hover:bg-accent">
-                    Furniture AI
-                  </Link>
-                  <Link href="/engine/site-plan-ai" className="block px-4 py-2 text-sm text-popover-foreground hover:bg-accent">
-                    Site Plan AI
-                  </Link>
+                  <div className="block px-4 py-2 text-sm text-muted-foreground cursor-not-allowed flex items-center justify-between">
+                    <span>Interior AI</span>
+                    <span className="text-xs bg-muted px-2 py-1 rounded-full">Coming Soon</span>
+                  </div>
+                  <div className="block px-4 py-2 text-sm text-muted-foreground cursor-not-allowed flex items-center justify-between">
+                    <span>Furniture AI</span>
+                    <span className="text-xs bg-muted px-2 py-1 rounded-full">Coming Soon</span>
+                  </div>
+                  <div className="block px-4 py-2 text-sm text-muted-foreground cursor-not-allowed flex items-center justify-between">
+                    <span>Site Plan AI</span>
+                    <span className="text-xs bg-muted px-2 py-1 rounded-full">Coming Soon</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -112,33 +115,24 @@ export function Navbar() {
                 <div className="text-sm font-medium text-muted-foreground mb-2">AI Engines</div>
                 <div className="space-y-1">
                   <Link
-                    href="/engine/interior-ai"
-                    className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-sm"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    <span>Interior AI</span>
-                  </Link>
-                  <Link
                     href="/engine/exterior-ai"
                     className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-sm"
                     onClick={() => setIsOpen(false)}
                   >
                     <span>Exterior AI</span>
                   </Link>
-                  <Link
-                    href="/engine/furniture-ai"
-                    className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-sm"
-                    onClick={() => setIsOpen(false)}
-                  >
+                  <div className="flex items-center justify-between text-muted-foreground block px-3 py-2 rounded-md text-sm cursor-not-allowed">
+                    <span>Interior AI</span>
+                    <span className="text-xs bg-muted px-2 py-1 rounded-full">Coming Soon</span>
+                  </div>
+                  <div className="flex items-center justify-between text-muted-foreground block px-3 py-2 rounded-md text-sm cursor-not-allowed">
                     <span>Furniture AI</span>
-                  </Link>
-                  <Link
-                    href="/engine/site-plan-ai"
-                    className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-sm"
-                    onClick={() => setIsOpen(false)}
-                  >
+                    <span className="text-xs bg-muted px-2 py-1 rounded-full">Coming Soon</span>
+                  </div>
+                  <div className="flex items-center justify-between text-muted-foreground block px-3 py-2 rounded-md text-sm cursor-not-allowed">
                     <span>Site Plan AI</span>
-                  </Link>
+                    <span className="text-xs bg-muted px-2 py-1 rounded-full">Coming Soon</span>
+                  </div>
                 </div>
               </div>
               <Link
