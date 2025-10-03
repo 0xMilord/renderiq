@@ -22,11 +22,7 @@ export function RenderDisplay({
   const [isLiked, setIsLiked] = useState(false);
   const [likes, setLikes] = useState(0);
 
-  useEffect(() => {
-    if (render.outputUrl && onView) {
-      onView(render.id);
-    }
-  }, [render.outputUrl, render.id, onView]);
+  // Remove automatic view tracking - views should be tracked on user interaction
 
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);
@@ -75,11 +71,11 @@ export function RenderDisplay({
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'text-green-600 bg-green-100';
+        return 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/20';
       case 'processing':
-        return 'text-blue-600 bg-blue-100';
+        return 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/20';
       case 'failed':
-        return 'text-destructive bg-destructive/10';
+        return 'text-destructive bg-destructive/10 dark:bg-destructive/20';
       default:
         return 'text-muted-foreground bg-muted';
     }
@@ -99,16 +95,16 @@ export function RenderDisplay({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
+    <div className="bg-card dark:bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b">
+      <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-lg capitalize">{render.type} Render</h3>
+          <h3 className="font-semibold text-lg capitalize text-card-foreground">{render.type} Render</h3>
           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(render.status)}`}>
             {getStatusText(render.status)}
           </span>
         </div>
-        <p className="text-muted-foreground text-sm mt-1">{render.prompt}</p>
+        <p className="text-muted-foreground text-sm mt-1 line-clamp-2">{render.prompt}</p>
       </div>
 
       {/* Content */}
@@ -147,9 +143,9 @@ export function RenderDisplay({
             )}
           </div>
         ) : render.status === 'processing' ? (
-          <div className="h-64 flex items-center justify-center bg-muted">
+          <div className="h-64 flex items-center justify-center bg-muted/50 dark:bg-muted/30">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4" />
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
               <p className="text-muted-foreground">Processing your render...</p>
               {render.processingTime && (
                 <p className="text-sm text-muted-foreground mt-1">
@@ -159,7 +155,7 @@ export function RenderDisplay({
             </div>
           </div>
         ) : render.status === 'failed' ? (
-          <div className="h-64 flex items-center justify-center bg-destructive/10">
+          <div className="h-64 flex items-center justify-center bg-destructive/10 dark:bg-destructive/20">
             <div className="text-center">
               <div className="text-destructive text-4xl mb-2">⚠️</div>
               <p className="text-destructive">Render failed</p>
@@ -169,7 +165,7 @@ export function RenderDisplay({
             </div>
           </div>
         ) : (
-          <div className="h-64 flex items-center justify-center bg-muted">
+          <div className="h-64 flex items-center justify-center bg-muted/50 dark:bg-muted/30">
             <div className="text-center">
               <div className="text-muted-foreground text-4xl mb-2">⏳</div>
               <p className="text-muted-foreground">Render pending...</p>
@@ -180,15 +176,15 @@ export function RenderDisplay({
 
       {/* Actions */}
       {showActions && render.status === 'completed' && render.outputUrl && (
-        <div className="p-4 border-t">
+        <div className="p-4 border-t border-border">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Button
                 onClick={handleLike}
                 variant="ghost"
                 size="sm"
-                className={`flex items-center space-x-1 ${
-                  isLiked ? 'text-red-500' : 'text-muted-foreground'
+                className={`flex items-center space-x-1 hover:bg-muted ${
+                  isLiked ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'
                 }`}
               >
                 <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
@@ -198,7 +194,7 @@ export function RenderDisplay({
                 onClick={() => onView?.(render.id)}
                 variant="ghost"
                 size="sm"
-                className="flex items-center space-x-1 text-muted-foreground"
+                className="flex items-center space-x-1 text-muted-foreground hover:bg-muted"
               >
                 <Eye className="h-4 w-4" />
                 <span>View</span>
@@ -209,7 +205,7 @@ export function RenderDisplay({
                 onClick={handleDownload}
                 variant="ghost"
                 size="sm"
-                className="flex items-center space-x-1"
+                className="flex items-center space-x-1 text-muted-foreground hover:bg-muted"
               >
                 <Download className="h-4 w-4" />
                 <span>Download</span>
@@ -218,7 +214,7 @@ export function RenderDisplay({
                 onClick={handleShare}
                 variant="ghost"
                 size="sm"
-                className="flex items-center space-x-1"
+                className="flex items-center space-x-1 text-muted-foreground hover:bg-muted"
               >
                 <Share2 className="h-4 w-4" />
                 <span>Share</span>

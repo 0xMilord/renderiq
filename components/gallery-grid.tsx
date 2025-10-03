@@ -62,28 +62,30 @@ export function GalleryGrid({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {items.map((item) => (
-          <div key={item.id} className="relative">
-            <RenderDisplay
-              render={item.render}
-              onLike={() => handleLike(item.id)}
-              onView={() => onView(item.id)}
-              showActions={true}
-            />
-            <div className="mt-2 flex items-center justify-between text-sm text-muted-foreground">
+          <div key={item.id} className="group relative">
+            <div className="transition-transform duration-200 group-hover:scale-[1.02]">
+              <RenderDisplay
+                render={item.render}
+                onLike={() => handleLike(item.id)}
+                onView={() => onView(item.id)}
+                showActions={true}
+              />
+            </div>
+            <div className="mt-3 flex items-center justify-between text-sm">
               <div className="flex items-center space-x-4">
-                <span className="flex items-center space-x-1">
+                <span className="flex items-center space-x-1 text-muted-foreground">
                   <Heart className="h-4 w-4" />
-                  <span>{item.likes}</span>
+                  <span className="font-medium">{item.likes}</span>
                 </span>
-                <span className="flex items-center space-x-1">
+                <span className="flex items-center space-x-1 text-muted-foreground">
                   <Eye className="h-4 w-4" />
-                  <span>{item.views}</span>
+                  <span className="font-medium">{item.views}</span>
                 </span>
               </div>
-              <span className="text-xs">
+              <span className="text-xs text-muted-foreground truncate max-w-[120px]">
                 by {item.user.name || 'Anonymous'}
               </span>
             </div>

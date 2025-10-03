@@ -257,12 +257,15 @@ export function RenderPreview({
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <Image
+                        <img
                           src={result.imageUrl}
                           alt={`Generated ${engineType} render`}
-                          width={800}
-                          height={450}
                           className="max-w-full max-h-full object-contain rounded-lg"
+                          onLoad={() => console.log('✅ RenderPreview: Image loaded successfully:', result.imageUrl)}
+                          onError={(e) => {
+                            console.error('❌ RenderPreview: Image failed to load:', result.imageUrl, e);
+                            console.error('❌ RenderPreview: Image error details:', e.currentTarget);
+                          }}
                         />
                       </div>
                     )

@@ -80,9 +80,18 @@ export function EngineLayout({ engineType, chainId }: EngineLayoutProps) {
   
   const handleProjectChange = (projectId: string) => {
     console.log('📁 EngineLayout: Project changed:', projectId);
+    console.log('📁 EngineLayout: Current renderResult before project change:', renderResult);
     setSelectedProjectId(projectId);
     setSelectedRenderId(null);
-    setRenderResult(null);
+    
+    // Don't reset renderResult if it was just set by version selection
+    // Only reset if it's a genuine project change (not from version selection)
+    if (!renderResult || !renderResult.imageUrl) {
+      setRenderResult(null);
+      console.log('📁 EngineLayout: Reset renderResult to null');
+    } else {
+      console.log('📁 EngineLayout: Keeping existing renderResult during project change');
+    }
   };
 
   const handleIterate = (imageUrl: string) => {

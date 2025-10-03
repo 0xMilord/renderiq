@@ -18,10 +18,10 @@ import { cn } from '@/lib/utils';
 
 const sidebarItems = [
   { href: '/', icon: Home, label: 'Home' },
-  { href: '/engine/interior-ai', icon: Palette, label: 'Interior AI' },
+  { href: '/engine/interior-ai', icon: Palette, label: 'Interior AI', comingSoon: true },
   { href: '/engine/exterior-ai', icon: Building2, label: 'Exterior AI' },
-  { href: '/engine/furniture-ai', icon: Sofa, label: 'Furniture AI' },
-  { href: '/engine/site-plan-ai', icon: Map, label: 'Site Plan AI' },
+  { href: '/engine/furniture-ai', icon: Sofa, label: 'Furniture AI', comingSoon: true },
+  { href: '/engine/site-plan-ai', icon: Map, label: 'Site Plan AI', comingSoon: true },
   { href: '/gallery', icon: GalleryVertical, label: 'Gallery' },
   { href: '/profile/settings', icon: Settings, label: 'Settings' },
 ];
@@ -61,6 +61,27 @@ export function EngineSidebar() {
           {sidebarItems.map((item) => {
             const isActive = pathname === item.href || 
               (item.href !== '/' && pathname.startsWith(item.href));
+            
+            if (item.comingSoon) {
+              return (
+                <div
+                  key={item.href}
+                  className={cn(
+                    'flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors group cursor-not-allowed opacity-60'
+                  )}
+                >
+                  <item.icon className="h-5 w-5 flex-shrink-0" />
+                  {isExpanded && (
+                    <div className="flex items-center space-x-2 flex-1">
+                      <span className="font-medium truncate">{item.label}</span>
+                      <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full">
+                        Coming Soon
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            }
             
             return (
               <Link

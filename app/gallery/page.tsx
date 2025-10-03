@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 export default function GalleryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
-  const { items, loading, hasMore, loadMore, onLike, onView } = useGallery(page);
+  const { items, loading, hasMore, loadMore, likeItem, viewItem } = useGallery(page);
 
   const handleLoadMore = () => {
     setPage(prev => prev + 1);
@@ -23,19 +23,18 @@ export default function GalleryPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      
-      <div className="max-w-[2400px] mx-auto py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+          <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
             Public Gallery
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
             Explore amazing AI-generated architectural renders created by our community
           </p>
         </div>
 
         {/* Search and Filters */}
-        <div className="mb-8">
+        <div className="mb-12">
           <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -44,10 +43,10 @@ export default function GalleryPage() {
                 placeholder="Search renders..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 w-full"
+                className="pl-10 w-full h-11"
               />
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 px-4 py-2 bg-muted/50 rounded-lg">
               <Filter className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Filters coming soon</span>
             </div>
@@ -60,8 +59,8 @@ export default function GalleryPage() {
           loading={loading}
           hasMore={hasMore}
           onLoadMore={handleLoadMore}
-          onLike={onLike}
-          onView={onView}
+          onLike={likeItem}
+          onView={viewItem}
         />
       </div>
     </div>

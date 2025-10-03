@@ -78,8 +78,15 @@ export function Navbar() {
             )}
           </div>
 
-          {/* Mobile menu button */}
-          <div className="md:hidden flex items-center">
+          {/* Mobile menu button and user dropdown */}
+          <div className="md:hidden flex items-center space-x-2">
+            {/* User Dropdown for mobile */}
+            {loading ? (
+              <div className="w-8 h-8 bg-muted rounded-full animate-pulse" />
+            ) : (
+              <UserDropdown />
+            )}
+            
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="text-muted-foreground hover:text-primary focus:outline-none focus:text-primary"
@@ -150,10 +157,6 @@ export function Navbar() {
                 <BookOpen className="h-4 w-4" />
                 <span>API Docs</span>
               </Link>
-
-              <div className="pt-4">
-                <UserDropdown />
-              </div>
             </div>
           </div>
         )}
