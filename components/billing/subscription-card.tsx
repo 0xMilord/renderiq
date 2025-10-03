@@ -18,9 +18,9 @@ export function SubscriptionCard() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="h-4 bg-gray-200 rounded animate-pulse" />
-            <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4" />
-            <div className="h-4 bg-gray-200 rounded animate-pulse w-1/2" />
+            <div className="h-4 bg-muted rounded animate-pulse" />
+            <div className="h-4 bg-muted rounded animate-pulse w-3/4" />
+            <div className="h-4 bg-muted rounded animate-pulse w-1/2" />
           </div>
         </CardContent>
       </Card>
@@ -40,7 +40,7 @@ export function SubscriptionCard() {
           <div className="flex items-center justify-between p-4 border rounded-lg">
             <div>
               <h3 className="font-semibold">Free Plan</h3>
-              <p className="text-sm text-gray-600">10 credits per month</p>
+              <p className="text-sm text-muted-foreground">10 credits per month</p>
             </div>
             <Badge variant="secondary">Active</Badge>
           </div>
@@ -51,7 +51,7 @@ export function SubscriptionCard() {
                 Upgrade Plan
               </Link>
             </Button>
-            <p className="text-xs text-gray-500 text-center">
+            <p className="text-xs text-muted-foreground text-center">
               Upgrade to get more credits and features
             </p>
           </div>
@@ -89,32 +89,32 @@ export function SubscriptionCard() {
           <div className="flex items-center justify-between p-4 border rounded-lg">
             <div>
               <h3 className="font-semibold">{subscription.plan?.name}</h3>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 {subscription.plan?.creditsPerMonth} credits per month
               </p>
             </div>
             <div className="text-right">
               <p className="font-semibold">${subscription.plan?.price}</p>
-              <p className="text-sm text-gray-500">per {subscription.plan?.interval}</p>
+              <p className="text-sm text-muted-foreground">per {subscription.plan?.interval}</p>
             </div>
           </div>
 
           {/* Billing Information */}
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div className="flex items-center space-x-2">
-              <Calendar className="h-4 w-4 text-gray-400" />
+              <Calendar className="h-4 w-4 text-muted-foreground" />
               <div>
                 <p className="font-medium">Next Billing</p>
-                <p className="text-gray-600">
+                <p className="text-muted-foreground">
                   {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
                 </p>
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <CreditCard className="h-4 w-4 text-gray-400" />
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
               <div>
                 <p className="font-medium">Payment Method</p>
-                <p className="text-gray-600">•••• 4242</p>
+                <p className="text-muted-foreground">•••• 4242</p>
               </div>
             </div>
           </div>
@@ -122,16 +122,16 @@ export function SubscriptionCard() {
 
         {/* Status Messages */}
         {isPastDue && (
-          <div className="flex items-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <AlertCircle className="h-4 w-4 text-red-600" />
-            <p className="text-sm text-red-800">
+          <div className="flex items-center space-x-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+            <AlertCircle className="h-4 w-4 text-destructive" />
+            <p className="text-sm text-destructive">
               Payment failed. Please update your payment method.
             </p>
           </div>
         )}
 
         {isCanceled && (
-          <div className="flex items-center space-x-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="flex items-center space-x-2 p-3 bg-yellow-100/50 border border-yellow-200/50 rounded-lg">
             <AlertCircle className="h-4 w-4 text-yellow-600" />
             <p className="text-sm text-yellow-800">
               Your subscription will end on {new Date(subscription.currentPeriodEnd).toLocaleDateString()}

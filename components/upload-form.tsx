@@ -80,7 +80,7 @@ export function UploadForm({ onSubmit, loading = false }: UploadFormProps) {
       <div className="space-y-2">
         <label className="text-sm font-medium">Upload Image</label>
         {!selectedFile ? (
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+          <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-muted-foreground transition-colors">
             <input
               type="file"
               accept="image/*"
@@ -92,11 +92,11 @@ export function UploadForm({ onSubmit, loading = false }: UploadFormProps) {
               htmlFor="file-upload"
               className="cursor-pointer flex flex-col items-center space-y-2"
             >
-              <Upload className="h-8 w-8 text-gray-400" />
-              <span className="text-sm text-gray-600">
+              <Upload className="h-8 w-8 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
                 Click to upload or drag and drop
               </span>
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-muted-foreground">
                 PNG, JPG, GIF up to 10MB
               </span>
             </label>
@@ -111,14 +111,15 @@ export function UploadForm({ onSubmit, loading = false }: UploadFormProps) {
             <button
               type="button"
               onClick={removeFile}
-              className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+              className="absolute top-2 right-2 p-1 bg-destructive text-destructive-foreground rounded-full hover:bg-destructive/90"
+              title="Remove file"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
         )}
         {errors.file && (
-          <p className="text-sm text-red-600">{errors.file.message}</p>
+          <p className="text-sm text-destructive">{errors.file.message}</p>
         )}
       </div>
 
@@ -133,7 +134,7 @@ export function UploadForm({ onSubmit, loading = false }: UploadFormProps) {
           placeholder="Enter project name"
         />
         {errors.projectName && (
-          <p className="text-sm text-red-600">{errors.projectName.message}</p>
+          <p className="text-sm text-destructive">{errors.projectName.message}</p>
         )}
       </div>
 
@@ -149,7 +150,7 @@ export function UploadForm({ onSubmit, loading = false }: UploadFormProps) {
           rows={3}
         />
         {errors.description && (
-          <p className="text-sm text-red-600">{errors.description.message}</p>
+          <p className="text-sm text-destructive">{errors.description.message}</p>
         )}
       </div>
 

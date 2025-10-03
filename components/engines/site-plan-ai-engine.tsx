@@ -156,8 +156,8 @@ export function SitePlanAIEngine({ type }: SitePlanAIEngineProps) {
                 className={cn(
                   'border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors',
                   isDragActive
-                    ? 'border-orange-500 bg-orange-50'
-                    : 'border-gray-300 hover:border-gray-400'
+                    ? 'border-primary bg-primary/10'
+                    : 'border-border hover:border-muted-foreground'
                 )}
               >
                 <input {...getInputProps()} />
@@ -166,14 +166,14 @@ export function SitePlanAIEngine({ type }: SitePlanAIEngineProps) {
                     <Upload className="h-6 w-6 text-orange-600" />
                   </div>
                   <div>
-                    <p className="text-lg font-medium text-gray-900">
+                    <p className="text-lg font-medium text-foreground">
                       {isDragActive ? 'Drop image here' : 'Upload site plan'}
                     </p>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                       Drag and drop or click to select
                     </p>
                   </div>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     JPEG, PNG, WebP • Max 10MB
                   </p>
                 </div>
@@ -181,10 +181,10 @@ export function SitePlanAIEngine({ type }: SitePlanAIEngineProps) {
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center space-x-3 p-3 border rounded-lg">
-                  <ImageIcon className="h-8 w-8 text-gray-400" />
+                  <ImageIcon className="h-8 w-8 text-muted-foreground" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{uploadedFile.name}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted-foreground">
                       {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
                     </p>
                   </div>
@@ -297,7 +297,7 @@ export function SitePlanAIEngine({ type }: SitePlanAIEngineProps) {
               
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Your Balance</span>
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-muted-foreground">
                   {credits?.balance || 0} credits
                 </span>
               </div>
@@ -354,7 +354,7 @@ export function SitePlanAIEngine({ type }: SitePlanAIEngineProps) {
           <CardContent>
             {result ? (
               <div className="space-y-4">
-                <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                <div className="aspect-video bg-muted rounded-lg overflow-hidden">
                   {type === 'video' ? (
                     <video
                       src={result}
@@ -379,12 +379,12 @@ export function SitePlanAIEngine({ type }: SitePlanAIEngineProps) {
                 </div>
               </div>
             ) : (
-              <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+              <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
                 <div className="text-center">
-                  <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <ImageIcon className="h-8 w-8 text-gray-400" />
+                  <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                    <ImageIcon className="h-8 w-8 text-muted-foreground" />
                   </div>
-                  <p className="text-gray-500">Generated result will appear here</p>
+                  <p className="text-muted-foreground">Generated result will appear here</p>
                 </div>
               </div>
             )}

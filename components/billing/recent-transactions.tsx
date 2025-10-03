@@ -16,7 +16,7 @@ const transactionIcons = {
 
 const transactionColors = {
   earned: 'text-green-600',
-  spent: 'text-red-600',
+  spent: 'text-destructive',
   refund: 'text-blue-600',
   bonus: 'text-purple-600',
 };
@@ -34,12 +34,12 @@ export function RecentTransactions() {
           <div className="space-y-4">
             {[...Array(3)].map((_, i) => (
               <div key={i} className="flex items-center space-x-4">
-                <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse" />
+                <div className="w-8 h-8 bg-muted rounded-full animate-pulse" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-gray-200 rounded animate-pulse" />
-                  <div className="h-3 bg-gray-200 rounded animate-pulse w-2/3" />
+                  <div className="h-4 bg-muted rounded animate-pulse" />
+                  <div className="h-3 bg-muted rounded animate-pulse w-2/3" />
                 </div>
-                <div className="h-4 bg-gray-200 rounded animate-pulse w-16" />
+                <div className="h-4 bg-muted rounded animate-pulse w-16" />
               </div>
             ))}
           </div>
@@ -59,10 +59,10 @@ export function RecentTransactions() {
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <RefreshCw className="h-8 w-8 text-gray-400" />
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <RefreshCw className="h-8 w-8 text-muted-foreground" />
             </div>
-            <p className="text-gray-500 mb-4">No transactions yet</p>
+            <p className="text-muted-foreground mb-4">No transactions yet</p>
             <Button asChild variant="outline">
               <Link href="/upload">
                 Start Creating
@@ -90,10 +90,10 @@ export function RecentTransactions() {
             const isPositive = transaction.amount > 0;
             
             return (
-              <div key={transaction.id} className="flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg transition-colors">
+              <div key={transaction.id} className="flex items-center space-x-4 p-3 hover:bg-muted/50 rounded-lg transition-colors">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                   transaction.type === 'earned' ? 'bg-green-100' :
-                  transaction.type === 'spent' ? 'bg-red-100' :
+                  transaction.type === 'spent' ? 'bg-destructive/10' :
                   transaction.type === 'refund' ? 'bg-blue-100' :
                   'bg-purple-100'
                 }`}>
@@ -101,10 +101,10 @@ export function RecentTransactions() {
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
+                  <p className="text-sm font-medium text-foreground truncate">
                     {transaction.description}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     {new Date(transaction.createdAt).toLocaleDateString()} at{' '}
                     {new Date(transaction.createdAt).toLocaleTimeString()}
                   </p>
@@ -112,7 +112,7 @@ export function RecentTransactions() {
                 
                 <div className="flex items-center space-x-2">
                   <span className={`text-sm font-medium ${
-                    isPositive ? 'text-green-600' : 'text-red-600'
+                    isPositive ? 'text-green-600' : 'text-destructive'
                   }`}>
                     {isPositive ? '+' : ''}{transaction.amount}
                   </span>

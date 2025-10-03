@@ -5,15 +5,36 @@ import { BillingService } from '@/lib/services/billing';
 import { createClient } from '@/lib/supabase/server';
 
 export async function getUserCredits() {
+  console.log('🎯 BillingAction: Getting user credits');
+  
   try {
-    const { user } = await createClient().auth.getUser();
-    if (!user.data.user) {
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) {
+      console.error('❌ BillingAction: Authentication failed', { error: error?.message });
       return { success: false, error: 'Authentication required' };
     }
 
-    const result = await BillingService.getUserCredits(user.data.user.id);
+    console.log('🎯 BillingAction: Fetching credits for user', { userId: user.id });
+    const result = await BillingService.getUserCredits(user.id);
+    
+    if (result.success) {
+      console.log('✅ BillingAction: Credits retrieved successfully', { 
+        userId: user.id, 
+        balance: result.credits?.balance 
+      });
+    } else {
+      console.error('❌ BillingAction: Failed to get credits', { 
+        userId: user.id, 
+        error: result.error 
+      });
+    }
+    
     return result;
   } catch (error) {
+    console.error('❌ BillingAction: Unexpected error getting credits', { 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get user credits',
@@ -28,14 +49,30 @@ export async function addCredits(
   referenceId?: string,
   referenceType?: 'render' | 'subscription' | 'bonus' | 'refund'
 ) {
+  console.log('🎯 BillingAction: Adding credits', { 
+    amount, 
+    type, 
+    description, 
+    referenceId, 
+    referenceType 
+  });
+  
   try {
-    const { user } = await createClient().auth.getUser();
-    if (!user.data.user) {
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) {
+      console.error('❌ BillingAction: Authentication failed', { error: error?.message });
       return { success: false, error: 'Authentication required' };
     }
 
+    console.log('🎯 BillingAction: Processing credit addition', { 
+      userId: user.id, 
+      amount, 
+      type 
+    });
+
     const result = await BillingService.addCredits(
-      user.data.user.id,
+      user.id,
       amount,
       type,
       description,
@@ -44,12 +81,30 @@ export async function addCredits(
     );
 
     if (result.success) {
+      console.log('✅ BillingAction: Credits added successfully', { 
+        userId: user.id, 
+        amount, 
+        type,
+        newBalance: result.newBalance 
+      });
       revalidatePath('/billing');
       revalidatePath('/profile');
+    } else {
+      console.error('❌ BillingAction: Failed to add credits', { 
+        userId: user.id, 
+        amount, 
+        type, 
+        error: result.error 
+      });
     }
 
     return result;
   } catch (error) {
+    console.error('❌ BillingAction: Unexpected error adding credits', { 
+      error: error instanceof Error ? error.message : 'Unknown error',
+      amount,
+      type
+    });
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to add credits',
@@ -63,14 +118,29 @@ export async function deductCredits(
   referenceId?: string,
   referenceType?: 'render' | 'subscription' | 'bonus' | 'refund'
 ) {
+  console.log('🎯 BillingAction: Deducting credits', { 
+    amount, 
+    description, 
+    referenceId, 
+    referenceType 
+  });
+  
   try {
-    const { user } = await createClient().auth.getUser();
-    if (!user.data.user) {
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) {
+      console.error('❌ BillingAction: Authentication failed', { error: error?.message });
       return { success: false, error: 'Authentication required' };
     }
 
+    console.log('🎯 BillingAction: Processing credit deduction', { 
+      userId: user.id, 
+      amount, 
+      description 
+    });
+
     const result = await BillingService.deductCredits(
-      user.data.user.id,
+      user.id,
       amount,
       description,
       referenceId,
@@ -78,12 +148,27 @@ export async function deductCredits(
     );
 
     if (result.success) {
+      console.log('✅ BillingAction: Credits deducted successfully', { 
+        userId: user.id, 
+        amount, 
+        newBalance: result.newBalance 
+      });
       revalidatePath('/billing');
       revalidatePath('/profile');
+    } else {
+      console.error('❌ BillingAction: Failed to deduct credits', { 
+        userId: user.id, 
+        amount, 
+        error: result.error 
+      });
     }
 
     return result;
   } catch (error) {
+    console.error('❌ BillingAction: Unexpected error deducting credits', { 
+      error: error instanceof Error ? error.message : 'Unknown error',
+      amount
+    });
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to deduct credits',
@@ -93,8 +178,9 @@ export async function deductCredits(
 
 export async function getCreditTransactions(page = 1, limit = 20) {
   try {
-    const { user } = await createClient().auth.getUser();
-    if (!user.data.user) {
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) {
       return { success: false, error: 'Authentication required' };
     }
 
@@ -111,8 +197,9 @@ export async function getCreditTransactions(page = 1, limit = 20) {
 
 export async function getUserSubscription() {
   try {
-    const { user } = await createClient().auth.getUser();
-    if (!user.data.user) {
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) {
       return { success: false, error: 'Authentication required' };
     }
 
@@ -144,8 +231,9 @@ export async function getUserSubscription() {
 
 export async function cancelSubscription(subscriptionId: string) {
   try {
-    const { user } = await createClient().auth.getUser();
-    if (!user.data.user) {
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) {
       return { success: false, error: 'Authentication required' };
     }
 

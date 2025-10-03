@@ -21,9 +21,9 @@ export function BillingOverview() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="h-4 bg-gray-200 rounded animate-pulse" />
-            <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4" />
-            <div className="h-4 bg-gray-200 rounded animate-pulse w-1/2" />
+            <div className="h-4 bg-muted rounded animate-pulse" />
+            <div className="h-4 bg-muted rounded animate-pulse w-3/4" />
+            <div className="h-4 bg-muted rounded animate-pulse w-1/2" />
           </div>
         </CardContent>
       </Card>
@@ -48,13 +48,13 @@ export function BillingOverview() {
         <div>
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium">Credits Usage</span>
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-muted-foreground">
               {creditsUsed} / {creditsEarned} used
             </span>
           </div>
           <Progress value={creditsPercentage} className="h-2" />
           <div className="flex items-center justify-between mt-2">
-            <span className="text-xs text-gray-500">Available: {creditsBalance}</span>
+            <span className="text-xs text-muted-foreground">Available: {creditsBalance}</span>
             {creditsBalance < 5 && (
               <Badge variant="destructive" className="text-xs">
                 <AlertCircle className="h-3 w-3 mr-1" />
@@ -72,7 +72,7 @@ export function BillingOverview() {
               {subscription?.status || 'Free'}
             </Badge>
           </div>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             {subscription?.plan?.name || 'Free Plan'}
           </p>
         </div>
@@ -82,11 +82,11 @@ export function BillingOverview() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Next Billing</span>
-              <Calendar className="h-4 w-4 text-gray-400" />
-            </div>
-            <p className="text-sm text-gray-600">
-              {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
-            </p>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+          </p>
           </div>
         )}
 
@@ -94,9 +94,9 @@ export function BillingOverview() {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">Payment Method</span>
-            <CreditCard className="h-4 w-4 text-gray-400" />
+            <CreditCard className="h-4 w-4 text-muted-foreground" />
           </div>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             {subscription ? '•••• 4242' : 'No payment method'}
           </p>
         </div>

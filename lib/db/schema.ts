@@ -39,7 +39,7 @@ export const subscriptionPlans = pgTable('subscription_plans', {
 // User subscriptions
 export const userSubscriptions = pgTable('user_subscriptions', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').references(() => users.id).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   planId: uuid('plan_id').references(() => subscriptionPlans.id).notNull(),
   status: text('status', { enum: ['active', 'canceled', 'past_due', 'unpaid'] }).notNull(),
   stripeSubscriptionId: text('stripe_subscription_id').unique(),
@@ -55,7 +55,7 @@ export const userSubscriptions = pgTable('user_subscriptions', {
 // Credits system
 export const userCredits = pgTable('user_credits', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').references(() => users.id).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   balance: integer('balance').default(0).notNull(),
   totalEarned: integer('total_earned').default(0).notNull(),
   totalSpent: integer('total_spent').default(0).notNull(),
@@ -67,7 +67,7 @@ export const userCredits = pgTable('user_credits', {
 // Credit transactions
 export const creditTransactions = pgTable('credit_transactions', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').references(() => users.id).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   amount: integer('amount').notNull(), // positive for earned, negative for spent
   type: text('type', { enum: ['earned', 'spent', 'refund', 'bonus'] }).notNull(),
   description: text('description').notNull(),
@@ -79,7 +79,7 @@ export const creditTransactions = pgTable('credit_transactions', {
 // File storage metadata
 export const fileStorage = pgTable('file_storage', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').references(() => users.id).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   fileName: text('file_name').notNull(),
   originalName: text('original_name').notNull(),
   mimeType: text('mime_type').notNull(),
@@ -108,7 +108,7 @@ export const fileVersions = pgTable('file_versions', {
 // Projects table with enhanced metadata
 export const projects = pgTable('projects', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').references(() => users.id).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   name: text('name').notNull(),
   description: text('description'),
   originalImageId: uuid('original_image_id').references(() => fileStorage.id).notNull(),
@@ -135,7 +135,8 @@ export const projectVersions = pgTable('project_versions', {
 // Renders table with enhanced tracking
 export const renders = pgTable('renders', {
   id: uuid('id').primaryKey().defaultRandom(),
-  projectId: uuid('project_id').references(() => projects.id).notNull(),
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   type: text('type', { enum: ['image', 'video'] }).notNull(),
   prompt: text('prompt').notNull(),
   settings: jsonb('settings').$type<{
@@ -144,7 +145,8 @@ export const renders = pgTable('renders', {
     aspectRatio: string;
     duration?: number; // for videos
   }>(),
-  outputFileId: uuid('output_file_id').references(() => fileStorage.id),
+  outputUrl: text('output_url'),
+  outputKey: text('output_key'),
   status: text('status', { enum: ['pending', 'processing', 'completed', 'failed'] }).default('pending').notNull(),
   errorMessage: text('error_message'),
   processingTime: integer('processing_time'), // in seconds
@@ -173,8 +175,8 @@ export const renderVersions = pgTable('render_versions', {
 // Gallery items (public renders)
 export const galleryItems = pgTable('gallery_items', {
   id: uuid('id').primaryKey().defaultRandom(),
-  renderId: uuid('render_id').references(() => renders.id).notNull(),
-  userId: uuid('user_id').references(() => users.id).notNull(),
+  renderId: uuid('render_id').references(() => renders.id, { onDelete: 'cascade' }).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   isPublic: boolean('is_public').default(false).notNull(),
   likes: integer('likes').default(0).notNull(),
   views: integer('views').default(0).notNull(),
@@ -185,7 +187,7 @@ export const galleryItems = pgTable('gallery_items', {
 // Notifications system
 export const notifications = pgTable('notifications', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').references(() => users.id).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   type: text('type', { enum: ['render_completed', 'render_failed', 'subscription_expired', 'credits_low', 'system'] }).notNull(),
   title: text('title').notNull(),
   message: text('message').notNull(),
@@ -198,7 +200,7 @@ export const notifications = pgTable('notifications', {
 // Usage tracking
 export const usageTracking = pgTable('usage_tracking', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').references(() => users.id).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   date: timestamp('date').notNull(),
   rendersCreated: integer('renders_created').default(0).notNull(),
   creditsSpent: integer('credits_spent').default(0).notNull(),
@@ -210,7 +212,7 @@ export const usageTracking = pgTable('usage_tracking', {
 // API rate limiting
 export const apiRateLimits = pgTable('api_rate_limits', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').references(() => users.id).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   endpoint: text('endpoint').notNull(),
   requestsCount: integer('requests_count').default(0).notNull(),
   windowStart: timestamp('window_start').notNull(),
@@ -234,7 +236,7 @@ export const renderQueue = pgTable('render_queue', {
 // User settings and preferences
 export const userSettings = pgTable('user_settings', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').references(() => users.id).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   preferences: jsonb('preferences').$type<{
     theme: 'light' | 'dark' | 'system';
     notifications: {

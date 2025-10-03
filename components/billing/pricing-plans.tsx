@@ -43,13 +43,13 @@ export function PricingPlans({ plans }: PricingPlansProps) {
     <div className="space-y-8">
       {/* Billing Toggle */}
       <div className="flex justify-center">
-        <div className="bg-gray-100 rounded-lg p-1">
+        <div className="bg-muted rounded-lg p-1">
           <button
             onClick={() => setBillingInterval('month')}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               billingInterval === 'month'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             Monthly
@@ -58,8 +58,8 @@ export function PricingPlans({ plans }: PricingPlansProps) {
             onClick={() => setBillingInterval('year')}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               billingInterval === 'year'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             Annual
@@ -75,18 +75,18 @@ export function PricingPlans({ plans }: PricingPlansProps) {
           const savings = plan.interval === 'year' ? Math.round((1 - plan.price / (monthlyPrice * 12)) * 100) : 0;
 
           return (
-            <Card key={plan.id} className={`relative ${plan.popular ? 'ring-2 ring-blue-500' : ''}`}>
+            <Card key={plan.id} className={`relative ${plan.popular ? 'ring-2 ring-primary' : ''}`}>
               {plan.popular && (
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                  <Badge className="bg-blue-500 text-white">
+                  <Badge className="bg-primary text-primary-foreground">
                     Most Popular
                   </Badge>
                 </div>
               )}
 
               <CardHeader className="text-center pb-4">
-                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <Icon className="h-6 w-6 text-gray-600" />
+                <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center mx-auto mb-4">
+                  <Icon className="h-6 w-6 text-muted-foreground" />
                 </div>
                 <CardTitle className="text-xl">{plan.name}</CardTitle>
                 <CardDescription className="text-sm">
@@ -98,29 +98,29 @@ export function PricingPlans({ plans }: PricingPlansProps) {
                 {/* Pricing */}
                 <div className="text-center">
                   <div className="flex items-baseline justify-center">
-                    <span className="text-4xl font-bold text-gray-900">
+                    <span className="text-4xl font-bold text-foreground">
                       ${plan.price}
                     </span>
-                    <span className="text-gray-600 ml-1">
+                    <span className="text-muted-foreground ml-1">
                       /{plan.interval}
                     </span>
                   </div>
                   {savings > 0 && (
-                    <p className="text-sm text-green-600 mt-1">
+                    <p className="text-sm text-green-500 mt-1">
                       Save {savings}% with annual billing
                     </p>
                   )}
-                  <p className="text-sm text-gray-600 mt-2">
+                  <p className="text-sm text-muted-foreground mt-2">
                     ${monthlyPrice.toFixed(2)}/month
                   </p>
                 </div>
 
                 {/* Credits */}
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold text-gray-900">
+                <div className="text-center p-4 bg-muted rounded-lg">
+                  <div className="text-2xl font-bold text-foreground">
                     {plan.credits.toLocaleString()}
                   </div>
-                  <div className="text-sm text-gray-600">credits per month</div>
+                  <div className="text-sm text-muted-foreground">credits per month</div>
                 </div>
 
                 {/* Features */}
@@ -128,13 +128,13 @@ export function PricingPlans({ plans }: PricingPlansProps) {
                   {plan.features.map((feature, index) => (
                     <div key={index} className="flex items-start space-x-3">
                       <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-gray-700">{feature}</span>
+                      <span className="text-sm text-foreground">{feature}</span>
                     </div>
                   ))}
                 </div>
 
                 {/* Limits */}
-                <div className="space-y-2 text-sm text-gray-600">
+                <div className="space-y-2 text-sm text-muted-foreground">
                   <div className="flex justify-between">
                     <span>Max Projects:</span>
                     <span className="font-medium">
@@ -153,8 +153,8 @@ export function PricingPlans({ plans }: PricingPlansProps) {
                 <Button 
                   className={`w-full ${
                     plan.popular 
-                      ? 'bg-blue-600 hover:bg-blue-700' 
-                      : 'bg-gray-900 hover:bg-gray-800'
+                      ? 'bg-primary hover:bg-primary/90' 
+                      : 'bg-foreground hover:bg-foreground/90'
                   }`}
                 >
                   {plan.price === 0 ? 'Get Started' : 'Choose Plan'}

@@ -51,7 +51,7 @@ export function ProfileSettings() {
       <Card>
         <CardContent className="p-6">
           <div className="text-center">
-            <p className="text-gray-500">Please sign in to view your profile settings</p>
+            <p className="text-muted-foreground">Please sign in to view your profile settings</p>
           </div>
         </CardContent>
       </Card>
@@ -81,7 +81,7 @@ export function ProfileSettings() {
                 <Camera className="h-4 w-4 mr-2" />
                 Change Picture
               </Button>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 JPG, PNG or GIF. Max size 2MB.
               </p>
             </div>

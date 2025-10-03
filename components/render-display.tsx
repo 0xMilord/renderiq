@@ -79,9 +79,9 @@ export function RenderDisplay({
       case 'processing':
         return 'text-blue-600 bg-blue-100';
       case 'failed':
-        return 'text-red-600 bg-red-100';
+        return 'text-destructive bg-destructive/10';
       default:
-        return 'text-gray-600 bg-gray-100';
+        return 'text-muted-foreground bg-muted';
     }
   };
 
@@ -108,7 +108,7 @@ export function RenderDisplay({
             {getStatusText(render.status)}
           </span>
         </div>
-        <p className="text-gray-600 text-sm mt-1">{render.prompt}</p>
+        <p className="text-muted-foreground text-sm mt-1">{render.prompt}</p>
       </div>
 
       {/* Content */}
@@ -147,32 +147,32 @@ export function RenderDisplay({
             )}
           </div>
         ) : render.status === 'processing' ? (
-          <div className="h-64 flex items-center justify-center bg-gray-50">
+          <div className="h-64 flex items-center justify-center bg-muted">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4" />
-              <p className="text-gray-600">Processing your render...</p>
+              <p className="text-muted-foreground">Processing your render...</p>
               {render.processingTime && (
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-muted-foreground mt-1">
                   Processing time: {render.processingTime}s
                 </p>
               )}
             </div>
           </div>
         ) : render.status === 'failed' ? (
-          <div className="h-64 flex items-center justify-center bg-red-50">
+          <div className="h-64 flex items-center justify-center bg-destructive/10">
             <div className="text-center">
-              <div className="text-red-500 text-4xl mb-2">⚠️</div>
-              <p className="text-red-600">Render failed</p>
+              <div className="text-destructive text-4xl mb-2">⚠️</div>
+              <p className="text-destructive">Render failed</p>
               {render.errorMessage && (
-                <p className="text-sm text-red-500 mt-1">{render.errorMessage}</p>
+                <p className="text-sm text-destructive mt-1">{render.errorMessage}</p>
               )}
             </div>
           </div>
         ) : (
-          <div className="h-64 flex items-center justify-center bg-gray-50">
+          <div className="h-64 flex items-center justify-center bg-muted">
             <div className="text-center">
-              <div className="text-gray-400 text-4xl mb-2">⏳</div>
-              <p className="text-gray-600">Render pending...</p>
+              <div className="text-muted-foreground text-4xl mb-2">⏳</div>
+              <p className="text-muted-foreground">Render pending...</p>
             </div>
           </div>
         )}
@@ -188,7 +188,7 @@ export function RenderDisplay({
                 variant="ghost"
                 size="sm"
                 className={`flex items-center space-x-1 ${
-                  isLiked ? 'text-red-500' : 'text-gray-500'
+                  isLiked ? 'text-red-500' : 'text-muted-foreground'
                 }`}
               >
                 <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
@@ -198,7 +198,7 @@ export function RenderDisplay({
                 onClick={() => onView?.(render.id)}
                 variant="ghost"
                 size="sm"
-                className="flex items-center space-x-1 text-gray-500"
+                className="flex items-center space-x-1 text-muted-foreground"
               >
                 <Eye className="h-4 w-4" />
                 <span>View</span>

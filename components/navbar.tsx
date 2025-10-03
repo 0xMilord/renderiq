@@ -3,17 +3,12 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/hooks/use-auth';
-import { Button } from '@/components/ui/button';
-import { Menu, X, User, LogOut, Home, Upload, GalleryVertical, BookOpen } from 'lucide-react';
+import { UserDropdown } from '@/components/user-dropdown';
+import { Menu, X, Home, Upload, GalleryVertical, BookOpen } from 'lucide-react';
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
-  const { user, loading, signOut } = useAuth();
-
-  const handleSignOut = async () => {
-    await signOut();
-    setIsOpen(false);
-  };
+  const { loading } = useAuth();
 
   return (
     <nav className="bg-background shadow-sm border-b w-full">
@@ -75,37 +70,11 @@ export function Navbar() {
               <span>API Docs</span>
             </Link>
 
-            {/* User Menu */}
+            {/* User Dropdown */}
             {loading ? (
               <div className="w-8 h-8 bg-muted rounded-full animate-pulse" />
-            ) : user ? (
-              <div className="flex items-center space-x-4">
-                <Link
-                  href="/projects"
-                  className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
-                >
-                  <User className="h-4 w-4" />
-                  <span>My Projects</span>
-                </Link>
-                <Button
-                  onClick={handleSignOut}
-                  variant="ghost"
-                  size="sm"
-                  className="flex items-center space-x-1"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span>Sign Out</span>
-                </Button>
-              </div>
             ) : (
-              <div className="flex items-center space-x-4">
-                <Link href="/login">
-                  <Button variant="ghost">Sign In</Button>
-                </Link>
-                <Link href="/signup">
-                  <Button>Get Started</Button>
-                </Link>
-              </div>
+              <UserDropdown />
             )}
           </div>
 
@@ -182,42 +151,9 @@ export function Navbar() {
                 <span>API Docs</span>
               </Link>
 
-              {user ? (
-                <>
-                  <Link
-                    href="/projects"
-                    className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    <User className="h-4 w-4" />
-                    <span>My Projects</span>
-                  </Link>
-                  <button
-                    onClick={handleSignOut}
-                    className="flex items-center space-x-2 text-muted-foreground hover:text-primary w-full text-left px-3 py-2 rounded-md text-base font-medium"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    <span>Sign Out</span>
-                  </button>
-                </>
-              ) : (
-                <div className="pt-4 space-y-2">
-                  <Link
-                    href="/login"
-                    className="block w-full text-center px-4 py-2 border border-border rounded-md text-muted-foreground hover:bg-accent"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    Sign In
-                  </Link>
-                  <Link
-                    href="/signup"
-                    className="block w-full text-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    Get Started
-                  </Link>
-                </div>
-              )}
+              <div className="pt-4">
+                <UserDropdown />
+              </div>
             </div>
           </div>
         )}

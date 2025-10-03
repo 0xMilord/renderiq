@@ -4,20 +4,32 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/lib/hooks/use-auth';
+import { useUserProfile } from '@/lib/hooks/use-user-profile';
 import { Edit, Camera, MapPin, Globe, Calendar } from 'lucide-react';
 import { useState } from 'react';
 
 export function ProfileHeader() {
-  const { user } = useAuth();
+  const { profile, loading } = useUserProfile();
   const [isEditing, setIsEditing] = useState(false);
 
-  if (!user) {
+  if (loading) {
     return (
       <Card>
         <CardContent className="p-6">
           <div className="text-center">
-            <p className="text-gray-500">Please sign in to view your profile</p>
+            <p className="text-muted-foreground">Loading profile...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center">
+            <p className="text-muted-foreground">Please sign in to view your profile</p>
           </div>
         </CardContent>
       </Card>
@@ -31,9 +43,9 @@ export function ProfileHeader() {
           {/* Avatar */}
           <div className="relative">
             <Avatar className="w-20 h-20">
-              <AvatarImage src={user.avatar || ''} alt={user.name || 'User'} />
+              <AvatarImage src={profile.avatar || ''} alt={profile.name || 'User'} />
               <AvatarFallback className="text-lg">
-                {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                {profile.name ? profile.name.charAt(0).toUpperCase() : 'U'}
               </AvatarFallback>
             </Avatar>
             <Button
@@ -48,51 +60,51 @@ export function ProfileHeader() {
           {/* Profile Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center space-x-3 mb-2">
-              <h2 className="text-2xl font-bold text-gray-900 truncate">
-                {user.name || 'Anonymous User'}
+              <h2 className="text-2xl font-bold text-foreground truncate">
+                {profile.name || 'Anonymous User'}
               </h2>
-              <Badge variant={user.isActive ? 'default' : 'secondary'}>
-                {user.isActive ? 'Active' : 'Inactive'}
+              <Badge variant={profile.isActive ? 'default' : 'secondary'}>
+                {profile.isActive ? 'Active' : 'Inactive'}
               </Badge>
             </div>
             
-            <p className="text-gray-600 mb-4">
-              {user.bio || 'No bio provided'}
+            <p className="text-muted-foreground mb-4">
+              {profile.bio || 'No bio provided'}
             </p>
 
             {/* Profile Details */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              {user.email && (
-                <div className="flex items-center space-x-2 text-gray-600">
+              {profile.email && (
+                <div className="flex items-center space-x-2 text-muted-foreground">
                   <span className="font-medium">Email:</span>
-                  <span>{user.email}</span>
+                  <span>{profile.email}</span>
                 </div>
               )}
               
-              {user.location && (
-                <div className="flex items-center space-x-2 text-gray-600">
+              {profile.location && (
+                <div className="flex items-center space-x-2 text-muted-foreground">
                   <MapPin className="h-4 w-4" />
-                  <span>{user.location}</span>
+                  <span>{profile.location}</span>
                 </div>
               )}
               
-              {user.website && (
-                <div className="flex items-center space-x-2 text-gray-600">
+              {profile.website && (
+                <div className="flex items-center space-x-2 text-muted-foreground">
                   <Globe className="h-4 w-4" />
                   <a 
-                    href={user.website} 
+                    href={profile.website}
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800"
+                    className="text-primary hover:text-primary/80"
                   >
-                    {user.website}
+                    {profile.website}
                   </a>
                 </div>
               )}
               
-              <div className="flex items-center space-x-2 text-gray-600">
+              <div className="flex items-center space-x-2 text-muted-foreground">
                 <Calendar className="h-4 w-4" />
-                <span>Joined {new Date(user.createdAt).toLocaleDateString()}</span>
+                <span>Joined {new Date(profile.createdAt).toLocaleDateString()}</span>
               </div>
             </div>
           </div>

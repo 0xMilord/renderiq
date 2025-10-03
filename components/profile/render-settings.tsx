@@ -125,7 +125,8 @@ export function RenderSettings() {
                 id="auto-save"
                 checked={settings.autoSave}
                 onChange={(e) => handleSettingChange('autoSave', e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300"
+                className="h-4 w-4 rounded border-input"
+                title="Auto save projects"
               />
             </div>
 
@@ -141,7 +142,8 @@ export function RenderSettings() {
                 id="watermark"
                 checked={settings.watermark}
                 onChange={(e) => handleSettingChange('watermark', e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300"
+                className="h-4 w-4 rounded border-input"
+                title="Add watermark to images"
               />
             </div>
 
@@ -157,7 +159,8 @@ export function RenderSettings() {
                 id="metadata"
                 checked={settings.metadata}
                 onChange={(e) => handleSettingChange('metadata', e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300"
+                className="h-4 w-4 rounded border-input"
+                title="Include metadata in files"
               />
             </div>
           </div>

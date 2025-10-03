@@ -45,7 +45,7 @@ export function GalleryGrid({
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading gallery...</p>
+          <p className="text-muted-foreground">Loading gallery...</p>
         </div>
       </div>
     );
@@ -54,9 +54,9 @@ export function GalleryGrid({
   if (items.length === 0) {
     return (
       <div className="text-center py-12">
-        <div className="text-gray-400 text-6xl mb-4">🖼️</div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">No renders yet</h3>
-        <p className="text-gray-600">Be the first to create an amazing AI render!</p>
+        <div className="text-muted-foreground text-6xl mb-4">🖼️</div>
+        <h3 className="text-lg font-semibold text-foreground mb-2">No renders yet</h3>
+        <p className="text-muted-foreground">Be the first to create an amazing AI render!</p>
       </div>
     );
   }
@@ -72,7 +72,7 @@ export function GalleryGrid({
               onView={() => onView(item.id)}
               showActions={true}
             />
-            <div className="mt-2 flex items-center justify-between text-sm text-gray-600">
+            <div className="mt-2 flex items-center justify-between text-sm text-muted-foreground">
               <div className="flex items-center space-x-4">
                 <span className="flex items-center space-x-1">
                   <Heart className="h-4 w-4" />

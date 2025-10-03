@@ -80,9 +80,9 @@ export function RecentActivity({ activities }: RecentActivityProps) {
       case 'processing':
         return 'bg-yellow-100 text-yellow-800';
       case 'failed':
-        return 'bg-red-100 text-red-800';
+        return 'bg-destructive/10 text-destructive';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-muted text-muted-foreground';
     }
   };
 

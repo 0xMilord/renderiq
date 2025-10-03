@@ -125,22 +125,41 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
   };
 
   const handleGenerate = async () => {
+    console.log('🎯 ControlBar: Generate button clicked');
+    console.log('📝 ControlBar: Form state:', {
+      prompt,
+      style: selectedStyle,
+      quality: renderSpeed === 'best' ? 'high' : 'standard',
+      aspectRatio,
+      type: activeTab,
+      duration: activeTab === 'video' ? duration : undefined,
+      hasUploadedFile: !!uploadedFile,
+      engineType
+    });
+
     if (!prompt.trim()) {
+      console.log('❌ ControlBar: No prompt provided');
       return;
     }
 
     const creditsCost = getCreditsCost();
+    console.log('💰 ControlBar: Credits cost:', creditsCost, 'Balance:', credits?.balance);
+    
     if (credits && credits.balance < creditsCost) {
+      console.log('❌ ControlBar: Insufficient credits');
       return;
     }
 
+    console.log('🔄 ControlBar: Resetting state and starting generation');
     reset();
     
     // Notify parent component that generation has started
     if (onGenerationStart) {
+      console.log('📢 ControlBar: Notifying parent of generation start');
       onGenerationStart();
     }
     
+    console.log('🚀 ControlBar: Calling generate function');
     const result = await generate({
       prompt,
       style: selectedStyle,
@@ -151,10 +170,16 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
       uploadedImage: uploadedFile || undefined,
     });
 
+    console.log('📥 ControlBar: Generate result received:', result);
+
     if (result && onResult) {
+      console.log('📤 ControlBar: Passing result to parent component');
       onResult(result);
+    } else {
+      console.log('⚠️ ControlBar: No result or onResult callback');
     }
 
+    console.log('🔄 ControlBar: Refreshing credits');
     refreshCredits();
   };
 
@@ -162,12 +187,12 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
 
   return (
     <div className={cn(
-      "w-1/3 bg-white border-r border-gray-200 flex flex-col transition-all duration-300 z-30",
+      "w-1/3 bg-background border-r border-border flex flex-col transition-all duration-300 z-30",
       isCollapsed ? "w-16" : "w-1/3"
     )} style={{ height: 'calc(100vh - 4rem)' }}>
       {/* Header */}
-      <div className="p-3 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-        <h2 className="font-semibold text-gray-900 capitalize text-sm">
+      <div className="p-3 border-b border-border flex items-center justify-between flex-shrink-0">
+        <h2 className="font-semibold text-foreground capitalize text-sm">
           {isCollapsed ? engineType.charAt(0).toUpperCase() : `${engineType} AI`}
         </h2>
         <Button
@@ -207,24 +232,24 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
                     className={cn(
                       'border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors',
                       isDragActive
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-300 hover:border-gray-400'
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border hover:border-muted-foreground'
                     )}
                   >
                     <input {...getInputProps()} />
                     <div className="space-y-2">
-                      <Upload className="h-8 w-8 mx-auto text-gray-400" />
+                      <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
                       <p className="text-sm font-medium">Upload Image</p>
-                      <p className="text-xs text-gray-500">or drag & drop image</p>
+                      <p className="text-xs text-muted-foreground">or drag & drop image</p>
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <div className="flex items-center space-x-2 p-2 border rounded-lg">
-                      <ImageIcon className="h-6 w-6 text-gray-400" />
+                    <div className="flex items-center space-x-2 p-2 border border-border rounded-lg">
+                      <ImageIcon className="h-6 w-6 text-muted-foreground" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{uploadedFile.name}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-muted-foreground">
                           {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
                         </p>
                       </div>
@@ -366,10 +391,10 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
               </div>
 
               {/* Pinned Generate Button */}
-              <div className="flex-shrink-0 space-y-1 pt-2 border-t bg-white">
+              <div className="flex-shrink-0 space-y-1 pt-2 border-t border-border bg-background">
                 <div className="flex items-center justify-between text-xs px-1">
                   <span>Credits: {creditsCost}</span>
-                  <span className="text-gray-600">
+                  <span className="text-muted-foreground">
                     Balance: {credits?.balance || 0}
                   </span>
                 </div>
@@ -400,7 +425,7 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
                   )}
                 </Button>
 
-                <p className="text-xs text-center text-gray-500">
+                <p className="text-xs text-center text-muted-foreground">
                   Est: 50 Sec
                 </p>
               </div>
@@ -437,10 +462,10 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
               </div>
 
               {/* Pinned Generate Button for Video */}
-              <div className="flex-shrink-0 space-y-1 pt-2 border-t bg-white">
+              <div className="flex-shrink-0 space-y-1 pt-2 border-t border-border bg-background">
                 <div className="flex items-center justify-between text-xs px-1">
                   <span>Credits: {creditsCost}</span>
-                  <span className="text-gray-600">
+                  <span className="text-muted-foreground">
                     Balance: {credits?.balance || 0}
                   </span>
                 </div>
@@ -464,7 +489,7 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
                   )}
                 </Button>
 
-                <p className="text-xs text-center text-gray-500">
+                <p className="text-xs text-center text-muted-foreground">
                   Est: 2-5 Min
                 </p>
               </div>

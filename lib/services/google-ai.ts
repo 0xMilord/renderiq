@@ -63,13 +63,20 @@ export class GoogleAIService {
   }
 
   async generateImage(request: GoogleAIImageRequest): Promise<GoogleAIImageResponse> {
+    console.log('🎨 GoogleAI: Starting image generation', { 
+      prompt: request.prompt, 
+      style: request.style, 
+      aspectRatio: request.aspectRatio,
+      quality: request.quality
+    });
+    
     try {
       const startTime = Date.now();
       
       // Enhanced prompt for architectural visualization
       const enhancedPrompt = this.buildImagePrompt(request.prompt, request.style);
       
-      console.log('Starting image generation with prompt:', enhancedPrompt);
+      console.log('🎨 GoogleAI: Enhanced prompt created', { enhancedPrompt });
       
       // Use Gemini 2.5 Flash Image for image generation
       const model = this.genAI.getGenerativeModel({ 
@@ -79,29 +86,53 @@ export class GoogleAIService {
       // Configure aspect ratio based on request
       const aspectRatioConfig = this.getAspectRatioConfig(request.aspectRatio);
       
-      console.log('Generating image with aspect ratio:', aspectRatioConfig);
+      console.log('🎨 GoogleAI: Generating with aspect ratio', { aspectRatioConfig });
       
-      const result = await model.generateContent(enhancedPrompt);
+      // Use the correct configuration format for Gemini 2.5 Flash Image
+      const result = await model.generateContent(enhancedPrompt, {
+        responseModalities: ['Image'],
+        imageConfig: {
+          aspectRatio: aspectRatioConfig,
+        },
+      });
       
-      console.log('Received response from Gemini');
+      console.log('🎨 GoogleAI: Received response from Gemini');
       const response = await result.response;
       
-      // Extract image data from response
-      const imageData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      // Extract image data from response - check all parts for image data
+      const parts = response.candidates?.[0]?.content?.parts || [];
+      let imageData = null;
+      
+      console.log('🎨 GoogleAI: Processing response parts', { partCount: parts.length });
+      
+      for (const part of parts) {
+        if (part.inlineData?.data) {
+          imageData = part.inlineData.data;
+          console.log('🎨 GoogleAI: Found image data in part');
+          break;
+        }
+      }
       
       if (!imageData) {
-        console.error('No image data in response:', response);
+        console.error('❌ GoogleAI: No image data in response', { 
+          response: response,
+          parts: parts.map(p => ({ hasInlineData: !!p.inlineData, hasText: !!p.text }))
+        });
         throw new Error('No image data received from Gemini');
       }
 
-      console.log('Image data received, creating blob URL');
+      console.log('🎨 GoogleAI: Image data received, creating blob URL');
       
       // Convert base64 to blob URL for display
       const imageBlob = new Blob([Buffer.from(imageData, 'base64')], { type: 'image/png' });
       const imageUrl = URL.createObjectURL(imageBlob);
 
       const processingTime = (Date.now() - startTime) / 1000;
-      console.log(`Image generation completed in ${processingTime}s`);
+      console.log('✅ GoogleAI: Image generation completed successfully', { 
+        id: `gemini_${Date.now()}`,
+        processingTime: `${processingTime}s`,
+        aspectRatio: request.aspectRatio
+      });
 
       return {
         success: true,
@@ -117,7 +148,11 @@ export class GoogleAIService {
         },
       };
     } catch (error) {
-      console.error('Google AI image generation error:', error);
+      console.error('❌ GoogleAI: Image generation failed', { 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        prompt: request.prompt,
+        style: request.style
+      });
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to generate image with Gemini',
@@ -126,32 +161,52 @@ export class GoogleAIService {
   }
 
   async generateVideo(request: GoogleAIVideoRequest): Promise<GoogleAIVideoResponse> {
+    console.log('🎬 GoogleAI: Starting video generation', { 
+      prompt: request.prompt, 
+      style: request.style, 
+      duration: request.duration,
+      aspectRatio: request.aspectRatio
+    });
+    
     try {
       const startTime = Date.now();
       
       // Enhanced prompt for architectural video
       const enhancedPrompt = this.buildVideoPrompt(request.prompt, request.style, request.duration);
       
+      console.log('🎬 GoogleAI: Enhanced video prompt created', { enhancedPrompt });
+      
       // Use Veo 3 for video generation
       const model = this.genAI.getGenerativeModel({ 
         model: 'veo-3' 
       });
 
+      console.log('🎬 GoogleAI: Generating video with Veo 3');
       const result = await model.generateContent(enhancedPrompt);
       const response = await result.response;
+      
+      console.log('🎬 GoogleAI: Processing video response');
       
       // Extract video data from response
       const videoData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
       
       if (!videoData) {
+        console.error('❌ GoogleAI: No video data in response', { response });
         throw new Error('No video data received from Veo 3');
       }
+
+      console.log('🎬 GoogleAI: Video data received, creating blob URL');
 
       // Convert base64 to blob URL for display
       const videoBlob = new Blob([Buffer.from(videoData, 'base64')], { type: 'video/mp4' });
       const videoUrl = URL.createObjectURL(videoBlob);
 
       const processingTime = (Date.now() - startTime) / 1000;
+      console.log('✅ GoogleAI: Video generation completed successfully', { 
+        id: `veo_${Date.now()}`,
+        processingTime: `${processingTime}s`,
+        duration: request.duration
+      });
 
       return {
         success: true,
@@ -168,7 +223,12 @@ export class GoogleAIService {
         },
       };
     } catch (error) {
-      console.error('Google AI video generation error:', error);
+      console.error('❌ GoogleAI: Video generation failed', { 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        prompt: request.prompt,
+        style: request.style,
+        duration: request.duration
+      });
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to generate video with Veo 3',

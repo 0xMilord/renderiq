@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { signInAction, signUpAction, signOutAction, signInWithGoogleAction, signInWithGithubAction } from '@/lib/actions/auth.actions';
 import type { User } from '@supabase/supabase-js';
 
 export function useAuth() {
@@ -29,29 +30,58 @@ export function useAuth() {
   }, [supabase.auth]);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error };
+    try {
+      await signInAction(email, password);
+      return { error: null };
+    } catch (error) {
+      return { 
+        error: error instanceof Error ? error.message : 'Sign in failed' 
+      };
+    }
   };
 
   const signUp = async (email: string, password: string, name?: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name,
-        },
-      },
-    });
-    return { error };
+    try {
+      await signUpAction(email, password, name);
+      return { error: null };
+    } catch (error) {
+      return { 
+        error: error instanceof Error ? error.message : 'Sign up failed' 
+      };
+    }
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    return { error };
+    try {
+      await signOutAction();
+      return { error: null };
+    } catch (error) {
+      return { 
+        error: error instanceof Error ? error.message : 'Sign out failed' 
+      };
+    }
+  };
+
+  const signInWithGoogle = async () => {
+    try {
+      await signInWithGoogleAction();
+      return { error: null };
+    } catch (error) {
+      return { 
+        error: error instanceof Error ? error.message : 'Google sign in failed' 
+      };
+    }
+  };
+
+  const signInWithGithub = async () => {
+    try {
+      await signInWithGithubAction();
+      return { error: null };
+    } catch (error) {
+      return { 
+        error: error instanceof Error ? error.message : 'GitHub sign in failed' 
+      };
+    }
   };
 
   return {
@@ -60,5 +90,7 @@ export function useAuth() {
     signIn,
     signUp,
     signOut,
+    signInWithGoogle,
+    signInWithGithub,
   };
 }

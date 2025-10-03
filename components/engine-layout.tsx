@@ -16,27 +16,35 @@ export function EngineLayout({ children, engineType }: EngineLayoutProps) {
   const [progress, setProgress] = useState(0);
 
   const handleRenderResult = (result: unknown) => {
+    console.log('🎉 EngineLayout: Render result received:', result);
     setRenderResult(result);
     setIsGenerating(false);
+    console.log('✅ EngineLayout: State updated - isGenerating: false, result set');
   };
 
   const handleGenerationStart = () => {
+    console.log('🚀 EngineLayout: Generation started');
     setIsGenerating(true);
     setProgress(0);
+    console.log('📊 EngineLayout: Starting progress simulation');
+    
     // Simulate progress updates
     const interval = setInterval(() => {
       setProgress(prev => {
         if (prev >= 90) {
+          console.log('⏸️ EngineLayout: Progress simulation paused at 90%');
           clearInterval(interval);
           return prev;
         }
-        return prev + Math.random() * 10;
+        const newProgress = prev + Math.random() * 10;
+        console.log(`📈 EngineLayout: Progress update: ${newProgress.toFixed(1)}%`);
+        return newProgress;
       });
     }, 1000);
   };
 
   return (
-    <div className="relative bg-gray-50 w-full h-screen overflow-hidden">
+    <div className="relative bg-background w-full h-screen overflow-hidden">
       {/* Slim Sidebar - Fixed position */}
       <EngineSidebar />
       

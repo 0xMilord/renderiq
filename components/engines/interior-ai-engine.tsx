@@ -338,7 +338,7 @@ export function InteriorAIEngine({ type }: InteriorAIEngineProps) {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-muted-foreground">
                     <p><strong>Style:</strong> {result.style}</p>
                     <p><strong>Quality:</strong> {result.quality}</p>
                     <p><strong>Processing Time:</strong> {result.processingTime.toFixed(1)}s</p>

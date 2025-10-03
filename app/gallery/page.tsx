@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { Navbar } from '@/components/navbar';
 import { GalleryGrid } from '@/components/gallery-grid';
 import { useGallery } from '@/lib/hooks/use-gallery';
 import { Search, Filter } from 'lucide-react';
@@ -23,15 +22,14 @@ export default function GalleryPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
+    <div className="min-h-screen bg-background">
       
       <div className="max-w-[2400px] mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+          <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
             Public Gallery
           </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Explore amazing AI-generated architectural renders created by our community
           </p>
         </div>
@@ -40,7 +38,7 @@ export default function GalleryPage() {
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
                 type="text"
                 placeholder="Search renders..."
@@ -50,8 +48,8 @@ export default function GalleryPage() {
               />
             </div>
             <div className="flex items-center space-x-2">
-              <Filter className="h-4 w-4 text-gray-400" />
-              <span className="text-sm text-gray-600">Filters coming soon</span>
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Filters coming soon</span>
             </div>
           </div>
         </div>

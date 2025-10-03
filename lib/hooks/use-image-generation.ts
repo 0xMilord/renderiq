@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { generateImage, generateVideo } from '@/lib/actions/image-generation.actions';
 import { ImageGenerationResult } from '@/lib/services/image-generation';
 
 export function useImageGeneration() {
@@ -17,8 +16,10 @@ export function useImageGeneration() {
     type: 'image' | 'video';
     duration?: number;
     uploadedImage?: File;
+    projectId?: string;
   }) => {
     try {
+      console.log('🚀 Starting image generation via API');
       setIsGenerating(true);
       setError(null);
       setResult(null);
@@ -38,17 +39,46 @@ export function useImageGeneration() {
         formData.append('uploadedImage', params.uploadedImage);
       }
 
-      const response = params.type === 'video' 
-        ? await generateVideo(formData)
-        : await generateImage(formData);
+      if (params.projectId) {
+        formData.append('projectId', params.projectId);
+      }
 
-      if (response.success && response.data) {
-        setResult(response.data);
+      console.log('📤 Sending request to API:', { 
+        prompt: params.prompt, 
+        style: params.style, 
+        type: params.type,
+        hasImage: !!params.uploadedImage 
+      });
+
+      const response = await fetch('/api/renders', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+      console.log('📥 API response:', data);
+
+      if (response.ok && data.success) {
+        // Convert API response to expected format
+        const imageResult: ImageGenerationResult = {
+          imageUrl: data.data.outputUrl,
+          prompt: params.prompt,
+          style: params.style,
+          quality: params.quality,
+          aspectRatio: params.aspectRatio,
+          processingTime: data.data.processingTime || 0,
+          provider: data.data.provider || 'gemini-2.5-flash-image',
+        };
+        setResult(imageResult);
+        console.log('✅ Generation successful');
       } else {
-        setError(response.error || 'Generation failed');
+        setError(data.error || 'Generation failed');
+        console.error('❌ Generation failed:', data.error);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(errorMessage);
+      console.error('❌ Generation error:', errorMessage);
     } finally {
       setIsGenerating(false);
     }

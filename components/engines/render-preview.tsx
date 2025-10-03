@@ -42,36 +42,64 @@ export function RenderPreview({ result, isGenerating, progress = 0, engineType }
 
   useEffect(() => {
     if (result) {
+      console.log('👁️ RenderPreview: New result received, incrementing views:', result);
       setViews(prev => prev + 1);
     }
   }, [result]);
 
+  useEffect(() => {
+    console.log('🔄 RenderPreview: Props updated:', {
+      hasResult: !!result,
+      isGenerating,
+      progress,
+      engineType
+    });
+  }, [result, isGenerating, progress, engineType]);
+
   const handleLike = () => {
+    console.log('❤️ RenderPreview: Like button clicked, current state:', { likes, isLiked });
     setLikes(prev => isLiked ? prev - 1 : prev + 1);
     setIsLiked(!isLiked);
+    console.log('✅ RenderPreview: Like state updated');
   };
 
   const handleDownload = () => {
+    console.log('⬇️ RenderPreview: Download button clicked');
     if (result?.imageUrl) {
+      console.log('📁 RenderPreview: Starting download for:', result.imageUrl);
       const link = document.createElement('a');
       link.href = result.imageUrl;
       link.download = `${engineType}-render-${Date.now()}.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      console.log('✅ RenderPreview: Download initiated');
+    } else {
+      console.log('❌ RenderPreview: No image URL available for download');
     }
   };
 
   const handleShare = () => {
+    console.log('📤 RenderPreview: Share button clicked');
     if (navigator.share && result?.imageUrl) {
+      console.log('📱 RenderPreview: Using native share API');
       navigator.share({
         title: `${engineType} AI Render`,
         text: `Check out this amazing ${engineType} render!`,
         url: result.imageUrl,
+      }).then(() => {
+        console.log('✅ RenderPreview: Share successful');
+      }).catch((error) => {
+        console.error('❌ RenderPreview: Share failed:', error);
       });
     } else {
+      console.log('📋 RenderPreview: Using clipboard fallback');
       // Fallback to copying URL
-      navigator.clipboard.writeText(result?.imageUrl || '');
+      navigator.clipboard.writeText(result?.imageUrl || '').then(() => {
+        console.log('✅ RenderPreview: URL copied to clipboard');
+      }).catch((error) => {
+        console.error('❌ RenderPreview: Clipboard copy failed:', error);
+      });
     }
   };
 
@@ -129,7 +157,7 @@ export function RenderPreview({ result, isGenerating, progress = 0, engineType }
   const description = getEngineDescription();
 
   return (
-    <div className="flex-1 bg-gray-50 flex flex-col w-2/3 overflow-hidden" style={{ height: 'calc(100vh - 4rem)' }}>
+    <div className="flex-1 bg-background flex flex-col w-2/3 overflow-hidden" style={{ height: 'calc(100vh - 4rem)' }}>
       {/* Main Content */}
       <div className="flex-1 p-6 min-h-0 overflow-y-auto">
         <Card className="h-full">
@@ -137,14 +165,14 @@ export function RenderPreview({ result, isGenerating, progress = 0, engineType }
             {isGenerating ? (
               <div className="h-full flex flex-col items-center justify-center space-y-6">
                 <div className="text-center">
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <RefreshCw className="h-8 w-8 text-blue-600 animate-spin" />
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <RefreshCw className="h-8 w-8 text-primary animate-spin" />
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Generating {engineType} render...</h3>
-                  <p className="text-gray-600 mb-4">This may take a few moments</p>
+                  <h3 className="text-lg font-semibold text-foreground mb-2">Generating {engineType} render...</h3>
+                  <p className="text-muted-foreground mb-4">This may take a few moments</p>
                   
                   <div className="w-64 space-y-2">
-                    <div className="flex justify-between text-sm text-gray-600">
+                    <div className="flex justify-between text-sm text-muted-foreground">
                       <span>Progress</span>
                       <span>{Math.round(progress)}%</span>
                     </div>
@@ -155,7 +183,7 @@ export function RenderPreview({ result, isGenerating, progress = 0, engineType }
             ) : result ? (
               <div className="h-full flex flex-col">
                 {/* Image/Video Display */}
-                <div className="flex-1 bg-gray-100 rounded-t-lg overflow-hidden">
+                <div className="flex-1 bg-muted rounded-t-lg overflow-hidden">
                   {result.type === 'video' ? (
                     <video
                       src={result.imageUrl}
@@ -174,7 +202,7 @@ export function RenderPreview({ result, isGenerating, progress = 0, engineType }
                 </div>
 
                 {/* Result Info */}
-                <div className="p-4 border-t border-gray-200 bg-white">
+                <div className="p-4 border-t border-border bg-background">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-4">
                       <button
@@ -182,14 +210,14 @@ export function RenderPreview({ result, isGenerating, progress = 0, engineType }
                         className={cn(
                           "flex items-center space-x-1 px-3 py-1 rounded-full text-sm transition-colors",
                           isLiked 
-                            ? "bg-red-100 text-red-600" 
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            ? "bg-destructive/10 text-destructive" 
+                            : "bg-muted text-muted-foreground hover:bg-muted/80"
                         )}
                       >
                         <Heart className={cn("h-4 w-4", isLiked && "fill-current")} />
                         <span>{likes}</span>
                       </button>
-                      <div className="flex items-center space-x-1 text-gray-600">
+                      <div className="flex items-center space-x-1 text-muted-foreground">
                         <Eye className="h-4 w-4" />
                         <span className="text-sm">{views}</span>
                       </div>
@@ -208,7 +236,7 @@ export function RenderPreview({ result, isGenerating, progress = 0, engineType }
                   </div>
 
                   {/* Generation Details */}
-                  <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
                     <div>
                       <span className="font-medium">Style:</span> {result.style}
                     </div>
@@ -228,21 +256,21 @@ export function RenderPreview({ result, isGenerating, progress = 0, engineType }
             ) : (
               <div className="h-full flex flex-col items-center justify-center space-y-6">
                 <div className="text-center">
-                  <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
                     {engineType === 'exterior' ? (
-                      <ImageIcon className="h-10 w-10 text-gray-400" />
+                      <ImageIcon className="h-10 w-10 text-muted-foreground" />
                     ) : engineType === 'interior' ? (
-                      <ImageIcon className="h-10 w-10 text-gray-400" />
+                      <ImageIcon className="h-10 w-10 text-muted-foreground" />
                     ) : engineType === 'furniture' ? (
-                      <ImageIcon className="h-10 w-10 text-gray-400" />
+                      <ImageIcon className="h-10 w-10 text-muted-foreground" />
                     ) : (
-                      <ImageIcon className="h-10 w-10 text-gray-400" />
+                      <ImageIcon className="h-10 w-10 text-muted-foreground" />
                     )}
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  <h3 className="text-lg font-semibold text-foreground mb-2">
                     Your {engineType} render will appear here
                   </h3>
-                  <p className="text-gray-600">
+                  <p className="text-muted-foreground">
                     Use the control panel to configure and generate your AI-powered visualization
                   </p>
                 </div>

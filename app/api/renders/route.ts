@@ -3,7 +3,6 @@ import { createClient } from '@/lib/supabase/server';
 import { ImageGenerationService } from '@/lib/services/image-generation';
 import { addCredits, deductCredits } from '@/lib/actions/billing.actions';
 import { RendersDAL } from '@/lib/dal/renders';
-import { ProjectsDAL } from '@/lib/dal/projects';
 import { StorageService } from '@/lib/services/storage';
 
 const imageService = ImageGenerationService.getInstance();
@@ -12,11 +11,15 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🚀 Starting render generation API call');
     
-    const { user } = await createClient().auth.getUser();
-    if (!user.data.user) {
-      console.log('❌ Authentication failed');
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.log('❌ Authentication failed:', authError?.message);
       return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
     }
+    
+    console.log('✅ User authenticated:', user.id);
 
     const formData = await request.formData();
     const prompt = formData.get('prompt') as string;
@@ -58,7 +61,7 @@ export async function POST(request: NextRequest) {
     console.log('💾 Creating render record in database');
     const render = await RendersDAL.create({
       projectId: projectId || null,
-      userId: user.data.user.id,
+      userId: user.id,
       type,
       prompt,
       settings: {
@@ -90,7 +93,7 @@ export async function POST(request: NextRequest) {
         console.log('❌ Generation failed:', result.error);
         await RendersDAL.updateStatus(render.id, 'failed', result.error);
         // Refund credits
-        await addCredits(creditsCost, 'Refund for failed generation', user.data.user.id, 'refund');
+        await addCredits(creditsCost, 'refund', 'Refund for failed generation', user.id, 'refund');
         return NextResponse.json({ success: false, error: result.error }, { status: 500 });
       }
 
@@ -101,7 +104,7 @@ export async function POST(request: NextRequest) {
       const uploadResult = await StorageService.uploadFile(
         outputFile,
         'renders',
-        user.data.user.id
+        user.id
       );
 
       console.log('✅ File uploaded to storage:', uploadResult.url);
@@ -126,7 +129,7 @@ export async function POST(request: NextRequest) {
       console.error('❌ Generation error:', error);
       await RendersDAL.updateStatus(render.id, 'failed', error instanceof Error ? error.message : 'Unknown error');
       // Refund credits
-      await addCredits(creditsCost, 'Refund for failed generation', user.data.user.id, 'refund');
+      await addCredits(creditsCost, 'refund', 'Refund for failed generation', user.id, 'refund');
       return NextResponse.json({ success: false, error: 'Generation failed' }, { status: 500 });
     }
 
@@ -138,15 +141,17 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { user } = await createClient().auth.getUser();
-    if (!user.data.user) {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
       return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
 
-    const renders = await RendersDAL.getByUser(user.data.user.id, projectId);
+    const renders = await RendersDAL.getByUser(user.id, projectId);
     
     return NextResponse.json({ success: true, data: renders });
   } catch (error) {

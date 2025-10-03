@@ -25,8 +25,8 @@ export function PlanComparison({ plans, onSelectPlan }: PlanComparisonProps) {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-3xl font-bold text-gray-900">Choose Your Plan</h2>
-        <p className="text-gray-600 mt-2">Select the perfect plan for your architectural visualization needs</p>
+        <h2 className="text-3xl font-bold text-foreground">Choose Your Plan</h2>
+        <p className="text-muted-foreground mt-2">Select the perfect plan for your architectural visualization needs</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -43,9 +43,9 @@ export function PlanComparison({ plans, onSelectPlan }: PlanComparisonProps) {
               <CardDescription>{plan.description}</CardDescription>
               <div className="mt-4">
                 <span className="text-4xl font-bold">${plan.price}</span>
-                <span className="text-gray-600">/{plan.interval}</span>
+                <span className="text-muted-foreground">/{plan.interval}</span>
               </div>
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-muted-foreground">
                 {plan.creditsPerMonth} credits per month
               </div>
             </CardHeader>

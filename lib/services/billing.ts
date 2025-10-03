@@ -4,7 +4,7 @@ import { userSubscriptions, subscriptionPlans, userCredits, creditTransactions }
 import { eq, and } from 'drizzle-orm';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-12-18.acacia',
+  apiVersion: '2025-02-24.acacia',
 });
 
 export class BillingService {
@@ -39,16 +39,19 @@ export class BillingService {
         return { success: false, error: 'Plan not found' };
       }
 
+      // Create product first
+      const product = await stripe.products.create({
+        name: plan[0].name,
+        description: plan[0].description || undefined,
+      });
+
       const subscriptionData: Stripe.SubscriptionCreateParams = {
         customer: customerId,
         items: [
           {
             price_data: {
               currency: plan[0].currency.toLowerCase(),
-              product_data: {
-                name: plan[0].name,
-                description: plan[0].description,
-              },
+              product: product.id,
               unit_amount: Math.round(parseFloat(plan[0].price) * 100),
               recurring: {
                 interval: plan[0].interval,
@@ -85,7 +88,7 @@ export class BillingService {
       });
 
       // Add credits to user account
-      await this.addCredits(userId, plan[0].creditsPerMonth, 'subscription', `Monthly credits for ${plan[0].name} plan`);
+      await this.addCredits(userId, plan[0].creditsPerMonth, 'earned', `Monthly credits for ${plan[0].name} plan`);
 
       return { success: true, subscriptionId: subscription.id };
     } catch (error) {

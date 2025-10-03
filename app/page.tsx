@@ -1,12 +1,10 @@
 import Link from 'next/link';
-import { Navbar } from '@/components/navbar';
 import { Button } from '@/components/ui/button';
 import { Wand2, Upload, GalleryVertical, Zap, Shield, Globe } from 'lucide-react';
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted">
-      <Navbar />
       
       {/* Hero Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">

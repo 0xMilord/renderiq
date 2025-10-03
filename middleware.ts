@@ -36,7 +36,8 @@ export async function middleware(request: NextRequest) {
     !user &&
     (request.nextUrl.pathname.startsWith('/upload') ||
      request.nextUrl.pathname.startsWith('/projects') ||
-     request.nextUrl.pathname.startsWith('/api/protected'))
+     request.nextUrl.pathname.startsWith('/api/protected') ||
+     request.nextUrl.pathname.startsWith('/engine'))
   ) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
