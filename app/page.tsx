@@ -1,103 +1,113 @@
-import Image from "next/image";
+import Link from 'next/link';
+import { Navbar } from '@/components/navbar';
+import { Button } from '@/components/ui/button';
+import { Wand2, Upload, GalleryVertical, Zap, Shield, Globe } from 'lucide-react';
 
 export default function Home() {
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted">
+      <Navbar />
+      
+      {/* Hero Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[2400px] mx-auto">
+          <div className="text-center">
+            <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-6">
+              Transform Sketches into
+              <span className="text-primary block">Hyperrealistic Renders</span>
+            </h1>
+            <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
+              Upload your architectural sketches or 3D model snapshots and watch them transform 
+              into stunning, photorealistic AI-generated images and videos.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link href="/engine/interior-ai">
+                <Button size="lg" className="flex items-center space-x-2">
+                  <Upload className="h-5 w-5" />
+                  <span>Start Creating</span>
+                </Button>
+              </Link>
+              <Link href="/gallery">
+                <Button size="lg" variant="outline" className="flex items-center space-x-2">
+                  <GalleryVertical className="h-5 w-5" />
+                  <span>View Gallery</span>
+                </Button>
+              </Link>
+            </div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-card">
+        <div className="max-w-[2400px] mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-card-foreground mb-4">
+              Powered by Advanced AI
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Our Nano Banana SDK integration delivers professional-grade architectural visualization
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="text-center p-6">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Wand2 className="h-8 w-8 text-primary" />
+              </div>
+              <h3 className="text-xl font-semibold text-card-foreground mb-2">AI-Powered Rendering</h3>
+              <p className="text-muted-foreground">
+                Transform basic sketches into photorealistic architectural visualizations using cutting-edge AI technology.
+              </p>
+            </div>
+
+            <div className="text-center p-6">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Zap className="h-8 w-8 text-green-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-card-foreground mb-2">Fast Processing</h3>
+              <p className="text-muted-foreground">
+                Get your renders in minutes, not hours. Our optimized pipeline delivers results quickly.
+              </p>
+            </div>
+
+            <div className="text-center p-6">
+              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Shield className="h-8 w-8 text-purple-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-card-foreground mb-2">Secure & Private</h3>
+              <p className="text-muted-foreground">
+                Your projects are secure with enterprise-grade encryption and privacy protection.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-primary">
+        <div className="max-w-[2400px] mx-auto text-center">
+          <h2 className="text-3xl md:text-4xl font-bold text-primary-foreground mb-4">
+            Ready to Transform Your Ideas?
+          </h2>
+          <p className="text-xl text-primary-foreground/80 mb-8">
+            Join thousands of architects and designers creating stunning visualizations
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/signup">
+              <Button size="lg" variant="secondary" className="flex items-center space-x-2">
+                <Globe className="h-5 w-5" />
+                <span>Get Started Free</span>
+              </Button>
+            </Link>
+            <Link href="/api-docs">
+                <Button size="lg" variant="outline" className="flex items-center space-x-2 bg-transparent border-primary-foreground text-primary-foreground hover:bg-primary-foreground hover:text-primary">
+                <span>View API Docs</span>
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

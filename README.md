@@ -1,36 +1,275 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AecoSec - AI Architectural Visualization Platform
+
+Transform your architectural sketches into hyperrealistic AI renders and videos using the Nano Banana SDK.
+
+## Features
+
+- 🎨 **AI-Powered Rendering**: Transform sketches into photorealistic architectural visualizations
+- 🚀 **Fast Processing**: Get renders in minutes, not hours
+- 🔒 **Secure & Private**: Enterprise-grade security and privacy protection
+- 📱 **Responsive Design**: Works seamlessly on desktop and mobile
+- 🎥 **Video Generation**: Create both images and videos from your sketches
+- 🌐 **Public Gallery**: Share and discover amazing renders from the community
+
+## Tech Stack
+
+- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS
+- **Backend**: Next.js API Routes, Server Actions
+- **Database**: PostgreSQL with Drizzle ORM
+- **Authentication**: Supabase Auth
+- **Storage**: Supabase Storage
+- **AI Engine**: Nano Banana SDK
+- **Validation**: Zod
+- **UI Components**: Custom components with Tailwind CSS
+
+## Architecture
+
+```
+┌─────────────────────────────────────────┐
+│          Presentation Layer             │
+│  (Components, Pages, Client Logic)      │
+└─────────────┬───────────────────────────┘
+              │
+┌─────────────▼───────────────────────────┐
+│           Hooks Layer                   │
+│  (use-auth, use-projects, use-gallery)  │
+│  - Bridge client ↔ server               │
+│  - Manage loading states                │
+│  - Handle optimistic updates            │
+└─────────────┬───────────────────────────┘
+              │
+┌─────────────▼───────────────────────────┐
+│        Server Actions Layer             │
+│  (/lib/actions/*.actions.ts)            │
+│  - Entry point from client              │
+│  - Input validation (Zod)               │
+│  - Authentication checks                │
+│  - Cache revalidation                   │
+└─────────────┬───────────────────────────┘
+              │
+┌─────────────▼───────────────────────────┐
+│         Service Layer                   │
+│  (/lib/services/*.service.ts)           │
+│  - Business logic                       │
+│  - Database operations                  │
+│  - External API calls                   │
+│  - Domain rules                         │
+└─────────────┬───────────────────────────┘
+              │
+┌─────────────▼───────────────────────────┐
+│         Data Layer                      │
+│  (Drizzle ORM + PostgreSQL)             │
+│  - Schema definitions                   │
+│  - Type-safe queries                    │
+│  - Migrations                           │
+└─────────────────────────────────────────┘
+```
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Node.js 18+ 
+- PostgreSQL database
+- Supabase account
+- Nano Banana API key
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd aecosec
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Set up environment variables**
+   ```bash
+   cp .env.example .env.local
+   ```
+   
+   Fill in your environment variables:
+   - `DATABASE_URL`: Your PostgreSQL connection string
+   - `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase project URL
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your Supabase anon key
+   - `SUPABASE_SERVICE_ROLE_KEY`: Your Supabase service role key
+   - `NANO_BANANA_API_KEY`: Your Nano Banana API key
+   - `NANO_BANANA_BASE_URL`: Nano Banana API base URL
+
+4. **Set up the database**
+   ```bash
+   npm run db:generate
+   npm run db:migrate
+   ```
+
+5. **Start the development server**
+   ```bash
+   npm run dev
+   ```
+
+6. **Open your browser**
+   Navigate to [http://localhost:3000](http://localhost:3000)
+
+## Project Structure
+
+```
+aecosec/
+├── app/                    # Next.js App Router pages
+│   ├── api-docs/          # API documentation page
+│   ├── gallery/           # Public gallery page
+│   ├── login/             # Authentication pages
+│   ├── signup/
+│   ├── upload/            # Upload page
+│   ├── layout.tsx         # Root layout
+│   └── page.tsx           # Home page
+├── components/            # React components
+│   ├── ui/               # Base UI components
+│   ├── gallery-grid.tsx  # Gallery display component
+│   ├── navbar.tsx        # Navigation component
+│   ├── render-display.tsx # Render display component
+│   ├── render-form.tsx   # Render creation form
+│   └── upload-form.tsx   # Upload form component
+├── lib/                  # Core application logic
+│   ├── actions/          # Server actions
+│   ├── dal/             # Data access layer
+│   ├── db/              # Database schema and connection
+│   ├── hooks/           # Custom React hooks
+│   ├── services/        # Business logic services
+│   ├── supabase/        # Supabase client configuration
+│   └── types/           # TypeScript type definitions
+├── drizzle.config.ts     # Drizzle ORM configuration
+├── middleware.ts         # Next.js middleware
+└── package.json
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## API Endpoints
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Authentication
+- `POST /api/auth/signin` - Sign in user
+- `POST /api/auth/signup` - Create new user
+- `POST /api/auth/signout` - Sign out user
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Projects
+- `GET /api/projects` - Get user projects
+- `POST /api/projects` - Create new project
+- `GET /api/projects/[id]` - Get project details
+- `DELETE /api/projects/[id]` - Delete project
 
-## Learn More
+### Renders
+- `POST /api/renders` - Create new render
+- `GET /api/renders/[id]` - Get render status
+- `GET /api/renders` - List user renders
 
-To learn more about Next.js, take a look at the following resources:
+### Gallery
+- `GET /api/gallery` - Get public gallery
+- `POST /api/gallery/[id]/like` - Like gallery item
+- `POST /api/gallery/[id]/view` - Record view
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Database Schema
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Users
+- `id` (UUID, Primary Key)
+- `email` (String, Unique)
+- `name` (String, Optional)
+- `avatar` (String, Optional)
+- `created_at` (Timestamp)
+- `updated_at` (Timestamp)
 
-## Deploy on Vercel
+### Projects
+- `id` (UUID, Primary Key)
+- `user_id` (UUID, Foreign Key)
+- `name` (String)
+- `description` (String, Optional)
+- `original_image_url` (String)
+- `original_image_key` (String)
+- `status` (Enum: processing, completed, failed)
+- `created_at` (Timestamp)
+- `updated_at` (Timestamp)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Renders
+- `id` (UUID, Primary Key)
+- `project_id` (UUID, Foreign Key)
+- `type` (Enum: image, video)
+- `prompt` (String)
+- `settings` (JSON)
+- `output_url` (String, Optional)
+- `output_key` (String, Optional)
+- `status` (Enum: pending, processing, completed, failed)
+- `error_message` (String, Optional)
+- `processing_time` (Integer, Optional)
+- `created_at` (Timestamp)
+- `updated_at` (Timestamp)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Gallery Items
+- `id` (UUID, Primary Key)
+- `render_id` (UUID, Foreign Key)
+- `user_id` (UUID, Foreign Key)
+- `is_public` (Boolean)
+- `likes` (Integer)
+- `views` (Integer)
+- `created_at` (Timestamp)
+
+## Development
+
+### Database Commands
+```bash
+# Generate migration files
+npm run db:generate
+
+# Run migrations
+npm run db:migrate
+
+# Open Drizzle Studio
+npm run db:studio
+```
+
+### Code Quality
+```bash
+# Run ESLint
+npm run lint
+
+# Type checking
+npx tsc --noEmit
+```
+
+## Deployment
+
+### Vercel (Recommended)
+1. Connect your GitHub repository to Vercel
+2. Set environment variables in Vercel dashboard
+3. Deploy automatically on push to main branch
+
+### Other Platforms
+- Ensure PostgreSQL database is accessible
+- Set all required environment variables
+- Run database migrations
+- Build and start the application
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+For support, email support@aecosec.com or join our Discord community.
+
+## Roadmap
+
+- [ ] Real-time collaboration features
+- [ ] Advanced AI style presets
+- [ ] Batch processing capabilities
+- [ ] Mobile app (React Native)
+- [ ] Integration with popular CAD software
+- [ ] Advanced analytics and insights

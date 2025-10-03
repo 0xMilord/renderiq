@@ -1,0 +1,45 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Home, Upload, GalleryVertical, User, Settings } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const navItems = [
+  { href: '/', icon: Home, label: 'Home' },
+  { href: '/engine/interior-ai', icon: Upload, label: 'AI Engines' },
+  { href: '/gallery', icon: GalleryVertical, label: 'Gallery' },
+  { href: '/profile', icon: User, label: 'Profile' },
+  { href: '/profile/settings', icon: Settings, label: 'Settings' },
+];
+
+export function BottomNav() {
+  const pathname = usePathname();
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-border md:hidden z-50">
+      <div className="grid grid-cols-5 h-16">
+        {navItems.map((item) => {
+          const isActive = pathname === item.href || 
+            (item.href !== '/' && pathname.startsWith(item.href));
+          
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                'flex flex-col items-center justify-center space-y-1 transition-colors',
+                isActive
+                  ? 'text-primary'
+                  : 'text-muted-foreground hover:text-primary'
+              )}
+            >
+              <item.icon className="h-5 w-5" />
+              <span className="text-xs font-medium">{item.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}

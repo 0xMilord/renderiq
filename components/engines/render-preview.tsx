@@ -1,0 +1,256 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import Image from 'next/image';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { 
+  Download, 
+  Share2, 
+  Heart, 
+  Eye, 
+  RefreshCw,
+  Image as ImageIcon,
+  Zap,
+  Clock
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface RenderResult {
+  imageUrl: string;
+  type?: 'video' | 'image';
+  thumbnail?: string;
+  style?: string;
+  quality?: string;
+  aspectRatio?: string;
+  processingTime?: number;
+}
+
+interface RenderPreviewProps {
+  result?: RenderResult;
+  isGenerating: boolean;
+  progress?: number;
+  engineType: 'exterior' | 'interior' | 'furniture' | 'site-plan';
+}
+
+export function RenderPreview({ result, isGenerating, progress = 0, engineType }: RenderPreviewProps) {
+  const [likes, setLikes] = useState(0);
+  const [views, setViews] = useState(0);
+  const [isLiked, setIsLiked] = useState(false);
+
+  useEffect(() => {
+    if (result) {
+      setViews(prev => prev + 1);
+    }
+  }, [result]);
+
+  const handleLike = () => {
+    setLikes(prev => isLiked ? prev - 1 : prev + 1);
+    setIsLiked(!isLiked);
+  };
+
+  const handleDownload = () => {
+    if (result?.imageUrl) {
+      const link = document.createElement('a');
+      link.href = result.imageUrl;
+      link.download = `${engineType}-render-${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  const handleShare = () => {
+    if (navigator.share && result?.imageUrl) {
+      navigator.share({
+        title: `${engineType} AI Render`,
+        text: `Check out this amazing ${engineType} render!`,
+        url: result.imageUrl,
+      });
+    } else {
+      // Fallback to copying URL
+      navigator.clipboard.writeText(result?.imageUrl || '');
+    }
+  };
+
+  const getEngineDescription = () => {
+    const descriptions = {
+      exterior: {
+        title: 'Exterior AI',
+        subtitle: 'Render or redesign your exterior designs in seconds. Just upload a photo or sketch and see the magic in action.',
+        steps: [
+          'Upload an image of your design.',
+          'Image can be a sketch, snapshot from 3d model or a real photo.',
+          'Write a good prompt to describe your design.',
+          'Choose your render mode.',
+          '← Start generating from side panel'
+        ]
+      },
+      interior: {
+        title: 'Interior AI',
+        subtitle: 'Transform interior sketches into photorealistic renders with AI-powered design assistance.',
+        steps: [
+          'Upload your interior design sketch or reference.',
+          'Describe the style, materials, and atmosphere.',
+          'Select your preferred rendering approach.',
+          'Choose quality and aspect ratio settings.',
+          '← Generate from the control panel'
+        ]
+      },
+      furniture: {
+        title: 'Furniture AI',
+        subtitle: 'Create stunning furniture designs and visualizations with AI-powered rendering technology.',
+        steps: [
+          'Upload furniture sketches or reference images.',
+          'Describe materials, style, and finish preferences.',
+          'Select rendering quality and lighting setup.',
+          'Choose your preferred visualization style.',
+          '← Generate from the control panel'
+        ]
+      },
+      'site-plan': {
+        title: 'Site Plan AI',
+        subtitle: 'Generate comprehensive site plans and master planning visualizations with AI assistance.',
+        steps: [
+          'Upload site drawings or aerial imagery.',
+          'Describe project requirements and constraints.',
+          'Select planning approach and detail level.',
+          'Choose visualization style and scale.',
+          '← Generate from the control panel'
+        ]
+      }
+    };
+    
+    return descriptions[engineType];
+  };
+
+  const description = getEngineDescription();
+
+  return (
+    <div className="flex-1 bg-gray-50 flex flex-col w-2/3 overflow-hidden" style={{ height: 'calc(100vh - 4rem)' }}>
+      {/* Main Content */}
+      <div className="flex-1 p-6 min-h-0 overflow-y-auto">
+        <Card className="h-full">
+          <CardContent className="h-full p-0">
+            {isGenerating ? (
+              <div className="h-full flex flex-col items-center justify-center space-y-6">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <RefreshCw className="h-8 w-8 text-blue-600 animate-spin" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Generating {engineType} render...</h3>
+                  <p className="text-gray-600 mb-4">This may take a few moments</p>
+                  
+                  <div className="w-64 space-y-2">
+                    <div className="flex justify-between text-sm text-gray-600">
+                      <span>Progress</span>
+                      <span>{Math.round(progress)}%</span>
+                    </div>
+                    <Progress value={progress} className="h-2" />
+                  </div>
+                </div>
+              </div>
+            ) : result ? (
+              <div className="h-full flex flex-col">
+                {/* Image/Video Display */}
+                <div className="flex-1 bg-gray-100 rounded-t-lg overflow-hidden">
+                  {result.type === 'video' ? (
+                    <video
+                      src={result.imageUrl}
+                      controls
+                      className="w-full h-full object-cover"
+                      poster={result.thumbnail}
+                    />
+                  ) : (
+                    <Image
+                      src={result.imageUrl}
+                      alt={`Generated ${engineType} render`}
+                      fill
+                      className="object-cover"
+                    />
+                  )}
+                </div>
+
+                {/* Result Info */}
+                <div className="p-4 border-t border-gray-200 bg-white">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-4">
+                      <button
+                        onClick={handleLike}
+                        className={cn(
+                          "flex items-center space-x-1 px-3 py-1 rounded-full text-sm transition-colors",
+                          isLiked 
+                            ? "bg-red-100 text-red-600" 
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        )}
+                      >
+                        <Heart className={cn("h-4 w-4", isLiked && "fill-current")} />
+                        <span>{likes}</span>
+                      </button>
+                      <div className="flex items-center space-x-1 text-gray-600">
+                        <Eye className="h-4 w-4" />
+                        <span className="text-sm">{views}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Button variant="outline" size="sm" onClick={handleDownload}>
+                        <Download className="h-4 w-4 mr-1" />
+                        Download
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleShare}>
+                        <Share2 className="h-4 w-4 mr-1" />
+                        Share
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Generation Details */}
+                  <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                    <div>
+                      <span className="font-medium">Style:</span> {result.style}
+                    </div>
+                    <div>
+                      <span className="font-medium">Quality:</span> {result.quality}
+                    </div>
+                    <div>
+                      <span className="font-medium">Aspect Ratio:</span> {result.aspectRatio}
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Clock className="h-3 w-3" />
+                      <span>{result.processingTime?.toFixed(1)}s</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center space-y-6">
+                <div className="text-center">
+                  <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                    {engineType === 'exterior' ? (
+                      <ImageIcon className="h-10 w-10 text-gray-400" />
+                    ) : engineType === 'interior' ? (
+                      <ImageIcon className="h-10 w-10 text-gray-400" />
+                    ) : engineType === 'furniture' ? (
+                      <ImageIcon className="h-10 w-10 text-gray-400" />
+                    ) : (
+                      <ImageIcon className="h-10 w-10 text-gray-400" />
+                    )}
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Your {engineType} render will appear here
+                  </h3>
+                  <p className="text-gray-600">
+                    Use the control panel to configure and generate your AI-powered visualization
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

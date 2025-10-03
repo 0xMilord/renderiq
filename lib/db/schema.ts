@@ -1,0 +1,358 @@
+import { pgTable, text, timestamp, uuid, integer, boolean, jsonb, decimal, bigint } from 'drizzle-orm/pg-core';
+import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
+import { z } from 'zod';
+
+// Users table with enhanced profile
+export const users = pgTable('users', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: text('email').notNull().unique(),
+  name: text('name'),
+  avatar: text('avatar'),
+  bio: text('bio'),
+  website: text('website'),
+  location: text('location'),
+  isActive: boolean('is_active').default(true).notNull(),
+  isAdmin: boolean('is_admin').default(false).notNull(),
+  emailVerified: boolean('email_verified').default(false).notNull(),
+  lastLoginAt: timestamp('last_login_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Subscription plans
+export const subscriptionPlans = pgTable('subscription_plans', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  description: text('description'),
+  price: decimal('price', { precision: 10, scale: 2 }).notNull(),
+  currency: text('currency').default('USD').notNull(),
+  interval: text('interval', { enum: ['month', 'year'] }).notNull(),
+  creditsPerMonth: integer('credits_per_month').notNull(),
+  maxProjects: integer('max_projects'),
+  maxRendersPerProject: integer('max_renders_per_project'),
+  features: jsonb('features').$type<string[]>(),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// User subscriptions
+export const userSubscriptions = pgTable('user_subscriptions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  planId: uuid('plan_id').references(() => subscriptionPlans.id).notNull(),
+  status: text('status', { enum: ['active', 'canceled', 'past_due', 'unpaid'] }).notNull(),
+  stripeSubscriptionId: text('stripe_subscription_id').unique(),
+  stripeCustomerId: text('stripe_customer_id'),
+  currentPeriodStart: timestamp('current_period_start').notNull(),
+  currentPeriodEnd: timestamp('current_period_end').notNull(),
+  cancelAtPeriodEnd: boolean('cancel_at_period_end').default(false).notNull(),
+  canceledAt: timestamp('canceled_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Credits system
+export const userCredits = pgTable('user_credits', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  balance: integer('balance').default(0).notNull(),
+  totalEarned: integer('total_earned').default(0).notNull(),
+  totalSpent: integer('total_spent').default(0).notNull(),
+  lastResetAt: timestamp('last_reset_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Credit transactions
+export const creditTransactions = pgTable('credit_transactions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  amount: integer('amount').notNull(), // positive for earned, negative for spent
+  type: text('type', { enum: ['earned', 'spent', 'refund', 'bonus'] }).notNull(),
+  description: text('description').notNull(),
+  referenceId: text('reference_id'), // ID of related entity (render, subscription, etc.)
+  referenceType: text('reference_type', { enum: ['render', 'subscription', 'bonus', 'refund'] }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// File storage metadata
+export const fileStorage = pgTable('file_storage', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  fileName: text('file_name').notNull(),
+  originalName: text('original_name').notNull(),
+  mimeType: text('mime_type').notNull(),
+  size: bigint('size', { mode: 'number' }).notNull(),
+  url: text('url').notNull(),
+  key: text('key').notNull(),
+  bucket: text('bucket').notNull(),
+  isPublic: boolean('is_public').default(false).notNull(),
+  metadata: jsonb('metadata').$type<Record<string, any>>(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// File versions
+export const fileVersions = pgTable('file_versions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  fileId: uuid('file_id').references(() => fileStorage.id).notNull(),
+  version: integer('version').notNull(),
+  url: text('url').notNull(),
+  key: text('key').notNull(),
+  size: bigint('size', { mode: 'number' }).notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Projects table with enhanced metadata
+export const projects = pgTable('projects', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  name: text('name').notNull(),
+  description: text('description'),
+  originalImageId: uuid('original_image_id').references(() => fileStorage.id).notNull(),
+  status: text('status', { enum: ['processing', 'completed', 'failed'] }).default('processing').notNull(),
+  isPublic: boolean('is_public').default(false).notNull(),
+  tags: jsonb('tags').$type<string[]>(),
+  metadata: jsonb('metadata').$type<Record<string, any>>(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Project versions for history tracking
+export const projectVersions = pgTable('project_versions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id').references(() => projects.id).notNull(),
+  version: integer('version').notNull(),
+  name: text('name').notNull(),
+  description: text('description'),
+  originalImageId: uuid('original_image_id').references(() => fileStorage.id).notNull(),
+  changes: jsonb('changes').$type<Record<string, any>>(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Renders table with enhanced tracking
+export const renders = pgTable('renders', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id').references(() => projects.id).notNull(),
+  type: text('type', { enum: ['image', 'video'] }).notNull(),
+  prompt: text('prompt').notNull(),
+  settings: jsonb('settings').$type<{
+    style: string;
+    quality: 'standard' | 'high' | 'ultra';
+    aspectRatio: string;
+    duration?: number; // for videos
+  }>(),
+  outputFileId: uuid('output_file_id').references(() => fileStorage.id),
+  status: text('status', { enum: ['pending', 'processing', 'completed', 'failed'] }).default('pending').notNull(),
+  errorMessage: text('error_message'),
+  processingTime: integer('processing_time'), // in seconds
+  creditsCost: integer('credits_cost').default(1).notNull(),
+  priority: integer('priority').default(0).notNull(), // for queue management
+  queuePosition: integer('queue_position'),
+  estimatedCompletionAt: timestamp('estimated_completion_at'),
+  startedAt: timestamp('started_at'),
+  completedAt: timestamp('completed_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Render versions for history tracking
+export const renderVersions = pgTable('render_versions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  renderId: uuid('render_id').references(() => renders.id).notNull(),
+  version: integer('version').notNull(),
+  prompt: text('prompt').notNull(),
+  settings: jsonb('settings').$type<Record<string, any>>(),
+  outputFileId: uuid('output_file_id').references(() => fileStorage.id),
+  changes: jsonb('changes').$type<Record<string, any>>(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Gallery items (public renders)
+export const galleryItems = pgTable('gallery_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  renderId: uuid('render_id').references(() => renders.id).notNull(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  isPublic: boolean('is_public').default(false).notNull(),
+  likes: integer('likes').default(0).notNull(),
+  views: integer('views').default(0).notNull(),
+  featured: boolean('featured').default(false).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Notifications system
+export const notifications = pgTable('notifications', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  type: text('type', { enum: ['render_completed', 'render_failed', 'subscription_expired', 'credits_low', 'system'] }).notNull(),
+  title: text('title').notNull(),
+  message: text('message').notNull(),
+  data: jsonb('data').$type<Record<string, any>>(),
+  isRead: boolean('is_read').default(false).notNull(),
+  readAt: timestamp('read_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Usage tracking
+export const usageTracking = pgTable('usage_tracking', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  date: timestamp('date').notNull(),
+  rendersCreated: integer('renders_created').default(0).notNull(),
+  creditsSpent: integer('credits_spent').default(0).notNull(),
+  storageUsed: bigint('storage_used', { mode: 'number' }).default(0).notNull(),
+  apiCalls: integer('api_calls').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// API rate limiting
+export const apiRateLimits = pgTable('api_rate_limits', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  endpoint: text('endpoint').notNull(),
+  requestsCount: integer('requests_count').default(0).notNull(),
+  windowStart: timestamp('window_start').notNull(),
+  windowEnd: timestamp('window_end').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Render queue for processing management
+export const renderQueue = pgTable('render_queue', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  renderId: uuid('render_id').references(() => renders.id).notNull(),
+  priority: integer('priority').default(0).notNull(),
+  status: text('status', { enum: ['queued', 'processing', 'completed', 'failed'] }).default('queued').notNull(),
+  position: integer('position').notNull(),
+  estimatedStartAt: timestamp('estimated_start_at'),
+  startedAt: timestamp('started_at'),
+  completedAt: timestamp('completed_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// User settings and preferences
+export const userSettings = pgTable('user_settings', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  preferences: jsonb('preferences').$type<{
+    theme: 'light' | 'dark' | 'system';
+    notifications: {
+      email: boolean;
+      push: boolean;
+      renderComplete: boolean;
+      creditsLow: boolean;
+    };
+    defaultRenderSettings: {
+      style: string;
+      quality: string;
+      aspectRatio: string;
+    };
+  }>(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Create Zod schemas
+export const insertUserSchema = createInsertSchema(users);
+export const selectUserSchema = createSelectSchema(users);
+
+export const insertSubscriptionPlanSchema = createInsertSchema(subscriptionPlans);
+export const selectSubscriptionPlanSchema = createSelectSchema(subscriptionPlans);
+
+export const insertUserSubscriptionSchema = createInsertSchema(userSubscriptions);
+export const selectUserSubscriptionSchema = createSelectSchema(userSubscriptions);
+
+export const insertUserCreditsSchema = createInsertSchema(userCredits);
+export const selectUserCreditsSchema = createSelectSchema(userCredits);
+
+export const insertCreditTransactionSchema = createInsertSchema(creditTransactions);
+export const selectCreditTransactionSchema = createSelectSchema(creditTransactions);
+
+export const insertFileStorageSchema = createInsertSchema(fileStorage);
+export const selectFileStorageSchema = createSelectSchema(fileStorage);
+
+export const insertFileVersionSchema = createInsertSchema(fileVersions);
+export const selectFileVersionSchema = createSelectSchema(fileVersions);
+
+export const insertProjectSchema = createInsertSchema(projects);
+export const selectProjectSchema = createSelectSchema(projects);
+
+export const insertProjectVersionSchema = createInsertSchema(projectVersions);
+export const selectProjectVersionSchema = createSelectSchema(projectVersions);
+
+export const insertRenderSchema = createInsertSchema(renders);
+export const selectRenderSchema = createSelectSchema(renders);
+
+export const insertRenderVersionSchema = createInsertSchema(renderVersions);
+export const selectRenderVersionSchema = createSelectSchema(renderVersions);
+
+export const insertGalleryItemSchema = createInsertSchema(galleryItems);
+export const selectGalleryItemSchema = createSelectSchema(galleryItems);
+
+export const insertNotificationSchema = createInsertSchema(notifications);
+export const selectNotificationSchema = createSelectSchema(notifications);
+
+export const insertUsageTrackingSchema = createInsertSchema(usageTracking);
+export const selectUsageTrackingSchema = createSelectSchema(usageTracking);
+
+export const insertApiRateLimitSchema = createInsertSchema(apiRateLimits);
+export const selectApiRateLimitSchema = createSelectSchema(apiRateLimits);
+
+export const insertRenderQueueSchema = createInsertSchema(renderQueue);
+export const selectRenderQueueSchema = createSelectSchema(renderQueue);
+
+export const insertUserSettingsSchema = createInsertSchema(userSettings);
+export const selectUserSettingsSchema = createSelectSchema(userSettings);
+
+// Type exports
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+
+export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
+export type NewSubscriptionPlan = typeof subscriptionPlans.$inferInsert;
+
+export type UserSubscription = typeof userSubscriptions.$inferSelect;
+export type NewUserSubscription = typeof userSubscriptions.$inferInsert;
+
+export type UserCredits = typeof userCredits.$inferSelect;
+export type NewUserCredits = typeof userCredits.$inferInsert;
+
+export type CreditTransaction = typeof creditTransactions.$inferSelect;
+export type NewCreditTransaction = typeof creditTransactions.$inferInsert;
+
+export type FileStorage = typeof fileStorage.$inferSelect;
+export type NewFileStorage = typeof fileStorage.$inferInsert;
+
+export type FileVersion = typeof fileVersions.$inferSelect;
+export type NewFileVersion = typeof fileVersions.$inferInsert;
+
+export type Project = typeof projects.$inferSelect;
+export type NewProject = typeof projects.$inferInsert;
+
+export type ProjectVersion = typeof projectVersions.$inferSelect;
+export type NewProjectVersion = typeof projectVersions.$inferInsert;
+
+export type Render = typeof renders.$inferSelect;
+export type NewRender = typeof renders.$inferInsert;
+
+export type RenderVersion = typeof renderVersions.$inferSelect;
+export type NewRenderVersion = typeof renderVersions.$inferInsert;
+
+export type GalleryItem = typeof galleryItems.$inferSelect;
+export type NewGalleryItem = typeof galleryItems.$inferInsert;
+
+export type Notification = typeof notifications.$inferSelect;
+export type NewNotification = typeof notifications.$inferInsert;
+
+export type UsageTracking = typeof usageTracking.$inferSelect;
+export type NewUsageTracking = typeof usageTracking.$inferInsert;
+
+export type ApiRateLimit = typeof apiRateLimits.$inferSelect;
+export type NewApiRateLimit = typeof apiRateLimits.$inferInsert;
+
+export type RenderQueue = typeof renderQueue.$inferSelect;
+export type NewRenderQueue = typeof renderQueue.$inferInsert;
+
+export type UserSettings = typeof userSettings.$inferSelect;
+export type NewUserSettings = typeof userSettings.$inferInsert;
