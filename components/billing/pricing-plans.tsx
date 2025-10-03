@@ -24,7 +24,6 @@ interface Plan {
   maxProjects: number | null;
   maxRendersPerProject: number | null;
   features: string[];
-  icon: any;
   popular: boolean;
 }
 

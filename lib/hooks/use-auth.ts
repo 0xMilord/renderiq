@@ -1,65 +1,22 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useAuthStore } from '@/lib/stores/auth-store';
 import { signInAction, signUpAction, signOutAction, signInWithGoogleAction, signInWithGithubAction } from '@/lib/actions/auth.actions';
-import type { User } from '@supabase/supabase-js';
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const supabase = createClient();
-
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      setLoading(false);
-    };
-
-    getUser();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, [supabase.auth]);
+  const { user, loading, signIn: storeSignIn, signUp: storeSignUp, signOut: storeSignOut } = useAuthStore();
 
   const signIn = async (email: string, password: string) => {
-    try {
-      await signInAction(email, password);
-      return { error: null };
-    } catch (error) {
-      return { 
-        error: error instanceof Error ? error.message : 'Sign in failed' 
-      };
-    }
+    return await storeSignIn(email, password);
   };
 
   const signUp = async (email: string, password: string, name?: string) => {
-    try {
-      await signUpAction(email, password, name);
-      return { error: null };
-    } catch (error) {
-      return { 
-        error: error instanceof Error ? error.message : 'Sign up failed' 
-      };
-    }
+    return await storeSignUp(email, password, name || '');
   };
 
   const signOut = async () => {
-    try {
-      await signOutAction();
-      return { error: null };
-    } catch (error) {
-      return { 
-        error: error instanceof Error ? error.message : 'Sign out failed' 
-      };
-    }
+    await storeSignOut();
+    return { error: null };
   };
 
   const signInWithGoogle = async () => {

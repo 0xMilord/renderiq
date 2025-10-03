@@ -1,5 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { nanoid } from 'nanoid';
+import { eq } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { fileStorage } from '@/lib/db/schema';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -10,9 +13,10 @@ export class StorageService {
   static async uploadFile(
     file: File | Buffer,
     bucket: string,
-    folder?: string,
-    fileName?: string
-  ): Promise<{ url: string; key: string }> {
+    userId: string,
+    fileName?: string,
+    projectSlug?: string
+  ): Promise<{ url: string; key: string; id: string }> {
     try {
       let finalFileName: string;
       let fileBuffer: Buffer;
@@ -26,7 +30,12 @@ export class StorageService {
         fileBuffer = file;
       }
 
-      const filePath = folder ? `${folder}/${finalFileName}` : finalFileName;
+      // Create organized file path
+      const filePath = projectSlug 
+        ? `projects/${projectSlug}/${userId}/${finalFileName}`
+        : bucket === 'uploads' 
+          ? `uploads/${userId}/${finalFileName}`
+          : `renders/${userId}/${finalFileName}`;
 
       const { data, error } = await supabase.storage
         .from(bucket)
@@ -44,9 +53,23 @@ export class StorageService {
         .from(bucket)
         .getPublicUrl(filePath);
 
+      // Create file storage record
+      const fileRecord = await db.insert(fileStorage).values({
+        userId,
+        fileName: finalFileName,
+        originalName: file instanceof File ? file.name : 'generated.png',
+        mimeType: file instanceof File ? file.type : 'image/png',
+        size: fileBuffer.length,
+        url: publicUrl,
+        key: data.path,
+        bucket,
+        isPublic: true,
+      }).returning({ id: fileStorage.id });
+
       return {
         url: publicUrl,
         key: data.path,
+        id: fileRecord[0].id,
       };
     } catch (error) {
       throw new Error(`Storage upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -56,8 +79,9 @@ export class StorageService {
   static async uploadFromUrl(
     imageUrl: string,
     bucket: string,
-    folder?: string,
-    fileName?: string
+    userId: string,
+    fileName?: string,
+    projectSlug?: string
   ): Promise<{ url: string; key: string }> {
     try {
       // Handle blob URLs by converting to buffer
@@ -77,7 +101,11 @@ export class StorageService {
       }
 
       const finalFileName = fileName || `${nanoid()}.png`;
-      const filePath = folder ? `${folder}/${finalFileName}` : finalFileName;
+      const filePath = projectSlug 
+        ? `projects/${projectSlug}/${userId}/${finalFileName}`
+        : bucket === 'uploads' 
+          ? `uploads/${userId}/${finalFileName}`
+          : `renders/${userId}/${finalFileName}`;
 
       const { data, error } = await supabase.storage
         .from(bucket)
@@ -131,6 +159,61 @@ export class StorageService {
       return data.signedUrl;
     } catch (error) {
       throw new Error(`Signed URL generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  static async getFileUrl(fileId: string): Promise<string> {
+    try {
+      // Query the file storage table to get the file info
+      const fileRecord = await db.select().from(fileStorage).where(eq(fileStorage.id, fileId)).limit(1);
+      
+      if (fileRecord.length === 0) {
+        throw new Error('File not found');
+      }
+      
+      const file = fileRecord[0];
+      
+      // Get the public URL from Supabase storage
+      const { data: { publicUrl } } = supabase.storage
+        .from(file.bucket)
+        .getPublicUrl(file.key);
+      
+      return publicUrl;
+    } catch (error) {
+      throw new Error(`Get file URL failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  static async updateFileProjectSlug(fileId: string, projectSlug: string): Promise<void> {
+    try {
+      console.log('🔄 Updating file project slug:', { fileId, projectSlug });
+      
+      // Get the current file record
+      const fileRecord = await db.select().from(fileStorage).where(eq(fileStorage.id, fileId)).limit(1);
+      
+      if (fileRecord.length === 0) {
+        throw new Error('File not found');
+      }
+      
+      const file = fileRecord[0];
+      
+      // Update the metadata to include project slug
+      const updatedMetadata = {
+        ...file.metadata,
+        projectSlug
+      };
+      
+      await db.update(fileStorage)
+        .set({ 
+          metadata: updatedMetadata,
+          updatedAt: new Date()
+        })
+        .where(eq(fileStorage.id, fileId));
+        
+      console.log('✅ File project slug updated successfully');
+    } catch (error) {
+      console.error('❌ Failed to update file project slug:', error);
+      throw new Error(`Update file project slug failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }

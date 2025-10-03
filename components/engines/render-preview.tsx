@@ -159,7 +159,7 @@ export function RenderPreview({ result, isGenerating, progress = 0, engineType }
   const description = getEngineDescription();
 
   return (
-    <div className="flex-1 bg-background flex flex-col w-2/3 overflow-hidden" style={{ height: 'calc(100vh - 4rem)' }}>
+    <div className="flex-1 bg-background flex flex-col min-w-0 overflow-hidden w-full lg:w-2/3" style={{ height: 'calc(100vh - 4rem)' }}>
       {/* Main Content */}
       <div className="flex-1 p-6 min-h-0 overflow-y-auto">
         <Card className="h-full">

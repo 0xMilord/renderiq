@@ -15,6 +15,13 @@
       "when": 1759477971862,
       "tag": "0001_calm_wasp",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1759489472320,
+      "tag": "0002_mean_joseph",
+      "breakpoints": true
     }
   ]
 }

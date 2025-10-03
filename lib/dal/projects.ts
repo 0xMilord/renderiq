@@ -3,14 +3,61 @@ import { projects, renders, users, galleryItems } from '@/lib/db/schema';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import type { NewProject, Project, NewRender, Render } from '@/lib/db/schema';
 
+// Helper function to generate URL-friendly slug
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .substring(0, 50);
+}
+
+// Helper function to ensure unique slug
+async function ensureUniqueSlug(baseSlug: string, excludeId?: string): Promise<string> {
+  let slug = baseSlug;
+  let counter = 1;
+  
+  while (true) {
+    const [existing] = await db
+      .select()
+      .from(projects)
+      .where(
+        excludeId 
+          ? and(eq(projects.slug, slug), sql`${projects.id} != ${excludeId}`)
+          : eq(projects.slug, slug)
+      );
+    
+    if (!existing) {
+      return slug;
+    }
+    
+    slug = `${baseSlug}-${counter}`;
+    counter++;
+  }
+}
+
 export class ProjectsDAL {
-  static async create(project: NewProject): Promise<Project> {
+  static async create(projectData: Omit<NewProject, 'slug'>): Promise<Project> {
+    // Generate unique slug from project name
+    const baseSlug = generateSlug(projectData.name);
+    const slug = await ensureUniqueSlug(baseSlug);
+    
+    const project: NewProject = {
+      ...projectData,
+      slug,
+    };
+    
     const [newProject] = await db.insert(projects).values(project).returning();
     return newProject;
   }
 
   static async getById(id: string): Promise<Project | null> {
     const [project] = await db.select().from(projects).where(eq(projects.id, id));
+    return project || null;
+  }
+
+  static async getBySlug(slug: string): Promise<Project | null> {
+    const [project] = await db.select().from(projects).where(eq(projects.slug, slug));
     return project || null;
   }
 
@@ -47,6 +94,20 @@ export class RendersDAL {
     return render || null;
   }
 
+  static async getByUser(userId: string, projectId?: string | null, limit = 20, offset = 0): Promise<Render[]> {
+    const whereClause = projectId 
+      ? and(eq(renders.userId, userId), eq(renders.projectId, projectId))
+      : eq(renders.userId, userId);
+    
+    return db
+      .select()
+      .from(renders)
+      .where(whereClause)
+      .orderBy(desc(renders.createdAt))
+      .limit(limit)
+      .offset(offset);
+  }
+
   static async getByProjectId(projectId: string): Promise<Render[]> {
     return db
       .select()
@@ -68,6 +129,27 @@ export class RendersDAL {
     if (outputKey) updateData.outputKey = outputKey;
     if (errorMessage) updateData.errorMessage = errorMessage;
     if (processingTime) updateData.processingTime = processingTime;
+
+    await db.update(renders).set(updateData).where(eq(renders.id, id));
+  }
+
+  static async updateOutput(
+    id: string,
+    outputUrl: string,
+    outputKey: string,
+    status: 'completed' | 'failed',
+    processingTime?: number,
+    errorMessage?: string
+  ): Promise<void> {
+    const updateData: any = { 
+      outputUrl, 
+      outputKey, 
+      status, 
+      completedAt: new Date(),
+      updatedAt: new Date() 
+    };
+    if (processingTime) updateData.processingTime = processingTime;
+    if (errorMessage) updateData.errorMessage = errorMessage;
 
     await db.update(renders).set(updateData).where(eq(renders.id, id));
   }
@@ -110,6 +192,17 @@ export class RendersDAL {
       .update(galleryItems)
       .set({ views: sql`${galleryItems.views} + 1` })
       .where(eq(galleryItems.id, id));
+  }
+
+  static async addToGallery(renderId: string, userId: string, isPublic: boolean): Promise<void> {
+    await db.insert(galleryItems).values({
+      renderId,
+      userId,
+      isPublic,
+      likes: 0,
+      views: 0,
+      featured: false,
+    });
   }
 
   static async toggleLike(id: string, userId: string): Promise<{ liked: boolean; likes: number }> {

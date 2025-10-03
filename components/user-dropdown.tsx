@@ -19,18 +19,16 @@ import {
   LogOut, 
   FolderOpen, 
   Palette,
-  Sun,
-  Moon,
-  Monitor,
-  ChevronDown
+  LayoutDashboard,
+  Image as ImageIcon,
+  CreditCard
 } from 'lucide-react';
 import Link from 'next/link';
-import { useTheme } from 'next-themes';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export function UserDropdown() {
   const { user, signOut } = useAuth();
   const { profile, loading: profileLoading } = useUserProfile();
-  const { theme, setTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
 
   const handleSignOut = async () => {
@@ -38,37 +36,6 @@ export function UserDropdown() {
     setIsOpen(false);
   };
 
-  const toggleTheme = () => {
-    if (theme === 'light') {
-      setTheme('dark');
-    } else if (theme === 'dark') {
-      setTheme('system');
-    } else {
-      setTheme('light');
-    }
-  };
-
-  const getThemeIcon = () => {
-    switch (theme) {
-      case 'light':
-        return <Sun className="h-4 w-4" />;
-      case 'dark':
-        return <Moon className="h-4 w-4" />;
-      default:
-        return <Monitor className="h-4 w-4" />;
-    }
-  };
-
-  const getThemeLabel = () => {
-    switch (theme) {
-      case 'light':
-        return 'Light';
-      case 'dark':
-        return 'Dark';
-      default:
-        return 'System';
-    }
-  };
 
   if (!user) {
     return (
@@ -122,9 +89,17 @@ export function UserDropdown() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         
-        {/* Quick Access to Infrastructure */}
+        {/* Dashboard Link */}
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard" className="flex items-center">
+            <LayoutDashboard className="mr-2 h-4 w-4" />
+            <span>Dashboard</span>
+          </Link>
+        </DropdownMenuItem>
+        
+        {/* Quick Access to AI Engines */}
         <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
-          Quick Access
+          AI Engines
         </DropdownMenuLabel>
         <DropdownMenuItem asChild>
           <Link href="/engine/interior-ai" className="flex items-center">
@@ -155,31 +130,42 @@ export function UserDropdown() {
         
         {/* User Menu Items */}
         <DropdownMenuItem asChild>
-          <Link href="/profile" className="flex items-center">
+          <Link href="/dashboard/profile" className="flex items-center">
             <User className="mr-2 h-4 w-4" />
             <span>Profile</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/gallery" className="flex items-center">
+          <Link href="/dashboard/projects" className="flex items-center">
             <FolderOpen className="mr-2 h-4 w-4" />
             <span>My Projects</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/profile/settings" className="flex items-center">
+          <Link href="/gallery" className="flex items-center">
+            <ImageIcon className="mr-2 h-4 w-4" />
+            <span>Gallery</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard/settings" className="flex items-center">
             <Settings className="mr-2 h-4 w-4" />
             <span>Settings</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard/billing" className="flex items-center">
+            <CreditCard className="mr-2 h-4 w-4" />
+            <span>Billing</span>
           </Link>
         </DropdownMenuItem>
         
         <DropdownMenuSeparator />
         
-        {/* Theme Switcher */}
-        <DropdownMenuItem onClick={toggleTheme} className="flex items-center">
-          {getThemeIcon()}
-          <span className="ml-2">Theme: {getThemeLabel()}</span>
-        </DropdownMenuItem>
+        {/* Theme Toggle */}
+        <div className="px-2 py-1.5">
+          <ThemeToggle />
+        </div>
         
         <DropdownMenuSeparator />
         

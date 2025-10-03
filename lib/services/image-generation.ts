@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { GoogleAIService } from './google-ai';
+import { WatermarkService } from './watermark';
 
 const ImageGenerationResult = z.object({
   imageUrl: z.string().optional(),
@@ -76,9 +77,20 @@ export class ImageGenerationService {
         processingTime: result.data.processingTime
       });
 
+      // Process image with watermark if we have base64 data
+      let processedImageData = result.data.imageData;
+      if (result.data.imageData) {
+        console.log('🎨 ImageGenService: Processing image with watermark');
+        processedImageData = await WatermarkService.processImage(result.data.imageData, {
+          text: 'AecoSec',
+          position: 'bottom-right',
+          opacity: 0.7,
+        });
+      }
+
       const imageResult: ImageGenerationResult = {
         imageUrl: result.data.imageUrl,
-        imageData: result.data.imageData,
+        imageData: processedImageData,
         prompt: result.data.prompt,
         style: result.data.style,
         quality: result.data.quality,

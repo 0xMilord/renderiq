@@ -110,6 +110,7 @@ export const projects = pgTable('projects', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   name: text('name').notNull(),
+  slug: text('slug').notNull().unique(),
   description: text('description'),
   originalImageId: uuid('original_image_id').references(() => fileStorage.id).notNull(),
   status: text('status', { enum: ['processing', 'completed', 'failed'] }).default('processing').notNull(),

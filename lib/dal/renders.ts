@@ -51,19 +51,24 @@ export class RendersDAL {
     return render;
   }
 
-  static async getByUser(userId: string, projectId?: string | null) {
-    console.log('🔍 Fetching renders for user:', userId, 'project:', projectId);
+  static async getByUser(userId: string, projectId?: string | null, limit?: number) {
+    console.log('🔍 Fetching renders for user:', userId, 'project:', projectId, 'limit:', limit);
     
     const whereCondition = projectId 
       ? and(eq(renders.userId, userId), eq(renders.projectId, projectId))
       : eq(renders.userId, userId);
 
-    const userRenders = await db
+    let query = db
       .select()
       .from(renders)
       .where(whereCondition)
       .orderBy(desc(renders.createdAt));
 
+    if (limit) {
+      query = query.limit(limit);
+    }
+
+    const userRenders = await query;
     console.log(`✅ Found ${userRenders.length} renders for user`);
     return userRenders;
   }

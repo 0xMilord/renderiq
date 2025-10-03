@@ -6,6 +6,7 @@ import { BottomNav } from "@/components/bottom-nav";
 import { ConditionalFooter } from "@/components/conditional-footer";
 import { ThemeProvider } from "@/components/theme-provider";
 import { UserOnboardingProvider } from "@/components/user-onboarding-provider";
+import { AuthProvider } from "@/components/providers/auth-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,14 +39,16 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <UserOnboardingProvider>
-            <Navbar />
-            <main className="min-h-screen">
-              {children}
-            </main>
-            <ConditionalFooter />
-            <BottomNav />
-          </UserOnboardingProvider>
+          <AuthProvider>
+            <UserOnboardingProvider>
+              <Navbar />
+              <main className="min-h-screen">
+                {children}
+              </main>
+              <ConditionalFooter />
+              <BottomNav />
+            </UserOnboardingProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

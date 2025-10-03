@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { ImageGenerationService } from '@/lib/services/image-generation';
 import { addCredits, deductCredits } from '@/lib/actions/billing.actions';
-import { RendersDAL } from '@/lib/dal/renders';
+import { RendersDAL, ProjectsDAL } from '@/lib/dal/projects';
 import { StorageService } from '@/lib/services/storage';
 
 const imageService = ImageGenerationService.getInstance();
@@ -32,12 +32,13 @@ export async function POST(request: NextRequest) {
     const projectId = formData.get('projectId') as string;
     const negativePrompt = formData.get('negativePrompt') as string | null;
     const imageType = formData.get('imageType') as string | null;
+    const isPublic = formData.get('isPublic') === 'true';
 
-    console.log('📝 Render parameters:', { prompt, style, quality, aspectRatio, type, hasImage: !!uploadedImageData, projectId });
+    console.log('📝 Render parameters:', { prompt, style, quality, aspectRatio, type, hasImage: !!uploadedImageData, projectId, isPublic });
 
-    if (!prompt || !style || !quality || !aspectRatio || !type) {
+    if (!prompt || !style || !quality || !aspectRatio || !type || !projectId) {
       console.log('❌ Missing required parameters');
-      return NextResponse.json({ success: false, error: 'Missing required parameters' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Missing required parameters (prompt, style, quality, aspectRatio, type, projectId)' }, { status: 400 });
     }
 
     // Calculate credits cost
@@ -60,10 +61,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: deductResult.error || 'Insufficient credits' }, { status: 402 });
     }
 
+    // Verify project exists and belongs to user
+    const project = await ProjectsDAL.getById(projectId);
+    if (!project || project.userId !== user.id) {
+      console.log('❌ Project not found or access denied');
+      return NextResponse.json({ success: false, error: 'Project not found or access denied' }, { status: 403 });
+    }
+
     // Create render record in database
     console.log('💾 Creating render record in database');
     const render = await RendersDAL.create({
-      projectId: projectId || null,
+      projectId,
       userId: user.id,
       type,
       prompt,
@@ -71,8 +79,6 @@ export async function POST(request: NextRequest) {
         style,
         quality,
         aspectRatio,
-        negativePrompt: negativePrompt || undefined,
-        imageType: imageType || undefined,
       },
       status: 'pending',
     });
@@ -117,7 +123,8 @@ export async function POST(request: NextRequest) {
           buffer,
           'renders',
           user.id,
-          `render_${render.id}.png`
+          `render_${render.id}.png`,
+          project.slug
         );
       } else if (result.data.imageUrl) {
         // Fallback to URL fetch (for video or other cases)
@@ -128,7 +135,9 @@ export async function POST(request: NextRequest) {
         uploadResult = await StorageService.uploadFile(
           outputFile,
           'renders',
-          user.id
+          user.id,
+          undefined,
+          project.slug
         );
       } else {
         console.error('❌ No image data available:', { 
@@ -143,6 +152,12 @@ export async function POST(request: NextRequest) {
 
       // Update render with output URL
       await RendersDAL.updateOutput(render.id, uploadResult.url, uploadResult.key, 'completed', Math.round(result.data.processingTime));
+
+      // Add to gallery if public
+      if (isPublic) {
+        console.log('📸 Adding render to public gallery');
+        await RendersDAL.addToGallery(render.id, user.id, true);
+      }
 
       console.log('🎉 Render completed successfully');
 

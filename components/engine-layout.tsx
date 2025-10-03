@@ -55,15 +55,15 @@ export function EngineLayout({ children, engineType }: EngineLayoutProps) {
       <EngineSidebar />
       
       {/* Main Content Area - Starts right after collapsed sidebar */}
-      <div className="flex ml-16 w-full" style={{ height: 'calc(100vh - 4rem)' }}>
-        {/* Control Bar - 1/3 width */}
+      <div className="flex ml-16 flex-col lg:flex-row" style={{ height: 'calc(100vh - 4rem)', width: 'calc(100% - 4rem)' }}>
+        {/* Control Bar - 1/3 width on desktop, full width on mobile */}
         <ControlBar 
           engineType={engineType} 
           onResult={handleRenderResult}
           onGenerationStart={handleGenerationStart}
         />
         
-        {/* Render Preview - 2/3 width */}
+        {/* Render Preview - 2/3 width on desktop, full width on mobile */}
         <RenderPreview 
           result={renderResult}
           isGenerating={isGenerating}

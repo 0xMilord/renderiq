@@ -9,16 +9,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { useCredits } from '@/lib/hooks/use-credits';
 import { useImageGeneration } from '@/lib/hooks/use-image-generation';
+import { useProjects } from '@/lib/hooks/use-projects';
 import { 
   Upload, 
   X, 
   AlertCircle, 
   Image as ImageIcon, 
   Video, 
-  Settings,
   Target,
   Sparkles,
   Zap,
@@ -30,6 +30,7 @@ import {
   Camera
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 interface ControlBarProps {
   engineType: 'exterior' | 'interior' | 'furniture' | 'site-plan';
@@ -77,6 +78,7 @@ const imageTypes = [
 export function ControlBar({ engineType, onResult, onGenerationStart }: ControlBarProps) {
   const { credits, refreshCredits } = useCredits();
   const { generate, reset, isGenerating, result, error } = useImageGeneration();
+  const { projects, loading: projectsLoading } = useProjects();
   
   // State
   const [activeTab, setActiveTab] = useState('image');
@@ -91,6 +93,8 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
   const [imageType, setImageType] = useState('3d-mass');
   const [duration, setDuration] = useState(5);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [isPublic, setIsPublic] = useState(true);
 
   // Watch for result changes and pass to parent
   useEffect(() => {
@@ -160,11 +164,18 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
       type: activeTab,
       duration: activeTab === 'video' ? duration : undefined,
       hasUploadedFile: !!uploadedFile,
-      engineType
+      engineType,
+      projectId: selectedProjectId,
+      isPublic
     });
 
     if (!prompt.trim()) {
       console.log('❌ ControlBar: No prompt provided');
+      return;
+    }
+
+    if (!selectedProjectId) {
+      console.log('❌ ControlBar: No project selected');
       return;
     }
 
@@ -196,6 +207,8 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
       uploadedImage: uploadedFile || undefined,
       negativePrompt: negativePrompt || undefined,
       imageType: imageType || undefined,
+      projectId: selectedProjectId,
+      isPublic,
     });
 
     console.log('📥 ControlBar: Generate result received:', result);
@@ -208,9 +221,10 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
 
   return (
     <div className={cn(
-      "w-1/3 bg-background border-r border-border flex flex-col transition-all duration-300 z-30",
-      isCollapsed ? "w-16" : "w-1/3"
-    )} style={{ height: 'calc(100vh - 4rem)' }}>
+      "bg-background border-r border-border flex flex-col transition-all duration-300 z-30",
+      isCollapsed ? "w-16" : "w-full lg:w-1/3 min-w-[280px] max-w-[400px]",
+      "h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)]"
+    )}>
       {/* Header */}
       <div className="p-3 border-b border-border flex items-center justify-between flex-shrink-0">
         <h2 className="font-semibold text-foreground capitalize text-sm">
@@ -229,14 +243,14 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
       {!isCollapsed && (
         <div className="flex-1 flex flex-col min-h-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col h-full">
-            <TabsList className="grid w-full grid-cols-2 m-3 flex-shrink-0 h-8">
-              <TabsTrigger value="image" className="flex items-center space-x-1 text-xs">
+            <TabsList className="grid w-full grid-cols-2 mx-3 mt-3 mb-2 flex-shrink-0 h-8">
+              <TabsTrigger value="image" className="flex items-center space-x-1 text-xs px-2">
                 <ImageIcon className="h-3 w-3" />
-                <span>Image</span>
+                <span className="truncate">Image</span>
               </TabsTrigger>
-              <TabsTrigger value="video" className="flex items-center space-x-1 text-xs">
+              <TabsTrigger value="video" className="flex items-center space-x-1 text-xs px-2">
                 <Video className="h-3 w-3" />
-                <span>Video</span>
+                <span className="truncate">Video</span>
               </TabsTrigger>
             </TabsList>
             
@@ -244,6 +258,48 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
               <TabsContent value="image" className="px-3 flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden data-[state=inactive]:!hidden">
               {/* Scrollable Content */}
               <div className="flex-1 overflow-y-auto space-y-3 pb-2">
+                {/* Project Selection */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Project *</Label>
+                  <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projectsLoading ? (
+                        <SelectItem value="loading" disabled>Loading projects...</SelectItem>
+                      ) : projects.length > 0 ? (
+                        projects.map((project) => (
+                          <SelectItem key={project.id} value={project.id}>
+                            {project.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="no-projects" disabled>No projects found</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {!selectedProjectId && (
+                    <p className="text-xs text-muted-foreground">
+                      Please select a project to generate renders
+                    </p>
+                  )}
+                </div>
+
+                {/* Visibility Control */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">Public Gallery</Label>
+                    <Switch
+                      checked={isPublic}
+                      onCheckedChange={setIsPublic}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {isPublic ? 'Your render will be visible in the public gallery' : 'Your render will be private'}
+                  </p>
+                </div>
+
                 {/* Upload Section */}
                 <div className="space-y-2">
                 <Label className="text-sm font-medium">Upload Image</Label>
@@ -269,10 +325,11 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
                     {/* Image Preview */}
                     <div className="relative aspect-video bg-muted rounded-lg overflow-hidden border border-border">
                       {previewUrl ? (
-                        <img
+                        <Image
                           src={previewUrl}
                           alt="Uploaded preview"
-                          className="w-full h-full object-cover"
+                          fill
+                          className="object-cover"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
@@ -441,6 +498,30 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
                   </span>
                 </div>
 
+                {/* Requirements Check */}
+                {!prompt.trim() && (
+                  <Alert className="py-1">
+                    <AlertCircle className="h-3 w-3" />
+                    <AlertDescription className="text-xs">Please enter a prompt to generate</AlertDescription>
+                  </Alert>
+                )}
+
+                {!selectedProjectId && prompt.trim() && (
+                  <Alert className="py-1">
+                    <AlertCircle className="h-3 w-3" />
+                    <AlertDescription className="text-xs">Please select a project</AlertDescription>
+                  </Alert>
+                )}
+
+                {credits && credits.balance < creditsCost && prompt.trim() && selectedProjectId && (
+                  <Alert variant="destructive" className="py-1">
+                    <AlertCircle className="h-3 w-3" />
+                    <AlertDescription className="text-xs">
+                      Insufficient credits. Need {creditsCost}, have {credits.balance}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {error && (
                   <Alert variant="destructive" className="py-1">
                     <AlertCircle className="h-3 w-3" />
@@ -450,7 +531,7 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
 
                 <Button
                   onClick={handleGenerate}
-                  disabled={!prompt.trim() || isGenerating || (credits && credits.balance < creditsCost)}
+                  disabled={!prompt.trim() || !selectedProjectId || isGenerating || (credits && credits.balance < creditsCost)}
                   className="w-full h-8"
                   size="sm"
                 >
@@ -459,6 +540,11 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
                       <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1" />
                       Generating...
                     </>
+                  ) : credits && credits.balance < creditsCost ? (
+                    <>
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      Upgrade to Generate
+                    </>
                   ) : (
                     <>
                       <Sparkles className="h-3 w-3 mr-1" />
@@ -466,6 +552,19 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
                     </>
                   )}
                 </Button>
+
+                {credits && credits.balance < creditsCost && (
+                  <div className="text-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full h-6 text-xs"
+                      onClick={() => window.open('/plans', '_blank')}
+                    >
+                      Upgrade to Pro
+                    </Button>
+                  </div>
+                )}
 
                 <p className="text-xs text-center text-muted-foreground">
                   Est: 50 Sec
@@ -512,9 +611,33 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
                   </span>
                 </div>
 
+                {/* Requirements Check */}
+                {!prompt.trim() && (
+                  <Alert className="py-1">
+                    <AlertCircle className="h-3 w-3" />
+                    <AlertDescription className="text-xs">Please enter a prompt to generate</AlertDescription>
+                  </Alert>
+                )}
+
+                {!selectedProjectId && prompt.trim() && (
+                  <Alert className="py-1">
+                    <AlertCircle className="h-3 w-3" />
+                    <AlertDescription className="text-xs">Please select a project</AlertDescription>
+                  </Alert>
+                )}
+
+                {credits && credits.balance < creditsCost && prompt.trim() && selectedProjectId && (
+                  <Alert variant="destructive" className="py-1">
+                    <AlertCircle className="h-3 w-3" />
+                    <AlertDescription className="text-xs">
+                      Insufficient credits. Need {creditsCost}, have {credits.balance}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 <Button
                   onClick={handleGenerate}
-                  disabled={!prompt.trim() || isGenerating || (credits && credits.balance < creditsCost)}
+                  disabled={!prompt.trim() || !selectedProjectId || isGenerating || (credits && credits.balance < creditsCost)}
                   className="w-full h-8"
                   size="sm"
                 >
@@ -523,6 +646,11 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
                       <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1" />
                       Generating Video...
                     </>
+                  ) : credits && credits.balance < creditsCost ? (
+                    <>
+                      <Video className="h-3 w-3 mr-1" />
+                      Upgrade to Generate
+                    </>
                   ) : (
                     <>
                       <Video className="h-3 w-3 mr-1" />
@@ -530,6 +658,19 @@ export function ControlBar({ engineType, onResult, onGenerationStart }: ControlB
                     </>
                   )}
                 </Button>
+
+                {credits && credits.balance < creditsCost && (
+                  <div className="text-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full h-6 text-xs"
+                      onClick={() => window.open('/plans', '_blank')}
+                    >
+                      Upgrade to Pro
+                    </Button>
+                  </div>
+                )}
 
                 <p className="text-xs text-center text-muted-foreground">
                   Est: 2-5 Min
