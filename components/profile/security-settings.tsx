@@ -7,7 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Shield, Key, Smartphone, AlertTriangle } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import { Shield, Key, Smartphone, AlertTriangle, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export function SecuritySettings() {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -15,28 +17,59 @@ export function SecuritySettings() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isUpdating2FA, setIsUpdating2FA] = useState(false);
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = async () => {
     if (newPassword !== confirmPassword) {
-      alert('Passwords do not match');
+      toast.error('Passwords do not match');
       return;
     }
     if (newPassword.length < 8) {
-      alert('Password must be at least 8 characters long');
+      toast.error('Password must be at least 8 characters long');
       return;
     }
-    // Password change logic here
-    console.log('Changing password...');
-    setShowPasswordForm(false);
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
+
+    setIsChangingPassword(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+
+      toast.success('Password updated successfully');
+      setShowPasswordForm(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      console.error('Failed to change password:', error);
+      toast.error('Failed to update password');
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
-  const handleTwoFactorToggle = () => {
-    setTwoFactorEnabled(!twoFactorEnabled);
-    // Two-factor toggle logic here
-    console.log('Two-factor authentication:', !twoFactorEnabled);
+  const handleTwoFactorToggle = async () => {
+    setIsUpdating2FA(true);
+    try {
+      // Note: Supabase doesn't have built-in 2FA yet, this is a placeholder
+      // In a real implementation, you'd integrate with a service like Authy or Google Authenticator
+      toast.info('Two-factor authentication is not yet available');
+      
+      // For now, just toggle the local state
+      setTwoFactorEnabled(!twoFactorEnabled);
+    } catch (error) {
+      console.error('Failed to toggle 2FA:', error);
+      toast.error('Failed to update two-factor authentication');
+    } finally {
+      setIsUpdating2FA(false);
+    }
   };
 
   return (
@@ -60,9 +93,10 @@ export function SecuritySettings() {
                   Last changed 3 months ago
                 </p>
               </div>
-              <Button
-                variant="outline"
+              <Button 
+                variant="outline" 
                 onClick={() => setShowPasswordForm(!showPasswordForm)}
+                disabled={isChangingPassword || isUpdating2FA}
               >
                 Change Password
               </Button>
@@ -101,8 +135,15 @@ export function SecuritySettings() {
                   />
                 </div>
                 <div className="flex space-x-2">
-                  <Button onClick={handlePasswordChange}>
-                    Update Password
+                  <Button onClick={handlePasswordChange} disabled={isChangingPassword}>
+                    {isChangingPassword ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      'Update Password'
+                    )}
                   </Button>
                   <Button
                     variant="outline"

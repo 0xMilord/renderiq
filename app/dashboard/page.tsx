@@ -124,33 +124,21 @@ export default async function DashboardPage() {
                 Quick Actions
               </CardTitle>
               <CardDescription>
-                Start creating with our AI engines
+                Start creating with AI chat and manage your projects
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <Button asChild className="h-auto p-4 flex flex-col items-center space-y-2">
-                  <Link href="/engine/exterior-ai">
-                    <div className="text-2xl">🏢</div>
-                    <span className="text-sm">Exterior AI</span>
+                  <Link href="/chat">
+                    <div className="text-2xl">💬</div>
+                    <span className="text-sm">AI Chat</span>
                   </Link>
                 </Button>
                 <Button asChild variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
-                  <Link href="/engine/interior-ai">
-                    <div className="text-2xl">🏠</div>
-                    <span className="text-sm">Interior AI</span>
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
-                  <Link href="/engine/furniture-ai">
-                    <div className="text-2xl">🪑</div>
-                    <span className="text-sm">Furniture AI</span>
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
-                  <Link href="/engine/site-plan-ai">
-                    <div className="text-2xl">🗺️</div>
-                    <span className="text-sm">Site Plan AI</span>
+                  <Link href="/dashboard/projects">
+                    <div className="text-2xl">📁</div>
+                    <span className="text-sm">Projects</span>
                   </Link>
                 </Button>
               </div>

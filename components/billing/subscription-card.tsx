@@ -3,6 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useSubscription } from '@/lib/hooks/use-subscription';
 import { Calendar, CreditCard, Settings, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
@@ -18,9 +19,9 @@ export function SubscriptionCard() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="h-4 bg-muted rounded animate-pulse" />
-            <div className="h-4 bg-muted rounded animate-pulse w-3/4" />
-            <div className="h-4 bg-muted rounded animate-pulse w-1/2" />
+            <Skeleton className="h-4" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
           </div>
         </CardContent>
       </Card>

@@ -50,7 +50,7 @@ export default async function Home() {
               into stunning, photorealistic AI-generated images and videos in minutes.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-              <Link href="/engine/interior-ai">
+              <Link href="/chat">
                 <Button size="lg" className="px-8 py-4 text-lg font-semibold">
                   <Upload className="h-6 w-6 mr-2" />
                   Start Creating Free

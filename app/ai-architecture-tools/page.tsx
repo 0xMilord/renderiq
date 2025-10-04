@@ -117,7 +117,7 @@ export default function AIArchitectureToolsPage() {
                       <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Key Features:</h4>
                       <ul className="space-y-2 text-gray-600 dark:text-gray-300">
                         <li>• AI-powered sketch to render conversion</li>
-                        <li>• Multiple specialized AI engines (Interior, Exterior, Furniture, Site Planning)</li>
+                        <li>• Unified AI Chat interface for all architectural rendering needs</li>
                         <li>• High-resolution output up to 4K</li>
                         <li>• Real-time design iteration</li>
                         <li>• Video generation from sketches</li>

@@ -144,8 +144,8 @@ export default function ProjectSlugPage() {
       const result = await createRenderChain(project.id, chainName, `New render chain for ${project.name}`);
       
       if (result.success && result.data) {
-        // Redirect to the engine with the new chain
-        router.push(`/engine/exterior-ai/${result.data.id}`);
+        // Redirect to chat with the new chain
+        router.push(`/chat?chain=${result.data.id}`);
       } else {
         console.error('Failed to create chain:', result.error);
         alert(result.error || 'Failed to create chain');
@@ -335,8 +335,8 @@ export default function ProjectSlugPage() {
                 onLike={handleLike}
                 onShare={handleShare}
                 onRemix={(render) => {
-                  // Navigate to engine with the prompt
-                  router.push(`/engine/exterior-ai?prompt=${encodeURIComponent(render.prompt)}`);
+                  // Navigate to chat with the prompt
+                  router.push(`/chat?prompt=${encodeURIComponent(render.prompt)}`);
                 }}
               />
             ))}
@@ -355,7 +355,7 @@ export default function ProjectSlugPage() {
             </p>
             {!searchQuery && (
               <Button asChild>
-                <Link href="/engine/interior-ai">
+                <Link href="/chat">
                   Generate Render
                 </Link>
               </Button>
@@ -380,7 +380,7 @@ export default function ProjectSlugPage() {
           onShare={handleShare}
           onRemix={(render) => {
             // Navigate to engine with the prompt
-            router.push(`/engine/exterior-ai?prompt=${encodeURIComponent(render.prompt)}`);
+            router.push(`/chat?prompt=${encodeURIComponent(render.prompt)}`);
           }}
         />
       )}

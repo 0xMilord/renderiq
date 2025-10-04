@@ -42,7 +42,7 @@ export default function ProjectChatPage() {
 
   const handleRenderStart = () => {
     console.log('Render started');
-    // TODO: Handle render start
+    // Render start is handled by UnifiedChatInterface
   };
 
   if (projectLoading || chainLoading) {

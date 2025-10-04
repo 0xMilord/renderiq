@@ -54,7 +54,7 @@ export function StructuredData({ type, data }: StructuredDataProps) {
             "Sketch to photorealistic visualization",
             "Real-time design iteration",
             "Video generation from sketches",
-            "Multiple AI engines (Exterior, Interior, Furniture, Site Planning)",
+            "Unified AI Chat interface for all architectural rendering needs",
             "High-resolution output (up to 4K)",
             "Batch processing capabilities",
             "Custom style presets",
@@ -148,7 +148,7 @@ export function StructuredData({ type, data }: StructuredDataProps) {
               "name": "How does AI architectural rendering work?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Our AI engines analyze your architectural sketches and generate photorealistic visualizations by understanding design elements, materials, lighting, and spatial relationships. The process takes minutes instead of hours."
+                "text": "Our unified AI chat interface analyzes your architectural sketches and generates photorealistic visualizations by understanding design elements, materials, lighting, and spatial relationships. The process takes minutes instead of hours."
               }
             },
             {

@@ -83,10 +83,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   // Engine pages
   const enginePages = [
-    '/engine/interior-ai',
-    '/engine/exterior-ai',
-    '/engine/furniture-ai',
-    '/engine/site-plan-ai',
+    '/chat',
   ].map((route) => ({
     url: `${baseUrl}${route}`,
     lastModified: currentDate,

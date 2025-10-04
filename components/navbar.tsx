@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { UserDropdown } from '@/components/user-dropdown';
 import { AlphaBanner } from '@/components/alpha-banner';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Menu, X, Home, MessageSquare, GalleryVertical, BookOpen, Lightbulb, CreditCard } from 'lucide-react';
 
 export function Navbar() {
@@ -72,7 +73,7 @@ export function Navbar() {
 
             {/* User Dropdown */}
             {loading ? (
-              <div className="w-8 h-8 bg-muted rounded-full animate-pulse" />
+              <Skeleton className="w-8 h-8 rounded-full" />
             ) : (
               <UserDropdown />
             )}
@@ -82,7 +83,7 @@ export function Navbar() {
           <div className="md:hidden flex items-center space-x-2">
             {/* User Dropdown for mobile */}
             {loading ? (
-              <div className="w-8 h-8 bg-muted rounded-full animate-pulse" />
+              <Skeleton className="w-8 h-8 rounded-full" />
             ) : (
               <UserDropdown />
             )}

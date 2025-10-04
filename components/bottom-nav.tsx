@@ -2,22 +2,22 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Upload, GalleryVertical, User, Settings } from 'lucide-react';
+import { Home, MessageSquare, GalleryVertical, User, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/', icon: Home, label: 'Home' },
-  { href: '/engine/interior-ai', icon: Upload, label: 'AI Engines' },
+  { href: '/chat', icon: MessageSquare, label: 'AI Chat' },
   { href: '/gallery', icon: GalleryVertical, label: 'Gallery' },
   { href: '/profile', icon: User, label: 'Profile' },
-  { href: '/profile/settings', icon: Settings, label: 'Settings' },
+  { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
 
-  // Hide bottom nav on engine routes and chat routes
-  if (pathname.startsWith('/engine') || pathname.includes('/chat')) {
+  // Hide bottom nav on chat routes
+  if (pathname.includes('/chat')) {
     return null;
   }
 

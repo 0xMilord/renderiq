@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2, Plus, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { ProjectCard } from '@/components/projects/project-card';
@@ -21,10 +22,10 @@ export function RecentProjectsSection() {
           <div className="space-y-3">
             {Array.from({ length: 2 }).map((_, i) => (
               <div key={i} className="flex items-center space-x-3 p-3 border rounded-lg">
-                <div className="w-12 h-12 bg-muted animate-pulse rounded-lg flex-shrink-0" />
+                <Skeleton className="w-12 h-12 rounded-lg flex-shrink-0" />
                 <div className="flex-1 min-w-0 space-y-2">
-                  <div className="h-4 w-32 bg-muted animate-pulse rounded" />
-                  <div className="h-3 w-24 bg-muted animate-pulse rounded" />
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-24" />
                 </div>
               </div>
             ))}

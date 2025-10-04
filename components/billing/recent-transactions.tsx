@@ -3,6 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useCreditTransactions } from '@/lib/hooks/use-credit-transactions';
 import { ArrowUpRight, ArrowDownLeft, Gift, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
@@ -34,12 +35,12 @@ export function RecentTransactions() {
           <div className="space-y-4">
             {[...Array(3)].map((_, i) => (
               <div key={i} className="flex items-center space-x-4">
-                <div className="w-8 h-8 bg-muted rounded-full animate-pulse" />
+                <Skeleton className="w-8 h-8 rounded-full" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-muted rounded animate-pulse" />
-                  <div className="h-3 bg-muted rounded animate-pulse w-2/3" />
+                  <Skeleton className="h-4" />
+                  <Skeleton className="h-3 w-2/3" />
                 </div>
-                <div className="h-4 bg-muted rounded animate-pulse w-16" />
+                <Skeleton className="h-4 w-16" />
               </div>
             ))}
           </div>

@@ -7,44 +7,90 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/lib/hooks/use-auth';
-import { Camera, Save, X } from 'lucide-react';
-import { useState } from 'react';
+import { useUserProfile } from '@/lib/hooks/use-user-profile';
+import { updateUserProfile } from '@/lib/actions/profile.actions';
+import { Camera, Save, X, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 
 export function ProfileSettings() {
   const { user } = useAuth();
+  const { profile, loading, refetch } = useUserProfile();
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
-    name: user?.name || '',
+    name: profile?.name || '',
     email: user?.email || '',
-    bio: user?.bio || '',
-    website: user?.website || '',
-    location: user?.location || '',
+    bio: profile?.bio || '',
+    website: profile?.website || '',
+    location: profile?.location || '',
   });
+
+  // Update form data when profile loads
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        name: profile.name || '',
+        email: user?.email || '',
+        bio: profile.bio || '',
+        website: profile.website || '',
+        location: profile.location || '',
+      });
+    }
+  }, [profile, user]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSave = async () => {
+    setIsSaving(true);
     try {
-      // This would call a server action to update the profile
-      console.log('Saving profile:', formData);
-      setIsEditing(false);
+      const result = await updateUserProfile({
+        name: formData.name,
+        bio: formData.bio,
+        website: formData.website,
+        location: formData.location,
+      });
+
+      if (result.success) {
+        toast.success('Profile updated successfully');
+        setIsEditing(false);
+        await refetch(); // Refresh the profile data
+      } else {
+        toast.error(result.error || 'Failed to update profile');
+      }
     } catch (error) {
       console.error('Failed to save profile:', error);
+      toast.error('Failed to update profile');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleCancel = () => {
     setFormData({
-      name: user?.name || '',
+      name: profile?.name || '',
       email: user?.email || '',
-      bio: user?.bio || '',
-      website: user?.website || '',
-      location: user?.location || '',
+      bio: profile?.bio || '',
+      website: profile?.website || '',
+      location: profile?.location || '',
     });
     setIsEditing(false);
   };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span className="ml-2">Loading profile...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (!user) {
     return (
@@ -71,13 +117,13 @@ export function ProfileSettings() {
         <CardContent>
           <div className="flex items-center space-x-6">
             <Avatar className="w-20 h-20">
-              <AvatarImage src={user.avatar || ''} alt={user.name || 'User'} />
+              <AvatarImage src={profile?.avatar || user.user_metadata?.avatar_url} alt={profile?.name || 'User'} />
               <AvatarFallback className="text-lg">
-                {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                {(profile?.name || user.email)?.charAt(0).toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
             <div className="space-y-2">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" disabled={isSaving}>
                 <Camera className="h-4 w-4 mr-2" />
                 Change Picture
               </Button>
@@ -105,7 +151,7 @@ export function ProfileSettings() {
                 id="name"
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
-                disabled={!isEditing}
+                disabled={!isEditing || isSaving}
                 placeholder="Enter your full name"
               />
             </div>
@@ -116,10 +162,13 @@ export function ProfileSettings() {
                 id="email"
                 type="email"
                 value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                disabled={!isEditing}
+                disabled
+                className="bg-muted"
                 placeholder="Enter your email"
               />
+              <p className="text-sm text-muted-foreground">
+                Email cannot be changed
+              </p>
             </div>
           </div>
 
@@ -142,7 +191,7 @@ export function ProfileSettings() {
                 id="website"
                 value={formData.website}
                 onChange={(e) => handleInputChange('website', e.target.value)}
-                disabled={!isEditing}
+                disabled={!isEditing || isSaving}
                 placeholder="https://yourwebsite.com"
               />
             </div>
@@ -153,7 +202,7 @@ export function ProfileSettings() {
                 id="location"
                 value={formData.location}
                 onChange={(e) => handleInputChange('location', e.target.value)}
-                disabled={!isEditing}
+                disabled={!isEditing || isSaving}
                 placeholder="City, Country"
               />
             </div>
@@ -163,17 +212,21 @@ export function ProfileSettings() {
           <div className="flex justify-end space-x-2">
             {isEditing ? (
               <>
-                <Button variant="outline" onClick={handleCancel}>
+                <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
                   <X className="h-4 w-4 mr-2" />
                   Cancel
                 </Button>
-                <Button onClick={handleSave}>
-                  <Save className="h-4 w-4 mr-2" />
-                  Save Changes
+                <Button onClick={handleSave} disabled={isSaving}>
+                  {isSaving ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4 mr-2" />
+                  )}
+                  {isSaving ? 'Saving...' : 'Save Changes'}
                 </Button>
               </>
             ) : (
-              <Button onClick={() => setIsEditing(true)}>
+              <Button onClick={() => setIsEditing(true)} disabled={isSaving}>
                 Edit Profile
               </Button>
             )}

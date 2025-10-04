@@ -156,16 +156,6 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
       >
         {/* Sidebar Header */}
         <div className={cn("px-4 py-3 border-b", !isSidebarOpen && "px-2")}>
-          <div className="flex items-center justify-end mb-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsSidebarOpen(false)}
-              className="lg:hidden h-8 w-8"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
           
           {/* Search and Create Project in same row */}
           {isSidebarOpen ? (
@@ -250,9 +240,9 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                           onClick={() => toggleProject(project.id)}
                         >
                           {isExpanded ? (
-                            <FolderOpenIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <FolderOpenIcon className="h-4 w-4 text-primary flex-shrink-0" />
                           ) : (
-                            <Folder className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <Folder className="h-4 w-4 text-primary flex-shrink-0" />
                           )}
                           <span className="text-sm font-medium truncate">
                             {project.name}
@@ -327,9 +317,9 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                       title={project.name}
                     >
                       {expandedProjects.has(project.id) ? (
-                        <FolderOpenIcon className="h-4 w-4 text-muted-foreground" />
+                        <FolderOpenIcon className="h-4 w-4 text-primary" />
                       ) : (
-                        <Folder className="h-4 w-4 text-muted-foreground" />
+                        <Folder className="h-4 w-4 text-primary" />
                       )}
                     </button>
                     
@@ -373,7 +363,7 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
         {/* Header */}
         <div className="px-4 py-2 border-b flex items-center gap-4">
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="h-8 w-8"

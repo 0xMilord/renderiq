@@ -1,31 +1,65 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Bell, Mail, MessageSquare } from 'lucide-react';
+import { useUserSettings } from '@/lib/hooks/use-user-settings';
+import { Bell, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export function NotificationSettings() {
-  const [settings, setSettings] = useState({
-    emailNotifications: true,
-    pushNotifications: false,
-    smsNotifications: false,
-    projectUpdates: true,
-    billingAlerts: true,
-    marketingEmails: false,
-    weeklyDigest: true,
+  const { settings, loading, updateNotifications } = useUserSettings();
+  const [isSaving, setIsSaving] = useState(false);
+  const [localSettings, setLocalSettings] = useState({
+    email: true,
+    push: false,
+    renderComplete: true,
+    creditsLow: true,
   });
 
+  // Update local settings when data loads
+  useEffect(() => {
+    if (settings?.preferences?.notifications) {
+      setLocalSettings(settings.preferences.notifications);
+    }
+  }, [settings]);
+
   const handleSettingChange = (key: string, value: boolean) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+    setLocalSettings(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleSave = () => {
-    // Save settings logic here
-    console.log('Saving notification settings:', settings);
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const result = await updateNotifications(localSettings);
+      
+      if (result.success) {
+        toast.success('Notification settings updated successfully');
+      } else {
+        toast.error(result.error || 'Failed to update notification settings');
+      }
+    } catch (error) {
+      console.error('Failed to save notification settings:', error);
+      toast.error('Failed to update notification settings');
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span className="ml-2">Loading notification settings...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -50,8 +84,9 @@ export function NotificationSettings() {
               </div>
               <Switch
                 id="email-notifications"
-                checked={settings.emailNotifications}
-                onCheckedChange={(value) => handleSettingChange('emailNotifications', value)}
+                checked={localSettings.email}
+                onCheckedChange={(checked) => handleSettingChange('email', checked)}
+                disabled={isSaving}
               />
             </div>
 
@@ -64,104 +99,57 @@ export function NotificationSettings() {
               </div>
               <Switch
                 id="push-notifications"
-                checked={settings.pushNotifications}
-                onCheckedChange={(value) => handleSettingChange('pushNotifications', value)}
+                checked={localSettings.push}
+                onCheckedChange={(checked) => handleSettingChange('push', checked)}
+                disabled={isSaving}
               />
             </div>
 
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label htmlFor="sms-notifications">SMS Notifications</Label>
+                <Label htmlFor="render-complete">Render Complete</Label>
                 <p className="text-sm text-muted-foreground">
-                  Receive notifications via SMS
+                  Get notified when your renders are completed
                 </p>
               </div>
               <Switch
-                id="sms-notifications"
-                checked={settings.smsNotifications}
-                onCheckedChange={(value) => handleSettingChange('smsNotifications', value)}
+                id="render-complete"
+                checked={localSettings.renderComplete}
+                onCheckedChange={(checked) => handleSettingChange('renderComplete', checked)}
+                disabled={isSaving}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="credits-low">Credits Low Alert</Label>
+                <p className="text-sm text-muted-foreground">
+                  Get notified when your credits are running low
+                </p>
+              </div>
+              <Switch
+                id="credits-low"
+                checked={localSettings.creditsLow}
+                onCheckedChange={(checked) => handleSettingChange('creditsLow', checked)}
+                disabled={isSaving}
               />
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <MessageSquare className="h-5 w-5" />
-            <span>Content Preferences</span>
-          </CardTitle>
-          <CardDescription>
-            Choose what type of content you want to be notified about
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="project-updates">Project Updates</Label>
-                <p className="text-sm text-muted-foreground">
-                  Get notified when your projects are updated
-                </p>
-              </div>
-              <Switch
-                id="project-updates"
-                checked={settings.projectUpdates}
-                onCheckedChange={(value) => handleSettingChange('projectUpdates', value)}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="billing-alerts">Billing Alerts</Label>
-                <p className="text-sm text-muted-foreground">
-                  Get notified about billing and subscription changes
-                </p>
-              </div>
-              <Switch
-                id="billing-alerts"
-                checked={settings.billingAlerts}
-                onCheckedChange={(value) => handleSettingChange('billingAlerts', value)}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="marketing-emails">Marketing Emails</Label>
-                <p className="text-sm text-muted-foreground">
-                  Receive promotional emails and product updates
-                </p>
-              </div>
-              <Switch
-                id="marketing-emails"
-                checked={settings.marketingEmails}
-                onCheckedChange={(value) => handleSettingChange('marketingEmails', value)}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="weekly-digest">Weekly Digest</Label>
-                <p className="text-sm text-muted-foreground">
-                  Receive a weekly summary of your activity
-                </p>
-              </div>
-              <Switch
-                id="weekly-digest"
-                checked={settings.weeklyDigest}
-                onCheckedChange={(value) => handleSettingChange('weeklyDigest', value)}
-              />
-            </div>
+          <div className="flex justify-end">
+            <Button onClick={handleSave} disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Settings'
+              )}
+            </Button>
           </div>
         </CardContent>
       </Card>
-
-      <div className="flex justify-end">
-        <Button onClick={handleSave}>
-          Save Settings
-        </Button>
-      </div>
     </div>
   );
 }

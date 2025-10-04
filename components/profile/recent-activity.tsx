@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Image, Video, Download, Share, Calendar, Loader2 } from 'lucide-react';
 import { useUserActivity } from '@/lib/hooks/use-user-activity';
 
@@ -19,11 +20,11 @@ export function RecentActivity() {
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex items-start space-x-3">
-                <div className="w-8 h-8 bg-muted animate-pulse rounded-full flex-shrink-0" />
+                <Skeleton className="w-8 h-8 rounded-full flex-shrink-0" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-4 w-48 bg-muted animate-pulse rounded" />
-                  <div className="h-3 w-32 bg-muted animate-pulse rounded" />
-                  <div className="h-3 w-24 bg-muted animate-pulse rounded" />
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-3 w-32" />
+                  <Skeleton className="h-3 w-24" />
                 </div>
               </div>
             ))}

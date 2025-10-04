@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { Building2, Github, Twitter, Linkedin, Mail } from 'lucide-react';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export function Footer() {
   return (
@@ -23,19 +24,25 @@ export function Footer() {
               Transform your architectural sketches into hyperrealistic AI renders and videos. 
               Professional-grade visualization tools for architects, designers, and developers.
             </p>
-            <div className="flex space-x-4">
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="GitHub">
-                <Github className="h-5 w-5" />
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="Twitter">
-                <Twitter className="h-5 w-5" />
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="LinkedIn">
-                <Linkedin className="h-5 w-5" />
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="Email">
-                <Mail className="h-5 w-5" />
-              </a>
+            <div className="flex flex-col space-y-4">
+              <div className="flex space-x-4">
+                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="GitHub">
+                  <Github className="h-5 w-5" />
+                </a>
+                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="Twitter">
+                  <Twitter className="h-5 w-5" />
+                </a>
+                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="LinkedIn">
+                  <Linkedin className="h-5 w-5" />
+                </a>
+                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="Email">
+                  <Mail className="h-5 w-5" />
+                </a>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground">Theme:</span>
+                <ThemeToggle />
+              </div>
             </div>
           </div>
 
@@ -44,23 +51,8 @@ export function Footer() {
             <h3 className="font-semibold text-foreground mb-4">Product</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="/engine/interior-ai" className="text-muted-foreground hover:text-primary transition-colors">
-                  Interior AI
-                </Link>
-              </li>
-              <li>
-                <Link href="/engine/exterior-ai" className="text-muted-foreground hover:text-primary transition-colors">
-                  Exterior AI
-                </Link>
-              </li>
-              <li>
-                <Link href="/engine/furniture-ai" className="text-muted-foreground hover:text-primary transition-colors">
-                  Furniture AI
-                </Link>
-              </li>
-              <li>
-                <Link href="/engine/site-plan-ai" className="text-muted-foreground hover:text-primary transition-colors">
-                  Site Plan AI
+                <Link href="/chat" className="text-muted-foreground hover:text-primary transition-colors">
+                  AI Chat
                 </Link>
               </li>
               <li>

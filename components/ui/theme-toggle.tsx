@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { Moon, Sun, Monitor } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 type Theme = 'dark' | 'system' | 'light';
@@ -19,7 +20,7 @@ export function ThemeToggle() {
     return (
       <div className="flex items-center space-x-3">
         <span className="text-sm font-medium text-muted-foreground">Theme</span>
-        <div className="w-24 h-9 bg-muted rounded-lg animate-pulse" />
+        <Skeleton className="w-24 h-9 rounded-lg" />
       </div>
     );
   }

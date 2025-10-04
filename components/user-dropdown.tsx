@@ -85,7 +85,7 @@ export function UserDropdown() {
   // Show loading state while profile is being fetched
   if (profileLoading) {
     return (
-      <div className="h-8 w-8 bg-muted rounded-full animate-pulse" />
+      <Skeleton className="h-8 w-8 rounded-full" />
     );
   }
 
@@ -184,36 +184,12 @@ export function UserDropdown() {
           </Link>
         </DropdownMenuItem>
         
-        {/* Quick Access to AI Engines */}
-        <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
-          AI Engines
-        </DropdownMenuLabel>
+        {/* Quick Access to AI Chat */}
         <DropdownMenuItem asChild>
-          <Link href="/engine/exterior-ai" className="flex items-center">
+          <Link href="/chat" className="flex items-center">
             <Palette className="mr-2 h-4 w-4" />
-            <span>Exterior AI</span>
+            <span>AI Chat</span>
           </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem disabled className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Palette className="mr-2 h-4 w-4" />
-            <span>Interior AI</span>
-          </div>
-          <span className="text-xs text-muted-foreground">Coming Soon</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem disabled className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Palette className="mr-2 h-4 w-4" />
-            <span>Furniture AI</span>
-          </div>
-          <span className="text-xs text-muted-foreground">Coming Soon</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem disabled className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Palette className="mr-2 h-4 w-4" />
-            <span>Site Plan AI</span>
-          </div>
-          <span className="text-xs text-muted-foreground">Coming Soon</span>
         </DropdownMenuItem>
         
         <DropdownMenuSeparator />
