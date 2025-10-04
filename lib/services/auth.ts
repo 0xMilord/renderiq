@@ -50,7 +50,18 @@ export class AuthService {
         };
       }
 
-      // Ensure user profile exists
+      // Check if email is verified
+      if (data.user && !data.user.email_confirmed_at) {
+        console.warn('⚠️ AuthService: Email not verified for user:', data.user.id);
+        // Sign out the user
+        await supabase.auth.signOut();
+        return {
+          success: false,
+          error: 'Please verify your email before signing in. Check your inbox for the verification link.',
+        };
+      }
+
+      // Ensure user profile exists (only for verified users)
       if (data.user) {
         await UserOnboardingService.createUserProfile({
           id: data.user.id,
@@ -92,7 +103,7 @@ export class AuthService {
 
       const supabase = await createClient();
       
-      // Sign up with Supabase
+      // Sign up with Supabase - email confirmation required
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -100,6 +111,7 @@ export class AuthService {
           data: {
             name: name || null,
           },
+          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
         },
       });
 
@@ -111,22 +123,16 @@ export class AuthService {
         };
       }
 
-      // Create user profile if user was created
-      if (data.user && !data.user.email_confirmed_at) {
-        await UserOnboardingService.createUserProfile({
-          id: data.user.id,
-          email: data.user.email!,
-          name: name || data.user.user_metadata?.name,
-          avatar: data.user.user_metadata?.avatar_url,
-        });
-      }
+      // DO NOT create user profile here - wait for email verification
+      // Profile will be created after email is confirmed via callback
 
-      console.log('✅ AuthService: Sign up successful:', data.user?.id);
+      console.log('✅ AuthService: Sign up successful, email verification required:', data.user?.id);
       return {
         success: true,
         data: {
           user: data.user,
           session: data.session,
+          emailConfirmed: !!data.user?.email_confirmed_at,
         },
       };
     } catch (error) {

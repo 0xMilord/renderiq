@@ -23,35 +23,42 @@ export async function GET(request: Request) {
     
     if (!error && data.user) {
       console.log('✅ Auth Callback: Session created successfully');
+      console.log('📧 Auth Callback: Email confirmed:', !!data.user.email_confirmed_at);
       
-      // Generate avatar if not provided from OAuth
-      let avatarUrl = data.user.user_metadata?.avatar_url;
-      if (!avatarUrl) {
-        console.log('🎨 Auth Callback: Generating avatar for OAuth user:', data.user.email);
-        avatarUrl = AvatarService.generateAvatarFromEmail(data.user.email!, {
-          size: 128,
-          backgroundColor: ['transparent'],
-          backgroundType: ['solid'],
-          eyesColor: ['4a90e2', '7b68ee', 'ff6b6b', '4ecdc4', '45b7d1'],
-          mouthColor: ['f4a261', 'e76f51', 'd62828', 'f77f00', 'fcbf49'],
-          shapeColor: ['f4a261', 'e76f51', 'd62828', 'f77f00', 'fcbf49'],
-          radius: 8,
+      // Only create profile if email is confirmed
+      // OAuth providers (Google, GitHub) auto-confirm emails
+      if (data.user.email_confirmed_at) {
+        // Generate avatar if not provided from OAuth
+        let avatarUrl = data.user.user_metadata?.avatar_url;
+        if (!avatarUrl) {
+          console.log('🎨 Auth Callback: Generating avatar for user:', data.user.email);
+          avatarUrl = AvatarService.generateAvatarFromEmail(data.user.email!, {
+            size: 128,
+            backgroundColor: ['transparent'],
+            backgroundType: ['solid'],
+            eyesColor: ['4a90e2', '7b68ee', 'ff6b6b', '4ecdc4', '45b7d1'],
+            mouthColor: ['f4a261', 'e76f51', 'd62828', 'f77f00', 'fcbf49'],
+            shapeColor: ['f4a261', 'e76f51', 'd62828', 'f77f00', 'fcbf49'],
+            radius: 8,
+          });
+        }
+        
+        // Create user profile (only for verified users)
+        console.log('👤 Auth Callback: Creating user profile for verified user:', data.user.email);
+        const profileResult = await UserOnboardingService.createUserProfile({
+          id: data.user.id,
+          email: data.user.email!,
+          name: data.user.user_metadata?.name || data.user.user_metadata?.full_name,
+          avatar: avatarUrl,
         });
-      }
-      
-      // Ensure user profile exists
-      console.log('👤 Auth Callback: Creating user profile for:', data.user.email);
-      const profileResult = await UserOnboardingService.createUserProfile({
-        id: data.user.id,
-        email: data.user.email!,
-        name: data.user.user_metadata?.name || data.user.user_metadata?.full_name,
-        avatar: avatarUrl,
-      });
-      
-      if (!profileResult.success) {
-        console.error('❌ Auth Callback: Failed to create user profile:', profileResult.error);
+        
+        if (!profileResult.success) {
+          console.error('❌ Auth Callback: Failed to create user profile:', profileResult.error);
+        } else {
+          console.log('✅ Auth Callback: User profile created successfully');
+        }
       } else {
-        console.log('✅ Auth Callback: User profile created successfully');
+        console.log('⚠️ Auth Callback: Email not verified yet, profile creation skipped');
       }
       
       const forwardedHost = request.headers.get('x-forwarded-host');

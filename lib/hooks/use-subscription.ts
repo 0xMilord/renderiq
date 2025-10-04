@@ -1,32 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from './use-auth';
-import { getUserSubscription, cancelSubscription as cancelSubscriptionAction } from '@/lib/actions/billing.actions';
+import { getUserSubscriptionAction, getUserCreditsWithResetAction, isUserProAction } from '@/lib/actions/billing.actions';
 
-type SubscriptionData = {
-  id: string;
-  status: string;
-  currentPeriodStart: Date;
-  currentPeriodEnd: Date;
-  cancelAtPeriodEnd: boolean;
-  plan: {
-    id: string;
-    name: string;
-    price: number;
-    interval: string;
-    creditsPerMonth: number;
-  };
-};
-
-export function useSubscription() {
-  const { user } = useAuth();
-  const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
+/**
+ * Hook to get user's subscription status
+ */
+export function useSubscription(userId?: string) {
+  const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) {
+    if (!userId) {
       setLoading(false);
       return;
     }
@@ -34,59 +20,103 @@ export function useSubscription() {
     const fetchSubscription = async () => {
       try {
         setLoading(true);
-        const result = await getUserSubscription();
-        
-        if (result.success && 'subscription' in result && result.subscription) {
-          setSubscription(result.subscription);
+        const result = await getUserSubscriptionAction(userId);
+        if (result.success) {
+          setData(result.data);
           setError(null);
         } else {
           setError(result.error || 'Failed to fetch subscription');
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch subscription');
+        setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
         setLoading(false);
       }
     };
 
     fetchSubscription();
-  }, [user]);
+  }, [userId]);
 
-  const cancelSubscription = async (subscriptionId: string) => {
-    try {
-      const result = await cancelSubscriptionAction(subscriptionId);
-      if (result.success) {
-        // Refresh subscription data
-        setSubscription(prev => prev ? { ...prev, cancelAtPeriodEnd: true } : null);
-        setError(null);
-      } else {
-        setError(result.error || 'Failed to cancel subscription');
+  return { data, loading, error };
+}
+
+/**
+ * Hook to check if user is pro
+ */
+export function useIsPro(userId?: string) {
+  const [data, setData] = useState<boolean>(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
+    const checkPro = async () => {
+      try {
+        setLoading(true);
+        const result = await isUserProAction(userId);
+        if (result.success) {
+          setData(result.data);
+          setError(null);
+        } else {
+          setError(result.error || 'Failed to check pro status');
+          setData(false);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+        setData(false);
+      } finally {
+        setLoading(false);
       }
-      return result;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to cancel subscription');
-      return { success: false, error: err instanceof Error ? err.message : 'Failed to cancel subscription' };
-    }
-  };
+    };
 
-  const reactivateSubscription = async (subscriptionId: string) => {
-    try {
-      // This would call a server action to reactivate the subscription
-      // For now, we'll simulate success
-      setSubscription(prev => prev ? { ...prev, cancelAtPeriodEnd: false } : null);
-      setError(null);
-      return { success: true };
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reactivate subscription');
-      return { success: false, error: err instanceof Error ? err.message : 'Failed to reactivate subscription' };
-    }
-  };
+    checkPro();
+  }, [userId]);
 
-  return {
-    subscription,
-    loading,
-    error,
-    cancelSubscription,
-    reactivateSubscription,
-  };
+  return { data, loading, error };
+}
+
+/**
+ * Hook to get user credits with reset information
+ */
+export function useCreditsWithReset(userId?: string) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchCredits = async () => {
+      try {
+        setLoading(true);
+        const result = await getUserCreditsWithResetAction(userId);
+        if (result.success) {
+          setData(result.data);
+          setError(null);
+        } else {
+          setError(result.error || 'Failed to fetch credits');
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCredits();
+
+    // Refresh credits every 30 seconds
+    const interval = setInterval(fetchCredits, 30000);
+
+    return () => clearInterval(interval);
+  }, [userId]);
+
+  return { data, loading, error };
 }

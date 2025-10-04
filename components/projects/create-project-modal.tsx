@@ -137,11 +137,13 @@ export function CreateProjectModal({ children }: CreateProjectModalProps) {
                   <CardContent className="p-4">
                     <div className="flex items-center space-x-4">
                       <div className="relative">
-                        <img
-                          src={preview || ''}
-                          alt="Preview"
-                          className="w-16 h-16 object-cover rounded-lg"
-                        />
+                        {preview && (
+                          <img
+                            src={preview}
+                            alt="Preview"
+                            className="w-16 h-16 object-cover rounded-lg"
+                          />
+                        )}
                         <Button
                           type="button"
                           variant="destructive"

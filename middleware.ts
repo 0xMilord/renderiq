@@ -31,11 +31,25 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protect upload and projects routes
+  // Check if user email is verified (for authenticated users)
+  if (user && !user.email_confirmed_at) {
+    // Allow access to verification-related pages and public pages
+    const allowedPaths = ['/verify-email', '/login', '/signup', '/auth/callback', '/'];
+    const isAllowedPath = allowedPaths.some(path => request.nextUrl.pathname.startsWith(path));
+    
+    if (!isAllowedPath) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/verify-email';
+      return NextResponse.redirect(url);
+    }
+  }
+
+  // Protect upload, projects, dashboard, and engine routes
   if (
     !user &&
     (request.nextUrl.pathname.startsWith('/upload') ||
      request.nextUrl.pathname.startsWith('/projects') ||
+     request.nextUrl.pathname.startsWith('/dashboard') ||
      request.nextUrl.pathname.startsWith('/api/protected') ||
      request.nextUrl.pathname.startsWith('/engine'))
   ) {

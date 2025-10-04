@@ -63,6 +63,11 @@ export function Footer() {
                   Gallery
                 </Link>
               </li>
+              <li>
+                <Link href="/use-cases" className="text-muted-foreground hover:text-primary transition-colors">
+                  Use Cases
+                </Link>
+              </li>
             </ul>
           </div>
 

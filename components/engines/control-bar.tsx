@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useCredits } from '@/lib/hooks/use-credits';
 import { useImageGeneration } from '@/lib/hooks/use-image-generation';
 import { useProjects } from '@/lib/hooks/use-projects';
@@ -148,7 +149,7 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
   const { credits, refreshCredits } = useCredits();
   const { generate, reset, isGenerating, result, error } = useImageGeneration();
   const { projects, loading: projectsLoading } = useProjects();
-  const { chain, renders: chainRenders } = useRenderChain(chainId);
+  const { chain, renders: chainRenders, fetchChain } = useRenderChain(chainId);
   
   // Engine store
   const {
@@ -557,6 +558,12 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
 
     console.log('🔄 ControlBar: Refreshing credits');
     refreshCredits();
+    
+    // Refresh chain renders if we're adding to a chain
+    if (addToChain && (chainId || initialChainId)) {
+      console.log('🔄 ControlBar: Refreshing chain renders');
+      await fetchChain();
+    }
   };
 
   const creditsCost = getCreditsCost();
@@ -568,10 +575,14 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
       isMobile ? "h-full" : "h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)]"
     )}>
       {/* Header */}
-      <div className="p-3 border-b border-border flex flex-col gap-2 flex-shrink-0">
+      <div className={`border-b border-border flex flex-col gap-2 flex-shrink-0 ${
+        isMobile ? 'p-2' : 'p-3'
+      }`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2 flex-1 min-w-0">
-            <h2 className="font-semibold text-foreground capitalize text-sm">
+            <h2 className={`font-semibold text-foreground capitalize ${
+              isMobile ? 'text-xs' : 'text-sm'
+            }`}>
               {isCollapsed ? engineType.charAt(0).toUpperCase() : `${engineType} AI`}
             </h2>
             {!isCollapsed && (
@@ -584,7 +595,7 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
                   setSelectedProjectId(value);
                 }
               }}>
-                <SelectTrigger className="w-32 h-6 text-xs">
+                <SelectTrigger className={`${isMobile ? 'w-24 h-5 text-xs' : 'w-32 h-6 text-xs'}`}>
                   <SelectValue placeholder="Project" />
                 </SelectTrigger>
                 <SelectContent>
@@ -613,49 +624,57 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
                 <Switch
                   checked={isPublic}
                   onCheckedChange={setIsPublic}
-                  className="scale-75"
+                  className={isMobile ? "scale-50" : "scale-75"}
                 />
-                <span className="text-xs text-muted-foreground">Public</span>
-              </div>
-              
-              {/* Add to Chain Toggle */}
-              <div className="flex items-center space-x-1">
-                <Switch
-                  checked={addToChain}
-                  onCheckedChange={setAddToChain}
-                  className="scale-75"
-                />
-                <span className="text-xs text-muted-foreground">Chain</span>
+                <span className={`${isMobile ? 'text-xs' : 'text-xs'} text-muted-foreground`}>
+                  {isMobile ? 'Pub' : 'Public'}
+                </span>
               </div>
             </div>
           )}
+              
+          {/* Add to Chain Toggle - Always visible */}
+              <div className="flex items-center space-x-1">
+            <Switch
+              checked={addToChain}
+              onCheckedChange={setAddToChain}
+              className={isMobile ? "scale-50" : "scale-75"}
+            />
+            <span className={`${isMobile ? 'text-xs' : 'text-xs'} text-muted-foreground`}>
+              {isMobile ? 'Chain' : 'Chain'}
+            </span>
+          </div>
             </div>
           </div>
           
-          {/* Version Selector */}
-          <div className="mt-2">
-            <VersionSelector
-              renders={chainRenders || []}
-              selectedVersionId={selectedVersionId}
-              onSelectVersion={handleVersionSelect}
-              onUseAsReference={setReferenceRenderId}
-            />
+          {/* Version Selector in Accordion */}
+          <div className={`${isMobile ? 'mt-1' : 'mt-2'}`}>
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="versions" className="border-0">
+                <AccordionTrigger className={`${isMobile ? 'py-1 px-0 text-xs' : 'py-2 px-0 text-sm'} hover:no-underline`}>
+                  <div className="flex items-center space-x-2">
+                    <History className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'}`} />
+                    <span>Render Chain</span>
+                    {chainRenders && chainRenders.length > 0 && (
+                      <span className="text-xs bg-muted px-1.5 py-0.5 rounded">
+                        {chainRenders.filter(r => r.status === 'completed' && r.outputUrl).length}
+                      </span>
+                    )}
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-0">
+                  <VersionSelector
+                    renders={chainRenders || []}
+                    selectedVersionId={selectedVersionId}
+                    onSelectVersion={handleVersionSelect}
+                    onUseAsReference={setReferenceRenderId}
+                  />
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </div>
         
-        {isMobile ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              // This will be handled by the parent component
-              const event = new CustomEvent('closeMobileDrawer');
-              window.dispatchEvent(event);
-            }}
-            className="p-1 h-6 w-6"
-          >
-            <X className="h-3 w-3" />
-          </Button>
-        ) : (
+        {!isMobile && (
           <Button
             variant="ghost"
             size="sm"
@@ -670,13 +689,13 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
       {!isCollapsed && (
         <div className="flex-1 flex flex-col min-h-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col h-full">
-            <div className="px-3 mt-3 mb-2 flex-shrink-0">
-              <TabsList className="grid w-full grid-cols-2 h-8">
-              <TabsTrigger value="image" className="flex items-center justify-center space-x-1 text-xs px-2 min-w-0">
+            <div className={`${isMobile ? 'px-2 mt-2 mb-1' : 'px-3 mt-3 mb-2'} flex-shrink-0`}>
+              <TabsList className={`grid w-full grid-cols-2 ${isMobile ? 'h-6' : 'h-8'}`}>
+              <TabsTrigger value="image" className={`flex items-center justify-center space-x-1 text-xs px-2 min-w-0 ${isMobile ? 'text-xs' : ''}`}>
                 <ImageIcon className="h-3 w-3 flex-shrink-0" />
                 <span className="truncate">Image</span>
               </TabsTrigger>
-              <TabsTrigger value="video" className="flex items-center justify-center space-x-1 text-xs px-2 min-w-0">
+              <TabsTrigger value="video" className={`flex items-center justify-center space-x-1 text-xs px-2 min-w-0 ${isMobile ? 'text-xs' : ''}`}>
                 <Video className="h-3 w-3 flex-shrink-0" />
                 <span className="truncate">Video</span>
               </TabsTrigger>
@@ -684,9 +703,9 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
             </div>
             
             <div className="flex-1 flex flex-col min-h-0">
-              <TabsContent value="image" className="px-3 flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden data-[state=inactive]:!hidden">
+              <TabsContent value="image" className={`${isMobile ? 'px-2' : 'px-3'} flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden data-[state=inactive]:!hidden`}>
               {/* Scrollable Content */}
-              <div className="flex-1 overflow-y-auto space-y-3 pb-2">
+              <div className={`flex-1 overflow-y-auto ${isMobile ? 'space-y-2 pb-1' : 'space-y-3 pb-2'}`}>
 
                 {/* Upload Section */}
                 <div className="space-y-2">
@@ -996,9 +1015,9 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
               </div>
               </TabsContent>
 
-              <TabsContent value="video" className="px-3 flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden data-[state=inactive]:!hidden">
+              <TabsContent value="video" className={`${isMobile ? 'px-2' : 'px-3'} flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden data-[state=inactive]:!hidden`}>
               {/* Scrollable Content */}
-              <div className="flex-1 overflow-y-auto space-y-3 pb-2">
+              <div className={`flex-1 overflow-y-auto ${isMobile ? 'space-y-2 pb-1' : 'space-y-3 pb-2'}`}>
                 {/* Video-specific content */}
                 <div className="space-y-2">
                   <Label htmlFor="duration">Duration (seconds)</Label>

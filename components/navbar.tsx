@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { UserDropdown } from '@/components/user-dropdown';
-import { Menu, X, Home, Upload, GalleryVertical, BookOpen } from 'lucide-react';
+import { Menu, X, Home, Upload, GalleryVertical, BookOpen, Lightbulb, CreditCard } from 'lucide-react';
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -59,6 +59,13 @@ export function Navbar() {
               </div>
             </div>
             <Link
+              href="/use-cases"
+              className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
+            >
+              <Lightbulb className="h-4 w-4" />
+              <span>Use Cases</span>
+            </Link>
+            <Link
               href="/gallery"
               className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
             >
@@ -66,11 +73,11 @@ export function Navbar() {
               <span>Gallery</span>
             </Link>
             <Link
-              href="/api-docs"
+              href="/plans"
               className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
             >
-              <BookOpen className="h-4 w-4" />
-              <span>API Docs</span>
+              <CreditCard className="h-4 w-4" />
+              <span>Plans</span>
             </Link>
 
             {/* User Dropdown */}
@@ -136,6 +143,14 @@ export function Navbar() {
                 </div>
               </div>
               <Link
+                href="/use-cases"
+                className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium"
+                onClick={() => setIsOpen(false)}
+              >
+                <Lightbulb className="h-4 w-4" />
+                <span>Use Cases</span>
+              </Link>
+              <Link
                 href="/gallery"
                 className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium"
                 onClick={() => setIsOpen(false)}
@@ -144,12 +159,12 @@ export function Navbar() {
                 <span>Gallery</span>
               </Link>
               <Link
-                href="/api-docs"
+                href="/plans"
                 className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium"
                 onClick={() => setIsOpen(false)}
               >
-                <BookOpen className="h-4 w-4" />
-                <span>API Docs</span>
+                <CreditCard className="h-4 w-4" />
+                <span>Plans</span>
               </Link>
             </div>
           </div>

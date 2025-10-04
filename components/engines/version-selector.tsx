@@ -29,19 +29,31 @@ export const VersionSelector: React.FC<VersionSelectorProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  const completedRenders = renders.filter(r => r.status === 'completed' && r.outputUrl);
+  // Sort renders by chain position (if available) or by creation date
+  const sortedRenders = [...renders]
+    .filter(r => r.status === 'completed' && r.outputUrl)
+    .sort((a, b) => {
+      // If both have chain positions, sort by chain position
+      if (a.chainPosition !== null && b.chainPosition !== null) {
+        return b.chainPosition - a.chainPosition; // Most recent first
+      }
+      // Otherwise sort by creation date (most recent first)
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  
+  const completedRenders = sortedRenders;
   
   // Debug logging
   console.log('🔍 VersionSelector: Debug info:', {
     totalRenders: renders.length,
     completedRenders: completedRenders.length,
-    renders: renders.map(r => ({ id: r.id, status: r.status, hasOutputUrl: !!r.outputUrl }))
+    renders: renders.map(r => ({ id: r.id, status: r.status, hasOutputUrl: !!r.outputUrl, chainPosition: r.chainPosition }))
   });
   
   if (completedRenders.length === 0) {
     return (
-      <div className="text-xs text-muted-foreground p-2 bg-muted rounded">
-        No completed renders yet ({renders.length} total renders)
+      <div className="text-xs text-muted-foreground p-1 bg-muted rounded">
+        No renders yet ({renders.length} total)
       </div>
     );
   }
@@ -51,12 +63,14 @@ export const VersionSelector: React.FC<VersionSelectorProps> = ({
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <History className="h-4 w-4" />
+        <Button variant="outline" size="sm" className="gap-1 h-6 text-xs">
+          <History className="h-3 w-3" />
           <span className="hidden sm:inline">
             {selectedRender ? 'Version Selected' : 'Select Version'}
           </span>
-          <span className="sm:hidden">Versions</span>
+          <span className="sm:hidden">
+            {selectedRender ? 'v' + (selectedRender.chainPosition || 1) : 'Versions'}
+          </span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80 max-h-[400px] overflow-y-auto">
@@ -92,7 +106,7 @@ export const VersionSelector: React.FC<VersionSelectorProps> = ({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-medium">
-                    Version {completedRenders.length - index}
+                    {render.chainPosition !== null ? `Version ${render.chainPosition}` : `Version ${index + 1}`}
                   </span>
                   {selectedVersionId === render.id && (
                     <Check className="h-4 w-4 text-primary" />

@@ -31,8 +31,8 @@ export async function signUpAction(email: string, password: string, name?: strin
     };
   }
 
-  // Redirect to dashboard on successful sign up
-  redirect('/');
+  // Redirect to email verification page
+  redirect('/verify-email');
 }
 
 export async function signOutAction() {

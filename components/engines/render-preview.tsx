@@ -398,6 +398,25 @@ export function RenderPreview({
                       <span>{result.processingTime?.toFixed(1)}s</span>
                     </div>
                   </div>
+                  
+                  {/* Render Status & Audit Info */}
+                  <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">Render Status</span>
+                      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                        ✅ Complete
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      <div>• Image generated successfully</div>
+                      <div>• {result.processingTime ? `${result.processingTime.toFixed(1)}s` : 'Fast'} processing time</div>
+                      <div>• {result.style} style applied</div>
+                      <div>• {result.quality} quality output</div>
+                      {isMobile && (
+                        <div>• Mobile-optimized display</div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
