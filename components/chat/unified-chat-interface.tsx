@@ -1300,17 +1300,35 @@ export function UnifiedChatInterface({
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'prompt-to-image' | 'image-to-video' | 'canvas-editor')} className="flex flex-col h-full">
           <div className="border-b border-border flex-shrink-0 h-11 flex items-center">
             <TabsList className="w-full justify-start rounded-none h-full">
-              <TabsTrigger value="prompt-to-image" className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm px-2 sm:px-4">
+              <TabsTrigger 
+                value="prompt-to-image" 
+                className={cn(
+                  "flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm px-2 sm:px-4",
+                  activeTab === 'prompt-to-image' && "!border-primary !text-primary data-[state=active]:!text-primary dark:data-[state=active]:!text-primary"
+                )}
+              >
                 {getTabIcon('prompt-to-image')}
                 <span className="hidden sm:inline">Prompt to Image</span>
                 <span className="sm:hidden">Prompt</span>
               </TabsTrigger>
-              <TabsTrigger value="image-to-video" className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm px-2 sm:px-4">
+              <TabsTrigger 
+                value="image-to-video" 
+                className={cn(
+                  "flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm px-2 sm:px-4",
+                  activeTab === 'image-to-video' && "!border-primary !text-primary data-[state=active]:!text-primary dark:data-[state=active]:!text-primary"
+                )}
+              >
                 {getTabIcon('image-to-video')}
                 <span className="hidden sm:inline">Image to Video</span>
                 <span className="sm:hidden">Video</span>
               </TabsTrigger>
-              <TabsTrigger value="canvas-editor" className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm px-2 sm:px-4">
+              <TabsTrigger 
+                value="canvas-editor" 
+                className={cn(
+                  "flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm px-2 sm:px-4",
+                  activeTab === 'canvas-editor' && "!border-primary !text-primary data-[state=active]:!text-primary dark:data-[state=active]:!text-primary"
+                )}
+              >
                 {getTabIcon('canvas-editor')}
                 <span className="hidden sm:inline">Canvas Editor</span>
                 <span className="sm:hidden">Canvas</span>

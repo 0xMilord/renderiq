@@ -151,7 +151,7 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
       <div
         className={cn(
           "flex flex-col border-r bg-card transition-all duration-300",
-          isSidebarOpen ? "w-80" : "w-12"
+          isSidebarOpen ? "w-full max-w-[40vw] sm:w-80" : "w-12"
         )}
       >
         {/* Sidebar Header */}
@@ -159,30 +159,30 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
           
           {/* Search and Create Project in same row */}
           {isSidebarOpen ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 h-10">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
                   placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 h-8 text-sm"
+                  className="pl-8 h-10 text-sm"
                 />
               </div>
               <CreateProjectModal>
-                <Button variant="outline" size="sm" className="h-8 text-sm px-2">
+                <Button variant="outline" size="sm" className="h-10 text-sm px-3">
                   <Plus className="h-3.5 w-3.5 mr-1" />
                   Project
                 </Button>
               </CreateProjectModal>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-2 h-10">
               <CreateProjectModal>
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-8 w-8"
+                  className="h-10 w-10"
                   title="New Project"
                 >
                   <Plus className="h-4 w-4" />
@@ -361,12 +361,12 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="px-4 py-2 border-b flex items-center gap-4">
+        <div className="px-4 py-3 border-b flex items-center gap-4 h-16">
           <Button
             variant="outline"
             size="icon"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="h-8 w-8"
+            className="h-10 w-10"
           >
             {isSidebarOpen ? (
               <PanelLeftClose className="h-4 w-4" />
