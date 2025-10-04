@@ -138,6 +138,36 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Upload original image if provided
+    let uploadedImageUrl: string | undefined = undefined;
+    let uploadedImageKey: string | undefined = undefined;
+    let uploadedImageId: string | undefined = undefined;
+
+    if (uploadedImageData && uploadedImageType) {
+      console.log('📤 Uploading original image to storage');
+      try {
+        const buffer = Buffer.from(uploadedImageData, 'base64');
+        const uploadedImageFile = new File([buffer], `upload_${Date.now()}.${uploadedImageType.split('/')[1] || 'png'}`, { type: uploadedImageType });
+        
+        const uploadResult = await StorageService.uploadFile(
+          uploadedImageFile,
+          'uploads',
+          user.id,
+          undefined,
+          project.slug
+        );
+
+        uploadedImageUrl = uploadResult.url;
+        uploadedImageKey = uploadResult.key;
+        uploadedImageId = uploadResult.id;
+        
+        console.log('✅ Original image uploaded:', uploadResult.url);
+      } catch (error) {
+        console.error('❌ Failed to upload original image:', error);
+        // Continue without uploaded image rather than failing the entire request
+      }
+    }
+
     // Create render record in database
     console.log('💾 Creating render record in database');
     const render = await RendersDAL.create({
@@ -154,6 +184,9 @@ export async function POST(request: NextRequest) {
       chainId: finalChainId,
       chainPosition,
       referenceRenderId: validatedReferenceRenderId,
+      uploadedImageUrl,
+      uploadedImageKey,
+      uploadedImageId,
     });
 
     console.log('✅ Render record created:', render.id, 'in chain:', finalChainId, 'at position:', chainPosition);

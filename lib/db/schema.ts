@@ -181,6 +181,10 @@ export const renders = pgTable('renders', {
     chainEvolution?: string;
   }>(),
   thumbnailUrl: text('thumbnail_url'),
+  // Uploaded image fields
+  uploadedImageUrl: text('uploaded_image_url'),
+  uploadedImageKey: text('uploaded_image_key'),
+  uploadedImageId: uuid('uploaded_image_id').references(() => fileStorage.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

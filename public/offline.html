@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline - wentire thinng</title>
+    <meta name="description" content="You're currently offline. Your work will sync when you're back online.">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    <meta name="theme-color" content="hsl(15.1111 55.5556% 52.3529%)">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="wentire thinng">
+    <style>
+        :root {
+            --background: 48 33.3333% 97.0588%;
+            --foreground: 48 19.6078% 20%;
+            --primary: 15.1111 55.5556% 52.3529%;
+            --primary-foreground: 0 0% 100%;
+            --muted: 44.0000 29.4118% 90%;
+            --muted-foreground: 50.0000 2.3622% 50.1961%;
+            --border: 50 7.5000% 84.3137%;
+            --radius: 0.5rem;
+        }
+
+        .dark {
+            --background: 60 2.7027% 14.5098%;
+            --foreground: 46.1538 9.7744% 73.9216%;
+            --primary: 14.7692 63.1068% 59.6078%;
+            --primary-foreground: 0 0% 100%;
+            --muted: 60 3.8462% 10.1961%;
+            --muted-foreground: 51.4286 8.8608% 69.0196%;
+            --border: 60 5.0847% 23.1373%;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: hsl(var(--background));
+            color: hsl(var(--foreground));
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+            background: hsl(var(--background));
+            border: 1px solid hsl(var(--border));
+            border-radius: var(--radius);
+            padding: 3rem 2rem;
+            box-shadow: 0 4px 6px -1px hsl(0 0% 0% / 0.1);
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 2rem;
+            background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.8));
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: bold;
+            color: hsl(var(--primary-foreground));
+            position: relative;
+            overflow: hidden;
+        }
+
+        .logo::before {
+            content: 'A';
+            position: absolute;
+            z-index: 2;
+        }
+
+        .logo::after {
+            content: '';
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 20px;
+            background: hsl(var(--muted-foreground));
+            clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+            z-index: 1;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: hsl(var(--foreground));
+        }
+
+        .subtitle {
+            font-size: 1.25rem;
+            color: hsl(var(--muted-foreground));
+            margin-bottom: 2rem;
+        }
+
+        .description {
+            font-size: 1rem;
+            color: hsl(var(--muted-foreground));
+            margin-bottom: 2.5rem;
+            line-height: 1.7;
+        }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background: hsl(var(--muted));
+            border: 1px solid hsl(var(--border));
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            color: hsl(var(--muted-foreground));
+            margin-bottom: 2rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #ef4444;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: none;
+            min-width: 140px;
+        }
+
+        .btn-primary {
+            background: hsl(var(--primary));
+            color: hsl(var(--primary-foreground));
+        }
+
+        .btn-primary:hover {
+            background: hsl(var(--primary) / 0.9);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: hsl(var(--foreground));
+            border: 1px solid hsl(var(--border));
+        }
+
+        .btn-secondary:hover {
+            background: hsl(var(--muted));
+        }
+
+        .features {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid hsl(var(--border));
+        }
+
+        .features h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: hsl(var(--foreground));
+        }
+
+        .features-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            text-align: left;
+        }
+
+        .feature {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: hsl(var(--muted-foreground));
+        }
+
+        .feature-icon {
+            width: 16px;
+            height: 16px;
+            background: hsl(var(--primary));
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: hsl(var(--background));
+            }
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 2rem 1.5rem;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .subtitle {
+                font-size: 1.125rem;
+            }
+            
+            .actions {
+                width: 100%;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo"></div>
+        
+        <h1>You're Offline</h1>
+        <p class="subtitle">wentire thinng</p>
+        <p class="description">
+            Don't worry! Your work is safe and will automatically sync when you're back online. 
+            You can still browse previously loaded content and continue working on your projects.
+        </p>
+        
+        <div class="status">
+            <div class="status-dot"></div>
+            <span>No internet connection</span>
+        </div>
+        
+        <div class="actions">
+            <button class="btn btn-primary" onclick="window.location.reload()">
+                Try Again
+            </button>
+            <button class="btn btn-secondary" onclick="window.history.back()">
+                Go Back
+            </button>
+        </div>
+        
+        <div class="features">
+            <h3>What you can do offline:</h3>
+            <div class="features-list">
+                <div class="feature">
+                    <div class="feature-icon"></div>
+                    <span>View cached projects</span>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon"></div>
+                    <span>Browse gallery</span>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon"></div>
+                    <span>Draft new renders</span>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon"></div>
+                    <span>Auto-sync when online</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check online status and update UI
+        function updateOnlineStatus() {
+            const statusDot = document.querySelector('.status-dot');
+            const statusText = document.querySelector('.status span');
+            
+            if (navigator.onLine) {
+                statusDot.style.background = '#10b981';
+                statusText.textContent = 'Back online!';
+                
+                // Auto-reload after a short delay
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                statusDot.style.background = '#ef4444';
+                statusText.textContent = 'No internet connection';
+            }
+        }
+
+        // Listen for online/offline events
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+
+        // Initial status check
+        updateOnlineStatus();
+
+        // Register service worker if not already registered
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(registration => {
+                    console.log('Service Worker registered:', registration);
+                })
+                .catch(error => {
+                    console.log('Service Worker registration failed:', error);
+                });
+        }
+    </script>
+</body>
+</html>

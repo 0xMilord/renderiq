@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Building2, Github, Twitter, Linkedin, Mail } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { InstallButton } from '@/components/pwa/install-button';
 
 export function Footer() {
   return (
@@ -39,9 +40,12 @@ export function Footer() {
                   <Mail className="h-5 w-5" />
                 </a>
               </div>
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-muted-foreground">Theme:</span>
-                <ThemeToggle />
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-muted-foreground">Theme:</span>
+                  <ThemeToggle />
+                </div>
+                <InstallButton variant="outline" size="sm" />
               </div>
             </div>
           </div>

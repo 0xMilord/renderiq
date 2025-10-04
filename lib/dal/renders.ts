@@ -18,6 +18,9 @@ export interface CreateRenderData {
   chainId?: string;
   chainPosition?: number;
   referenceRenderId?: string;
+  uploadedImageUrl?: string;
+  uploadedImageKey?: string;
+  uploadedImageId?: string;
 }
 
 export interface UpdateRenderData {
@@ -44,6 +47,9 @@ export class RendersDAL {
         chainId: data.chainId,
         chainPosition: data.chainPosition,
         referenceRenderId: data.referenceRenderId,
+        uploadedImageUrl: data.uploadedImageUrl,
+        uploadedImageKey: data.uploadedImageKey,
+        uploadedImageId: data.uploadedImageId,
       })
       .returning();
 

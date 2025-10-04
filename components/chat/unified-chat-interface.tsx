@@ -77,8 +77,9 @@ interface Message {
   render?: Render;
   isGenerating?: boolean;
   uploadedImage?: {
-    file: File;
+    file?: File; // Optional for persisted images
     previewUrl: string;
+    persistedUrl?: string; // URL from database/storage
   };
   referenceRenderId?: string; // Which render this message is referring to
 }
@@ -296,7 +297,12 @@ export function UnifiedChatInterface({
             type: 'user',
             content: render.prompt,
             timestamp: render.createdAt,
-            referenceRenderId: render.referenceRenderId || undefined
+            referenceRenderId: render.referenceRenderId || undefined,
+            // Add uploaded image if it exists in the database
+            uploadedImage: render.uploadedImageUrl ? {
+              previewUrl: render.uploadedImageUrl,
+              persistedUrl: render.uploadedImageUrl
+            } : undefined
           };
 
           // Create assistant message with the render (no constant text)
@@ -348,7 +354,7 @@ export function UnifiedChatInterface({
   }, [chain]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   };
 
   useEffect(() => {
@@ -678,8 +684,8 @@ export function UnifiedChatInterface({
         setCurrentRender(newRender);
         onRenderComplete?.(newRender);
         
-        // Refresh chain data to get the latest renders
-        onRefreshChain?.();
+        // Don't refresh chain data - this causes full page reload
+        // onRefreshChain?.(); // Removed to prevent page reload
 
         // Update the assistant message with the result and render (no constant text)
         setMessages(prev => prev.map(msg => 
@@ -777,7 +783,7 @@ export function UnifiedChatInterface({
 
 
   return (
-    <div className="flex flex-col lg:flex-row h-full overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-2.75rem)] overflow-hidden">
       {/* Mobile View Toggle - Only visible on mobile/tablet */}
       <div className="lg:hidden border-b border-border bg-background sticky top-0 z-10">
         <div className="px-4 py-2 flex items-center justify-between">
@@ -819,7 +825,7 @@ export function UnifiedChatInterface({
       {/* Chat Area - Responsive width */}
       <div className={cn(
         "border-r border-border flex flex-col overflow-hidden",
-        "w-full lg:w-1/4",
+        "w-full lg:w-1/4 h-full",
         // Mobile: show/hide based on mobileView
         mobileView === 'chat' ? 'flex' : 'hidden lg:flex'
       )}>
@@ -842,7 +848,7 @@ export function UnifiedChatInterface({
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-2 sm:space-y-4 min-h-0">
+        <div className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-2 sm:space-y-4 min-h-0 max-h-[calc(100vh-16rem)]">
           {messages.length === 0 ? (
             <div className="text-center text-muted-foreground mt-8">
               <MessageSquare className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-4 text-muted-foreground/50" />
@@ -852,7 +858,7 @@ export function UnifiedChatInterface({
           ) : (
             messages.map((message, index) => (
               <div
-                key={message.id}
+                key={`${message.id}-${message.timestamp.getTime()}`}
                 className={cn(
                   'flex',
                   message.type === 'user' ? 'justify-end' : 'justify-start'
@@ -862,8 +868,10 @@ export function UnifiedChatInterface({
                   className={cn(
                     'max-w-[85%] sm:max-w-[80%] rounded-lg p-2 sm:p-3',
                     message.type === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted'
+                      ? 'bg-primary text-primary-foreground animate-in slide-in-from-right-5 duration-300'
+                      : 'bg-muted animate-in slide-in-from-left-5 duration-300',
+                    // Allow assistant messages with renders to be wider
+                    message.type === 'assistant' && message.render && 'max-w-[98%] sm:max-w-[95%]'
                   )}
                 >
                   {/* Only show copy/edit buttons for user messages */}
@@ -922,7 +930,9 @@ export function UnifiedChatInterface({
                           className="object-cover"
                         />
                       </div>
-                      <p className="text-[10px] sm:text-xs text-white/70 mt-1">Working with uploaded image</p>
+                      <p className="text-[10px] sm:text-xs text-white/70 mt-1">
+                        {message.uploadedImage.persistedUrl ? 'Using uploaded image' : 'Working with uploaded image'}
+                      </p>
                     </div>
                   )}
                   
@@ -937,17 +947,19 @@ export function UnifiedChatInterface({
                       <div className="mb-1">
                         <span className="text-[10px] sm:text-xs text-muted-foreground">Version {message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}</span>
                       </div>
-                      <div className="relative w-full aspect-video rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity bg-muted"
+                      <div className="relative w-full aspect-video rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity bg-muted animate-in fade-in-0 zoom-in-95 duration-500"
                         onClick={() => {
                           setCurrentRender(message.render!);
                           setMobileView('render');
                         }}
+                        style={{ minWidth: '400px', width: '100%' }}
                       >
                         <Image
                           src={message.render.outputUrl}
                           alt="Generated render"
                           fill
                           className="object-cover"
+                          sizes="100vw"
                         />
                       </div>
                       {/* Action buttons below image - always visible */}
@@ -965,11 +977,10 @@ export function UnifiedChatInterface({
                             document.body.removeChild(link);
                             toast.success('Download started');
                           }}
-                          className="h-7 text-[10px] sm:text-xs"
+                          className="h-7 w-7 p-0"
                           title="Download"
                         >
-                          <Download className="h-3 w-3 mr-1" />
-                          Download
+                          <Download className="h-3 w-3" />
                         </Button>
                         <Button
                           variant="outline"
@@ -978,11 +989,10 @@ export function UnifiedChatInterface({
                             e.stopPropagation();
                             toast.info('Upscale feature coming soon');
                           }}
-                          className="h-7 text-[10px] sm:text-xs"
+                          className="h-7 w-7 p-0"
                           title="Upscale"
                         >
-                          <Zap className="h-3 w-3 mr-1" />
-                          Upscale
+                          <Zap className="h-3 w-3" />
                         </Button>
                         <Button
                           variant="outline"
@@ -993,11 +1003,10 @@ export function UnifiedChatInterface({
                             setInputValue(message.render!.prompt);
                             toast.info('Prompt loaded. Modify and send to regenerate with context.');
                           }}
-                          className="h-7 text-[10px] sm:text-xs"
+                          className="h-7 w-7 p-0"
                           title="Regenerate"
                         >
-                          <RefreshCw className="h-3 w-3 mr-1" />
-                          Regenerate
+                          <RefreshCw className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
@@ -1010,7 +1019,7 @@ export function UnifiedChatInterface({
         </div>
 
         {/* Input Area */}
-        <div className="p-2 sm:p-2 border-t border-border flex-shrink-0">
+        <div className="p-2 sm:p-2 border-t border-border flex-shrink-0 bg-background">
           <div className="space-y-1">
             {/* Uploaded Image Attachment */}
             {uploadedFile && previewUrl && (

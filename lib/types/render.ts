@@ -15,6 +15,10 @@ export interface Render {
   chainId: string | null;
   chainPosition: number | null;
   referenceRenderId: string | null;
+  // Uploaded image fields
+  uploadedImageUrl: string | null;
+  uploadedImageKey: string | null;
+  uploadedImageId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

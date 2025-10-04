@@ -105,6 +105,36 @@ export class RenderService {
       const chainRenders = await RendersDALNew.getByChainId(chainId);
       const chainPosition = chainRenders.length;
 
+      // Upload original image if provided
+      let uploadedImageUrl: string | undefined = undefined;
+      let uploadedImageKey: string | undefined = undefined;
+      let uploadedImageId: string | undefined = undefined;
+
+      if (renderData.uploadedImageData && renderData.uploadedImageType) {
+        console.log('📤 [createRender] Uploading original image to storage');
+        try {
+          const buffer = Buffer.from(renderData.uploadedImageData, 'base64');
+          const uploadedImageFile = new File([buffer], `upload_${Date.now()}.${renderData.uploadedImageType.split('/')[1] || 'png'}`, { type: renderData.uploadedImageType });
+          
+          const uploadResult = await StorageService.uploadFile(
+            uploadedImageFile,
+            'uploads',
+            project.userId,
+            undefined,
+            project.slug
+          );
+
+          uploadedImageUrl = uploadResult.url;
+          uploadedImageKey = uploadResult.key;
+          uploadedImageId = uploadResult.id;
+          
+          console.log('✅ [createRender] Original image uploaded:', uploadResult.url);
+        } catch (error) {
+          console.error('❌ [createRender] Failed to upload original image:', error);
+          // Continue without uploaded image rather than failing the entire request
+        }
+      }
+
       // Create render record with chain info
       const render = await RendersDALNew.create({
         projectId: renderData.projectId,
@@ -116,6 +146,9 @@ export class RenderService {
         chainId: chainId,
         chainPosition: chainPosition,
         referenceRenderId: renderData.referenceRenderId,
+        uploadedImageUrl,
+        uploadedImageKey,
+        uploadedImageId,
       });
 
       console.log('✅ [createRender] Render created with chain:', { 
@@ -125,7 +158,10 @@ export class RenderService {
       });
 
       // Start background processing
-      this.processRender(render.id, project.originalImageId, renderData);
+      this.processRender(render.id, project.originalImageId, renderData, {
+        uploadedImageData: renderData.uploadedImageData,
+        uploadedImageType: renderData.uploadedImageType
+      });
 
       return { success: true, data: render };
     } catch (error) {
@@ -139,7 +175,8 @@ export class RenderService {
   private async processRender(
     renderId: string,
     originalImageId: string,
-    renderData: CreateRenderData
+    renderData: CreateRenderData,
+    uploadedImageData?: { uploadedImageData?: string; uploadedImageType?: string }
   ) {
     try {
       console.log('🎨 [processRender] Starting render processing:', { renderId, type: renderData.type });
@@ -170,8 +207,8 @@ export class RenderService {
           quality: renderData.settings.quality,
           aspectRatio: renderData.settings.aspectRatio,
           type: 'image',
-          uploadedImageData: imageBase64,
-          uploadedImageType: 'image/jpeg',
+          uploadedImageData: uploadedImageData?.uploadedImageData || imageBase64,
+          uploadedImageType: uploadedImageData?.uploadedImageType || 'image/jpeg',
         });
       } else {
         console.log('🎬 [processRender] Generating video...');

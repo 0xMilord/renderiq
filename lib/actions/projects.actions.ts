@@ -153,6 +153,8 @@ export async function createRender(formData: FormData) {
     const quality = formData.get('quality') as 'standard' | 'high' | 'ultra';
     const aspectRatio = formData.get('aspectRatio') as string;
     const duration = formData.get('duration') ? parseInt(formData.get('duration') as string) : undefined;
+    const uploadedImageData = formData.get('uploadedImageData') as string | null;
+    const uploadedImageType = formData.get('uploadedImageType') as string | null;
 
     const validatedData = createRenderSchema.parse({
       projectId,
@@ -164,6 +166,8 @@ export async function createRender(formData: FormData) {
         aspectRatio,
         duration,
       },
+      uploadedImageData: uploadedImageData || undefined,
+      uploadedImageType: uploadedImageType || undefined,
     });
 
     const result = await renderService.createRender(validatedData);

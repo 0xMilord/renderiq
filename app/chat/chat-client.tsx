@@ -175,8 +175,8 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
               </div>
               <CreateProjectModal>
                 <Button variant="outline" size="sm" className="h-10 text-sm px-3">
-                  <Plus className="h-3.5 w-3.5 mr-1" />
-                  Project
+                  <Plus className="h-3.5 w-3.5 sm:mr-1" />
+                  <span className="hidden sm:inline">Project</span>
                 </Button>
               </CreateProjectModal>
             </div>

@@ -35,6 +35,8 @@ export const createRenderSchema = z.object({
   type: z.enum(['image', 'video']),
   prompt: z.string().min(1, 'Prompt is required'),
   settings: renderSettingsSchema,
+  uploadedImageData: z.string().optional(),
+  uploadedImageType: z.string().optional(),
 });
 
 export type CreateRenderData = z.infer<typeof createRenderSchema>;

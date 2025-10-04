@@ -36,6 +36,13 @@
       "when": 1759574807455,
       "tag": "0004_rapid_omega_flight",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1759586747305,
+      "tag": "0005_furry_scorpion",
+      "breakpoints": true
     }
   ]
 }
