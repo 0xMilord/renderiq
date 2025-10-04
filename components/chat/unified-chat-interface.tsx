@@ -220,7 +220,7 @@ export function UnifiedChatInterface({
   const [renderMode, setRenderMode] = useState('exact');
   const [renderSpeed, setRenderSpeed] = useState('fast');
   const [aspectRatio, setAspectRatio] = useState('16:9');
-  const [imageType, setImageType] = useState('3d-mass');
+  const [imageType, setImageType] = useState('photo');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   
@@ -790,30 +790,27 @@ export function UnifiedChatInterface({
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back
           </Button>
-          <div className="text-center flex-1">
+            <div className="text-center flex-1">
             <h1 className="text-sm font-semibold">{projectName}</h1>
-            {!creditsLoading && credits && (
-              <div className="text-xs text-muted-foreground">
-                {credits.balance} credits
-              </div>
-            )}
           </div>
-          <div className="flex gap-1">
+          <div className="flex bg-muted rounded-lg p-0.5">
             <Button
               variant={mobileView === 'chat' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setMobileView('chat')}
-              className="h-8 px-3"
+              className="h-7 px-3 flex-1 text-xs"
             >
-              <MessageSquare className="h-4 w-4" />
+              <MessageSquare className="h-3 w-3 mr-1" />
+              Chat
             </Button>
             <Button
               variant={mobileView === 'render' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setMobileView('render')}
-              className="h-8 px-3"
+              className="h-7 px-3 flex-1 text-xs"
             >
-              <ImageIcon className="h-4 w-4" />
+              <ImageIcon className="h-3 w-3 mr-1" />
+              Render
             </Button>
           </div>
         </div>
@@ -840,11 +837,6 @@ export function UnifiedChatInterface({
             </Button>
             <div className="text-right flex-1 min-w-0">
               <h1 className="text-sm font-semibold truncate">{projectName}</h1>
-              {!creditsLoading && credits && (
-                <div className="text-xs text-muted-foreground">
-                  {credits.balance} credits
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -1396,37 +1388,19 @@ export function UnifiedChatInterface({
                           alt={currentRender.prompt}
                           width={800}
                           height={600}
-                          className={cn(
-                            "max-w-full max-h-full object-contain rounded-lg",
-                            isFullscreen && "fixed inset-0 z-50 bg-black object-contain"
-                          )}
+                          className="max-w-full max-h-full object-contain rounded-lg cursor-pointer"
+                          onClick={() => setIsFullscreen(true)}
                         />
                           
-                          {/* Image Badges */}
-                          <div className="absolute top-2 sm:top-4 left-2 sm:left-4 flex flex-wrap gap-1 sm:gap-2">
-                            <Badge variant="secondary" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
-                              {currentRender.settings?.style}
-                            </Badge>
-                            <Badge variant="secondary" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
-                              {currentRender.settings?.aspectRatio}
-                            </Badge>
-                            <Badge variant="secondary" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
-                              {currentRender.settings?.quality}
-                            </Badge>
-                            <Badge variant="secondary" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 flex items-center gap-0.5">
-                              <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                              {currentRender.processingTime?.toFixed(1)}s
-                            </Badge>
-                          </div>
                           
                           {/* Fullscreen Toggle */}
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setIsFullscreen(!isFullscreen)}
+                            onClick={() => setIsFullscreen(true)}
                             className="absolute top-2 sm:top-4 right-2 sm:right-4 bg-black/50 hover:bg-black/70 text-white h-7 w-7 sm:h-auto sm:w-auto sm:px-3"
                           >
-                            {isFullscreen ? <Minimize className="h-3 w-3 sm:h-4 sm:w-4" /> : <Maximize className="h-3 w-3 sm:h-4 sm:w-4" />}
+                            <Maximize className="h-3 w-3 sm:h-4 sm:w-4" />
                           </Button>
                         </div>
                       </div>
@@ -1434,23 +1408,20 @@ export function UnifiedChatInterface({
                       {/* Result Info and Actions */}
                       <div className="p-1.5 sm:p-2 border-t border-border bg-background flex-shrink-0">
                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 sm:mb-2">
-                          <div className="flex items-center space-x-2 sm:space-x-4">
-                            <button
-                              onClick={handleLike}
-                              className={cn(
-                                "flex items-center space-x-1 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm transition-colors",
-                                isLiked 
-                                  ? "bg-destructive/10 text-destructive" 
-                                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-                              )}
-                            >
-                              <Heart className={cn("h-3 w-3 sm:h-4 sm:w-4", isLiked && "fill-current")} />
-                              <span>{likes}</span>
-                            </button>
-                            <div className="flex items-center space-x-1 text-muted-foreground">
-                              <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
-                              <span className="text-xs sm:text-sm">{views}</span>
-                            </div>
+                          <div className="flex flex-wrap gap-1 sm:gap-2">
+                            <Badge variant="default" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
+                              {currentRender.settings?.style}
+                            </Badge>
+                            <Badge variant="default" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
+                              {currentRender.settings?.aspectRatio}
+                            </Badge>
+                            <Badge variant="default" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
+                              {currentRender.settings?.quality}
+                            </Badge>
+                            <Badge variant="default" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 flex items-center gap-0.5">
+                              <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                              {currentRender.processingTime?.toFixed(1)}s
+                            </Badge>
                           </div>
                           
                           <div className="flex items-center space-x-1 sm:space-x-2 w-full sm:w-auto">
@@ -1621,6 +1592,42 @@ export function UnifiedChatInterface({
         onClose={handleGalleryModalClose}
         onImageSelect={handleGalleryImageSelect}
       />
+
+      {/* Fullscreen Image Dialog */}
+      {isFullscreen && currentRender && (
+        <div 
+          className="fixed inset-0 z-50 bg-black flex items-center justify-center"
+          onClick={() => setIsFullscreen(false)}
+        >
+          <div className="relative w-full h-full flex items-center justify-center p-4">
+            <Image
+              src={currentRender.outputUrl}
+              alt={currentRender.prompt}
+              width={1200}
+              height={800}
+              className="max-w-full max-h-full object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+            
+            {/* Close Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsFullscreen(false)}
+              className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white h-10 w-10 rounded-full"
+            >
+              <X className="h-6 w-6" />
+            </Button>
+            
+            {/* Image Info */}
+            <div className="absolute bottom-4 left-4 right-4 text-center">
+              <p className="text-white text-sm bg-black/50 px-3 py-1 rounded">
+                {currentRender.prompt}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
