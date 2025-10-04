@@ -86,16 +86,28 @@ export class UserActivityService {
     try {
       const projects = await ProjectsDAL.getByUserIdWithRenderCounts(userId, limit, 0);
       
-      // Get latest renders for each project
-      const projectsWithRenders = await Promise.all(
-        projects.map(async (project) => {
-          const latestRenders = await ProjectsDAL.getLatestRenders(project.id, 4);
-          return {
-            ...project,
-            latestRenders
-          };
-        })
-      );
+      if (projects.length === 0) {
+        return [];
+      }
+
+      // Batch fetch: Get all latest renders for all projects in ONE query
+      const projectIds = projects.map(p => p.id);
+      const allLatestRenders = await ProjectsDAL.getLatestRendersForProjects(projectIds, 4);
+      
+      // Group renders by project
+      const rendersByProject = allLatestRenders.reduce((acc, render) => {
+        if (!acc[render.projectId]) {
+          acc[render.projectId] = [];
+        }
+        acc[render.projectId].push(render);
+        return acc;
+      }, {} as Record<string, typeof allLatestRenders>);
+      
+      // Attach renders to projects
+      const projectsWithRenders = projects.map(project => ({
+        ...project,
+        latestRenders: rendersByProject[project.id] || []
+      }));
 
       console.log(`✅ UserActivityService: Found ${projectsWithRenders.length} recent projects`);
       return projectsWithRenders;

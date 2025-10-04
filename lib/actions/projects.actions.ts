@@ -275,18 +275,31 @@ export async function getUserProjects() {
       return { success: false, error: 'Authentication required' };
     }
 
+    // Get projects with render counts in a single query
     const projects = await ProjectsDAL.getByUserIdWithRenderCounts(user.id);
     
-    // Fetch latest renders for each project
-    const projectsWithRenders = await Promise.all(
-      projects.map(async (project) => {
-        const latestRenders = await ProjectsDAL.getLatestRenders(project.id, 4);
-        return {
-          ...project,
-          latestRenders
-        };
-      })
-    );
+    if (projects.length === 0) {
+      return { success: true, data: [] };
+    }
+
+    // Batch fetch: Get all latest renders for all projects in ONE query
+    const projectIds = projects.map(p => p.id);
+    const allLatestRenders = await ProjectsDAL.getLatestRendersForProjects(projectIds, 4);
+    
+    // Group renders by project
+    const rendersByProject = allLatestRenders.reduce((acc, render) => {
+      if (!acc[render.projectId]) {
+        acc[render.projectId] = [];
+      }
+      acc[render.projectId].push(render);
+      return acc;
+    }, {} as Record<string, typeof allLatestRenders>);
+    
+    // Attach renders to projects
+    const projectsWithRenders = projects.map(project => ({
+      ...project,
+      latestRenders: rendersByProject[project.id] || []
+    }));
     
     return { success: true, data: projectsWithRenders };
   } catch (error) {

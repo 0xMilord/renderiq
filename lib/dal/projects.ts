@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { projects, renders, users, galleryItems } from '@/lib/db/schema';
-import { eq, desc, and, sql } from 'drizzle-orm';
+import { eq, desc, and, sql, inArray } from 'drizzle-orm';
 import type { NewProject, Project, NewRender, Render } from '@/lib/db/schema';
 
 // Helper function to generate URL-friendly slug
@@ -115,6 +115,7 @@ export class ProjectsDAL {
     const latestRenders = await db
       .select({
         id: renders.id,
+        projectId: renders.projectId,
         outputUrl: renders.outputUrl,
         status: renders.status,
         type: renders.type,
@@ -127,6 +128,36 @@ export class ProjectsDAL {
 
     console.log(`✅ [ProjectsDAL] Found ${latestRenders.length} latest renders for project`);
     return latestRenders;
+  }
+
+  // Batch method: Get latest renders for multiple projects in ONE query
+  static async getLatestRendersForProjects(projectIds: string[], limitPerProject = 4) {
+    console.log('🖼️ [ProjectsDAL] Batch fetching latest renders for', projectIds.length, 'projects');
+    
+    if (projectIds.length === 0) {
+      return [];
+    }
+
+    // Use window functions to get top N renders per project
+    const latestRenders = await db
+      .select({
+        id: renders.id,
+        projectId: renders.projectId,
+        outputUrl: renders.outputUrl,
+        status: renders.status,
+        type: renders.type,
+        createdAt: renders.createdAt,
+        rowNum: sql<number>`ROW_NUMBER() OVER (PARTITION BY ${renders.projectId} ORDER BY ${renders.createdAt} DESC)`.as('row_num'),
+      })
+      .from(renders)
+      .where(inArray(renders.projectId, projectIds))
+      .orderBy(desc(renders.createdAt));
+
+    // Filter to only include top N per project
+    const filtered = latestRenders.filter(r => r.rowNum <= limitPerProject);
+
+    console.log(`✅ [ProjectsDAL] Found ${filtered.length} total renders for ${projectIds.length} projects`);
+    return filtered;
   }
 
   static async delete(id: string): Promise<void> {
