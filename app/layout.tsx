@@ -7,7 +7,8 @@ import { ConditionalFooter } from "@/components/conditional-footer";
 import { ThemeProvider } from "@/components/theme-provider";
 import { UserOnboardingProvider } from "@/components/user-onboarding-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
-import { JsonLd, organizationSchema, softwareSchema, websiteSchema } from "@/components/seo/json-ld";
+import { JsonLd, organizationSchema, softwareSchema, websiteSchema, comprehensiveFAQSchema } from "@/components/seo/json-ld";
+import { SEOMonitor, SEOAnalytics } from "@/components/seo/seo-monitor";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,24 +26,38 @@ export const metadata: Metadata = {
     default: "arqihive - AI Architectural Visualization & Rendering Platform",
     template: "%s | arqihive"
   },
-  description: "Transform architectural designs into photorealistic renders with AI. Real-time visualization, rapid prototyping, and intelligent material testing for architects and designers. Try our AI-powered interior design, exterior rendering, and site planning tools.",
+  description: "Transform architectural sketches into hyperrealistic AI renders and videos using advanced artificial intelligence. The best AI architecture tool for architects, designers, and developers. Create stunning visualizations in minutes with our AI-powered rendering platform.",
   keywords: [
-    "AI architecture",
-    "architectural visualization",
-    "AI rendering",
-    "architectural design AI",
-    "real-time architectural visualization",
-    "AI interior design",
-    "architectural rendering software",
-    "3D rendering AI",
-    "building design AI",
-    "AI exterior design",
-    "architectural AI software",
-    "rapid prototyping architecture",
-    "material testing AI",
-    "generative design architecture",
-    "computational design",
-    "AI for architects"
+    "AI architecture tools",
+    "architectural visualization AI",
+    "AI rendering software",
+    "sketch to render AI",
+    "AI architectural design",
+    "AI interior design tool",
+    "AI exterior rendering",
+    "AI furniture placement",
+    "AI site planning",
+    "architectural AI assistant",
+    "AI building design",
+    "AI visualization platform",
+    "AI design software",
+    "AI rendering engine",
+    "AI architecture platform",
+    "AI design tool for architects",
+    "AI visualization software",
+    "AI architectural rendering",
+    "AI design automation",
+    "AI architecture visualization",
+    "best AI architecture tool",
+    "AI for architectural visualization",
+    "AI architecture software",
+    "AI design platform",
+    "AI rendering service",
+    "AI architectural assistant",
+    "AI visualization tool",
+    "AI architecture app",
+    "AI design solution",
+    "AI rendering platform"
   ],
   authors: [{ name: "arqihive" }],
   creator: "arqihive",
@@ -106,6 +121,9 @@ export default function RootLayout({
         <JsonLd data={organizationSchema} />
         <JsonLd data={softwareSchema} />
         <JsonLd data={websiteSchema} />
+        <JsonLd data={comprehensiveFAQSchema} />
+        <SEOMonitor />
+        <SEOAnalytics />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

@@ -2,61 +2,54 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Image, Video, Download, Share } from 'lucide-react';
+import { Image, Video, Download, Share, Calendar, Loader2 } from 'lucide-react';
+import { useUserActivity } from '@/lib/hooks/use-user-activity';
 
-interface Activity {
-  id: string;
-  type: 'render' | 'download' | 'share' | 'project';
-  title: string;
-  description: string;
-  timestamp: string;
-  status: 'completed' | 'processing' | 'failed';
-  thumbnail?: string;
-}
+export function RecentActivity() {
+  const { activities, loading, error } = useUserActivity();
 
-interface RecentActivityProps {
-  activities?: Activity[];
-}
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Activity</CardTitle>
+          <CardDescription>Your latest renders, projects, and activities</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-start space-x-3">
+                <div className="w-8 h-8 bg-muted animate-pulse rounded-full flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-48 bg-muted animate-pulse rounded" />
+                  <div className="h-3 w-32 bg-muted animate-pulse rounded" />
+                  <div className="h-3 w-24 bg-muted animate-pulse rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
-export function RecentActivity({ activities }: RecentActivityProps) {
-  const defaultActivities: Activity[] = [
-    {
-      id: '1',
-      type: 'render',
-      title: 'Exterior Render Completed',
-      description: 'Modern house exterior with glass facade',
-      timestamp: '2 hours ago',
-      status: 'completed',
-      thumbnail: '/placeholder-render.jpg',
-    },
-    {
-      id: '2',
-      type: 'project',
-      title: 'New Project Created',
-      description: 'Interior design for living room',
-      timestamp: '1 day ago',
-      status: 'completed',
-    },
-    {
-      id: '3',
-      type: 'render',
-      title: 'Interior Render Processing',
-      description: 'Minimalist kitchen design',
-      timestamp: '3 hours ago',
-      status: 'processing',
-    },
-    {
-      id: '4',
-      type: 'download',
-      title: 'Project Downloaded',
-      description: 'Exterior render package (4 files)',
-      timestamp: '2 days ago',
-      status: 'completed',
-    },
-  ];
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Activity</CardTitle>
+          <CardDescription>Your latest renders, projects, and activities</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <p className="text-destructive">Failed to load activity: {error}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
-  const userActivities = activities || defaultActivities;
+  const userActivities = activities || [];
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -116,7 +109,12 @@ export function RecentActivity({ activities }: RecentActivityProps) {
                   {activity.description}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {activity.timestamp}
+                  {new Date(activity.timestamp).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
                 </p>
               </div>
               {activity.thumbnail && (

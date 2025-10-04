@@ -95,7 +95,7 @@ export function GalleryGrid({
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Loading...</span>
+                  <span>Loading more...</span>
                 </>
               ) : (
                 <span>Load More</span>

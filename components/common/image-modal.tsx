@@ -107,7 +107,7 @@ export function ImageModal({
       <DialogPortal>
         <DialogOverlay />
         <DialogPrimitive.Content
-          className="bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-[90vw] h-[90vh] max-w-[90vw] max-h-[90vh] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 overflow-hidden"
+          className="bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-[95vw] h-[95vh] max-w-[95vw] max-h-[95vh] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-4 lg:p-6 shadow-lg duration-200 overflow-hidden"
         >
           <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
             <DialogTitle className="text-xl font-semibold">
@@ -123,9 +123,9 @@ export function ImageModal({
             </Button>
           </DialogHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full overflow-y-auto">
-          {/* Image/Video Display */}
-          <div className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full overflow-y-auto">
+          {/* Image/Video Display - 3/4 width on desktop, full width on mobile */}
+          <div className="lg:col-span-3 space-y-4">
             <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
               {imageLoading && (
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -158,68 +158,84 @@ export function ImageModal({
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onDownload?.(item)}
-                disabled={renderData.status !== 'completed'}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Download
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onLike?.(item)}
-              >
-                <Heart className="h-4 w-4 mr-2" />
-                Like
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onShare?.(item)}
-              >
-                <Share2 className="h-4 w-4 mr-2" />
-                Share
-              </Button>
-            </div>
           </div>
 
-          {/* Details Panel */}
-          <div className="space-y-6">
+          {/* Details Panel - 1/4 width on desktop, full width on mobile */}
+          <div className="lg:col-span-1 space-y-4">
+            {/* Render Settings */}
+            {renderData.settings && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold">Settings</h3>
+                <div className="flex flex-wrap gap-1">
+                  {renderData.settings.style && (
+                    <Badge variant="secondary" className="text-xs">
+                      {renderData.settings.style}
+                    </Badge>
+                  )}
+                  {renderData.settings.quality && (
+                    <Badge variant="secondary" className="text-xs">
+                      {renderData.settings.quality}
+                    </Badge>
+                  )}
+                  {renderData.settings.aspectRatio && (
+                    <Badge variant="secondary" className="text-xs">
+                      {renderData.settings.aspectRatio}
+                    </Badge>
+                  )}
+                  {renderData.settings.duration && (
+                    <Badge variant="secondary" className="text-xs">
+                      {renderData.settings.duration}s
+                    </Badge>
+                  )}
+                  {renderData.settings.negativePrompt && (
+                    <Badge variant="outline" className="text-xs">
+                      Negative
+                    </Badge>
+                  )}
+                  {renderData.settings.renderMode && (
+                    <Badge variant="outline" className="text-xs">
+                      {renderData.settings.renderMode}
+                    </Badge>
+                  )}
+                  {renderData.type && (
+                    <Badge variant="outline" className="text-xs">
+                      {renderData.type}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Prompt Section */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Prompt</h3>
+                <h3 className="text-sm font-semibold">Prompt</h3>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={copyPrompt}
+                  className="h-6 px-2"
                 >
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copy
+                  <Copy className="h-3 w-3" />
                 </Button>
               </div>
-              <div className="p-3 bg-muted rounded-lg">
-                <p className="text-sm">{renderData.prompt}</p>
+              <div className="p-2 bg-muted rounded-lg">
+                <p className="text-xs leading-relaxed">{renderData.prompt}</p>
               </div>
             </div>
 
             {/* Metadata */}
             <div className="space-y-3">
-              <h3 className="text-lg font-semibold">Details</h3>
-              <div className="space-y-2 text-sm">
+              <h3 className="text-sm font-semibold">Details</h3>
+              <div className="space-y-2 text-xs">
                 <div className="flex items-center space-x-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <Calendar className="h-3 w-3 text-muted-foreground" />
                   <span className="text-muted-foreground">Created:</span>
                   <span>{formatDate(renderData.createdAt)}</span>
                 </div>
                 {userData && (
                   <div className="flex items-center space-x-2">
-                    <User className="h-4 w-4 text-muted-foreground" />
+                    <User className="h-3 w-3 text-muted-foreground" />
                     <span className="text-muted-foreground">Author:</span>
                     <span>{userData.name || 'Anonymous'}</span>
                   </div>
@@ -227,12 +243,12 @@ export function ImageModal({
                 {isGalleryItem && (
                   <>
                     <div className="flex items-center space-x-2">
-                      <Heart className="h-4 w-4 text-muted-foreground" />
+                      <Heart className="h-3 w-3 text-muted-foreground" />
                       <span className="text-muted-foreground">Likes:</span>
                       <span>{item.likes}</span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Eye className="h-4 w-4 text-muted-foreground" />
+                      <Eye className="h-3 w-3 text-muted-foreground" />
                       <span className="text-muted-foreground">Views:</span>
                       <span>{item.views}</span>
                     </div>
@@ -240,8 +256,8 @@ export function ImageModal({
                 )}
                 {renderData.processingTime && (
                   <div className="flex items-center space-x-2">
-                    <RefreshCw className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Processing time:</span>
+                    <RefreshCw className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-muted-foreground">Time:</span>
                     <span>{renderData.processingTime}s</span>
                   </div>
                 )}
@@ -251,34 +267,69 @@ export function ImageModal({
             {/* Remix Section */}
             {onRemix && (
               <div className="space-y-3">
-                <h3 className="text-lg font-semibold">Remix</h3>
-                <div className="space-y-3">
+                <h3 className="text-sm font-semibold">Remix</h3>
+                <div className="space-y-2">
                   <Textarea
-                    placeholder="Modify the prompt to create a new variation..."
+                    placeholder="Modify the prompt..."
                     value={remixPrompt}
                     onChange={(e) => setRemixPrompt(e.target.value)}
-                    className="min-h-[100px]"
+                    className="min-h-[60px] text-xs"
                   />
                   <Button
                     onClick={handleRemix}
                     disabled={!remixPrompt.trim() || isRemixing}
-                    className="w-full"
+                    className="w-full h-8 text-xs"
                   >
                     {isRemixing ? (
                       <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Creating Remix...
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        Creating...
                       </>
                     ) : (
                       <>
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Create Remix
+                        <RefreshCw className="h-3 w-3 mr-1" />
+                        Remix
                       </>
                     )}
                   </Button>
                 </div>
               </div>
             )}
+
+            {/* Action Buttons */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold">Actions</h3>
+              <div className="grid grid-cols-3 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onDownload?.(item)}
+                  disabled={renderData.status !== 'completed'}
+                  className="h-8 text-xs"
+                >
+                  <Download className="h-3 w-3 mr-1" />
+                  Download
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onLike?.(item)}
+                  className="h-8 text-xs"
+                >
+                  <Heart className="h-3 w-3 mr-1" />
+                  Like
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onShare?.(item)}
+                  className="h-8 text-xs"
+                >
+                  <Share2 className="h-3 w-3 mr-1" />
+                  Share
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
         </DialogPrimitive.Content>

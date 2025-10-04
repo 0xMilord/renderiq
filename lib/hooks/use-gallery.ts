@@ -4,11 +4,12 @@ import { useState, useEffect } from 'react';
 import { getPublicGallery, viewGalleryItem, likeGalleryItem } from '@/lib/actions/gallery.actions';
 import type { GalleryItemWithDetails } from '@/lib/types';
 
-export function useGallery(page = 1, limit = 20) {
+export function useGallery(limit = 20) {
   const [items, setItems] = useState<GalleryItemWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const fetchItems = async (pageNum = 1, append = false) => {
     try {
@@ -24,6 +25,7 @@ export function useGallery(page = 1, limit = 20) {
           setItems(newItems);
         }
         setHasMore(newItems.length === limit);
+        setCurrentPage(pageNum);
       } else {
         setError(result.error || 'Failed to fetch gallery items');
       }
@@ -36,7 +38,7 @@ export function useGallery(page = 1, limit = 20) {
 
   const loadMore = () => {
     if (!loading && hasMore) {
-      fetchItems(page + 1, true);
+      fetchItems(currentPage + 1, true);
     }
   };
 
@@ -75,8 +77,8 @@ export function useGallery(page = 1, limit = 20) {
   };
 
   useEffect(() => {
-    fetchItems(page);
-  }, [page]);
+    fetchItems(1);
+  }, []);
 
   return {
     items,

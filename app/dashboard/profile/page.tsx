@@ -1,14 +1,14 @@
 import { Suspense } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { User, Mail, Calendar, MapPin, Globe, Edit, Settings, Bell, CreditCard } from 'lucide-react';
+import { User, Settings, Bell, CreditCard, Eye, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { ProfileHeader } from '@/components/profile/profile-header';
 import { ProfileStats } from '@/components/profile/profile-stats';
 import { RecentActivity } from '@/components/profile/recent-activity';
+import { RecentProjectsSection } from '@/components/profile/recent-projects-section';
 
 export default function ProfilePage() {
   return (
@@ -67,80 +67,30 @@ export default function ProfilePage() {
               </CardContent>
             </Card>
 
-            {/* Account Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Account Information</CardTitle>
-                <CardDescription>
-                  Your account details and status
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <User className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium">John Doe</p>
-                    <p className="text-sm text-gray-500">john@example.com</p>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Member since</span>
-                    <span className="text-sm font-medium">Dec 2024</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Account status</span>
-                    <Badge variant="default">Active</Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Email verified</span>
-                    <Badge variant="secondary">Verified</Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Recent Projects */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Projects</CardTitle>
-                <CardDescription>
-                  Your latest architectural projects
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-3 p-3 border rounded-lg">
-                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <span className="text-xs font-medium text-gray-600">MD</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">Modern House Design</p>
-                      <p className="text-xs text-gray-500">5 renders • 2 days ago</p>
-                    </div>
+            <Suspense fallback={
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Projects</CardTitle>
+                  <CardDescription>Your latest architectural projects</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {Array.from({ length: 2 }).map((_, i) => (
+                      <div key={i} className="flex items-center space-x-3 p-3 border rounded-lg">
+                        <div className="w-12 h-12 bg-muted animate-pulse rounded-lg flex-shrink-0" />
+                        <div className="flex-1 min-w-0 space-y-2">
+                          <div className="h-4 w-32 bg-muted animate-pulse rounded" />
+                          <div className="h-3 w-24 bg-muted animate-pulse rounded" />
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  
-                  <div className="flex items-center space-x-3 p-3 border rounded-lg">
-                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <span className="text-xs font-medium text-gray-600">OB</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">Office Building</p>
-                      <p className="text-xs text-gray-500">3 renders • 1 week ago</p>
-                    </div>
-                  </div>
-                  
-                  <Button variant="outline" className="w-full">
-                    View All Projects
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            }>
+              <RecentProjectsSection />
+            </Suspense>
           </div>
         </div>
       </div>

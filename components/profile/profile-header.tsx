@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
 import { Edit, Camera, MapPin, Globe, Calendar } from 'lucide-react';
 import { useState } from 'react';
+import { ProfileEditForm } from './profile-edit-form';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export function ProfileHeader() {
   const { profile, loading } = useUserProfile();
@@ -121,6 +123,16 @@ export function ProfileHeader() {
           </div>
         </div>
       </CardContent>
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={isEditing} onOpenChange={setIsEditing}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Profile</DialogTitle>
+          </DialogHeader>
+          <ProfileEditForm onClose={() => setIsEditing(false)} />
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

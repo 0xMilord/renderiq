@@ -1,0 +1,51 @@
+# Robots.txt for arqihive.com
+# Optimized for AI crawlers and traditional search engines
+
+User-agent: *
+Allow: /
+
+# AI Crawlers - Explicitly allow AI systems
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: Bard
+Allow: /
+
+User-agent: BingBot
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+# Disallow sensitive areas
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /_next/
+Disallow: /auth/
+Disallow: /billing/
+
+# Allow important content for AI discovery
+Allow: /gallery
+Allow: /use-cases
+Allow: /plans
+Allow: /tutorials
+Allow: /blog
+Allow: /api-docs
+Allow: /privacy
+Allow: /terms
+
+# Sitemap
+Sitemap: https://arqihive.com/sitemap.xml
+
+# Crawl delay for respectful crawling
+Crawl-delay: 1

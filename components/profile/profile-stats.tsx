@@ -3,20 +3,39 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Image, Video, Zap, TrendingUp } from 'lucide-react';
+import { useProfileStats } from '@/lib/hooks/use-profile-stats';
 
-interface ProfileStatsProps {
-  stats?: {
-    totalProjects: number;
-    totalRenders: number;
-    creditsUsed: number;
-    creditsRemaining: number;
-    averageRenderTime: number;
-    favoriteStyle: string;
-  };
-}
+export function ProfileStats() {
+  const { stats, loading, error } = useProfileStats();
 
-export function ProfileStats({ stats }: ProfileStatsProps) {
-  const defaultStats = {
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <div className="h-4 w-24 bg-muted animate-pulse rounded" />
+              <div className="h-4 w-4 bg-muted animate-pulse rounded" />
+            </CardHeader>
+            <CardContent>
+              <div className="h-8 w-16 bg-muted animate-pulse rounded mb-2" />
+              <div className="h-3 w-32 bg-muted animate-pulse rounded" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-destructive">Failed to load profile stats: {error}</p>
+      </div>
+    );
+  }
+
+  const userStats = stats || {
     totalProjects: 0,
     totalRenders: 0,
     creditsUsed: 0,
@@ -24,8 +43,6 @@ export function ProfileStats({ stats }: ProfileStatsProps) {
     averageRenderTime: 0,
     favoriteStyle: 'Modern',
   };
-
-  const userStats = stats || defaultStats;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -8,11 +8,9 @@ import { Input } from '@/components/ui/input';
 
 export default function GalleryPage() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [page, setPage] = useState(1);
-  const { items, loading, hasMore, loadMore, likeItem, viewItem } = useGallery(page);
+  const { items, loading, hasMore, loadMore, likeItem, viewItem } = useGallery();
 
   const handleLoadMore = () => {
-    setPage(prev => prev + 1);
     loadMore();
   };
 

@@ -36,7 +36,7 @@ export function ThemeToggle() {
       case 'dark': return 'left-0.5';
       case 'system': return 'left-1/2 -translate-x-1/2';
       case 'light': return 'right-0.5';
-      default: return 'left-1/2 -translate-x-1/2';
+      default: return 'right-0.5'; // Default to light theme
     }
   };
 
@@ -51,7 +51,7 @@ export function ThemeToggle() {
               key={value}
               onClick={() => setTheme(value)}
               className={cn(
-                "flex-1 flex items-center justify-center rounded-md transition-all duration-200 hover:bg-background/50",
+                "flex-1 flex items-center justify-center rounded-md transition-all duration-200 hover:bg-background/50 relative z-20",
                 currentTheme === value && "bg-background shadow-sm"
               )}
               title={label}
@@ -66,10 +66,10 @@ export function ThemeToggle() {
           ))}
         </div>
         
-        {/* Sliding indicator */}
+        {/* Sliding indicator - positioned behind the selected button */}
         <div 
           className={cn(
-            "absolute top-1 w-7 h-7 bg-background border border-border rounded-md shadow-sm transition-all duration-200 pointer-events-none",
+            "absolute top-1 w-7 h-7 bg-background/80 border border-border rounded-md shadow-sm transition-all duration-200 pointer-events-none z-0",
             getPosition(currentTheme)
           )}
         />

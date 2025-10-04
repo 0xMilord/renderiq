@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { UserDropdown } from '@/components/user-dropdown';
+import { AlphaBanner } from '@/components/alpha-banner';
 import { Menu, X, Home, Upload, GalleryVertical, BookOpen, Lightbulb, CreditCard } from 'lucide-react';
 
 export function Navbar() {
@@ -12,20 +13,22 @@ export function Navbar() {
   const { loading } = useAuth();
 
   return (
-    <nav className="bg-background shadow-sm border-b w-full relative z-50">
-      <div className="w-full px-4 sm:px-6 lg:px-8">
+    <>
+      <AlphaBanner />
+      <nav className="bg-background shadow-sm border-b w-full relative z-50">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-2">
               <Image
                 src="/logo.svg"
-                alt="arqihive"
+                alt="Arqihive"
                 width={32}
                 height={32}
                 className="w-8 h-8"
               />
-              <span className="text-xl font-bold text-foreground">arqihive</span>
+              <span className="text-xl font-bold text-foreground">Arqihive</span>
             </Link>
           </div>
 
@@ -175,6 +178,7 @@ export function Navbar() {
           </div>
         )}
       </div>
-    </nav>
+      </nav>
+    </>
   );
 }

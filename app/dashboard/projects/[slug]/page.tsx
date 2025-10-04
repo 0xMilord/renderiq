@@ -27,6 +27,7 @@ import {
 import Link from 'next/link';
 import { ImageCard } from '@/components/projects/image-card';
 import { ViewModeToggle } from '@/components/projects/view-mode-toggle';
+import { ImageModal } from '@/components/common/image-modal';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -39,11 +40,14 @@ import { useRenders } from '@/lib/hooks/use-renders';
 import { ChainList } from '@/components/projects/chain-list';
 import type { Render, Project } from '@/lib/db/schema';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { createRenderChain } from '@/lib/actions/projects.actions';
+import { useRouter } from 'next/navigation';
 
 type ViewMode = 'default' | 'compact' | 'list';
 
 export default function ProjectSlugPage() {
   const params = useParams();
+  const router = useRouter();
   const slug = params.slug as string;
   const { projects } = useProjects();
   
@@ -52,6 +56,8 @@ export default function ProjectSlugPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('newest');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [selectedRender, setSelectedRender] = useState<Render | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Use the renders hook with proper architecture
   const { renders, chains, loading: rendersLoading, error: rendersError, fetchChains } = useRenders(project?.id || null);
@@ -105,8 +111,8 @@ export default function ProjectSlugPage() {
   };
 
   const handleView = (render: Render) => {
-    // Open render in full screen or modal
-    console.log('View render:', render.id);
+    setSelectedRender(render);
+    setIsModalOpen(true);
   };
 
   const handleDownload = (render: Render) => {
@@ -120,14 +126,34 @@ export default function ProjectSlugPage() {
     }
   };
 
-  const handleLike = (render: Render) => {
+  const handleLike = (item: Render) => {
     // Implement like functionality
-    console.log('Like render:', render.id);
+    console.log('Like render:', item.id);
   };
 
-  const handleShare = (render: Render) => {
+  const handleShare = (item: Render) => {
     // Implement share functionality
-    console.log('Share render:', render.id);
+    console.log('Share render:', item.id);
+  };
+
+  const handleCreateChain = async () => {
+    if (!project) return;
+    
+    try {
+      const chainName = `Chain ${new Date().toLocaleDateString()}`;
+      const result = await createRenderChain(project.id, chainName, `New render chain for ${project.name}`);
+      
+      if (result.success && result.data) {
+        // Redirect to the engine with the new chain
+        router.push(`/engine/exterior-ai/${result.data.id}`);
+      } else {
+        console.error('Failed to create chain:', result.error);
+        alert(result.error || 'Failed to create chain');
+      }
+    } catch (error) {
+      console.error('Error creating chain:', error);
+      alert('Failed to create chain');
+    }
   };
 
   // Show loading state while projects are loading or project is not found yet
@@ -170,45 +196,57 @@ export default function ProjectSlugPage() {
     <div className="min-h-screen bg-background">
       <div className="max-w-[2400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 space-y-4 sm:space-y-0">
-          <div className="flex items-center space-x-4">
+        <div className="mb-8">
+          <div className="flex items-center space-x-4 mb-4">
             <Button variant="ghost" size="sm" asChild>
               <Link href="/dashboard/projects">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Link>
             </Button>
-            <div>
+            <div className="flex-1">
               <h1 className="text-3xl font-bold text-foreground">{project.name}</h1>
               <p className="text-muted-foreground mt-2">
                 {renders.length} render{renders.length !== 1 ? 's' : ''}
                 {project.description && ` • ${project.description}`}
               </p>
             </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <MoreVertical className="h-4 w-4 mr-2" />
-                  Actions
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit Project
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Copy className="h-4 w-4 mr-2" />
-                  Duplicate Project
-                </DropdownMenuItem>
-                <DropdownMenuItem className="text-red-600">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Project
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex items-center space-x-2">
+              <Button variant="outline" size="sm">
+                <Edit className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="sm">
+                <Copy className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="sm">
+                <Share2 className="h-4 w-4" />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit Project
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Duplicate Project
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Share Project
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="text-red-600">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Project
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
 
@@ -226,7 +264,8 @@ export default function ProjectSlugPage() {
                 renderCount: renders.filter(r => r.chainId === chain.id).length,
                 renders: renders.filter(r => r.chainId === chain.id).slice(0, 5)
               }))} 
-              projectId={project.id} 
+              projectId={project.id}
+              onCreateChain={handleCreateChain}
             />
           </TabsContent>
 
@@ -295,6 +334,10 @@ export default function ProjectSlugPage() {
                 onDownload={handleDownload}
                 onLike={handleLike}
                 onShare={handleShare}
+                onRemix={(render) => {
+                  // Navigate to engine with the prompt
+                  router.push(`/engine/exterior-ai?prompt=${encodeURIComponent(render.prompt)}`);
+                }}
               />
             ))}
           </div>
@@ -322,6 +365,25 @@ export default function ProjectSlugPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Image Modal */}
+      {selectedRender && (
+        <ImageModal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedRender(null);
+          }}
+          item={selectedRender}
+          onLike={handleLike}
+          onDownload={handleDownload}
+          onShare={handleShare}
+          onRemix={(render) => {
+            // Navigate to engine with the prompt
+            router.push(`/engine/exterior-ai?prompt=${encodeURIComponent(render.prompt)}`);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -53,55 +53,42 @@ export function ChainList({ chains, projectId, onCreateChain }: ChainListProps) 
         )}
       </div>
 
-      <div className="grid gap-4">
+      <div className="grid gap-2 sm:gap-4">
         {chains.map((chain) => (
-          <Card key={chain.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <div className="flex items-start justify-between">
+          <Card key={chain.id} className="hover:shadow-lg transition-shadow p-0">
+            <CardHeader className="px-3 py-3 sm:px-6 sm:py-6">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <GitBranch className="h-5 w-5 text-primary" />
-                    <CardTitle className="text-lg">{chain.name}</CardTitle>
-                    <Badge variant="secondary">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1 sm:mb-2">
+                    <div className="flex items-center gap-2">
+                      <GitBranch className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                      <CardTitle className="text-base sm:text-lg">{chain.name}</CardTitle>
+                    </div>
+                    <Badge variant="secondary" className="w-fit text-xs">
                       <Layers className="h-3 w-3 mr-1" />
                       {chain.renderCount || chain.renders?.length || 0} versions
                     </Badge>
                   </div>
                   {chain.description && (
-                    <CardDescription>{chain.description}</CardDescription>
+                    <CardDescription className="text-sm">{chain.description}</CardDescription>
                   )}
-                  <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-4 mt-1 sm:mt-2 text-xs text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
                       {formatDistanceToNow(new Date(chain.createdAt), { addSuffix: true })}
                     </div>
                   </div>
                 </div>
-
-                <div className="flex gap-2">
-                  <Link href={`/engine/exterior-ai/${chain.id}`}>
-                    <Button variant="outline" size="sm">
-                      <ImageIcon className="h-4 w-4 mr-2" />
-                      Continue
-                    </Button>
-                  </Link>
-                  <Link href={`/dashboard/projects/${projectId}/chain/${chain.id}`}>
-                    <Button size="sm">
-                      View Details
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </Link>
-                </div>
               </div>
             </CardHeader>
 
             {chain.renders && chain.renders.length > 0 && (
-              <CardContent>
-                <div className="flex gap-2 overflow-x-auto pb-2">
-                  {chain.renders.slice(0, 5).map((render) => (
+              <CardContent className="px-3 py-3 sm:px-6 sm:py-6 space-y-0.5 sm:space-y-1">
+                <div className="flex gap-1 sm:gap-2 overflow-x-auto pb-1 sm:pb-2">
+                  {chain.renders.map((render) => (
                     <div
                       key={render.id}
-                      className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border border-border relative"
+                      className="flex-shrink-0 w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-lg overflow-hidden border border-border relative"
                     >
                       {render.outputUrl ? (
                         <img
@@ -111,19 +98,30 @@ export function ChainList({ chains, projectId, onCreateChain }: ChainListProps) 
                         />
                       ) : (
                         <div className="w-full h-full bg-muted flex items-center justify-center">
-                          <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                          <ImageIcon className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 text-muted-foreground" />
                         </div>
                       )}
-                      <div className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-1 rounded">
+                      <div className="absolute bottom-0.5 left-0.5 bg-black/70 text-white text-xs px-1 rounded">
                         v{(render.chainPosition || 0) + 1}
                       </div>
                     </div>
                   ))}
-                  {chain.renders.length > 5 && (
-                    <div className="flex-shrink-0 w-24 h-24 rounded-lg border border-dashed border-border flex items-center justify-center text-sm text-muted-foreground">
-                      +{chain.renders.length - 5} more
-                    </div>
-                  )}
+                </div>
+                
+                {/* Action Buttons - Moved below images */}
+                <div className="grid grid-cols-2 gap-2">
+                  <Link href={`/engine/exterior-ai/${chain.id}`}>
+                    <Button variant="outline" size="sm" className="w-full text-xs sm:text-sm">
+                      <ImageIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                      Continue
+                    </Button>
+                  </Link>
+                  <Link href={`/dashboard/projects/${projectId}/chain/${chain.id}`}>
+                    <Button size="sm" className="w-full text-xs sm:text-sm">
+                      View Details
+                      <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 ml-1" />
+                    </Button>
+                  </Link>
                 </div>
               </CardContent>
             )}

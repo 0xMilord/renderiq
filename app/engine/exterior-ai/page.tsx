@@ -4,12 +4,10 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useProjectChains } from '@/lib/hooks/use-render-chain';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { GitBranch, Plus, Loader2, ArrowRight, FolderOpen, Calendar, Eye, Zap } from 'lucide-react';
+import { Plus, Loader2, FolderOpen, Zap } from 'lucide-react';
 import { createRenderChain } from '@/lib/actions/projects.actions';
-import { cn } from '@/lib/utils';
+import { ProjectCard } from '@/components/projects/project-card';
 import type { Project } from '@/lib/db/schema';
 
 export default function ExteriorAIPage() {
@@ -17,18 +15,6 @@ export default function ExteriorAIPage() {
   const { projects, loading } = useProjects();
   const [creating, setCreating] = useState<string | null>(null);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-      case 'processing':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-      case 'failed':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
-    }
-  };
 
   const handleCreateChain = async (projectId: string) => {
     setCreating(projectId);
@@ -55,14 +41,6 @@ export default function ExteriorAIPage() {
     }
   };
 
-  const handleViewProject = (projectSlug: string) => {
-    router.push(`/dashboard/projects/${projectSlug}`);
-  };
-
-  const handleStartGenerating = (projectId: string) => {
-    // Create a new chain and start generating
-    handleCreateChain(projectId);
-  };
 
   if (loading) {
     return (
@@ -102,83 +80,23 @@ export default function ExteriorAIPage() {
         {projects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {projects.map((project) => (
-              <Card key={project.id} className="group hover:shadow-lg transition-all duration-200 border-2 hover:border-primary/20">
-                <div className="aspect-video bg-muted relative group overflow-hidden">
-                  <div className="w-full h-full flex items-center justify-center">
-                    <FolderOpen className="h-12 w-12 text-muted-foreground" />
-                  </div>
-                  <div className="absolute top-2 right-2">
-                    <Badge className={cn("text-xs", getStatusColor(project.status))}>
-                      {project.status}
-                    </Badge>
-                  </div>
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded-t-lg flex items-center justify-center opacity-0 group-hover:opacity-100">
-                    <div className="flex space-x-2">
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => handleViewProject(project.slug)}
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => handleStartGenerating(project.id)}
-                        disabled={creating === project.id}
-                      >
-                        {creating === project.id ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <Zap className="h-4 w-4 mr-2" />
-                        )}
-                        {creating === project.id ? 'Creating...' : 'Generate'}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm line-clamp-2">{project.name}</CardTitle>
-                  <CardDescription className="text-xs line-clamp-2">
-                    {project.description || 'No description'}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="h-3 w-3" />
-                      <span>{new Date(project.createdAt).toLocaleDateString()}</span>
-                    </div>
-                    <span>{(project as Project & { renderCount?: number }).renderCount || 0} renders</span>
-                  </div>
-                  
-                  {/* Action Buttons */}
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => handleViewProject(project.slug)}
-                    >
-                      <Eye className="h-3 w-3 mr-1" />
-                      View
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => handleStartGenerating(project.id)}
-                      disabled={creating === project.id}
-                    >
-                      {creating === project.id ? (
-                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                      ) : (
-                        <Zap className="h-3 w-3 mr-1" />
-                      )}
-                      {creating === project.id ? 'Creating...' : 'Start'}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <ProjectCard
+                key={project.id}
+                project={project}
+                viewMode="default"
+                onEdit={() => {
+                  // Navigate to project edit (if implemented)
+                  console.log('Edit project:', project.id);
+                }}
+                onDuplicate={() => {
+                  // Duplicate project functionality
+                  console.log('Duplicate project:', project.id);
+                }}
+                onDelete={() => {
+                  // Delete project functionality
+                  console.log('Delete project:', project.id);
+                }}
+              />
             ))}
           </div>
         ) : (

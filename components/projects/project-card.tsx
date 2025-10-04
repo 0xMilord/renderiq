@@ -86,7 +86,7 @@ export function ProjectCard({
     return (
       <div className="grid grid-cols-2 gap-1 h-full">
         {latestRenders.slice(0, 3).map((render, index) => (
-          <div key={render.id} className="relative bg-muted rounded overflow-hidden">
+          <div key={render.id} className="relative bg-muted rounded overflow-hidden aspect-square">
             {render.outputUrl ? (
               <img
                 src={render.outputUrl}
@@ -106,7 +106,7 @@ export function ProjectCard({
         ))}
         
         {/* 4th tile with overflow indicator */}
-        <div className="relative bg-muted rounded overflow-hidden">
+        <div className="relative bg-muted rounded overflow-hidden aspect-square">
           {latestRenders[3]?.outputUrl ? (
             <>
               <img
@@ -215,8 +215,8 @@ export function ProjectCard({
 
   // Default and compact view
   return (
-    <Card className="group hover:shadow-lg transition-all duration-200">
-      <div className="aspect-video bg-muted relative group">
+    <Card className="group hover:shadow-lg transition-all duration-200 h-full flex flex-col">
+      <div className="aspect-video bg-muted relative group flex-shrink-0">
         <div className="w-full h-full p-1">
           {renderImageGrid()}
         </div>
@@ -240,13 +240,13 @@ export function ProjectCard({
           </div>
         </div>
       </div>
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-2 flex-shrink-0">
         <CardTitle className="text-sm line-clamp-2">{project.name}</CardTitle>
         <CardDescription className="text-xs line-clamp-2">
           {project.description || 'No description'}
         </CardDescription>
       </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent className="pt-0 flex-shrink-0">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center space-x-1">
             <Calendar className="h-3 w-3" />

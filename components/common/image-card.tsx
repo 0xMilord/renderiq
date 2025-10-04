@@ -14,7 +14,8 @@ import {
   Image as ImageIcon,
   Video,
   Loader2,
-  User
+  User,
+  RefreshCw
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -201,7 +202,7 @@ export function CommonImageCard({
                     </DropdownMenuItem>
                     {onRemix && (
                       <DropdownMenuItem onClick={() => onRemix?.(data)}>
-                        <Share2 className="h-4 w-4 mr-2" />
+                        <RefreshCw className="h-4 w-4 mr-2" />
                         Remix
                       </DropdownMenuItem>
                     )}
@@ -285,9 +286,9 @@ export function CommonImageCard({
 
   // Default view
   return (
-    <Card className="hover:shadow-lg transition-shadow group">
+    <Card className="hover:shadow-lg transition-shadow group py-0">
       <CardContent className="p-0">
-        <div className="relative aspect-video">
+        <div className="relative aspect-video rounded-t-xl overflow-hidden">
           {imageLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-muted">
               <Loader2 className="h-8 w-8 animate-spin" />
@@ -343,7 +344,7 @@ export function CommonImageCard({
             </div>
           )}
         </div>
-        <div className="p-4">
+        <div className="p-4 rounded-b-xl">
           <h3 className="font-medium text-sm mb-2 line-clamp-2">{renderData.prompt}</h3>
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <div className="flex items-center space-x-4">
@@ -395,7 +396,7 @@ export function CommonImageCard({
                     onClick={() => onRemix?.(data)}
                     className="h-6 w-6 p-0"
                   >
-                    <Share2 className="h-3 w-3" />
+                    <RefreshCw className="h-3 w-3" />
                   </Button>
                 )}
               </div>
