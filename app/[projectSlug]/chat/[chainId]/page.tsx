@@ -93,7 +93,7 @@ export default function ProjectChatPage() {
           onRefreshChain={fetchChain}
           projectName={project.name}
           chainName={chain?.name}
-          onBackToProjects={() => router.push('/dashboard/projects')}
+          onBackToProjects={() => router.push('/chat')}
         />
       </div>
     </div>
