@@ -122,13 +122,16 @@ export class RenderChainService {
 
   /**
    * Delete a chain
+   * ✅ OPTIMIZED: Uses batch update instead of loop
    */
   static async deleteChain(chainId: string): Promise<void> {
-    // First, remove chain reference from all renders
+    // First, get all renders in the chain
     const renders = await RendersDAL.getByChainId(chainId);
     
-    for (const render of renders) {
-      await RenderChainsDAL.removeRender(chainId, render.id);
+    // Batch remove chain reference from all renders in ONE query
+    if (renders.length > 0) {
+      const renderIds = renders.map(r => r.id);
+      await RenderChainsDAL.batchRemoveRendersFromChain(renderIds);
     }
 
     // Then delete the chain

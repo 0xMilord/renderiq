@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { renders, renderChains, galleryItems, users } from '@/lib/db/schema';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import { ContextData, CreateRenderWithChainData } from '@/lib/types/render-chain';
 
 export interface CreateRenderData {
@@ -173,6 +173,11 @@ export class RendersDAL {
     return chainRenders;
   }
 
+  /**
+   * Get render with all related context data
+   * ✅ OPTIMIZED: Parallelized queries instead of sequential
+   * Note: Could be further optimized with SQL JOINs if needed
+   */
   static async getWithContext(renderId: string) {
     console.log('🔍 Fetching render with context:', renderId);
     
@@ -186,18 +191,18 @@ export class RendersDAL {
       return null;
     }
 
-    // Fetch related renders
-    const [parentRender] = render.parentRenderId 
-      ? await db.select().from(renders).where(eq(renders.id, render.parentRenderId)).limit(1)
-      : [null];
-
-    const [referenceRender] = render.referenceRenderId
-      ? await db.select().from(renders).where(eq(renders.id, render.referenceRenderId)).limit(1)
-      : [null];
-
-    const [chain] = render.chainId
-      ? await db.select().from(renderChains).where(eq(renderChains.id, render.chainId)).limit(1)
-      : [null];
+    // ✅ OPTIMIZED: Parallelize related data fetching
+    const [parentRender, referenceRender, chain] = await Promise.all([
+      render.parentRenderId 
+        ? db.select().from(renders).where(eq(renders.id, render.parentRenderId)).limit(1).then(r => r[0] || null)
+        : Promise.resolve(null),
+      render.referenceRenderId
+        ? db.select().from(renders).where(eq(renders.id, render.referenceRenderId)).limit(1).then(r => r[0] || null)
+        : Promise.resolve(null),
+      render.chainId
+        ? db.select().from(renderChains).where(eq(renderChains.id, render.chainId)).limit(1).then(r => r[0] || null)
+        : Promise.resolve(null),
+    ]);
 
     return {
       ...render,
@@ -301,6 +306,50 @@ export class RendersDAL {
 
     console.log(`✅ Found ${items.length} public gallery items`);
     return items;
+  }
+
+  /**
+   * Get multiple renders by IDs in ONE query
+   * ✅ OPTIMIZED: Batch operation for bulk render fetching
+   */
+  static async getByIds(ids: string[]) {
+    if (ids.length === 0) return [];
+    
+    console.log('🔍 Batch fetching', ids.length, 'renders by IDs');
+    
+    const batchRenders = await db
+      .select()
+      .from(renders)
+      .where(inArray(renders.id, ids))
+      .orderBy(desc(renders.createdAt));
+
+    console.log(`✅ Found ${batchRenders.length} renders`);
+    return batchRenders;
+  }
+
+  /**
+   * Batch update render statuses in ONE query
+   * ✅ OPTIMIZED: Update multiple renders at once
+   */
+  static async updateStatusBatch(
+    renderIds: string[],
+    status: 'pending' | 'processing' | 'completed' | 'failed',
+    errorMessage?: string
+  ) {
+    if (renderIds.length === 0) return;
+    
+    console.log('🔄 Batch updating', renderIds.length, 'render statuses to:', status);
+    
+    await db
+      .update(renders)
+      .set({
+        status,
+        errorMessage: errorMessage || null,
+        updatedAt: new Date(),
+      })
+      .where(inArray(renders.id, renderIds));
+
+    console.log('✅ Batch status update completed');
   }
 
   static async addToGallery(renderId: string, userId: string, isPublic: boolean) {

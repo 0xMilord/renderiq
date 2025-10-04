@@ -132,6 +132,27 @@ export class RenderChainsDAL {
     return chainRenders;
   }
 
+  /**
+   * Batch remove multiple renders from a chain in ONE query
+   * ✅ OPTIMIZED: Prevents N+1 queries when deleting chains
+   */
+  static async batchRemoveRendersFromChain(renderIds: string[]) {
+    if (renderIds.length === 0) return;
+    
+    console.log('🔗 Batch removing', renderIds.length, 'renders from chain');
+    
+    await db
+      .update(renders)
+      .set({
+        chainId: null,
+        chainPosition: null,
+        updatedAt: new Date(),
+      })
+      .where(inArray(renders.id, renderIds));
+
+    console.log('✅ Batch removed renders from chain');
+  }
+
   // Batch method to get all chains for a user with renders in one query
   static async getUserChainsWithRenders(userId: string) {
     console.log('🔍 [BATCH] Fetching all chains with renders for user:', userId);

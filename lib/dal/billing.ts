@@ -72,36 +72,47 @@ export class BillingDAL {
 
   /**
    * Get user credits with subscription info
+   * ✅ OPTIMIZED: Single query with JOINs instead of two separate queries
    */
   static async getUserCreditsWithReset(userId: string) {
     console.log('💰 BillingDAL: Getting user credits with reset info:', userId);
     
     try {
-      const [credits] = await db
-        .select()
+      const [result] = await db
+        .select({
+          credits: userCredits,
+          subscription: userSubscriptions,
+          plan: subscriptionPlans,
+        })
         .from(userCredits)
+        .leftJoin(
+          userSubscriptions,
+          and(
+            eq(userCredits.userId, userSubscriptions.userId),
+            eq(userSubscriptions.status, 'active')
+          )
+        )
+        .leftJoin(subscriptionPlans, eq(userSubscriptions.planId, subscriptionPlans.id))
         .where(eq(userCredits.userId, userId))
+        .orderBy(desc(userSubscriptions.createdAt))
         .limit(1);
 
-      if (!credits) {
+      if (!result || !result.credits) {
         console.log('❌ BillingDAL: User credits not found');
         return null;
       }
 
-      // Get subscription to calculate next reset date
-      const subscription = await this.getUserSubscription(userId);
-      
-      const resetDate = subscription?.subscription.currentPeriodEnd 
-        ? new Date(subscription.subscription.currentPeriodEnd)
+      const resetDate = result.subscription?.currentPeriodEnd 
+        ? new Date(result.subscription.currentPeriodEnd)
         : null;
 
-      console.log('✅ BillingDAL: Credits found:', credits.balance, 'Reset:', resetDate);
+      console.log('✅ BillingDAL: Credits found:', result.credits.balance, 'Reset:', resetDate);
       
       return {
-        ...credits,
+        ...result.credits,
         nextResetDate: resetDate,
-        isPro: !!subscription,
-        plan: subscription?.plan,
+        isPro: !!result.subscription,
+        plan: result.plan,
       };
     } catch (error) {
       console.error('❌ BillingDAL: Error getting credits with reset:', error);

@@ -18,24 +18,27 @@ export class ProfileStatsService {
     console.log('📊 ProfileStatsService: Getting user stats for:', userId);
     
     try {
-      // Get user profile for join date
-      const user = await AuthDAL.getUserById(userId);
+      // ✅ OPTIMIZED: Parallelize independent queries
+      const [user, projects, credits, renders] = await Promise.all([
+        AuthDAL.getUserById(userId),
+        ProjectsDAL.getByUserIdWithRenderCounts(userId, 1000, 0),
+        AuthDAL.getUserCredits(userId),
+        RendersDAL.getByUser(userId, null, 100)
+      ]);
+
       if (!user) {
         throw new Error('User not found');
       }
 
-      // Get user's projects with render counts
-      const projects = await ProjectsDAL.getByUserIdWithRenderCounts(userId, 1000, 0);
+      // Calculate from projects (already includes render counts)
       const totalProjects = projects.length;
       const totalRenders = projects.reduce((sum, project) => sum + (project.renderCount || 0), 0);
 
-      // Get user's credits
-      const credits = await AuthDAL.getUserCredits(userId);
+      // Extract credits info
       const creditsUsed = credits?.totalSpent || 0;
       const creditsRemaining = credits?.balance || 0;
 
-      // Get user's renders for average processing time and favorite style
-      const renders = await RendersDAL.getByUser(userId, null, 100);
+      // Process renders for stats
       const completedRenders = renders.filter(render => render.status === 'completed' && render.processingTime);
       
       const averageRenderTime = completedRenders.length > 0 

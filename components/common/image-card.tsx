@@ -147,7 +147,7 @@ export function CommonImageCard({
                   <Loader2 className="h-4 w-4 animate-spin" />
                 </div>
               )}
-              {imageError ? (
+              {imageError || !renderData.outputUrl ? (
                 <div className="w-full h-full bg-muted rounded-lg flex items-center justify-center">
                   {renderData.type === 'video' ? (
                     <Video className="h-6 w-6 text-muted-foreground" />
@@ -157,7 +157,7 @@ export function CommonImageCard({
                 </div>
               ) : (
                 <img
-                  src={renderData.outputUrl || ''}
+                  src={renderData.outputUrl}
                   alt={renderData.prompt}
                   className={cn(
                     "w-full h-full object-cover rounded-lg",
@@ -280,7 +280,7 @@ export function CommonImageCard({
                 <Loader2 className="h-6 w-6 animate-spin" />
               </div>
             )}
-            {imageError ? (
+            {imageError || !renderData.outputUrl ? (
               <div className="w-full h-full bg-muted rounded-lg flex items-center justify-center">
                 {renderData.type === 'video' ? (
                   <Video className="h-8 w-8 text-muted-foreground" />
@@ -290,7 +290,7 @@ export function CommonImageCard({
               </div>
             ) : (
               <img
-                src={renderData.outputUrl || ''}
+                src={renderData.outputUrl}
                 alt={renderData.prompt}
                 className={cn(
                   "w-full h-full object-cover rounded-lg",
@@ -350,7 +350,7 @@ export function CommonImageCard({
               <Loader2 className="h-8 w-8 animate-spin" />
             </div>
           )}
-          {imageError ? (
+          {imageError || !renderData.outputUrl ? (
             <div className="w-full h-full bg-muted flex items-center justify-center">
               {renderData.type === 'video' ? (
                 <Video className="h-12 w-12 text-muted-foreground" />
@@ -360,7 +360,7 @@ export function CommonImageCard({
             </div>
           ) : (
             <img
-              src={renderData.outputUrl || ''}
+              src={renderData.outputUrl}
               alt={renderData.prompt}
               className={cn(
                 "w-full h-full object-cover",
