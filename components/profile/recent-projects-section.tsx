@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2, Plus, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { ProjectCard } from '@/components/projects/project-card';
 import { useRecentProjects } from '@/lib/hooks/use-recent-projects';

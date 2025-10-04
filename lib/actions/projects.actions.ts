@@ -1,18 +1,13 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { RenderService } from '@/lib/services/render';
 import { ProjectsDAL } from '@/lib/dal/projects';
 import { RendersDAL } from '@/lib/dal/renders';
-import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { RenderChainService } from '@/lib/services/render-chain';
 import { createClient } from '@/lib/supabase/server';
 import { uploadSchema, createRenderSchema } from '@/lib/types';
-import { db } from '@/lib/db';
-import { projects } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
 
 const renderService = new RenderService();
 
@@ -92,8 +87,8 @@ export async function createProject(formData: FormData) {
   } catch (error) {
     console.error('❌ [createProject] Unexpected error:', error);
     if (error instanceof z.ZodError) {
-      console.error('❌ [createProject] Validation error:', error.errors);
-      return { success: false, error: error.errors[0].message };
+      console.error('❌ [createProject] Validation error:', error.issues);
+      return { success: false, error: error.issues[0].message };
     }
     return {
       success: false,
@@ -150,7 +145,7 @@ export async function createRender(formData: FormData) {
     return result;
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message };
+      return { success: false, error: error.issues[0].message };
     }
     return {
       success: false,
@@ -178,6 +173,42 @@ export async function getProject(projectId: string) {
     }
 
     const project = await ProjectsDAL.getById(projectId);
+    if (!project) {
+      return { success: false, error: 'Project not found' };
+    }
+
+    if (project.userId !== user.id) {
+      return { success: false, error: 'Access denied' };
+    }
+
+    return { success: true, data: project };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get project',
+    };
+  }
+}
+
+export async function getProjectBySlug(slug: string) {
+  try {
+    const supabase = await createClient();
+    if (!supabase) {
+      return { success: false, error: 'Failed to initialize database connection' };
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError) {
+      console.error('Auth error in getProjectBySlug:', authError);
+      return { success: false, error: 'Authentication failed' };
+    }
+
+    if (!user) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    const project = await ProjectsDAL.getBySlug(slug);
     if (!project) {
       return { success: false, error: 'Project not found' };
     }
@@ -467,7 +498,7 @@ export async function addRenderToChain(
   }
 }
 
-export async function selectRenderVersion(renderId: string, asReference: boolean) {
+export async function selectRenderVersion(renderId: string) {
   try {
     const supabase = await createClient();
     if (!supabase) {
@@ -500,32 +531,48 @@ export async function selectRenderVersion(renderId: string, asReference: boolean
 
 export async function getRenderChain(chainId: string) {
   try {
+    console.log('🔍 getRenderChain: Fetching chain:', chainId);
+    
     const supabase = await createClient();
     if (!supabase) {
+      console.log('❌ getRenderChain: Failed to initialize database connection');
       return { success: false, error: 'Failed to initialize database connection' };
     }
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
+      console.log('❌ getRenderChain: Authentication required');
       return { success: false, error: 'Authentication required' };
     }
+
+    console.log('✅ getRenderChain: User authenticated:', user.id);
 
     const chain = await RenderChainService.getChain(chainId);
     
     if (!chain) {
+      console.log('❌ getRenderChain: Chain not found:', chainId);
       return { success: false, error: 'Chain not found' };
     }
+
+    console.log('✅ getRenderChain: Chain found', {
+      chainId: chain.id,
+      chainName: chain.name,
+      projectId: chain.projectId,
+      rendersCount: chain.renders?.length || 0
+    });
 
     // Verify project ownership
     const project = await ProjectsDAL.getById(chain.projectId);
     if (!project || project.userId !== user.id) {
+      console.log('❌ getRenderChain: Access denied');
       return { success: false, error: 'Access denied' };
     }
 
+    console.log('✅ getRenderChain: Access granted, returning chain data');
     return { success: true, data: chain };
   } catch (error) {
-    console.error('Error in getRenderChain:', error);
+    console.error('❌ getRenderChain: Error:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get render chain',

@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
     const isPublic = formData.get('isPublic') === 'true';
     const seedParam = formData.get('seed') as string | null;
     const seed = seedParam ? parseInt(seedParam) : undefined;
+    const versionContextData = formData.get('versionContext') as string | null;
 
     console.log('📝 Render parameters:', { 
       prompt, 
@@ -120,6 +121,23 @@ export async function POST(request: NextRequest) {
 
     console.log('📍 Chain position:', chainPosition);
 
+    // Validate reference render ID if provided
+    let validatedReferenceRenderId: string | undefined = undefined;
+    if (referenceRenderId) {
+      console.log('🔍 Validating reference render ID:', referenceRenderId);
+      try {
+        const referenceRender = await RendersDAL.getById(referenceRenderId);
+        if (referenceRender && referenceRender.status === 'completed') {
+          validatedReferenceRenderId = referenceRenderId;
+          console.log('✅ Reference render validated:', referenceRenderId);
+        } else {
+          console.log('⚠️ Reference render not found or not completed, ignoring reference');
+        }
+      } catch (error) {
+        console.log('⚠️ Error validating reference render, ignoring reference:', error);
+      }
+    }
+
     // Create render record in database
     console.log('💾 Creating render record in database');
     const render = await RendersDAL.create({
@@ -135,7 +153,7 @@ export async function POST(request: NextRequest) {
       status: 'pending',
       chainId: finalChainId,
       chainPosition,
-      referenceRenderId: referenceRenderId || undefined,
+      referenceRenderId: validatedReferenceRenderId,
     });
 
     console.log('✅ Render record created:', render.id, 'in chain:', finalChainId, 'at position:', chainPosition);
@@ -146,6 +164,17 @@ export async function POST(request: NextRequest) {
     try {
       // Generate image/video
       console.log('🎨 Starting AI generation');
+      // Parse version context if provided
+      let versionContext = undefined;
+      if (versionContextData) {
+        try {
+          versionContext = JSON.parse(versionContextData);
+          console.log('🔍 Using version context for generation');
+        } catch (error) {
+          console.log('⚠️ Failed to parse version context, ignoring:', error);
+        }
+      }
+
       const result = await imageService.generateImage({
         prompt,
         style,
@@ -157,6 +186,8 @@ export async function POST(request: NextRequest) {
         negativePrompt: negativePrompt || undefined,
         imageType: imageType || undefined,
         seed,
+        referenceRenderId: referenceRenderId || undefined,
+        versionContext,
       });
 
       if (!result.success || !result.data) {

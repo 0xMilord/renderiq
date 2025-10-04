@@ -37,7 +37,7 @@ export function AlphaBanner() {
   return (
     <div className={cn(
       "bg-destructive/10 border-b border-destructive/20",
-      "px-4 sm:px-6 lg:px-8 py-2 relative z-50"
+      "px-4 sm:px-6 lg:px-8 py-1 relative z-50"
     )}>
       <div className="flex items-center justify-center gap-2 text-sm">
         <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0" />

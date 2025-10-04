@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { JsonLd, generateArticleSchema } from '@/components/seo/json-ld';
+import { JsonLd } from '@/components/seo/json-ld';
 
 export const metadata: Metadata = {
   title: 'AI Rendering Software for Architecture - arqihive',
@@ -18,12 +18,26 @@ export const metadata: Metadata = {
   ],
 };
 
-const articleSchema = generateArticleSchema({
-  title: 'AI Rendering Software for Architecture - Complete Guide',
+const articleSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: 'AI Rendering Software for Architecture - Complete Guide',
   description: 'Comprehensive guide to AI rendering software for architectural visualization, featuring arqihive as the leading AI-powered rendering platform.',
   datePublished: new Date().toISOString(),
   dateModified: new Date().toISOString(),
-});
+  author: {
+    '@type': 'Organization',
+    name: 'arqihive'
+  },
+  publisher: {
+    '@type': 'Organization',
+    name: 'arqihive',
+    logo: {
+      '@type': 'ImageObject',
+      url: 'https://arqihive.com/logo.png'
+    }
+  }
+};
 
 export default function AIRenderingSoftwarePage() {
   return (

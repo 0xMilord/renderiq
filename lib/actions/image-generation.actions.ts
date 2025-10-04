@@ -9,8 +9,10 @@ const imageService = ImageGenerationService.getInstance();
 
 export async function generateImage(formData: FormData) {
   try {
-    const { user } = await createClient().auth.getUser();
-    if (!user.data.user) {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
       return { success: false, error: 'Authentication required' };
     }
 
@@ -19,7 +21,8 @@ export async function generateImage(formData: FormData) {
     const quality = formData.get('quality') as 'standard' | 'high' | 'ultra';
     const aspectRatio = formData.get('aspectRatio') as string;
     const type = formData.get('type') as 'image' | 'video';
-    const uploadedImage = formData.get('uploadedImage') as File | null;
+    const uploadedImageData = formData.get('uploadedImageData') as string | null;
+    const uploadedImageType = formData.get('uploadedImageType') as string | null;
 
     if (!prompt || !style || !quality || !aspectRatio || !type) {
       return { success: false, error: 'Missing required parameters' };
@@ -49,7 +52,8 @@ export async function generateImage(formData: FormData) {
       quality,
       aspectRatio,
       type,
-      uploadedImage: uploadedImage || undefined,
+      uploadedImageData: uploadedImageData || undefined,
+      uploadedImageType: uploadedImageType || undefined,
     });
 
     if (!result.success) {
@@ -78,8 +82,10 @@ export async function generateImage(formData: FormData) {
 
 export async function generateVideo(formData: FormData) {
   try {
-    const { user } = await createClient().auth.getUser();
-    if (!user.data.user) {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
       return { success: false, error: 'Authentication required' };
     }
 

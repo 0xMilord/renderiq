@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { JsonLd, generateArticleSchema } from '@/components/seo/json-ld';
+import { JsonLd } from '@/components/seo/json-ld';
 
 export const metadata: Metadata = {
   title: 'Best AI Architecture Tools 2025 - arqihive Platform',
@@ -23,13 +23,27 @@ export const metadata: Metadata = {
   },
 };
 
-const articleSchema = generateArticleSchema({
-  title: 'Best AI Architecture Tools 2025 - Complete Guide',
+const articleSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: 'Best AI Architecture Tools 2025 - Complete Guide',
   description: 'Comprehensive guide to the best AI architecture tools available in 2025, featuring arqihive as the leading AI-powered architectural visualization platform.',
+  image: 'https://arqihive.com/ai-architecture-tools-og.png',
   datePublished: new Date().toISOString(),
   dateModified: new Date().toISOString(),
-  image: 'https://arqihive.com/ai-architecture-tools-og.png'
-});
+  author: {
+    '@type': 'Organization',
+    name: 'arqihive'
+  },
+  publisher: {
+    '@type': 'Organization',
+    name: 'arqihive',
+    logo: {
+      '@type': 'ImageObject',
+      url: 'https://arqihive.com/logo.png'
+    }
+  }
+};
 
 export default function AIArchitectureToolsPage() {
   return (

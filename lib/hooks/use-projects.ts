@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getUserProjects, createProject, deleteProject, duplicateProject } from '@/lib/actions/projects.actions';
+import { getUserProjects, createProject, deleteProject, duplicateProject, getProject, getProjectBySlug } from '@/lib/actions/projects.actions';
 import type { Project } from '@/lib/db/schema';
 
 export function useProjects() {
@@ -36,16 +36,11 @@ export function useProjects() {
       const result = await createProject(formData);
       console.log('📊 [useProjects] createProject result:', result);
       
-      if (result.success && result.data) {
-        console.log('✅ [useProjects] Project created, updating state...');
-        // First add the new project to the state
-        setProjects(prev => [result.data!, ...prev]);
-        console.log('🎉 [useProjects] Project added to state successfully');
-        
-        // Then refetch to ensure we have the latest data from server
-        console.log('🔄 [useProjects] Refetching projects to ensure consistency...');
+      if (result.success && 'data' in result && result.data) {
+        console.log('✅ [useProjects] Project created, refetching projects...');
+        // Refetch to get the latest projects list including the new one
         await fetchProjects();
-        return { success: true };
+        return { success: true, data: result.data };
       } else {
         console.error('❌ [useProjects] Project creation failed:', result.error);
         setError(result.error || 'Failed to create project');
@@ -83,8 +78,8 @@ export function useProjects() {
       setError(null);
       const result = await duplicateProject(projectId);
       
-      if (result.success && result.data) {
-        setProjects(prev => [result.data!, ...prev]);
+      if (result.success && 'data' in result && result.data) {
+        setProjects(prev => [result.data, ...prev]);
         return { success: true };
       } else {
         setError(result.error || 'Failed to duplicate project');
@@ -110,5 +105,89 @@ export function useProjects() {
     removeProject,
     duplicateProject: duplicateProjectAction,
     refetch: fetchProjects,
+  };
+}
+
+export function useProject(projectId: string | null) {
+  const [project, setProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchProject = async (id: string) => {
+    if (!id) {
+      setProject(null);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await getProject(id);
+      
+      if (result.success) {
+        setProject(result.data || null);
+      } else {
+        setError(result.error || 'Failed to fetch project');
+        setProject(null);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      setProject(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProject(projectId || '');
+  }, [projectId]);
+
+  return {
+    project,
+    loading,
+    error,
+    refetch: () => fetchProject(projectId || ''),
+  };
+}
+
+export function useProjectBySlug(slug: string | null) {
+  const [project, setProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchProject = async (projectSlug: string) => {
+    if (!projectSlug) {
+      setProject(null);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await getProjectBySlug(projectSlug);
+      
+      if (result.success) {
+        setProject(result.data || null);
+      } else {
+        setError(result.error || 'Failed to fetch project');
+        setProject(null);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      setProject(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProject(slug || '');
+  }, [slug]);
+
+  return {
+    project,
+    loading,
+    error,
+    refetch: () => fetchProject(slug || ''),
   };
 }

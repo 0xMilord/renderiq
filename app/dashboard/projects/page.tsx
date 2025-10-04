@@ -141,7 +141,7 @@ export default function ProjectsPage() {
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               <span>Refresh</span>
             </Button>
-            <CreateProjectModal>
+            <CreateProjectModal onProjectCreated={() => refetch()}>
               <Button className="flex items-center space-x-2">
                 <Plus className="h-4 w-4" />
                 <span>New Project</span>
@@ -214,7 +214,7 @@ export default function ProjectsPage() {
               }
             </p>
             {!searchQuery && (
-              <CreateProjectModal>
+              <CreateProjectModal onProjectCreated={() => refetch()}>
                 <Button>Get Started</Button>
               </CreateProjectModal>
             )}

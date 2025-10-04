@@ -5,11 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent } from '@/components/ui/card';
-import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { toast } from 'sonner';
+import { Square, Circle, Triangle, Hexagon, Pentagon, Octagon } from 'lucide-react';
 
 interface CreateProjectModalProps {
   children: React.ReactNode;
@@ -23,56 +22,44 @@ export function CreateProjectModal({ children, open: controlledOpen, onOpenChang
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setOpen = onOpenChange || setInternalOpen;
   const [loading, setLoading] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [selectedShape, setSelectedShape] = useState<string>('square');
   const formRef = useRef<HTMLFormElement>(null);
   const { addProject } = useProjects();
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.type.startsWith('image/')) {
-        setSelectedFile(file);
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          setPreview(e.target?.result as string);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        toast.error('Please select an image file');
-      }
-    }
-  };
+  const shapes = [
+    { id: 'square', name: 'Square', icon: Square, color: 'bg-blue-500' },
+    { id: 'circle', name: 'Circle', icon: Circle, color: 'bg-green-500' },
+    { id: 'triangle', name: 'Triangle', icon: Triangle, color: 'bg-red-500' },
+    { id: 'hexagon', name: 'Hexagon', icon: Hexagon, color: 'bg-purple-500' },
+    { id: 'pentagon', name: 'Pentagon', icon: Pentagon, color: 'bg-orange-500' },
+    { id: 'octagon', name: 'Octagon', icon: Octagon, color: 'bg-pink-500' },
+  ];
 
-  const handleRemoveFile = () => {
-    setSelectedFile(null);
-    setPreview(null);
-  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     console.log('🚀 [CreateProjectModal] Form submitted');
     
-    if (!selectedFile) {
-      console.error('❌ [CreateProjectModal] No file selected');
-      toast.error('Please select an image file');
+    const projectName = event.currentTarget.projectName.value;
+    if (!projectName.trim()) {
+      toast.error('Please enter a project name');
       return;
     }
 
     console.log('📝 [CreateProjectModal] Preparing form data:', {
-      fileName: selectedFile.name,
-      fileSize: selectedFile.size,
-      fileType: selectedFile.type,
-      projectName: event.currentTarget.projectName.value,
-      description: event.currentTarget.description.value
+      projectName,
+      selectedShape
     });
 
     setLoading(true);
     try {
+      // Create a simple project without file upload
+      // For now, we'll create a mock project since the current system expects a file
+      const mockFile = new File([''], 'shape-project.png', { type: 'image/png' });
       const formData = new FormData();
-      formData.append('file', selectedFile);
-      formData.append('projectName', event.currentTarget.projectName.value);
-      formData.append('description', event.currentTarget.description.value);
+      formData.append('file', mockFile);
+      formData.append('projectName', `${projectName} (${shapes.find(s => s.id === selectedShape)?.name})`);
+      formData.append('description', `Project based on ${selectedShape} shape`);
 
       console.log('🎨 [CreateProjectModal] Calling addProject...');
       const result = await addProject(formData);
@@ -82,15 +69,14 @@ export function CreateProjectModal({ children, open: controlledOpen, onOpenChang
         console.log('✅ [CreateProjectModal] Project created successfully');
         toast.success('Project created successfully');
         setOpen(false);
-        setSelectedFile(null);
-        setPreview(null);
+        setSelectedShape('square');
         // Reset form safely
         if (formRef.current) {
           formRef.current.reset();
         }
         // Notify parent component about the new project
-        if (onProjectCreated && result.data?.id) {
-          onProjectCreated(result.data.id);
+        if (onProjectCreated && 'data' in result && result.data && typeof result.data === 'object' && 'id' in result.data) {
+          onProjectCreated((result.data as { id: string }).id);
         }
       } else {
         console.error('❌ [CreateProjectModal] Project creation failed:', result.error);
@@ -109,107 +95,84 @@ export function CreateProjectModal({ children, open: controlledOpen, onOpenChang
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] w-[95vw] max-w-[95vw]">
         <DialogHeader>
           <DialogTitle>Create New Project</DialogTitle>
           <DialogDescription>
-            Upload an image and create a new project to start generating AI renders.
+            Enter a project name and select a base shape to start generating AI renders.
           </DialogDescription>
         </DialogHeader>
         
         <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
-            {/* File Upload */}
-            <div className="space-y-2">
-              <Label htmlFor="file">Project Image</Label>
-              {!selectedFile ? (
-                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:border-muted-foreground/50 transition-colors">
-                  <input
-                    id="file"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  <label htmlFor="file" className="cursor-pointer">
-                    <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">
-                      Click to upload or drag and drop
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      PNG, JPG, WEBP up to 10MB
-                    </p>
-                  </label>
-                </div>
-              ) : (
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center space-x-4">
-                      <div className="relative">
-                        {preview && (
-                          <img
-                            src={preview}
-                            alt="Preview"
-                            className="w-16 h-16 object-cover rounded-lg"
-                          />
-                        )}
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
-                          onClick={handleRemoveFile}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{selectedFile.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+            {/* Project Name and Shape Selection Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Project Name */}
+              <div className="space-y-2">
+                <Label htmlFor="projectName">Project Name</Label>
+                <Input
+                  id="projectName"
+                  name="projectName"
+                  placeholder="Enter project name"
+                  required
+                  maxLength={100}
+                  className="w-full"
+                />
+              </div>
 
-            {/* Project Name */}
-            <div className="space-y-2">
-              <Label htmlFor="projectName">Project Name</Label>
-              <Input
-                id="projectName"
-                name="projectName"
-                placeholder="Enter project name"
-                required
-                maxLength={100}
-              />
-            </div>
-
-            {/* Description */}
-            <div className="space-y-2">
-              <Label htmlFor="description">Description (Optional)</Label>
-              <Textarea
-                id="description"
-                name="description"
-                placeholder="Describe your project..."
-                rows={3}
-                maxLength={500}
-              />
+              {/* Shape Selection Dropdown */}
+              <div className="space-y-2">
+                <Label htmlFor="shape">Base Shape</Label>
+                <Select value={selectedShape} onValueChange={setSelectedShape}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a shape">
+                      <div className="flex items-center space-x-2">
+                        {(() => {
+                          const selectedShapeData = shapes.find(s => s.id === selectedShape);
+                          const IconComponent = selectedShapeData?.icon || Square;
+                          return (
+                            <>
+                              <div className={`w-4 h-4 rounded-full ${selectedShapeData?.color || 'bg-blue-500'} flex items-center justify-center`}>
+                                <IconComponent className="h-2.5 w-2.5 text-white" />
+                              </div>
+                              <span>{selectedShapeData?.name || 'Square'}</span>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {shapes.map((shape) => {
+                      const IconComponent = shape.icon;
+                      return (
+                        <SelectItem key={shape.id} value={shape.id}>
+                          <div className="flex items-center space-x-2">
+                            <div className={`w-4 h-4 rounded-full ${shape.color} flex items-center justify-center`}>
+                              <IconComponent className="h-2.5 w-2.5 text-white" />
+                            </div>
+                            <span>{shape.name}</span>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
               disabled={loading}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || !selectedFile}>
+            <Button type="submit" disabled={loading} className="w-full sm:w-auto">
               {loading ? 'Creating...' : 'Create Project'}
             </Button>
           </DialogFooter>

@@ -16,6 +16,11 @@ const navItems = [
 export function BottomNav() {
   const pathname = usePathname();
 
+  // Hide bottom nav on engine routes and chat routes
+  if (pathname.startsWith('/engine') || pathname.includes('/chat')) {
+    return null;
+  }
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border md:hidden z-50">
       <div className="grid grid-cols-5 h-16">

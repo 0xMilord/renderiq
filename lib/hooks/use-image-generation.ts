@@ -38,7 +38,8 @@ export function useImageGeneration() {
     imageType?: string;
     isPublic?: boolean;
     seed?: number;
-  }) => {
+    versionContext?: any;
+  }): Promise<ImageGenerationResult | null> => {
     try {
       console.log('🚀 Starting image generation via API');
       setIsGenerating(true);
@@ -91,6 +92,10 @@ export function useImageGeneration() {
         formData.append('seed', params.seed.toString());
       }
 
+      if (params.versionContext) {
+        formData.append('versionContext', JSON.stringify(params.versionContext));
+      }
+
       console.log('📤 Sending request to API:', { 
         prompt: params.prompt, 
         style: params.style, 
@@ -123,14 +128,18 @@ export function useImageGeneration() {
         };
         setResult(imageResult);
         console.log('✅ Generation successful');
+        return imageResult;
       } else {
-        setError(data.error || 'Generation failed');
+        const errorMsg = data.error || 'Generation failed';
+        setError(errorMsg);
         console.error('❌ Generation failed:', data.error);
+        return null;
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
       setError(errorMessage);
       console.error('❌ Generation error:', errorMessage);
+      return null;
     } finally {
       setIsGenerating(false);
     }

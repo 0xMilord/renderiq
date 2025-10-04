@@ -5,7 +5,8 @@ import {
   getRenderChain, 
   getProjectChains, 
   addRenderToChain,
-  createRenderChain 
+  createRenderChain,
+  getUserProjects 
 } from '@/lib/actions/projects.actions';
 
 export const useRenderChain = (chainId: string | null) => {
@@ -163,6 +164,56 @@ export const useProjectChains = (projectId: string | null) => {
     error,
     fetchChains,
     createChain,
+  };
+};
+
+export const useAllUserChains = () => {
+  const [chains, setChains] = useState<RenderChain[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch all chains for all user projects
+  const fetchAllChains = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Get user projects first
+      const projectsResult = await getUserProjects();
+      
+      if (projectsResult.success && projectsResult.data) {
+        const projects = projectsResult.data;
+        
+        // Fetch chains for each project
+        const allChainsPromises = projects.map(project => getProjectChains(project.id));
+        const allChainsResults = await Promise.all(allChainsPromises);
+        
+        // Combine all chains
+        const allChains = allChainsResults
+          .filter(result => result.success && result.data)
+          .flatMap(result => result.data || []);
+        
+        setChains(allChains);
+      } else {
+        setError(projectsResult.error || 'Failed to fetch projects');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch chains');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Fetch chains on mount
+  useEffect(() => {
+    fetchAllChains();
+  }, [fetchAllChains]);
+
+  return {
+    chains,
+    loading,
+    error,
+    fetchAllChains,
   };
 };
 

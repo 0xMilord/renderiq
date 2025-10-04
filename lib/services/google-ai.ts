@@ -105,7 +105,8 @@ export class GoogleAIService {
         request.negativePrompt,
         request.imageType,
         request.referenceRender,
-        request.chainContext
+        request.chainContext,
+        !!request.uploadedImageData
       );
 
       // Add quality-specific enhancements
@@ -440,7 +441,8 @@ export class GoogleAIService {
     negativePrompt?: string,
     imageType?: string,
     referenceRender?: Render,
-    chainContext?: ChainContext
+    chainContext?: ChainContext,
+    hasReferenceImage?: boolean
   ): Promise<string> {
     // Use ContextPromptService to build enhanced prompt
     const contextPrompt = await ContextPromptService.buildContextAwarePrompt(
@@ -456,7 +458,8 @@ export class GoogleAIService {
       contextPrompt.enhancedPrompt,
       style,
       negativePrompt,
-      imageType
+      imageType,
+      hasReferenceImage
     );
   }
 
@@ -476,8 +479,11 @@ export class GoogleAIService {
     return prompt + qualityEnhancements[quality];
   }
 
-  private buildImagePrompt(userPrompt: string, style: string, negativePrompt?: string, imageType?: string): string {
-    const basePrompt = `Create a photorealistic architectural image of: ${userPrompt}`;
+  private buildImagePrompt(userPrompt: string, style: string, negativePrompt?: string, imageType?: string, hasReferenceImage?: boolean): string {
+    // If there's a reference image, modify the existing image instead of creating a new one
+    const basePrompt = hasReferenceImage 
+      ? `Modify the existing architectural image to: ${userPrompt}`
+      : `Create a photorealistic architectural image of: ${userPrompt}`;
 
     const styleModifiers = {
       modern: 'in a modern architectural style with clean lines, glass, and steel elements',
@@ -516,7 +522,12 @@ export class GoogleAIService {
     if (imageTypeModifier) {
       finalPrompt += `, ${imageTypeModifier}`;
     }
-    finalPrompt += '. Professional architectural visualization, high quality, detailed, realistic lighting and materials, suitable for architectural presentation.';
+    
+    if (hasReferenceImage) {
+      finalPrompt += '. Maintain the overall composition and structure of the existing image while making the requested modifications. Professional architectural visualization, high quality, detailed, realistic lighting and materials, suitable for architectural presentation.';
+    } else {
+      finalPrompt += '. Professional architectural visualization, high quality, detailed, realistic lighting and materials, suitable for architectural presentation.';
+    }
 
     // Add negative prompt if provided
     if (negativePrompt && negativePrompt.trim()) {

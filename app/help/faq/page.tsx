@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { JsonLd, generateFAQSchema } from '@/components/seo/json-ld';
+import { JsonLd } from '@/components/seo/json-ld';
 
 export const metadata: Metadata = {
   title: 'FAQ - AI Architecture Tools | arqihive',
@@ -65,7 +65,18 @@ const faqs = [
   }
 ];
 
-const faqSchema = generateFAQSchema(faqs);
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map(faq => ({
+    '@type': 'Question',
+    name: faq.question,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: faq.answer
+    }
+  }))
+};
 
 export default function FAQPage() {
   return (

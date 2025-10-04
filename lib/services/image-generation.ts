@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { GoogleAIService } from './google-ai';
 import { WatermarkService } from './watermark';
+import { RendersDAL } from '@/lib/dal/renders';
 
 const ImageGenerationResult = z.object({
   imageUrl: z.string().optional(),
@@ -41,6 +42,20 @@ export class ImageGenerationService {
     negativePrompt?: string;
     imageType?: string;
     seed?: number;
+    referenceRenderId?: string;
+    versionContext?: {
+      userIntent: string;
+      mentionedVersions: Array<{
+        renderId?: string;
+        context?: {
+          prompt: string;
+          settings: any;
+          imageData?: string;
+          metadata?: any;
+        };
+      }>;
+      contextualPrompt?: string;
+    };
   }): Promise<{ success: boolean; data?: ImageGenerationResult; error?: string }> {
     console.log('🎨 ImageGenService: Starting image generation', {
       prompt: params.prompt,
@@ -48,19 +63,77 @@ export class ImageGenerationService {
       quality: params.quality,
       aspectRatio: params.aspectRatio,
       type: params.type,
-      hasUploadedImage: !!params.uploadedImageData
+      hasUploadedImage: !!params.uploadedImageData,
+      hasReferenceRender: !!params.referenceRenderId
     });
+
+    // Fetch reference render image if provided
+    // Handle version context and reference images
+    let finalPrompt = params.prompt;
+    let referenceImageData: string | undefined;
+    let referenceImageType: string | undefined;
+    
+    // Use version context if available
+    if (params.versionContext) {
+      console.log('🔍 Using version context for generation');
+      
+      // Use the contextual prompt if available, otherwise use user intent
+      if (params.versionContext.contextualPrompt) {
+        finalPrompt = params.versionContext.contextualPrompt;
+        console.log('📝 Using contextual prompt:', finalPrompt.substring(0, 100) + '...');
+      } else {
+        finalPrompt = params.versionContext.userIntent;
+        console.log('📝 Using user intent:', finalPrompt);
+      }
+
+      // Get reference image from the most recent mentioned version
+      const mentionedVersionWithImage = params.versionContext.mentionedVersions
+        .find(v => v.context?.imageData);
+      
+      if (mentionedVersionWithImage?.context?.imageData) {
+        referenceImageData = mentionedVersionWithImage.context.imageData;
+        referenceImageType = 'image/png';
+        console.log('✅ Using reference image from version context');
+      }
+    }
+    
+    // Fallback to referenceRenderId if no version context
+    if (!referenceImageData && params.referenceRenderId) {
+      try {
+        console.log('🔍 Fetching reference render:', params.referenceRenderId);
+        const referenceRender = await RendersDAL.getById(params.referenceRenderId);
+        
+        if (referenceRender && referenceRender.outputUrl) {
+          console.log('📸 Found reference render image, downloading...');
+          // Download the reference image
+          const response = await fetch(referenceRender.outputUrl);
+          if (response.ok) {
+            const arrayBuffer = await response.arrayBuffer();
+            const base64 = Buffer.from(arrayBuffer).toString('base64');
+            referenceImageData = base64;
+            referenceImageType = 'image/png'; // Assume PNG for now
+            console.log('✅ Reference image loaded successfully');
+          } else {
+            console.log('⚠️ Failed to download reference image');
+          }
+        } else {
+          console.log('⚠️ Reference render not found or has no output URL');
+        }
+      } catch (error) {
+        console.log('❌ Error fetching reference render:', error);
+      }
+    }
 
     try {
       console.log('🎨 ImageGenService: Calling Google AI service');
       // Use Google AI Gemini 2.5 Flash for image generation
       const result = await this.googleAIService.generateImage({
-        prompt: params.prompt,
+        prompt: finalPrompt,
         style: params.style,
         quality: params.quality,
         aspectRatio: params.aspectRatio,
-        uploadedImageData: params.uploadedImageData,
-        uploadedImageType: params.uploadedImageType,
+        uploadedImageData: params.uploadedImageData || referenceImageData,
+        uploadedImageType: params.uploadedImageType || referenceImageType,
         negativePrompt: params.negativePrompt,
         imageType: params.imageType,
         seed: params.seed,

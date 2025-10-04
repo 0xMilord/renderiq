@@ -30,11 +30,6 @@ export class UpscalingService {
   }
 
   async upscaleImage(request: UpscalingRequest): Promise<{ success: boolean; data?: UpscalingResult; error?: string }> {
-    console.log('🔍 UpscalingService: Starting image upscaling', {
-      scale: request.scale,
-      quality: request.quality,
-      hasImageUrl: !!request.imageUrl
-    });
 
     try {
       const startTime = Date.now();
@@ -72,10 +67,6 @@ export class UpscalingService {
         provider: result.data.provider || 'gemini-2.5-flash-image'
       };
 
-      console.log('✅ UpscalingService: Upscaling completed', {
-        scale: request.scale,
-        processingTime
-      });
 
       return {
         success: true,
@@ -105,19 +96,24 @@ export class UpscalingService {
 
   private async convertImageToBase64(imageUrl: string): Promise<string> {
     try {
+      console.log('🔍 UpscalingService: Downloading image from URL');
       const response = await fetch(imageUrl);
-      const blob = await response.blob();
       
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const result = reader.result as string;
-          const base64 = result.split(',')[1];
-          resolve(base64);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.statusText}`);
+      }
+
+      // Convert to arrayBuffer and then to base64 using Buffer (Node.js)
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const base64 = buffer.toString('base64');
+      
+      console.log('✅ UpscalingService: Image converted to base64', {
+        size: buffer.length,
+        base64Preview: base64.substring(0, 50) + '...'
       });
+      
+      return base64;
     } catch (error) {
       console.error('❌ UpscalingService: Failed to convert image to base64', error);
       throw new Error('Failed to process image for upscaling');
