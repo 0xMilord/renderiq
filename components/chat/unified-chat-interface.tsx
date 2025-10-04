@@ -28,10 +28,14 @@ import {
   AlertCircle,
   RefreshCw,
   Clock,
+  ChevronDown,
+  ChevronUp,
   Maximize,
   Minimize,
   MessageSquare,
-  ArrowLeft
+  ArrowLeft,
+  Copy,
+  Zap
 } from 'lucide-react';
 import { 
   FaBuilding, 
@@ -52,6 +56,7 @@ import {
   FaTabletAlt
 } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import { useCredits } from '@/lib/hooks/use-credits';
 import { useUpscaling } from '@/lib/hooks/use-upscaling';
 import { useImageGeneration } from '@/lib/hooks/use-image-generation';
@@ -118,6 +123,76 @@ const imageTypes = [
   { value: 'construction', label: 'Build', icon: FaHardHat, color: 'text-primary' },
 ];
 
+// Component for truncated messages with expand/collapse functionality
+function TruncatedMessage({ 
+  content, 
+  maxLines = 4, 
+  className = "" 
+}: { 
+  content: string; 
+  maxLines?: number; 
+  className?: string; 
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [shouldTruncate, setShouldTruncate] = useState(false);
+  const textRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    if (textRef.current) {
+      // Simple approach: check if content has more than 4 lines worth of characters
+      const lineHeight = parseInt(getComputedStyle(textRef.current).lineHeight) || 20;
+      const elementHeight = textRef.current.offsetHeight;
+      const maxHeight = lineHeight * maxLines;
+      
+      setShouldTruncate(elementHeight > maxHeight);
+    }
+  }, [content, maxLines]);
+
+  // Simple character-based truncation as fallback
+  const shouldTruncateByLength = content.length > 200; // Roughly 4 lines
+  const needsTruncation = shouldTruncate || shouldTruncateByLength;
+
+  if (!needsTruncation) {
+    return <p className={className}>{content}</p>;
+  }
+
+  return (
+    <div>
+      <p 
+        ref={textRef}
+        className={className}
+        style={!isExpanded ? {
+          display: '-webkit-box',
+          WebkitLineClamp: maxLines,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis'
+        } : {}}
+      >
+        {content}
+      </p>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="mt-1 h-6 px-2 text-xs"
+      >
+        {isExpanded ? (
+          <>
+            <ChevronUp className="h-3 w-3 mr-1" />
+            Show less
+          </>
+        ) : (
+          <>
+            <ChevronDown className="h-3 w-3 mr-1" />
+            Show more
+          </>
+        )}
+      </Button>
+    </div>
+  );
+}
+
 export function UnifiedChatInterface({ 
   projectId, 
   chainId, 
@@ -138,6 +213,7 @@ export function UnifiedChatInterface({
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [referenceRenderId, setReferenceRenderId] = useState<string | undefined>();
   
   // Form state (from control bar)
   const [selectedStyle, setSelectedStyle] = useState('realistic');
@@ -223,14 +299,12 @@ export function UnifiedChatInterface({
             referenceRenderId: render.referenceRenderId || undefined
           };
 
-          // Create assistant message with the render
-          const contextMessage = render.referenceRenderId
-            ? 'Here\'s your updated render! You can ask for further changes or variations.'
-            : render.status === 'completed' 
-            ? 'Here\'s your generated render! You can ask for changes or variations.'
-            : render.status === 'failed'
+          // Create assistant message with the render (no constant text)
+          const contextMessage = render.status === 'failed'
             ? 'Sorry, I couldn\'t generate your render. Please try again.'
-            : 'Generating your render...';
+            : render.status === 'processing'
+            ? 'Generating your render...'
+            : ''; // Empty for completed renders - just show the render
             
           const assistantMessage: Message = {
             id: `assistant-${render.id}`,
@@ -595,7 +669,7 @@ export function UnifiedChatInterface({
           errorMessage: null,
           processingTime: result.processingTime,
           chainId: chainId || null,
-          chainPosition: Math.floor(messages.length / 2) + 1, // Position in chain (every 2 messages = 1 render)
+          chainPosition: Math.floor(messages.length / 2), // Position in chain (every 2 messages = 1 render)
           referenceRenderId: currentRender?.id || null, // Reference to previous version
           createdAt: new Date(),
           updatedAt: new Date()
@@ -607,18 +681,12 @@ export function UnifiedChatInterface({
         // Refresh chain data to get the latest renders
         onRefreshChain?.();
 
-        // Update the assistant message with the result and render
-        const contextMessage = userMessage.uploadedImage 
-          ? 'Here\'s your updated render based on the uploaded image! You can ask for further changes or variations.'
-          : userMessage.referenceRenderId
-          ? 'Here\'s your updated render! You can ask for further changes or variations.'
-          : 'Here\'s your generated render! You can ask for changes or variations.';
-          
+        // Update the assistant message with the result and render (no constant text)
         setMessages(prev => prev.map(msg => 
           msg.id === assistantMessage.id 
             ? { 
                 ...msg, 
-                content: contextMessage, 
+                content: '', // Empty content - just show the render
                 isGenerating: false, 
                 render: newRender 
               }
@@ -759,19 +827,19 @@ export function UnifiedChatInterface({
         mobileView === 'chat' ? 'flex' : 'hidden lg:flex'
       )}>
         {/* Header - Desktop only */}
-        <div className="hidden lg:block px-4 py-2 border-b border-border">
-          <div className="grid grid-cols-2 gap-2 items-center">
+        <div className="hidden lg:block px-4 py-1.5 border-b border-border h-11 flex items-center">
+          <div className="flex items-center justify-between gap-2 w-full">
             <Button
               variant="ghost"
               size="sm"
               onClick={onBackToProjects}
-              className="justify-start h-7"
+              className="justify-start h-8 px-2 w-fit shrink-0"
             >
               <ArrowLeft className="h-3 w-3 mr-1" />
               Back
             </Button>
-            <div className="text-right">
-              <h1 className="text-sm font-semibold">{projectName}</h1>
+            <div className="text-right flex-1 min-w-0">
+              <h1 className="text-sm font-semibold truncate">{projectName}</h1>
               {!creditsLoading && credits && (
                 <div className="text-xs text-muted-foreground">
                   {credits.balance} credits
@@ -806,7 +874,50 @@ export function UnifiedChatInterface({
                       : 'bg-muted'
                   )}
                 >
-                  <p className="text-xs sm:text-sm">{message.content}</p>
+                  {/* Only show copy/edit buttons for user messages */}
+                  {message.type === 'user' ? (
+                    <div className="flex items-start justify-between gap-2 group">
+                      <div className="flex-1">
+                        <TruncatedMessage 
+                          content={message.content} 
+                          className="text-xs sm:text-sm" 
+                          maxLines={4}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText(message.content);
+                            toast.success('Message copied to clipboard');
+                          }}
+                          className="h-6 w-6 p-0"
+                          title="Copy message"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setInputValue(message.content);
+                            toast.info('Message loaded into input. Modify and send.');
+                          }}
+                          className="h-6 w-6 p-0"
+                          title="Edit and resend"
+                        >
+                          <Edit3 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <TruncatedMessage 
+                      content={message.content} 
+                      className="text-xs sm:text-sm" 
+                      maxLines={4}
+                    />
+                  )}
                   
                   {/* Show uploaded image in user message */}
                   {message.uploadedImage && (
@@ -831,19 +942,8 @@ export function UnifiedChatInterface({
                   )}
                   {message.render && (
                     <div className="mt-2">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] sm:text-xs text-muted-foreground">Version {index + 1}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setCurrentRender(message.render!);
-                            setMobileView('render');
-                          }}
-                          className="h-5 sm:h-6 px-1 sm:px-2 text-[10px] sm:text-xs"
-                        >
-                          View
-                        </Button>
+                      <div className="mb-1">
+                        <span className="text-[10px] sm:text-xs text-muted-foreground">Version {message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}</span>
                       </div>
                       <div className="relative w-full aspect-video rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity bg-muted"
                         onClick={() => {
@@ -857,6 +957,56 @@ export function UnifiedChatInterface({
                           fill
                           className="object-cover"
                         />
+                      </div>
+                      {/* Action buttons below image - always visible */}
+                      <div className="flex items-center justify-center gap-2 mt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const link = document.createElement('a');
+                            link.href = message.render!.outputUrl;
+                            link.download = `render-${message.render!.id}.${message.render!.type === 'video' ? 'mp4' : 'png'}`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            toast.success('Download started');
+                          }}
+                          className="h-7 text-[10px] sm:text-xs"
+                          title="Download"
+                        >
+                          <Download className="h-3 w-3 mr-1" />
+                          Download
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toast.info('Upscale feature coming soon');
+                          }}
+                          className="h-7 text-[10px] sm:text-xs"
+                          title="Upscale"
+                        >
+                          <Zap className="h-3 w-3 mr-1" />
+                          Upscale
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setReferenceRenderId(message.render!.id);
+                            setInputValue(message.render!.prompt);
+                            toast.info('Prompt loaded. Modify and send to regenerate with context.');
+                          }}
+                          className="h-7 text-[10px] sm:text-xs"
+                          title="Regenerate"
+                        >
+                          <RefreshCw className="h-3 w-3 mr-1" />
+                          Regenerate
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -939,22 +1089,18 @@ export function UnifiedChatInterface({
                 <Button
                   onClick={handleSendMessage}
                   disabled={!inputValue.trim() || isGenerating || (credits && credits.balance < getCreditsCost())}
-                  className="h-8 sm:h-9 w-full min-w-[60px] sm:w-auto sm:px-4 shrink-0 text-xs sm:text-sm"
+                  className="h-8 sm:h-9 w-8 sm:w-9 shrink-0"
                   size="sm"
                 >
                   {credits && credits.balance < getCreditsCost() ? (
-                    <>
-                      <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
-                      <span className="hidden sm:inline">Upgrade</span>
-                    </>
+                    <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   ) : (
                     <>
                       {isGenerating ? (
-                        <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2 animate-spin" />
+                        <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
                       ) : (
-                        <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
+                        <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       )}
-                      <span className="hidden sm:inline">Generate</span>
                     </>
                   )}
                 </Button>
@@ -963,34 +1109,24 @@ export function UnifiedChatInterface({
                   disabled={!inputValue.trim() || isEnhancing || isGenerating}
                   variant="outline"
                   size="sm"
-                  className="h-8 sm:h-9 w-full min-w-[60px] sm:w-auto sm:px-4 shrink-0 text-xs sm:text-sm"
+                  className="h-8 sm:h-9 w-8 sm:w-9 shrink-0"
                 >
                   {isEnhancing ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2 animate-spin" />
-                      <span className="hidden sm:inline">Enhancing...</span>
-                    </>
+                    <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
                   ) : isEnhanced ? (
-                    <>
-                      <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
-                      <span className="hidden sm:inline">Restore</span>
-                    </>
+                    <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   ) : (
-                    <>
-                      <Wand2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
-                      <span className="hidden sm:inline">Enhance</span>
-                    </>
+                    <Wand2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   )}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleUploadModalOpen}
-                  className="h-8 sm:h-9 w-full min-w-[60px] sm:w-auto sm:px-4 shrink-0"
+                  className="h-8 sm:h-9 w-8 sm:w-9 shrink-0"
                   disabled={isGenerating}
                 >
-                  <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Upload</span>
+                  <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </Button>
               </div>
               </div>
@@ -1006,15 +1142,15 @@ export function UnifiedChatInterface({
               </Alert>
             )}
             
-            {/* Compact Controls */}
-            <div className="space-y-1">
-              {/* Style, Aspect Ratio, and Image Type in one row */}
-              <div className="grid grid-cols-3 gap-1 sm:gap-2">
+              {/* Compact Controls */}
+              <div className="space-y-1">
+                {/* Style, Aspect Ratio, and Image Type in one row */}
+                <div className="grid grid-cols-3 gap-2">
                 {/* Style Selection */}
                 <div className="space-y-0.5 sm:space-y-1">
                   <Label className="text-[10px] sm:text-xs font-medium">Style</Label>
                   <Select value={selectedStyle} onValueChange={setSelectedStyle}>
-                    <SelectTrigger className="h-6 sm:h-7 text-[10px] sm:text-xs">
+                    <SelectTrigger className="h-7 sm:h-8 text-[10px] sm:text-xs w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1037,7 +1173,7 @@ export function UnifiedChatInterface({
                 <div className="space-y-0.5 sm:space-y-1">
                   <Label className="text-[10px] sm:text-xs font-medium">Ratio</Label>
                   <Select value={aspectRatio} onValueChange={setAspectRatio}>
-                    <SelectTrigger className="h-6 sm:h-7 text-[10px] sm:text-xs">
+                    <SelectTrigger className="h-7 sm:h-8 text-[10px] sm:text-xs w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1060,7 +1196,7 @@ export function UnifiedChatInterface({
                 <div className="space-y-0.5 sm:space-y-1">
                   <Label className="text-[10px] sm:text-xs font-medium">Type</Label>
                   <Select value={imageType} onValueChange={setImageType}>
-                    <SelectTrigger className="h-6 sm:h-7 text-[10px] sm:text-xs">
+                    <SelectTrigger className="h-7 sm:h-8 text-[10px] sm:text-xs w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1170,8 +1306,8 @@ export function UnifiedChatInterface({
       )}>
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'prompt-to-image' | 'image-to-video' | 'canvas-editor')} className="flex flex-col h-full">
-          <div className="border-b border-border flex-shrink-0">
-            <TabsList className="w-full justify-start rounded-none">
+          <div className="border-b border-border flex-shrink-0 h-11 flex items-center">
+            <TabsList className="w-full justify-start rounded-none h-full">
               <TabsTrigger value="prompt-to-image" className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm px-2 sm:px-4">
                 {getTabIcon('prompt-to-image')}
                 <span className="hidden sm:inline">Prompt to Image</span>
@@ -1194,43 +1330,6 @@ export function UnifiedChatInterface({
           <div className="flex-1 p-1 sm:p-2 overflow-hidden min-h-0">
           <TabsContent value="prompt-to-image" className="h-full">
             <div className="h-full flex flex-col lg:flex-row items-center justify-center max-h-[calc(100vh-8rem)]">
-              {/* Version History Sidebar - Desktop only, collapsible on tablet */}
-              {messages.some(m => m.render) && (
-                <div className="hidden lg:block w-32 xl:w-48 border-r border-border pr-2 xl:pr-4 mr-2 xl:mr-4">
-                  <h3 className="text-xs xl:text-sm font-medium mb-2 xl:mb-3">Versions</h3>
-                  <div className="space-y-1.5 xl:space-y-2 max-h-96 overflow-y-auto">
-                    {messages
-                      .filter(m => m.render)
-                      .map((message, index) => (
-                        <div
-                          key={message.id}
-                          className={cn(
-                            "p-1.5 xl:p-2 rounded border cursor-pointer transition-colors",
-                            currentRender?.id === message.render?.id
-                              ? "bg-primary/10 border-primary"
-                              : "hover:bg-muted"
-                          )}
-                          onClick={() => setCurrentRender(message.render!)}
-                        >
-                          <div className="text-[10px] xl:text-xs text-muted-foreground mb-1">
-                            V{index + 1}
-                          </div>
-                          <Image
-                            src={message.render!.outputUrl}
-                            alt={`Version ${index + 1}`}
-                            width={100}
-                            height={60}
-                            className="w-full h-12 xl:h-16 object-cover rounded"
-                          />
-                          <div className="text-[10px] xl:text-xs text-muted-foreground mt-1 truncate">
-                            {message.content}
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-              
               {/* Mobile Version Selector */}
               {messages.some(m => m.render) && (
                 <div className="lg:hidden w-full mb-2">
@@ -1249,7 +1348,7 @@ export function UnifiedChatInterface({
                         .filter(m => m.render)
                         .map((message, index) => (
                           <SelectItem key={message.id} value={message.render!.id} className="text-xs">
-                            Version {index + 1} - {message.content.substring(0, 30)}...
+                            Version {message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1} - {message.content.substring(0, 30)}...
                           </SelectItem>
                         ))}
                     </SelectContent>
@@ -1257,13 +1356,13 @@ export function UnifiedChatInterface({
                 </div>
               )}
               
-              <div className="flex-1 overflow-hidden w-full">
+              <div className="flex-1 overflow-hidden w-full max-h-[calc(100vh-8rem)]">
               {isGenerating || isImageGenerating ? (
-                <Card className="w-full h-full py-0">
+                <Card className="w-full h-full py-0 gap-0">
                   <CardContent className="p-0 h-full">
                     <div className="h-full flex flex-col">
                       {/* Loading Display */}
-                      <div className="flex-1 bg-muted rounded-t-lg overflow-hidden relative min-h-[200px] sm:min-h-[300px] lg:min-h-[400px] max-h-[70vh]">
+                      <div className="flex-1 bg-muted rounded-t-lg overflow-hidden relative min-h-[200px] sm:min-h-[300px]">
                         <div className="w-full h-full flex items-center justify-center relative p-1">
                           <div className="text-center space-y-3 sm:space-y-6">
                             <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
@@ -1286,11 +1385,11 @@ export function UnifiedChatInterface({
                   </CardContent>
                 </Card>
               ) : currentRender ? (
-                <Card className="w-full h-full py-0">
+                <Card className="w-full h-full py-0 gap-0">
                   <CardContent className="p-0 h-full">
                     <div className="h-full flex flex-col">
                       {/* Image Display */}
-                      <div className="flex-1 bg-muted rounded-t-lg overflow-hidden relative min-h-[200px] sm:min-h-[300px] lg:min-h-[400px] max-h-[70vh]">
+                      <div className="flex-1 bg-muted rounded-t-lg overflow-hidden relative min-h-[200px] sm:min-h-[300px]">
                         <div className="w-full h-full flex items-center justify-center relative p-0.5 sm:p-1">
                         <Image
                           src={currentRender.outputUrl}
@@ -1430,6 +1529,43 @@ export function UnifiedChatInterface({
                 </div>
               )}
               </div>
+              
+              {/* Version History Sidebar - Right side, Desktop only */}
+              {messages.some(m => m.render) && (
+                <div className="hidden lg:flex lg:flex-col w-32 xl:w-48 border-l border-border pl-2 xl:pl-4 ml-2 xl:ml-4 max-h-[calc(100vh-8rem)]">
+                  <h3 className="text-xs xl:text-sm font-medium mb-2 xl:mb-3 flex-shrink-0">Versions</h3>
+                  <div className="space-y-1.5 xl:space-y-2 flex-1 overflow-y-auto min-h-0">
+                    {messages
+                      .filter(m => m.render)
+                      .map((message, index) => (
+                        <div
+                          key={message.id}
+                          className={cn(
+                            "p-1.5 xl:p-2 rounded border cursor-pointer transition-colors",
+                            currentRender?.id === message.render?.id
+                              ? "bg-primary/10 border-primary"
+                              : "hover:bg-muted"
+                          )}
+                          onClick={() => setCurrentRender(message.render!)}
+                        >
+                          <div className="text-[10px] xl:text-xs text-muted-foreground mb-1">
+                            V{message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}
+                          </div>
+                          <Image
+                            src={message.render!.outputUrl}
+                            alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
+                            width={100}
+                            height={60}
+                            className="w-full h-12 xl:h-16 object-cover rounded"
+                          />
+                          <div className="text-[10px] xl:text-xs text-muted-foreground mt-1 truncate">
+                            {message.content}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
           </TabsContent>
 

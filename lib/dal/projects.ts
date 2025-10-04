@@ -61,7 +61,7 @@ export class ProjectsDAL {
     return project || null;
   }
 
-  static async getByUserId(userId: string, limit = 20, offset = 0): Promise<Project[]> {
+  static async getByUserId(userId: string, limit = 100, offset = 0): Promise<Project[]> {
     return db
       .select()
       .from(projects)

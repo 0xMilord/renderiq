@@ -5,10 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { toast } from 'sonner';
-import { Square, Circle, Triangle, Hexagon, Pentagon, Octagon } from 'lucide-react';
 
 interface CreateProjectModalProps {
   children: React.ReactNode;
@@ -22,18 +20,8 @@ export function CreateProjectModal({ children, open: controlledOpen, onOpenChang
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setOpen = onOpenChange || setInternalOpen;
   const [loading, setLoading] = useState(false);
-  const [selectedShape, setSelectedShape] = useState<string>('square');
   const formRef = useRef<HTMLFormElement>(null);
   const { addProject } = useProjects();
-
-  const shapes = [
-    { id: 'square', name: 'Square', icon: Square, color: 'bg-blue-500' },
-    { id: 'circle', name: 'Circle', icon: Circle, color: 'bg-green-500' },
-    { id: 'triangle', name: 'Triangle', icon: Triangle, color: 'bg-red-500' },
-    { id: 'hexagon', name: 'Hexagon', icon: Hexagon, color: 'bg-purple-500' },
-    { id: 'pentagon', name: 'Pentagon', icon: Pentagon, color: 'bg-orange-500' },
-    { id: 'octagon', name: 'Octagon', icon: Octagon, color: 'bg-pink-500' },
-  ];
 
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -46,20 +34,26 @@ export function CreateProjectModal({ children, open: controlledOpen, onOpenChang
       return;
     }
 
-    console.log('📝 [CreateProjectModal] Preparing form data:', {
-      projectName,
-      selectedShape
-    });
-
     setLoading(true);
     try {
-      // Create a simple project without file upload
-      // For now, we'll create a mock project since the current system expects a file
-      const mockFile = new File([''], 'shape-project.png', { type: 'image/png' });
+      // Generate a random shape for the project
+      const shapes = ['square', 'circle', 'triangle', 'hexagon', 'pentagon', 'octagon'];
+      const randomShape = shapes[Math.floor(Math.random() * shapes.length)];
+      
+      console.log('📝 [CreateProjectModal] Creating project with random shape:', randomShape);
+
+      // Generate DiceBear URL
+      const dicebearUrl = `https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(projectName + randomShape)}&backgroundColor=transparent&shape1Color=4a90e2&shape2Color=7b68ee&shape3Color=ff6b6b`;
+      
+      // Create a mock file for the DiceBear URL
+      const mockFile = new File([''], `shape-${randomShape}.svg`, { type: 'image/svg+xml' });
+      
+      // Create FormData for the existing createProject function
       const formData = new FormData();
       formData.append('file', mockFile);
-      formData.append('projectName', `${projectName} (${shapes.find(s => s.id === selectedShape)?.name})`);
-      formData.append('description', `Project based on ${selectedShape} shape`);
+      formData.append('projectName', projectName);
+      formData.append('description', `AI-generated project with ${randomShape} shape`);
+      formData.append('dicebearUrl', dicebearUrl); // Add DiceBear URL as metadata
 
       console.log('🎨 [CreateProjectModal] Calling addProject...');
       const result = await addProject(formData);
@@ -69,7 +63,6 @@ export function CreateProjectModal({ children, open: controlledOpen, onOpenChang
         console.log('✅ [CreateProjectModal] Project created successfully');
         toast.success('Project created successfully');
         setOpen(false);
-        setSelectedShape('square');
         // Reset form safely
         if (formRef.current) {
           formRef.current.reset();
@@ -78,6 +71,8 @@ export function CreateProjectModal({ children, open: controlledOpen, onOpenChang
         if (onProjectCreated && 'data' in result && result.data && typeof result.data === 'object' && 'id' in result.data) {
           onProjectCreated((result.data as { id: string }).id);
         }
+        // Refetch projects to update the list
+        // The projects will be refetched automatically due to revalidatePath in the action
       } else {
         console.error('❌ [CreateProjectModal] Project creation failed:', result.error);
         toast.error(result.error || 'Failed to create project');
@@ -99,66 +94,23 @@ export function CreateProjectModal({ children, open: controlledOpen, onOpenChang
         <DialogHeader>
           <DialogTitle>Create New Project</DialogTitle>
           <DialogDescription>
-            Enter a project name and select a base shape to start generating AI renders.
+            Enter a project name to create a new AI project with a unique shape-based avatar.
           </DialogDescription>
         </DialogHeader>
         
         <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
-            {/* Project Name and Shape Selection Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Project Name */}
-              <div className="space-y-2">
-                <Label htmlFor="projectName">Project Name</Label>
-                <Input
-                  id="projectName"
-                  name="projectName"
-                  placeholder="Enter project name"
-                  required
-                  maxLength={100}
-                  className="w-full"
-                />
-              </div>
-
-              {/* Shape Selection Dropdown */}
-              <div className="space-y-2">
-                <Label htmlFor="shape">Base Shape</Label>
-                <Select value={selectedShape} onValueChange={setSelectedShape}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a shape">
-                      <div className="flex items-center space-x-2">
-                        {(() => {
-                          const selectedShapeData = shapes.find(s => s.id === selectedShape);
-                          const IconComponent = selectedShapeData?.icon || Square;
-                          return (
-                            <>
-                              <div className={`w-4 h-4 rounded-full ${selectedShapeData?.color || 'bg-blue-500'} flex items-center justify-center`}>
-                                <IconComponent className="h-2.5 w-2.5 text-white" />
-                              </div>
-                              <span>{selectedShapeData?.name || 'Square'}</span>
-                            </>
-                          );
-                        })()}
-                      </div>
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {shapes.map((shape) => {
-                      const IconComponent = shape.icon;
-                      return (
-                        <SelectItem key={shape.id} value={shape.id}>
-                          <div className="flex items-center space-x-2">
-                            <div className={`w-4 h-4 rounded-full ${shape.color} flex items-center justify-center`}>
-                              <IconComponent className="h-2.5 w-2.5 text-white" />
-                            </div>
-                            <span>{shape.name}</span>
-                          </div>
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
+            {/* Project Name */}
+            <div className="space-y-2">
+              <Label htmlFor="projectName">Project Name</Label>
+              <Input
+                id="projectName"
+                name="projectName"
+                placeholder="Enter project name"
+                required
+                maxLength={100}
+                className="w-full"
+              />
             </div>
           </div>
 

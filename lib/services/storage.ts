@@ -82,7 +82,7 @@ export class StorageService {
     userId: string,
     fileName?: string,
     projectSlug?: string
-  ): Promise<{ url: string; key: string }> {
+  ): Promise<{ url: string; key: string; id: string }> {
     try {
       // Handle blob URLs by converting to buffer
       let buffer: Buffer;
@@ -123,9 +123,23 @@ export class StorageService {
         .from(bucket)
         .getPublicUrl(filePath);
 
+      // Create file storage record
+      const fileRecord = await db.insert(fileStorage).values({
+        userId,
+        fileName: finalFileName,
+        originalName: finalFileName,
+        mimeType: 'image/svg+xml',
+        size: buffer.length,
+        url: publicUrl,
+        key: data.path,
+        bucket,
+        isPublic: true,
+      }).returning({ id: fileStorage.id });
+
       return {
         url: publicUrl,
         key: data.path,
+        id: fileRecord[0].id,
       };
     } catch (error) {
       throw new Error(`Storage upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);

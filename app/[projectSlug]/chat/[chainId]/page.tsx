@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { UnifiedChatInterface } from '@/components/chat/unified-chat-interface';
 import { useProjectBySlug } from '@/lib/hooks/use-projects';
@@ -81,9 +81,9 @@ export default function ProjectChatPage() {
   }
 
   return (
-    <div className="h-screen bg-background overflow-hidden">
+    <div className="h-[calc(100vh-2.75rem)] bg-background overflow-hidden">
       {/* Chat Interface */}
-      <div className="h-[calc(100vh-3rem)]">
+      <div className="h-full">
         <UnifiedChatInterface
           projectId={project.id}
           chainId={chainId}

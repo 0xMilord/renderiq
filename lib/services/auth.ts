@@ -180,10 +180,17 @@ export class AuthService {
     try {
       const supabase = await createClient();
       
+      // Determine the correct redirect URL based on environment
+      const isLocalEnv = process.env.NODE_ENV === 'development';
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (isLocalEnv ? 'http://localhost:3000' : 'https://arqihive.com');
+      const redirectTo = `${siteUrl}/auth/callback`;
+      
+      console.log('🔐 AuthService: OAuth redirect URL:', redirectTo);
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+          redirectTo,
         },
       });
 

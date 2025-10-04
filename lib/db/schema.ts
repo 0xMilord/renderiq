@@ -111,7 +111,7 @@ export const projects = pgTable('projects', {
   name: text('name').notNull(),
   slug: text('slug').notNull().unique(),
   description: text('description'),
-  originalImageId: uuid('original_image_id').references(() => fileStorage.id).notNull(),
+  originalImageId: uuid('original_image_id').references(() => fileStorage.id),
   status: text('status', { enum: ['processing', 'completed', 'failed'] }).default('processing').notNull(),
   isPublic: boolean('is_public').default(false).notNull(),
   tags: jsonb('tags').$type<string[]>(),
@@ -127,7 +127,7 @@ export const projectVersions = pgTable('project_versions', {
   version: integer('version').notNull(),
   name: text('name').notNull(),
   description: text('description'),
-  originalImageId: uuid('original_image_id').references(() => fileStorage.id).notNull(),
+  originalImageId: uuid('original_image_id').references(() => fileStorage.id),
   changes: jsonb('changes').$type<Record<string, any>>(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });

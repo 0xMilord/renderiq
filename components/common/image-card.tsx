@@ -34,6 +34,8 @@ interface CommonImageCardProps {
   render?: Render;
   // Display mode
   viewMode?: 'default' | 'compact' | 'list';
+  // Variant
+  variant?: 'default' | 'owner';
   // Actions
   onView?: (item: GalleryItemWithDetails | Render) => void;
   onDownload?: (item: GalleryItemWithDetails | Render) => void;
@@ -50,6 +52,7 @@ export function CommonImageCard({
   galleryItem,
   render,
   viewMode = 'default',
+  variant = 'default',
   onView,
   onDownload,
   onLike,
@@ -104,6 +107,34 @@ export function CommonImageCard({
     return '2.4 MB';
   };
 
+  const getVersionLabel = () => {
+    if (variant === 'owner' && renderData.chainPosition !== undefined) {
+      return `Version ${renderData.chainPosition + 1}`;
+    }
+    return renderData.prompt;
+  };
+
+  const handleDownload = async () => {
+    if (!renderData.outputUrl) return;
+    
+    try {
+      const response = await fetch(renderData.outputUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `render-${renderData.id}.${renderData.type === 'video' ? 'mp4' : 'png'}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      onDownload?.(data);
+    } catch (error) {
+      console.error('Failed to download:', error);
+    }
+  };
+
   if (viewMode === 'list') {
     return (
       <Card className="hover:shadow-md transition-shadow">
@@ -141,7 +172,7 @@ export function CommonImageCard({
             {/* Content */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-2 mb-1">
-                <h3 className="text-sm font-medium truncate">{renderData.prompt}</h3>
+                <h3 className="text-sm font-medium truncate">{getVersionLabel()}</h3>
                 <Badge className={cn("text-xs", getStatusColor(renderData.status))}>
                   {renderData.status}
                 </Badge>
@@ -169,45 +200,68 @@ export function CommonImageCard({
             {/* Actions */}
             {showActions && (
               <div className="flex items-center space-x-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onView?.(data)}
-                  disabled={renderData.status !== 'completed'}
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onDownload?.(data)}
-                  disabled={renderData.status !== 'completed'}
-                >
-                  <Download className="h-4 w-4" />
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      <MoreVertical className="h-4 w-4" />
+                {variant === 'owner' ? (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onView?.(data)}
+                      disabled={renderData.status !== 'completed'}
+                    >
+                      <Eye className="h-4 w-4" />
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onLike?.(data)}>
-                      <Heart className="h-4 w-4 mr-2" />
-                      Like
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onShare?.(data)}>
-                      <Share2 className="h-4 w-4 mr-2" />
-                      Share
-                    </DropdownMenuItem>
-                    {onRemix && (
-                      <DropdownMenuItem onClick={() => onRemix?.(data)}>
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Remix
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleDownload}
+                      disabled={renderData.status !== 'completed'}
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onView?.(data)}
+                      disabled={renderData.status !== 'completed'}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleDownload}
+                      disabled={renderData.status !== 'completed'}
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => onLike?.(data)}>
+                          <Heart className="h-4 w-4 mr-2" />
+                          Like
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onShare?.(data)}>
+                          <Share2 className="h-4 w-4 mr-2" />
+                          Share
+                        </DropdownMenuItem>
+                        {onRemix && (
+                          <DropdownMenuItem onClick={() => onRemix?.(data)}>
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Remix
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -219,8 +273,8 @@ export function CommonImageCard({
   if (viewMode === 'compact') {
     return (
       <Card className="hover:shadow-md transition-shadow">
-        <CardContent className="p-2">
-          <div className="relative aspect-square">
+        <CardContent className="p-1">
+          <div className="relative aspect-[4/3]">
             {imageLoading && (
               <div className="absolute inset-0 flex items-center justify-center bg-muted rounded-lg">
                 <Loader2 className="h-6 w-6 animate-spin" />
@@ -246,11 +300,13 @@ export function CommonImageCard({
                 onError={handleImageError}
               />
             )}
-            <div className="absolute top-2 right-2">
-              <Badge className={cn("text-xs", getStatusColor(renderData.status))}>
-                {renderData.status}
-              </Badge>
-            </div>
+            {renderData.status !== 'completed' && (
+              <div className="absolute top-2 right-2">
+                <Badge className={cn("text-xs", getStatusColor(renderData.status))}>
+                  {renderData.status}
+                </Badge>
+              </div>
+            )}
             {showActions && (
               <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors rounded-lg flex items-center justify-center opacity-0 hover:opacity-100">
                 <div className="flex space-x-2">
@@ -265,7 +321,7 @@ export function CommonImageCard({
                   <Button
                     size="sm"
                     variant="secondary"
-                    onClick={() => onDownload?.(data)}
+                    onClick={handleDownload}
                     disabled={renderData.status !== 'completed'}
                   >
                     <Download className="h-4 w-4" />
@@ -275,7 +331,7 @@ export function CommonImageCard({
             )}
           </div>
           {showUser && userData && (
-            <div className="mt-2 text-xs text-muted-foreground truncate">
+            <div className="mt-1 text-[10px] text-muted-foreground truncate">
               by {userData.name || 'Anonymous'}
             </div>
           )}
@@ -288,7 +344,7 @@ export function CommonImageCard({
   return (
     <Card className="hover:shadow-lg transition-shadow group py-0">
       <CardContent className="p-0">
-        <div className="relative aspect-video rounded-t-xl overflow-hidden">
+        <div className="relative aspect-[4/3] rounded-t-xl overflow-hidden">
           {imageLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-muted">
               <Loader2 className="h-8 w-8 animate-spin" />
@@ -312,92 +368,110 @@ export function CommonImageCard({
               )}
               onLoad={handleImageLoad}
               onError={handleImageError}
-            />
-          )}
-          <div className="absolute top-3 right-3">
-            <Badge className={cn("text-xs", getStatusColor(renderData.status))}>
-              {renderData.status}
-            </Badge>
-          </div>
-          {showActions && (
-            <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-              <div className="flex space-x-2">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => onView?.(data)}
-                  disabled={renderData.status !== 'completed'}
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  View
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => onDownload?.(data)}
-                  disabled={renderData.status !== 'completed'}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
-                </Button>
+              />
+            )}
+            {renderData.status !== 'completed' && (
+              <div className="absolute top-3 right-3">
+                <Badge className={cn("text-xs", getStatusColor(renderData.status))}>
+                  {renderData.status}
+                </Badge>
               </div>
-            </div>
-          )}
+            )}
+            {showActions && (
+              <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                <div className="flex space-x-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => onView?.(data)}
+                    disabled={renderData.status !== 'completed'}
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    View
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={handleDownload}
+                    disabled={renderData.status !== 'completed'}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </Button>
+                </div>
+              </div>
+            )}
         </div>
-        <div className="p-4 rounded-b-xl">
-          <h3 className="font-medium text-sm mb-2 line-clamp-2">{renderData.prompt}</h3>
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <div className="flex items-center space-x-4">
+        <div className="p-2 rounded-b-xl">
+          <h3 className="font-medium text-xs mb-1 line-clamp-1">{getVersionLabel()}</h3>
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+            <div className="flex items-center space-x-2">
               <div className="flex items-center space-x-1">
-                <Calendar className="h-3 w-3" />
+                <Calendar className="h-2.5 w-2.5" />
                 <span>{formatDate(renderData.createdAt)}</span>
               </div>
               {showUser && userData && (
                 <div className="flex items-center space-x-1">
-                  <User className="h-3 w-3" />
+                  <User className="h-2.5 w-2.5" />
                   <span>{userData.name || 'Anonymous'}</span>
                 </div>
               )}
             </div>
             {showStats && galleryItem && (
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
                 <div className="flex items-center space-x-1">
-                  <Heart className="h-3 w-3" />
+                  <Heart className="h-2.5 w-2.5" />
                   <span>{galleryItem.likes}</span>
                 </div>
                 <div className="flex items-center space-x-1">
-                  <Eye className="h-3 w-3" />
+                  <Eye className="h-2.5 w-2.5" />
                   <span>{galleryItem.views}</span>
                 </div>
               </div>
             )}
             {showActions && (
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onLike?.(data)}
-                  className="h-6 w-6 p-0"
-                >
-                  <Heart className="h-3 w-3" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onShare?.(data)}
-                  className="h-6 w-6 p-0"
-                >
-                  <Share2 className="h-3 w-3" />
-                </Button>
-                {onRemix && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onRemix?.(data)}
-                    className="h-6 w-6 p-0"
-                  >
-                    <RefreshCw className="h-3 w-3" />
-                  </Button>
+              <div className="flex items-center space-x-1">
+                {variant === 'owner' ? (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleDownload}
+                      className="h-5 w-5 p-0"
+                      disabled={renderData.status !== 'completed'}
+                    >
+                      <Download className="h-2.5 w-2.5" />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onLike?.(data)}
+                      className="h-5 w-5 p-0"
+                    >
+                      <Heart className="h-2.5 w-2.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onShare?.(data)}
+                      className="h-5 w-5 p-0"
+                    >
+                      <Share2 className="h-2.5 w-2.5" />
+                    </Button>
+                    {onRemix && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onRemix?.(data)}
+                        className="h-5 w-5 p-0"
+                      >
+                        <RefreshCw className="h-2.5 w-2.5" />
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             )}

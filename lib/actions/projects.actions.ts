@@ -39,23 +39,53 @@ export async function createProject(formData: FormData) {
     const file = formData.get('file') as File;
     const projectName = formData.get('projectName') as string;
     const description = formData.get('description') as string;
+    const dicebearUrl = formData.get('dicebearUrl') as string;
 
     console.log('📝 [createProject] Form data received:', { 
       fileName: file?.name, 
       fileSize: file?.size, 
       fileType: file?.type,
       projectName, 
-      description 
+      description,
+      hasDicebearUrl: !!dicebearUrl
     });
-
-    if (!file) {
-      console.error('❌ [createProject] No file provided');
-      return { success: false, error: 'File is required' };
-    }
 
     if (!projectName) {
       console.error('❌ [createProject] No project name provided');
       return { success: false, error: 'Project name is required' };
+    }
+
+    // If DiceBear URL is provided, create project directly without file upload
+    if (dicebearUrl) {
+      console.log('🎨 [createProject] Creating project with DiceBear URL:', dicebearUrl);
+      
+      const projectData = {
+        userId: user.id,
+        name: projectName,
+        description: description || 'AI-generated project',
+        originalImageId: null, // No file upload needed
+        isPublic: false,
+        tags: ['shape-based', 'ai-generated'],
+        metadata: {
+          dicebearUrl,
+          createdBy: 'shape-generator'
+        }
+      };
+
+      const project = await ProjectsDAL.create(projectData);
+      console.log('✅ [createProject] Project created successfully:', project.id);
+
+      revalidatePath('/dashboard/projects');
+      revalidatePath('/projects');
+      revalidatePath('/chat');
+      
+      return { success: true, data: project };
+    }
+
+    // Original file upload logic for regular projects
+    if (!file) {
+      console.error('❌ [createProject] No file provided');
+      return { success: false, error: 'File is required' };
     }
 
     console.log('✅ [createProject] Validating form data...');
@@ -96,6 +126,7 @@ export async function createProject(formData: FormData) {
     };
   }
 }
+
 
 export async function createRender(formData: FormData) {
   try {

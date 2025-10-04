@@ -116,7 +116,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-y-auto`}
       >
         <JsonLd data={organizationSchema} />
         <JsonLd data={softwareSchema} />
@@ -133,7 +133,7 @@ export default function RootLayout({
           <AuthProvider>
             <UserOnboardingProvider>
               <Navbar />
-              <main className="min-h-screen">
+              <main>
                 {children}
               </main>
               <ConditionalFooter />

@@ -63,14 +63,40 @@ export async function GET(request: Request) {
       
       const forwardedHost = request.headers.get('x-forwarded-host');
       const isLocalEnv = process.env.NODE_ENV === 'development';
+      const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
       
-      if (isLocalEnv) {
-        return NextResponse.redirect(`${origin}${next}`);
+      console.log('🔄 Auth Callback: Redirect logic -', {
+        origin,
+        forwardedHost,
+        isLocalEnv,
+        isLocalhost,
+        siteUrl,
+        next
+      });
+      
+      let redirectUrl: string;
+      
+      if (isLocalEnv && isLocalhost) {
+        // Force localhost:3000 for local development
+        redirectUrl = `http://localhost:3000${next}`;
+        console.log('🔄 Auth Callback: Using localhost for development');
+      } else if (siteUrl) {
+        // Use configured site URL
+        redirectUrl = `${siteUrl}${next}`;
+        console.log('🔄 Auth Callback: Using configured site URL');
       } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`);
+        // Use forwarded host for production
+        redirectUrl = `https://${forwardedHost}${next}`;
+        console.log('🔄 Auth Callback: Using forwarded host for production');
       } else {
-        return NextResponse.redirect(`${origin}${next}`);
+        // Fallback to origin
+        redirectUrl = `${origin}${next}`;
+        console.log('🔄 Auth Callback: Using origin as fallback');
       }
+      
+      console.log('🔄 Auth Callback: Final redirect URL:', redirectUrl);
+      return NextResponse.redirect(redirectUrl);
     } else {
       console.error('❌ Auth Callback: Error exchanging code for session:', error);
     }
