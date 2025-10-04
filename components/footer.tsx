@@ -2,7 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Building2, Github, Twitter, Linkedin, Mail } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { InstallButton } from '@/components/pwa/install-button';
+// PWA install button removed
 
 export function Footer() {
   return (
@@ -45,7 +45,7 @@ export function Footer() {
                   <span className="text-sm text-muted-foreground">Theme:</span>
                   <ThemeToggle />
                 </div>
-                <InstallButton variant="outline" size="sm" />
+                {/* PWA install button removed */}
               </div>
             </div>
           </div>

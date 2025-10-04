@@ -9,8 +9,7 @@ import { UserOnboardingProvider } from "@/components/user-onboarding-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { JsonLd, organizationSchema, softwareSchema, websiteSchema, comprehensiveFAQSchema } from "@/components/seo/json-ld";
 import { SEOMonitor, SEOAnalytics } from "@/components/seo/seo-monitor";
-import { PWAProvider } from "@/components/pwa/pwa-provider";
-import { OfflineIndicator } from "@/components/pwa/offline-indicator";
+// PWA components removed
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -118,12 +117,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="hsl(15.1111 55.5556% 52.3529%)" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="wentire thinng" />
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        {/* PWA manifest and meta tags removed */}
         <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32x32.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16x16.png" />
       </head>
@@ -136,26 +130,23 @@ export default function RootLayout({
         <JsonLd data={comprehensiveFAQSchema} />
         <SEOMonitor />
         <SEOAnalytics />
-        <PWAProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <AuthProvider>
-              <UserOnboardingProvider>
-                <Navbar />
-                <main>
-                  {children}
-                </main>
-                <ConditionalFooter />
-                <BottomNav />
-                <OfflineIndicator />
-              </UserOnboardingProvider>
-            </AuthProvider>
-          </ThemeProvider>
-        </PWAProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <AuthProvider>
+            <UserOnboardingProvider>
+              <Navbar />
+              <main>
+                {children}
+              </main>
+              <ConditionalFooter />
+              <BottomNav />
+            </UserOnboardingProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

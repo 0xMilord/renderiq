@@ -10,8 +10,6 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "pwa:icons": "node scripts/generate-pwa-icons.js",
-    "pwa:setup": "npm run pwa:icons"
   },
   "dependencies": {
     "@dicebear/collection": "^9.2.4",
