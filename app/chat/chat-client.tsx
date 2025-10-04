@@ -85,6 +85,10 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
 
   const handleSelectChain = (chainId: string) => {
     setSelectedChainId(chainId);
+    // Close sidebar on mobile after selecting a chain
+    if (window.innerWidth < 640) { // sm breakpoint
+      setIsSidebarOpen(false);
+    }
   };
 
   const handleContinueEditing = () => {
