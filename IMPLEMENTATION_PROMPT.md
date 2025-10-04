@@ -1,8 +1,8 @@
-# AecoSec - Implementation Prompt for Next Developer
+# arqihive - Implementation Prompt for Next Developer
 
 ## 🚨 CRITICAL TASK: Fix Image Generation and Project Management System
 
-You are tasked with implementing critical fixes to the AecoSec image generation and project management system. This is a **HIGH PRIORITY** task that requires immediate attention.
+You are tasked with implementing critical fixes to the arqihive image generation and project management system. This is a **HIGH PRIORITY** task that requires immediate attention.
 
 ## 📋 Context
 

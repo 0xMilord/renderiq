@@ -10,9 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useCredits } from '@/lib/hooks/use-credits';
 import { useImageGeneration } from '@/lib/hooks/use-image-generation';
+import { useOptimisticGeneration } from '@/lib/hooks/use-optimistic-generation';
+import { useFormPersistence } from '@/lib/hooks/use-form-persistence';
+import { OptimisticRenderPreview } from './optimistic-render-preview';
+// import { GenerationProgress } from './generation-progress'; // Removed - handled by layout
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useRenderChain } from '@/lib/hooks/use-render-chain';
 import { 
@@ -22,7 +25,6 @@ import {
   Image as ImageIcon, 
   Video, 
   Sparkles,
-  ChevronUp,
   Plus
 } from 'lucide-react';
 import { 
@@ -44,10 +46,8 @@ import {
   FaTabletAlt
 } from 'react-icons/fa';
 import { Slider } from '@/components/ui/slider';
-import { VersionSelector } from './version-selector';
-import { RenderChainViz } from './render-chain-viz';
 import { useEngineStore } from '@/lib/stores/engine-store';
-import { Render } from '@/lib/db/schema';
+import { Render } from '@/lib/types/render';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { CreateProjectModal } from '@/components/projects/create-project-modal';
@@ -72,6 +72,9 @@ interface ControlBarProps {
   onGenerationStart?: () => void;
   onProjectChange?: (projectId: string) => void;
   onVersionSelect?: (render: Render) => void;
+  onClearRender?: () => void;
+  chainRenders?: Render[];
+  selectedRenderId?: string;
   isMobile?: boolean;
 }
 
@@ -103,7 +106,7 @@ const imageTypes = [
   { value: 'construction', label: 'Build', icon: FaHardHat, color: 'text-primary' },
 ];
 
-export function ControlBar({ engineType, chainId: initialChainId, iterateImageUrl, autoFillTrigger, onResult, onGenerationStart, onProjectChange, onVersionSelect, isMobile = false }: ControlBarProps) {
+export function ControlBar({ engineType, chainId: initialChainId, iterateImageUrl, autoFillTrigger, onResult, onGenerationStart, onProjectChange, onVersionSelect, onClearRender, chainRenders: externalChainRenders, selectedRenderId: externalSelectedRenderId, isMobile = false }: ControlBarProps) {
   console.log('🎛️ ControlBar mounted with initialChainId:', initialChainId);
   // State - must be declared before hooks that use them
   const [activeTab, setActiveTab] = useState('image');
@@ -117,7 +120,6 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
   const [aspectRatio, setAspectRatio] = useState('16:9');
   const [imageType, setImageType] = useState('3d-mass');
   const [duration, setDuration] = useState(5);
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [isPublic, setIsPublic] = useState(true);
   const [chainId, setChainId] = useState<string | undefined>(initialChainId);
@@ -130,6 +132,16 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
   // Version selection states
   const [selectedVersionId, setSelectedVersionId] = useState<string | undefined>();
   const [referenceRenderId, setReferenceRenderId] = useState<string | undefined>();
+  
+  // Seed support states
+  const [seed, setSeed] = useState<string>('');
+  const [useRandomSeed, setUseRandomSeed] = useState(true);
+  
+  // Track if we're in "new version" mode to prevent auto-fill
+  const [isNewVersionMode, setIsNewVersionMode] = useState(false);
+  
+  // Create project modal state
+  const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
 
   // Set chainId from prop - sync with prop changes only
   useEffect(() => {
@@ -145,12 +157,72 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
     }
   }, [initialChainId, chainId]); // Include chainId in dependencies
 
+  // Sync selected version ID with external prop
+  useEffect(() => {
+    if (externalSelectedRenderId && externalSelectedRenderId !== selectedVersionId) {
+      console.log('🔄 ControlBar: Syncing selected version ID from external:', externalSelectedRenderId);
+      setSelectedVersionId(externalSelectedRenderId);
+    }
+  }, [externalSelectedRenderId, selectedVersionId]);
+
   // Hooks - using state declared above
-  const { credits, refreshCredits } = useCredits();
-  const { generate, reset, isGenerating, result, error } = useImageGeneration();
-  const { projects, loading: projectsLoading } = useProjects();
-  const { chain, renders: chainRenders, fetchChain } = useRenderChain(chainId);
+  const { credits, refreshCredits, loading: creditsLoading, error: creditsError } = useCredits();
   
+  // Debug credits
+  console.log('💰 ControlBar: Credits state:', { 
+    credits, 
+    creditsLoading, 
+    creditsError,
+    hasCredits: !!credits,
+    balance: credits?.balance 
+  });
+
+  // Refresh credits on mount to ensure they're loaded
+  useEffect(() => {
+    if (!credits && !creditsLoading) {
+      console.log('🔄 ControlBar: Refreshing credits on mount');
+      refreshCredits();
+    }
+  }, [credits, creditsLoading, refreshCredits]);
+  const { generate, reset, isGenerating, result, error } = useImageGeneration();
+  const { generate: optimisticGenerate, optimisticRenders, isGenerating: isOptimisticGenerating } = useOptimisticGeneration();
+  const { projects, loading: projectsLoading } = useProjects();
+  const { chain, renders: internalChainRenders, fetchChain } = useRenderChain(chainId);
+  
+  // Use external chain renders if provided, otherwise use internal ones
+  const chainRenders = externalChainRenders || internalChainRenders;
+  
+  // Form persistence
+  const formState = {
+    prompt,
+    negativePrompt,
+    style: selectedStyle,
+    quality: renderSpeed,
+    aspectRatio,
+    imageType,
+    renderMode,
+    renderSpeed,
+    duration,
+    isPublic,
+    addToChain,
+  };
+
+  const formSetters = {
+    setPrompt,
+    setNegativePrompt,
+    setStyle: setSelectedStyle,
+    setQuality: setRenderSpeed,
+    setAspectRatio,
+    setImageType,
+    setRenderMode,
+    setRenderSpeed,
+    setDuration,
+    setIsPublic,
+    setAddToChain,
+  };
+
+  const { saveFormState, loadFormState } = useFormPersistence(formState, formSetters);
+
   // Engine store
   const {
     prompt: storePrompt,
@@ -182,6 +254,7 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
     console.log('🔄 ControlBar: Version selected from render chain:', renderId);
     console.log('🔄 ControlBar: Available chain renders:', chainRenders?.map(r => ({ id: r.id, status: r.status, hasOutputUrl: !!r.outputUrl })));
     setSelectedVersionId(renderId);
+    setIsNewVersionMode(false); // Reset flag when version is selected
     
     const selectedRender = chainRenders?.find(r => r.id === renderId);
     if (!selectedRender) {
@@ -294,6 +367,39 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
       renderSpeedValue
     });
   };
+
+  // Handle new version button click - clear everything
+  const handleNewVersion = () => {
+    console.log('🔄 ControlBar: New version button clicked - clearing all form fields');
+    setSelectedVersionId(undefined);
+    setReferenceRenderId(undefined);
+    setIsNewVersionMode(true); // Set flag to prevent auto-fill
+    // Clear form state
+    setPrompt('');
+    setNegativePrompt('');
+    setSelectedStyle('realistic');
+    setRenderSpeed('fast');
+    setAspectRatio('16:9');
+    setImageType('3d-mass');
+    setUploadedFile(null);
+    setPreviewUrl(null);
+    setRenderModeValue([0]);
+    setRenderSpeedValue([0]);
+    // Clear store state
+    setStorePrompt('');
+    setStoreNegativePrompt('');
+    setStoreStyle('realistic');
+    setStoreQuality('standard');
+    setStoreAspectRatio('16:9');
+    setStoreImageType('3d-mass');
+    setStoreUploadedFile(null);
+    
+    // Don't clear main render area - just clear the form
+    // The render chain should remain visible
+    console.log('🔄 ControlBar: Form cleared, keeping render chain visible');
+    
+    console.log('✅ ControlBar: Form and render area cleared for new version');
+  };
   
   // Sync slider values with existing state
   useEffect(() => {
@@ -301,8 +407,15 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
   }, [renderModeValue]);
   
   useEffect(() => {
-    setRenderSpeed(renderSpeedValue[0] === 0 ? 'fast' : 'best');
-  }, [renderSpeedValue]);
+    const newSpeed = renderSpeedValue[0] === 0 ? 'fast' : 'best';
+    console.log('⚡ ControlBar: Render speed changed:', { 
+      sliderValue: renderSpeedValue[0], 
+      newSpeed, 
+      oldSpeed: renderSpeed 
+    });
+    setRenderSpeed(newSpeed);
+    setStoreQuality(newSpeed === 'best' ? 'high' : 'standard');
+  }, [renderSpeedValue, renderSpeed]);
   
   // Sync local state with engine store
   useEffect(() => {
@@ -375,11 +488,24 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
 
   // Create preview URL for uploaded file
   useEffect(() => {
+    console.log('🖼️ ControlBar: Uploaded file changed:', { 
+      hasFile: !!uploadedFile, 
+      fileName: uploadedFile?.name,
+      fileType: uploadedFile?.type,
+      fileSize: uploadedFile?.size
+    });
+    
     if (uploadedFile) {
       const url = URL.createObjectURL(uploadedFile);
+      console.log('🖼️ ControlBar: Created preview URL:', url);
       setPreviewUrl(url);
-      return () => URL.revokeObjectURL(url);
+      setIsNewVersionMode(false); // Reset new version mode when file is uploaded
+      return () => {
+        console.log('🖼️ ControlBar: Revoking preview URL');
+        URL.revokeObjectURL(url);
+      };
     } else {
+      console.log('🖼️ ControlBar: No uploaded file, clearing preview URL');
       setPreviewUrl(null);
     }
   }, [uploadedFile]);
@@ -454,16 +580,37 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     
+    console.log('📁 ControlBar: File dropped:', { 
+      name: file.name, 
+      type: file.type, 
+      size: file.size,
+      isImage: file.type.startsWith('image/'),
+      isUnderLimit: file.size <= 10 * 1024 * 1024
+    });
+    
     if (!file.type.startsWith('image/')) {
+      console.log('❌ ControlBar: File is not an image');
       return;
     }
     
     if (file.size > 10 * 1024 * 1024) {
+      console.log('❌ ControlBar: File is too large');
       return;
     }
     
+    console.log('✅ ControlBar: Setting uploaded file');
     setUploadedFile(file);
-  }, []);
+    setStoreUploadedFile(file); // Also update store
+    setIsNewVersionMode(false); // Reset new version mode when file is uploaded
+    
+    // Debug: Check state after setting
+    setTimeout(() => {
+      console.log('🔍 ControlBar: State after upload:', { 
+        uploadedFile: !!uploadedFile, 
+        storeUploadedFile: !!storeUploadedFile 
+      });
+    }, 100);
+  }, [uploadedFile, storeUploadedFile, setStoreUploadedFile]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -480,12 +627,29 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
     }
     setUploadedFile(null);
     setPreviewUrl(null);
+    setStoreUploadedFile(null); // Also clear store state
+    
+    console.log('🗑️ ControlBar: File removed, clearing version selection');
+    // Clear version selection when file is removed
+    setSelectedVersionId(undefined);
+    setReferenceRenderId(undefined);
   };
 
   const getCreditsCost = () => {
     const baseCost = activeTab === 'video' ? 5 : 1;
     const speedMultiplier = renderSpeed === 'best' ? 2 : 1;
     return baseCost * speedMultiplier;
+  };
+
+  const handleProjectCreated = (newProjectId: string) => {
+    console.log('🎉 ControlBar: New project created:', newProjectId);
+    setSelectedProjectId(newProjectId);
+    setIsCreateProjectModalOpen(false);
+    
+    // Notify parent component about project change
+    if (onProjectChange) {
+      onProjectChange(newProjectId);
+    }
   };
 
   const handleGenerate = async () => {
@@ -521,8 +685,7 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
       return;
     }
 
-    console.log('🔄 ControlBar: Resetting state and starting generation');
-    reset();
+    console.log('🔄 ControlBar: Starting optimistic generation');
     
     // Notify parent component that generation has started
     if (onGenerationStart) {
@@ -530,7 +693,7 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
       onGenerationStart();
     }
     
-    console.log('🚀 ControlBar: Calling generate function');
+    console.log('🚀 ControlBar: Calling optimistic generate function');
     console.log('🚀 ControlBar: About to generate with chainId:', chainId);
     console.log('🔍 ControlBar: Current state before generate:', {
       chainId,
@@ -538,7 +701,8 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
       selectedProjectId
     });
     
-    const result = await generate({
+    // Use optimistic generation
+    await optimisticGenerate({
       prompt,
       style: selectedStyle,
       quality: renderSpeed === 'best' ? 'high' : 'standard',
@@ -552,9 +716,14 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
       chainId: addToChain ? (chainId || initialChainId) : undefined, // Only pass chainId if addToChain is true
       isPublic,
       referenceRenderId: referenceRenderId || undefined,
+      seed: useRandomSeed ? undefined : (seed ? parseInt(seed) : undefined),
+    }, (result) => {
+      console.log('📥 ControlBar: Optimistic result received:', result);
+      // Pass result to parent component
+      if (onResult) {
+        onResult(result);
+      }
     });
-
-    console.log('📥 ControlBar: Generate result received:', result);
 
     console.log('🔄 ControlBar: Refreshing credits');
     refreshCredits();
@@ -571,123 +740,112 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
   return (
     <div className={cn(
       "bg-background flex flex-col transition-all duration-300 z-30 overflow-x-hidden",
-      isMobile ? "w-full" : isCollapsed ? "w-16 border-r border-border" : "w-full lg:w-1/3 min-w-[280px] max-w-[400px] border-r border-border",
+      isMobile ? "w-full" : "w-full lg:w-1/3 min-w-[280px] max-w-[400px] border-r border-border",
       isMobile ? "h-full" : "h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)]"
     )}>
       {/* Header */}
-      <div className={`border-b border-border flex flex-col gap-2 flex-shrink-0 ${
+      <div className={`border-b border-border flex-shrink-0 ${
         isMobile ? 'p-2' : 'p-3'
       }`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2 flex-1 min-w-0">
-            <h2 className={`font-semibold text-foreground capitalize ${
-              isMobile ? 'text-xs' : 'text-sm'
-            }`}>
-              {isCollapsed ? engineType.charAt(0).toUpperCase() : `${engineType} AI`}
-            </h2>
-            {!isCollapsed && (
-            <div className="flex items-center space-x-2">
-              <Select value={selectedProjectId} onValueChange={(value) => {
-                if (value === 'create') {
-                  // Handle create project - could open a modal or navigate
-                  console.log('Create project clicked');
-                } else {
-                  setSelectedProjectId(value);
-                }
-              }}>
-                <SelectTrigger className={`${isMobile ? 'w-24 h-5 text-xs' : 'w-32 h-6 text-xs'}`}>
-                  <SelectValue placeholder="Project" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projectsLoading ? (
-                    <SelectItem value="loading" disabled>Loading...</SelectItem>
-                  ) : projects.length > 0 ? (
-                    projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.name}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="no-projects" disabled>No projects</SelectItem>
-                  )}
-                  <SelectItem value="create" className="text-primary">
-                    <div className="flex items-center space-x-1">
-                      <Plus className="h-3 w-3" />
-                      <span>Create Project</span>
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              
-              {/* Public Toggle */}
-              <div className="flex items-center space-x-1">
-                <Switch
-                  checked={isPublic}
-                  onCheckedChange={setIsPublic}
-                  className={isMobile ? "scale-50" : "scale-75"}
-                />
-                <span className={`${isMobile ? 'text-xs' : 'text-xs'} text-muted-foreground`}>
-                  {isMobile ? 'Pub' : 'Public'}
-                </span>
-              </div>
-            </div>
-          )}
-              
-          {/* Add to Chain Toggle - Always visible */}
-              <div className="flex items-center space-x-1">
-            <Switch
-              checked={addToChain}
-              onCheckedChange={setAddToChain}
-              className={isMobile ? "scale-50" : "scale-75"}
-            />
-            <span className={`${isMobile ? 'text-xs' : 'text-xs'} text-muted-foreground`}>
-              {isMobile ? 'Chain' : 'Chain'}
-            </span>
-          </div>
-            </div>
+        <div className="flex items-center justify-between gap-2">
+          {/* Left side - Project and Version controls */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {/* Project Dropdown */}
+            <Select value={selectedProjectId} onValueChange={(value) => {
+              if (value === 'create') {
+                // Open create project modal
+                console.log('Create project clicked');
+                setIsCreateProjectModalOpen(true);
+              } else {
+                setSelectedProjectId(value);
+              }
+            }}>
+              <SelectTrigger className={`${isMobile ? 'w-24 h-6 text-xs' : 'w-32 h-7 text-xs'}`}>
+                <SelectValue placeholder="Project" />
+              </SelectTrigger>
+              <SelectContent>
+                {projectsLoading ? (
+                  <SelectItem value="loading" disabled>Loading...</SelectItem>
+                ) : projects.length > 0 ? (
+                  projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="no-projects" disabled>No projects</SelectItem>
+                )}
+                <SelectItem value="create" className="text-primary">
+                  <div className="flex items-center space-x-1">
+                    <Plus className="h-3 w-3" />
+                    <span>Create Project</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {/* Version Dropdown */}
+            <Select value={selectedVersionId || ''} onValueChange={(value) => {
+              if (value === '') {
+                setSelectedVersionId(undefined);
+                // Clear the uploaded file and form when version is cleared
+                setUploadedFile(null);
+                setPreviewUrl(null);
+                setStoreUploadedFile(null);
+                console.log('🗑️ ControlBar: Version cleared, form reset');
+              } else {
+                setSelectedVersionId(value);
+                handleVersionSelect(value);
+              }
+            }}>
+              <SelectTrigger className={`${isMobile ? 'w-16 h-6 text-xs' : 'w-20 h-7 text-xs'}`}>
+                <SelectValue placeholder="Version">
+                  {selectedVersionId ? 
+                    `v${(chainRenders?.findIndex(r => r.id === selectedVersionId) || 0) + 1}` : 
+                    chainRenders && chainRenders.length > 0 ? 'Version' : 'No versions'
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {chainRenders && chainRenders
+                  .filter(r => r.status === 'completed' && r.outputUrl)
+                  .sort((a, b) => (a.chainPosition || 0) - (b.chainPosition || 0))
+                  .map((render, index) => (
+                    <SelectItem key={render.id} value={render.id}>
+                      v{index + 1}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            
+            {/* New Version Button */}
+            {selectedVersionId && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNewVersion}
+                className={`${isMobile ? 'w-8 h-6 text-xs px-1' : 'w-10 h-7 text-xs px-2'} flex items-center justify-center`}
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
+            )}
           </div>
           
-          {/* Version Selector in Accordion */}
-          <div className={`${isMobile ? 'mt-1' : 'mt-2'}`}>
-            <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="versions" className="border-0">
-                <AccordionTrigger className={`${isMobile ? 'py-1 px-0 text-xs' : 'py-2 px-0 text-sm'} hover:no-underline`}>
-                  <div className="flex items-center space-x-2">
-                    <History className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'}`} />
-                    <span>Render Chain</span>
-                    {chainRenders && chainRenders.length > 0 && (
-                      <span className="text-xs bg-muted px-1.5 py-0.5 rounded">
-                        {chainRenders.filter(r => r.status === 'completed' && r.outputUrl).length}
-                      </span>
-                    )}
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pb-0">
-                  <VersionSelector
-                    renders={chainRenders || []}
-                    selectedVersionId={selectedVersionId}
-                    onSelectVersion={handleVersionSelect}
-                    onUseAsReference={setReferenceRenderId}
-                  />
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
+          {/* Right side - Public Toggle */}
+          <div className="flex items-center space-x-1 flex-shrink-0">
+            <Switch
+              checked={isPublic}
+              onCheckedChange={setIsPublic}
+              className={isMobile ? "scale-75" : "scale-90"}
+            />
+            <span className={`${isMobile ? 'text-xs' : 'text-xs'} text-muted-foreground whitespace-nowrap`}>
+              {isMobile ? 'Pub' : 'Public'}
+            </span>
           </div>
-        
-        {!isMobile && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-1 h-6 w-6"
-          >
-            <ChevronUp className={cn("h-3 w-3 transition-transform", isCollapsed && "rotate-180")} />
-          </Button>
-        )}
+        </div>
       </div>
 
-      {!isCollapsed && (
-        <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex-1 flex flex-col min-h-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col h-full">
             <div className={`${isMobile ? 'px-2 mt-2 mb-1' : 'px-3 mt-3 mb-2'} flex-shrink-0`}>
               <TabsList className={`grid w-full grid-cols-2 ${isMobile ? 'h-6' : 'h-8'}`}>
@@ -706,6 +864,24 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
               <TabsContent value="image" className={`${isMobile ? 'px-2' : 'px-3'} flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden data-[state=inactive]:!hidden`}>
               {/* Scrollable Content */}
               <div className={`flex-1 overflow-y-auto ${isMobile ? 'space-y-2 pb-1' : 'space-y-3 pb-2'}`}>
+                
+                {/* Generation Progress - Removed, handled by layout */}
+
+                {/* Optimistic Renders Preview */}
+                {optimisticRenders.length > 0 && (
+                  <OptimisticRenderPreview 
+                    renders={optimisticRenders}
+                    onRemove={(id) => {
+                      // Remove optimistic render
+                      console.log('Remove optimistic render:', id);
+                    }}
+                    onRetry={(id) => {
+                      // Retry generation - could implement retry logic here
+                      console.log('Retry generation for:', id);
+                    }}
+                    isMobile={isMobile}
+                  />
+                )}
 
                 {/* Upload Section */}
                 <div className="space-y-2">
@@ -737,6 +913,8 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
                           alt="Uploaded preview"
                           fill
                           className="object-cover"
+                          onLoad={() => console.log('✅ ControlBar: Image loaded successfully')}
+                          onError={(e) => console.error('❌ ControlBar: Image failed to load:', e)}
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
@@ -920,24 +1098,66 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
                   })}
                 </div>
               </div>
+
+              {/* Seed Controls */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Seed (Optional)</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={useRandomSeed}
+                      onCheckedChange={(checked) => {
+                        setUseRandomSeed(checked);
+                        if (checked) {
+                          setSeed('');
+                        }
+                      }}
+                      className="scale-75"
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      {useRandomSeed ? 'Random' : 'Custom'}
+                    </span>
+                  </div>
+                  
+                  {!useRandomSeed && (
+                    <div className="space-y-1">
+                      <Input
+                        value={seed}
+                        onChange={(e) => setSeed(e.target.value)}
+                        placeholder="Enter seed value (numbers only)"
+                        className="h-7 text-xs"
+                        type="number"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSeed(Math.floor(Math.random() * 1000000).toString())}
+                        className="h-6 text-xs w-full"
+                      >
+                        Generate Random
+                      </Button>
+                      <p className="text-xs text-amber-600">
+                        Note: Seed support requires Google Cloud Project setup
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
               </div>
 
-              {/* Chain Visualization */}
-              <div className="mt-4">
-                <RenderChainViz
-                  renders={chainRenders || []}
-                  selectedRenderId={selectedVersionId}
-                  onSelectRender={handleVersionSelect}
-                  isMobile={isMobile}
-                />
-              </div>
 
               {/* Pinned Generate Button */}
               <div className="flex-shrink-0 space-y-1 pt-2 border-t border-border bg-background">
                 <div className="flex items-center justify-between text-xs px-1">
                   <span>Credits: {creditsCost}</span>
                   <span className="text-muted-foreground">
-                    Balance: {credits?.balance || 0}
+                    {creditsLoading ? (
+                      'Loading...'
+                    ) : creditsError ? (
+                      'Error loading'
+                    ) : (
+                      `Balance: ${credits?.balance || 0}`
+                    )}
                   </span>
                 </div>
 
@@ -974,16 +1194,11 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
 
                 <Button
                   onClick={handleGenerate}
-                  disabled={!prompt.trim() || !selectedProjectId || isGenerating || (credits && credits.balance < creditsCost)}
+                  disabled={!prompt.trim() || !selectedProjectId || (isGenerating || isOptimisticGenerating) || (credits && credits.balance < creditsCost)}
                   className="w-full h-8"
                   size="sm"
                 >
-                  {isGenerating ? (
-                    <>
-                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1" />
-                      Generating...
-                    </>
-                  ) : credits && credits.balance < creditsCost ? (
+                  {credits && credits.balance < creditsCost ? (
                     <>
                       <Sparkles className="h-3 w-3 mr-1" />
                       Upgrade to Generate
@@ -1050,7 +1265,13 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
                 <div className="flex items-center justify-between text-xs px-1">
                   <span>Credits: {creditsCost}</span>
                   <span className="text-muted-foreground">
-                    Balance: {credits?.balance || 0}
+                    {creditsLoading ? (
+                      'Loading...'
+                    ) : creditsError ? (
+                      'Error loading'
+                    ) : (
+                      `Balance: ${credits?.balance || 0}`
+                    )}
                   </span>
                 </div>
 
@@ -1080,16 +1301,11 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
 
                 <Button
                   onClick={handleGenerate}
-                  disabled={!prompt.trim() || !selectedProjectId || isGenerating || (credits && credits.balance < creditsCost)}
+                  disabled={!prompt.trim() || !selectedProjectId || (isGenerating || isOptimisticGenerating) || (credits && credits.balance < creditsCost)}
                   className="w-full h-8"
                   size="sm"
                 >
-                  {isGenerating ? (
-                    <>
-                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1" />
-                      Generating Video...
-                    </>
-                  ) : credits && credits.balance < creditsCost ? (
+                  {credits && credits.balance < creditsCost ? (
                     <>
                       <Video className="h-3 w-3 mr-1" />
                       Upgrade to Generate
@@ -1123,10 +1339,13 @@ export function ControlBar({ engineType, chainId: initialChainId, iterateImageUr
             </div>
           </Tabs>
         </div>
-      )}
 
       {/* Create Project Modal */}
-      <CreateProjectModal>
+      <CreateProjectModal 
+        open={isCreateProjectModalOpen} 
+        onOpenChange={setIsCreateProjectModalOpen}
+        onProjectCreated={handleProjectCreated}
+      >
         <div className="hidden" />
       </CreateProjectModal>
     </div>

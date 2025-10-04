@@ -14,7 +14,7 @@ export interface WatermarkOptions {
 
 export class WatermarkService {
   private static readonly DEFAULT_OPTIONS: Required<WatermarkOptions> = {
-    text: 'AecoSec',
+    text: 'arqihive',
     opacity: 0.7,
     position: 'bottom-right',
     fontSize: 24,

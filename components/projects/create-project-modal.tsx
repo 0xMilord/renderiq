@@ -13,10 +13,15 @@ import { toast } from 'sonner';
 
 interface CreateProjectModalProps {
   children: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onProjectCreated?: (projectId: string) => void;
 }
 
-export function CreateProjectModal({ children }: CreateProjectModalProps) {
-  const [open, setOpen] = useState(false);
+export function CreateProjectModal({ children, open: controlledOpen, onOpenChange, onProjectCreated }: CreateProjectModalProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = onOpenChange || setInternalOpen;
   const [loading, setLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -82,6 +87,10 @@ export function CreateProjectModal({ children }: CreateProjectModalProps) {
         // Reset form safely
         if (formRef.current) {
           formRef.current.reset();
+        }
+        // Notify parent component about the new project
+        if (onProjectCreated && result.data?.id) {
+          onProjectCreated(result.data.id);
         }
       } else {
         console.error('❌ [CreateProjectModal] Project creation failed:', result.error);

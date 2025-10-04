@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { RenderDisplay } from '@/components/render-display';
+import { CommonImageCard } from '@/components/common/image-card';
+import { ImageModal } from '@/components/common/image-modal';
 import { Button } from '@/components/ui/button';
-import { Loader2, Heart, Eye } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import type { GalleryItemWithDetails } from '@/lib/types';
 
 interface GalleryGridProps {
@@ -13,6 +14,7 @@ interface GalleryGridProps {
   onLoadMore: () => void;
   onLike: (itemId: string) => Promise<{ success: boolean; error?: string }>;
   onView: (itemId: string) => void;
+  onRemix?: (prompt: string) => void;
 }
 
 export function GalleryGrid({ 
@@ -21,22 +23,25 @@ export function GalleryGrid({
   hasMore, 
   onLoadMore, 
   onLike, 
-  onView 
+  onView,
+  onRemix
 }: GalleryGridProps) {
-  const [likedItems, setLikedItems] = useState<Set<string>>(new Set());
+  const [selectedItem, setSelectedItem] = useState<GalleryItemWithDetails | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleLike = async (itemId: string) => {
-    const result = await onLike(itemId);
-    if (result.success) {
-      setLikedItems(prev => {
-        const newSet = new Set(prev);
-        if (newSet.has(itemId)) {
-          newSet.delete(itemId);
-        } else {
-          newSet.add(itemId);
-        }
-        return newSet;
-      });
+  const handleLike = async (item: GalleryItemWithDetails) => {
+    await onLike(item.id);
+  };
+
+  const handleView = (item: GalleryItemWithDetails) => {
+    setSelectedItem(item);
+    setIsModalOpen(true);
+    onView(item.id);
+  };
+
+  const handleRemix = (prompt: string) => {
+    if (onRemix) {
+      onRemix(prompt);
     }
   };
 
@@ -62,56 +67,51 @@ export function GalleryGrid({
   }
 
   return (
-    <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {items.map((item) => (
-          <div key={item.id} className="group relative">
-            <div className="transition-transform duration-200 group-hover:scale-[1.02]">
-              <RenderDisplay
-                render={item.render}
-                onLike={() => handleLike(item.id)}
-                onView={() => onView(item.id)}
-                showActions={true}
-              />
-            </div>
-            <div className="mt-3 flex items-center justify-between text-sm">
-              <div className="flex items-center space-x-4">
-                <span className="flex items-center space-x-1 text-muted-foreground">
-                  <Heart className="h-4 w-4" />
-                  <span className="font-medium">{item.likes}</span>
-                </span>
-                <span className="flex items-center space-x-1 text-muted-foreground">
-                  <Eye className="h-4 w-4" />
-                  <span className="font-medium">{item.views}</span>
-                </span>
-              </div>
-              <span className="text-xs text-muted-foreground truncate max-w-[120px]">
-                by {item.user.name || 'Anonymous'}
-              </span>
-            </div>
+    <>
+      <div className="space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {items.map((item) => (
+            <CommonImageCard
+              key={item.id}
+              galleryItem={item}
+              onView={handleView}
+              onLike={handleLike}
+              onRemix={onRemix ? () => handleRemix(item.render.prompt) : undefined}
+              showUser={true}
+              showStats={true}
+              showActions={true}
+            />
+          ))}
+        </div>
+
+        {hasMore && (
+          <div className="flex justify-center">
+            <Button
+              onClick={onLoadMore}
+              disabled={loading}
+              variant="outline"
+              className="flex items-center space-x-2"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Loading...</span>
+                </>
+              ) : (
+                <span>Load More</span>
+              )}
+            </Button>
           </div>
-        ))}
+        )}
       </div>
 
-      {hasMore && (
-        <div className="flex justify-center">
-          <Button
-            onClick={onLoadMore}
-            disabled={loading}
-            variant="outline"
-            className="flex items-center space-x-2"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Loading...</span>
-              </>
-            ) : (
-              <span>Load More</span>
-            )}
-          </Button>
-        </div>
-      )}
-    </div>
+      <ImageModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        item={selectedItem}
+        onLike={handleLike}
+        onRemix={onRemix ? handleRemix : undefined}
+      />
+    </>
   );
 }

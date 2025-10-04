@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  title: "AI Architecture Use Cases | Real-Time Visualization & Design | AecoSec",
+  title: "AI Architecture Use Cases | Real-Time Visualization & Design | arqihive",
   description: "Discover how AI transforms architectural design: real-time visualization, rapid prototyping, material testing, and more. See how architects, designers, and developers use AI for architectural rendering, interior design, and building visualization.",
   keywords: [
     "AI architecture",

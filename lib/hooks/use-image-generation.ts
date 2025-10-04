@@ -37,6 +37,7 @@ export function useImageGeneration() {
     negativePrompt?: string;
     imageType?: string;
     isPublic?: boolean;
+    seed?: number;
   }) => {
     try {
       console.log('🚀 Starting image generation via API');
@@ -84,6 +85,10 @@ export function useImageGeneration() {
 
       if (params.isPublic !== undefined) {
         formData.append('isPublic', params.isPublic.toString());
+      }
+
+      if (params.seed !== undefined) {
+        formData.append('seed', params.seed.toString());
       }
 
       console.log('📤 Sending request to API:', { 

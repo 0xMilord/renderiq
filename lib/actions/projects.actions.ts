@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { RenderService } from '@/lib/services/render';
 import { ProjectsDAL } from '@/lib/dal/projects';
-import { RendersDAL } from '@/lib/dal/projects';
+import { RendersDAL } from '@/lib/dal/renders';
 import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { RenderChainService } from '@/lib/services/render-chain';
 import { createClient } from '@/lib/supabase/server';
@@ -213,8 +213,20 @@ export async function getUserProjects() {
       return { success: false, error: 'Authentication required' };
     }
 
-    const projects = await ProjectsDAL.getByUserId(user.id);
-    return { success: true, data: projects };
+    const projects = await ProjectsDAL.getByUserIdWithRenderCounts(user.id);
+    
+    // Fetch latest renders for each project
+    const projectsWithRenders = await Promise.all(
+      projects.map(async (project) => {
+        const latestRenders = await ProjectsDAL.getLatestRenders(project.id, 4);
+        return {
+          ...project,
+          latestRenders
+        };
+      })
+    );
+    
+    return { success: true, data: projectsWithRenders };
   } catch (error) {
     console.error('Error in getUserProjects:', error);
     return {
@@ -517,6 +529,43 @@ export async function getRenderChain(chainId: string) {
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get render chain',
+    };
+  }
+}
+
+export async function deleteRenderChain(chainId: string) {
+  try {
+    const supabase = await createClient();
+    if (!supabase) {
+      return { success: false, error: 'Failed to initialize database connection' };
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    const chain = await RenderChainService.getChain(chainId);
+    
+    if (!chain) {
+      return { success: false, error: 'Chain not found' };
+    }
+
+    // Verify project ownership
+    const project = await ProjectsDAL.getById(chain.projectId);
+    if (!project || project.userId !== user.id) {
+      return { success: false, error: 'Access denied' };
+    }
+
+    await RenderChainService.deleteChain(chainId);
+    revalidatePath('/engine');
+    return { success: true };
+  } catch (error) {
+    console.error('Error in deleteRenderChain:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to delete render chain',
     };
   }
 }

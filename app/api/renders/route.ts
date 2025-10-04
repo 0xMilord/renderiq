@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { ImageGenerationService } from '@/lib/services/image-generation';
 import { addCredits, deductCredits } from '@/lib/actions/billing.actions';
-import { RendersDAL, ProjectsDAL } from '@/lib/dal/projects';
+import { ProjectsDAL } from '@/lib/dal/projects';
+import { RendersDAL } from '@/lib/dal/renders';
 import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { StorageService } from '@/lib/services/storage';
 
@@ -36,6 +37,8 @@ export async function POST(request: NextRequest) {
     const negativePrompt = formData.get('negativePrompt') as string | null;
     const imageType = formData.get('imageType') as string | null;
     const isPublic = formData.get('isPublic') === 'true';
+    const seedParam = formData.get('seed') as string | null;
+    const seed = seedParam ? parseInt(seedParam) : undefined;
 
     console.log('📝 Render parameters:', { 
       prompt, 
@@ -47,7 +50,8 @@ export async function POST(request: NextRequest) {
       projectId, 
       chainId,
       referenceRenderId,
-      isPublic 
+      isPublic,
+      seed
     });
 
     if (!prompt || !style || !quality || !aspectRatio || !type || !projectId) {
@@ -152,6 +156,7 @@ export async function POST(request: NextRequest) {
         uploadedImageType: uploadedImageType || undefined,
         negativePrompt: negativePrompt || undefined,
         imageType: imageType || undefined,
+        seed,
       });
 
       if (!result.success || !result.data) {

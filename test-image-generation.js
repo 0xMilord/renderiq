@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 
 /**
- * Test script for AecoSec AI Image Generation
+ * Test script for arqihive AI Image Generation
  * This script tests the image generation API endpoint
  */
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 
 async function testImageGeneration() {
-  console.log('🧪 Testing AecoSec AI Image Generation...\n');
+  console.log('🧪 Testing arqihive AI Image Generation...\n');
 
   const testCases = [
     {

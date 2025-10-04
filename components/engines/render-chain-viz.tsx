@@ -1,16 +1,23 @@
 'use client';
 
-import { Render } from '@/lib/db/schema';
+import { Render } from '@/lib/types/render';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ArrowRight, Check, Trash2, Plus } from 'lucide-react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils/cn';
+import { deleteRenderChain } from '@/lib/actions/projects.actions';
+import { toast } from 'sonner';
 
 interface RenderChainVizProps {
   renders: Render[];
   selectedRenderId?: string;
   onSelectRender: (renderId: string) => void;
+  onVersionSelect?: (render: Render) => void;
+  chainId?: string;
+  onChainDeleted?: () => void;
+  onNewChain?: () => void;
   isMobile?: boolean;
 }
 
@@ -18,6 +25,10 @@ export const RenderChainViz: React.FC<RenderChainVizProps> = ({
   renders,
   selectedRenderId,
   onSelectRender,
+  onVersionSelect,
+  chainId,
+  onChainDeleted,
+  onNewChain,
   isMobile = false,
 }) => {
   console.log('🔗 RenderChainViz: Received renders:', renders);
@@ -30,6 +41,27 @@ export const RenderChainViz: React.FC<RenderChainVizProps> = ({
     
   console.log('🔗 RenderChainViz: Sorted renders:', sortedRenders);
 
+  const handleDeleteChain = async () => {
+    if (!chainId) return;
+    
+    if (confirm('Are you sure you want to delete this render chain? This action cannot be undone.')) {
+      try {
+        const result = await deleteRenderChain(chainId);
+        if (result.success) {
+          toast.success('Render chain deleted successfully');
+          if (onChainDeleted) {
+            onChainDeleted();
+          }
+        } else {
+          toast.error(result.error || 'Failed to delete render chain');
+        }
+      } catch (error) {
+        console.error('Error deleting chain:', error);
+        toast.error('Failed to delete render chain');
+      }
+    }
+  };
+
   if (sortedRenders.length === 0) {
     return null;
   }
@@ -39,9 +71,34 @@ export const RenderChainViz: React.FC<RenderChainVizProps> = ({
       <div className="container px-4">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold">Render Chain</h3>
-          <Badge variant="secondary" className="text-xs">
-            {sortedRenders.length} {sortedRenders.length === 1 ? 'version' : 'versions'}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-xs">
+              {sortedRenders.length} {sortedRenders.length === 1 ? 'version' : 'versions'}
+            </Badge>
+            <div className="flex items-center gap-1">
+              {onNewChain && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onNewChain}
+                  className="h-6 px-2 text-xs text-primary hover:text-primary hover:bg-primary/10"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  New Chain
+                </Button>
+              )}
+              {chainId && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDeleteChain}
+                  className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
         
         <ScrollArea className="w-full">

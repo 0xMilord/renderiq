@@ -34,7 +34,7 @@ export function EngineSidebar() {
     <div
       className={cn(
         'fixed left-0 top-0 h-screen bg-background border-r border-border transition-all duration-300',
-        isExpanded ? 'w-64 z-50' : 'w-16 z-40',
+        isExpanded ? 'w-64 z-40' : 'w-16 z-30',
         'hidden lg:block' // Hide on mobile
       )}
       onMouseEnter={() => setIsExpanded(true)}

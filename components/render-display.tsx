@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Play, Pause, Download, Share2, Heart, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { Render } from '@/lib/db/schema';
+import type { Render } from '@/lib/types/render';
 
 interface RenderDisplayProps {
   render: Render;

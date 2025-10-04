@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { EngineSidebar } from './engine-sidebar';
 import { ControlBar } from './engines/control-bar';
 import { RenderPreview } from './engines/render-preview';
+import { OptimisticRenderPreview } from './engines/optimistic-render-preview';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useRenders } from '@/lib/hooks/use-renders';
+import { useRenderChain } from '@/lib/hooks/use-render-chain';
 import { AutoFillData } from './engines/control-bar';
-import { Render } from '@/lib/db/schema';
+import { Render } from '@/lib/types/render';
 import { MobileDrawer } from './ui/mobile-drawer';
 
 interface EngineLayoutProps {
@@ -28,6 +30,7 @@ interface RenderResult {
 export function EngineLayout({ engineType, chainId }: EngineLayoutProps) {
   console.log('🏗️ EngineLayout initialized with chainId:', chainId);
   const [renderResult, setRenderResult] = useState<RenderResult | null>(null);
+  const [optimisticRenders, setOptimisticRenders] = useState<any[]>([]);
   
   // Debug renderResult changes
   useEffect(() => {
@@ -44,10 +47,21 @@ export function EngineLayout({ engineType, chainId }: EngineLayoutProps) {
   const [selectedRenderId, setSelectedRenderId] = useState<string | null>(null);
   const [iterateImageUrl, setIterateImageUrl] = useState<string | null>(null);
   const [autoFillTrigger, setAutoFillTrigger] = useState<AutoFillData | null>(null);
+  const [hasAutoSelected, setHasAutoSelected] = useState(false);
   const isMobile = useIsMobile();
   
   // Fetch renders for the selected project
   const { renders } = useRenders(selectedProjectId);
+  
+  // Fetch chain renders if chainId is provided
+  const { renders: chainRenders, fetchChain } = useRenderChain(chainId);
+  
+  // Reset auto-selection flag when chainId changes
+  useEffect(() => {
+    setHasAutoSelected(false);
+    setSelectedRenderId(null);
+  }, [chainId]);
+
 
   const handleRenderResult = (result: unknown) => {
     console.log('🎉 EngineLayout: Render result received:', result);
@@ -58,7 +72,14 @@ export function EngineLayout({ engineType, chainId }: EngineLayoutProps) {
     setRenderResult(typedResult);
     setProgress(100); // Complete the progress
     setIsGenerating(false);
-    console.log('✅ EngineLayout: State updated - isGenerating: false, progress: 100%, result set');
+    
+    // Refresh the render chain to show the new render
+    if (chainId) {
+      console.log('🔄 EngineLayout: Refreshing render chain after new generation');
+      fetchChain();
+    }
+    
+    console.log('✅ EngineLayout: State updated - isGenerating: false, progress: 100%, result set, chain refreshed');
   };
   
   const handleSelectRender = (renderId: string) => {
@@ -66,16 +87,22 @@ export function EngineLayout({ engineType, chainId }: EngineLayoutProps) {
     setSelectedRenderId(renderId);
     
     // Find the selected render and set it as the result
-    const selectedRender = renders.find(r => r.id === renderId);
-    if (selectedRender && selectedRender.outputUrl) {
-      setRenderResult({
-        imageUrl: selectedRender.outputUrl,
-        type: selectedRender.type,
-        style: selectedRender.settings?.style,
-        quality: selectedRender.settings?.quality,
-        aspectRatio: selectedRender.settings?.aspectRatio,
-        processingTime: selectedRender.processingTime,
-      });
+    const selectedRender = chainRenders.find(r => r.id === renderId);
+    if (selectedRender) {
+      // Update main render area
+      if (selectedRender.outputUrl) {
+        setRenderResult({
+          imageUrl: selectedRender.outputUrl,
+          type: selectedRender.type,
+          style: selectedRender.settings?.style,
+          quality: selectedRender.settings?.quality,
+          aspectRatio: selectedRender.settings?.aspectRatio,
+          processingTime: selectedRender.processingTime,
+        });
+      }
+      
+      // Also trigger auto-fill for form
+      handleVersionSelect(selectedRender);
     }
   };
   
@@ -136,7 +163,7 @@ export function EngineLayout({ engineType, chainId }: EngineLayoutProps) {
     handleVersionSelect(mockRender);
   };
 
-  const handleVersionSelect = (render: Render) => {
+  const handleVersionSelect = useCallback((render: Render) => {
     console.log('📋 EngineLayout: Version selected for auto-fill and main display:', render);
     console.log('📋 EngineLayout: Render settings:', render.settings);
     console.log('📋 EngineLayout: Current renderResult before update:', renderResult);
@@ -175,7 +202,41 @@ export function EngineLayout({ engineType, chainId }: EngineLayoutProps) {
     console.log('📋 EngineLayout: Created auto-fill data:', autoFillData);
     setAutoFillTrigger(autoFillData);
     console.log('✅ EngineLayout: Auto-fill triggered with data:', autoFillData);
-  };
+  }, [renderResult]);
+
+  const handleClearRender = useCallback(() => {
+    console.log('🔄 EngineLayout: Clearing main render area');
+    setRenderResult(null);
+    setSelectedRenderId(null);
+    console.log('✅ EngineLayout: Main render area cleared');
+  }, []);
+
+  // Auto-select latest version when chain renders are loaded
+  useEffect(() => {
+    if (chainRenders && chainRenders.length > 0 && !selectedRenderId && !hasAutoSelected) {
+      console.log('🔄 EngineLayout: Auto-selecting latest version from chain renders:', chainRenders.length);
+      
+      // Sort renders by chain position (highest first) or creation date (latest first)
+      const sortedRenders = [...chainRenders]
+        .filter(r => r.status === 'completed' && r.outputUrl)
+        .sort((a, b) => {
+          // If both have chain positions, sort by chain position (highest first)
+          if (a.chainPosition !== null && b.chainPosition !== null) {
+            return b.chainPosition - a.chainPosition;
+          }
+          // Otherwise sort by creation date (latest first)
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+      
+      if (sortedRenders.length > 0) {
+        const latestRender = sortedRenders[0];
+        console.log('🎯 EngineLayout: Auto-selecting latest render:', latestRender.id);
+        handleVersionSelect(latestRender);
+        setSelectedRenderId(latestRender.id);
+        setHasAutoSelected(true);
+      }
+    }
+  }, [chainRenders, selectedRenderId, hasAutoSelected, handleVersionSelect]);
 
   const handleGenerationStart = () => {
     console.log('🚀 EngineLayout: Generation started');
@@ -249,6 +310,9 @@ export function EngineLayout({ engineType, chainId }: EngineLayoutProps) {
                 onGenerationStart={handleGenerationStart}
                 onProjectChange={handleProjectChange}
                 onVersionSelect={handleVersionSelect}
+                onClearRender={handleClearRender}
+                chainRenders={chainRenders}
+                selectedRenderId={selectedRenderId || undefined}
                 isMobile={true}
               />
             </MobileDrawer>
@@ -263,6 +327,9 @@ export function EngineLayout({ engineType, chainId }: EngineLayoutProps) {
             onGenerationStart={handleGenerationStart}
             onProjectChange={handleProjectChange}
             onVersionSelect={handleVersionSelect}
+            onClearRender={handleClearRender}
+            chainRenders={chainRenders}
+            selectedRenderId={selectedRenderId || undefined}
             isMobile={false}
           />
         )}
@@ -275,11 +342,20 @@ export function EngineLayout({ engineType, chainId }: EngineLayoutProps) {
           engineType={engineType}
           isMobile={isMobile}
           onOpenDrawer={() => setIsDrawerOpen(true)}
-          chainRenders={renders}
+          chainRenders={chainRenders}
           selectedRenderId={selectedRenderId || undefined}
           onSelectRender={handleSelectRender}
           onIterate={handleIterate}
           onVersionSelect={handleVersionSelect}
+          chainId={chainId}
+          onChainDeleted={() => {
+            // Redirect to engine without chainId
+            window.location.href = `/engine/${engineType}`;
+          }}
+          onNewChain={() => {
+            // Redirect to engine without chainId to start new chain
+            window.location.href = `/engine/${engineType}`;
+          }}
         />
       </div>
     </div>

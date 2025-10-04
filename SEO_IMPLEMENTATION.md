@@ -1,7 +1,7 @@
 # SEO Implementation Guide
 
 ## Overview
-This document outlines the comprehensive SEO implementation for AecoSec, an AI architectural visualization platform.
+This document outlines the comprehensive SEO implementation for arqihive, an AI architectural visualization platform.
 
 ## 🎯 SEO Strategy
 
@@ -272,7 +272,7 @@ Dark mode support through `ThemeProvider` with class-based switching.
 
 Required in `.env` or `.env.local`:
 ```bash
-NEXT_PUBLIC_BASE_URL=https://aecosec.com
+NEXT_PUBLIC_BASE_URL=https://arqihive.com
 ```
 
 See `.env.example` for complete configuration.
@@ -280,9 +280,9 @@ See `.env.example` for complete configuration.
 ## 📞 Support
 
 For questions or issues:
-- Email: support@aecosec.com
+- Email: support@arqihive.com
 - Documentation: [Internal Wiki]
-- SEO Team: seo@aecosec.com
+- SEO Team: seo@arqihive.com
 
 ## 🎓 Resources
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Render } from '@/lib/db/schema';
+import { Render } from '@/lib/types/render';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -33,12 +33,12 @@ export const VersionSelector: React.FC<VersionSelectorProps> = ({
   const sortedRenders = [...renders]
     .filter(r => r.status === 'completed' && r.outputUrl)
     .sort((a, b) => {
-      // If both have chain positions, sort by chain position
+      // If both have chain positions, sort by chain position (lowest first)
       if (a.chainPosition !== null && b.chainPosition !== null) {
-        return b.chainPosition - a.chainPosition; // Most recent first
+        return a.chainPosition - b.chainPosition; // Lowest first (v1, v2, v3...)
       }
-      // Otherwise sort by creation date (most recent first)
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      // Otherwise sort by creation date (oldest first for consistency)
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     });
   
   const completedRenders = sortedRenders;

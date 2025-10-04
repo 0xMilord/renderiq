@@ -127,28 +127,28 @@
 ## Critical URLs to Monitor
 
 ### Public Pages
-- https://aecosec.com/
-- https://aecosec.com/use-cases
-- https://aecosec.com/gallery
-- https://aecosec.com/plans
-- https://aecosec.com/privacy
-- https://aecosec.com/terms
+- https://arqihive.com/
+- https://arqihive.com/use-cases
+- https://arqihive.com/gallery
+- https://arqihive.com/plans
+- https://arqihive.com/privacy
+- https://arqihive.com/terms
 
 ### Use Case Pages
-- https://aecosec.com/use-cases/real-time-visualization
-- https://aecosec.com/use-cases/initial-prototyping
-- https://aecosec.com/use-cases/material-testing
-- https://aecosec.com/use-cases/design-iteration
+- https://arqihive.com/use-cases/real-time-visualization
+- https://arqihive.com/use-cases/initial-prototyping
+- https://arqihive.com/use-cases/material-testing
+- https://arqihive.com/use-cases/design-iteration
 
 ### Engine Pages
-- https://aecosec.com/engine/interior-ai
-- https://aecosec.com/engine/exterior-ai
-- https://aecosec.com/engine/furniture-ai
-- https://aecosec.com/engine/site-plan-ai
+- https://arqihive.com/engine/interior-ai
+- https://arqihive.com/engine/exterior-ai
+- https://arqihive.com/engine/furniture-ai
+- https://arqihive.com/engine/site-plan-ai
 
 ### Technical URLs
-- https://aecosec.com/sitemap.xml
-- https://aecosec.com/robots.txt
+- https://arqihive.com/sitemap.xml
+- https://arqihive.com/robots.txt
 
 ## Tools & Resources
 
@@ -180,10 +180,10 @@
 
 ## Emergency Contacts
 
-- **Technical Issues**: tech@aecosec.com
-- **SEO Issues**: seo@aecosec.com
-- **Content Issues**: content@aecosec.com
-- **General Support**: support@aecosec.com
+- **Technical Issues**: tech@arqihive.com
+- **SEO Issues**: seo@arqihive.com
+- **Content Issues**: content@arqihive.com
+- **General Support**: support@arqihive.com
 
 ## Notes
 

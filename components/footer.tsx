@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Building2, Github, Twitter, Linkedin, Mail } from 'lucide-react';
 
 export function Footer() {
@@ -9,10 +10,14 @@ export function Footer() {
           {/* Brand */}
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center space-x-2 mb-4">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">A</span>
-              </div>
-              <span className="text-xl font-bold text-foreground">AecoSec</span>
+              <Image
+                src="/logo.svg"
+                alt="arqihive"
+                width={32}
+                height={32}
+                className="w-8 h-8"
+              />
+              <span className="text-xl font-bold text-foreground">arqihive</span>
             </div>
             <p className="text-muted-foreground mb-4 max-w-md">
               Transform your architectural sketches into hyperrealistic AI renders and videos. 
@@ -106,7 +111,7 @@ export function Footer() {
 
         <div className="border-t mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-muted-foreground text-sm">
-            © 2024 AecoSec. All rights reserved.
+            © 2024 arqihive. All rights reserved.
           </p>
           <div className="flex space-x-6 mt-4 md:mt-0">
             <Link href="/terms" className="text-muted-foreground hover:text-primary transition-colors text-sm">

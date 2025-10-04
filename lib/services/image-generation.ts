@@ -40,6 +40,7 @@ export class ImageGenerationService {
     uploadedImageType?: string;
     negativePrompt?: string;
     imageType?: string;
+    seed?: number;
   }): Promise<{ success: boolean; data?: ImageGenerationResult; error?: string }> {
     console.log('🎨 ImageGenService: Starting image generation', {
       prompt: params.prompt,
@@ -62,6 +63,7 @@ export class ImageGenerationService {
         uploadedImageType: params.uploadedImageType,
         negativePrompt: params.negativePrompt,
         imageType: params.imageType,
+        seed: params.seed,
       });
 
       if (!result.success || !result.data) {
@@ -82,7 +84,7 @@ export class ImageGenerationService {
       if (result.data.imageData) {
         console.log('🎨 ImageGenService: Processing image with watermark');
         processedImageData = await WatermarkService.processImage(result.data.imageData, {
-          text: 'AecoSec',
+          text: 'arqihive',
           position: 'bottom-right',
           opacity: 0.7,
         });

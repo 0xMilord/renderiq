@@ -6,19 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, FolderOpen, Calendar, Eye, Search, MoreVertical, Trash2, Edit, Copy, RefreshCw } from 'lucide-react';
-import Link from 'next/link';
+import { Plus, FolderOpen, Search, RefreshCw } from 'lucide-react';
 import { CreateProjectModal } from '@/components/projects/create-project-modal';
 import { ViewModeToggle } from '@/components/projects/view-mode-toggle';
+import { ProjectCard } from '@/components/projects/project-card';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { cn } from '@/lib/utils';
 import type { Project } from '@/lib/db/schema';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 type ViewMode = 'default' | 'compact' | 'list';
 
@@ -49,18 +43,6 @@ export default function ProjectsPage() {
     }
   });
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-      case 'processing':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-      case 'failed':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
-    }
-  };
 
   const getGridCols = () => {
     switch (viewMode) {
@@ -209,152 +191,14 @@ export default function ProjectsPage() {
         {sortedProjects.length > 0 ? (
           <div className={cn("grid gap-4", getGridCols())}>
             {sortedProjects.map((project) => (
-              <Card key={project.id} className="group hover:shadow-lg transition-all duration-200">
-                {viewMode === 'list' ? (
-                  <CardContent className="p-4">
-                    <div className="flex items-center space-x-4">
-                      <div className="relative w-16 h-16 flex-shrink-0">
-                        <div className="w-full h-full bg-muted rounded-lg flex items-center justify-center">
-                          <FolderOpen className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                        <div className="absolute -top-1 -right-1">
-                          <Badge className={cn("text-xs", getStatusColor(project.status))}>
-                            {project.status}
-                          </Badge>
-                        </div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-sm truncate">{project.name}</h3>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {project.description || 'No description'}
-                        </p>
-                        <div className="flex items-center space-x-4 mt-1 text-xs text-muted-foreground">
-                          <div className="flex items-center space-x-1">
-                            <Calendar className="h-3 w-3" />
-                            <span>{new Date(project.createdAt).toLocaleDateString()}</span>
-                          </div>
-                          <span>{(project as Project & { renderCount?: number }).renderCount || 0} renders</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          asChild
-                        >
-                          <Link href={`/dashboard/projects/${project.slug}`}>
-                            <Eye className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <Link href={`/dashboard/projects/${project.slug}`}>
-                                <Eye className="h-4 w-4 mr-2" />
-                                View
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleEditProject}>
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDuplicateProject(project.id)}>
-                              <Copy className="h-4 w-4 mr-2" />
-                              Duplicate
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="text-red-600"
-                              onClick={() => handleDeleteProject(project.id)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-                  </CardContent>
-                ) : (
-                  <>
-                    <div className="aspect-video bg-muted relative group">
-                      <div className="w-full h-full flex items-center justify-center">
-                        <FolderOpen className="h-12 w-12 text-muted-foreground" />
-                      </div>
-                      <div className="absolute top-2 right-2">
-                        <Badge className={cn("text-xs", getStatusColor(project.status))}>
-                          {project.status}
-                        </Badge>
-                      </div>
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded-t-lg flex items-center justify-center opacity-0 group-hover:opacity-100">
-                        <div className="flex space-x-2">
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            asChild
-                          >
-                            <Link href={`/dashboard/projects/${project.slug}`}>
-                              <Eye className="h-4 w-4 mr-2" />
-                              View
-                            </Link>
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm line-clamp-2">{project.name}</CardTitle>
-                      <CardDescription className="text-xs line-clamp-2">
-                        {project.description || 'No description'}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <div className="flex items-center space-x-1">
-                          <Calendar className="h-3 w-3" />
-                          <span>{new Date(project.createdAt).toLocaleDateString()}</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <span>{(project as Project & { renderCount?: number }).renderCount || 0} renders</span>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                                <MoreVertical className="h-3 w-3" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem asChild>
-                                <Link href={`/dashboard/projects/${project.slug}`}>
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  View
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={handleEditProject}>
-                                <Edit className="h-4 w-4 mr-2" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleDuplicateProject(project.id)}>
-                                <Copy className="h-4 w-4 mr-2" />
-                                Duplicate
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                className="text-red-600"
-                                onClick={() => handleDeleteProject(project.id)}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </>
-                )}
-              </Card>
+              <ProjectCard
+                key={project.id}
+                project={project}
+                viewMode={viewMode}
+                onEdit={handleEditProject}
+                onDuplicate={(project) => handleDuplicateProject(project.id)}
+                onDelete={(project) => handleDeleteProject(project.id)}
+              />
             ))}
           </div>
         ) : (

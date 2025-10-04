@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { RenderChain, Render } from '@/lib/db/schema';
+import { RenderChain, Render } from '@/lib/types/render';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';

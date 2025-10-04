@@ -71,6 +71,37 @@ export class ProjectsDAL {
       .offset(offset);
   }
 
+  static async getByUserIdWithRenderCounts(userId: string, limit = 20, offset = 0) {
+    console.log('📊 [ProjectsDAL] Fetching projects with render counts for user:', userId);
+    
+    const projectsWithCounts = await db
+      .select({
+        id: projects.id,
+        userId: projects.userId,
+        name: projects.name,
+        slug: projects.slug,
+        description: projects.description,
+        originalImageId: projects.originalImageId,
+        status: projects.status,
+        isPublic: projects.isPublic,
+        tags: projects.tags,
+        metadata: projects.metadata,
+        createdAt: projects.createdAt,
+        updatedAt: projects.updatedAt,
+        renderCount: sql<number>`COALESCE(COUNT(${renders.id}), 0)`.as('renderCount'),
+      })
+      .from(projects)
+      .leftJoin(renders, eq(projects.id, renders.projectId))
+      .where(eq(projects.userId, userId))
+      .groupBy(projects.id)
+      .orderBy(desc(projects.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    console.log(`✅ [ProjectsDAL] Found ${projectsWithCounts.length} projects with render counts`);
+    return projectsWithCounts;
+  }
+
   static async updateStatus(id: string, status: 'processing' | 'completed' | 'failed'): Promise<void> {
     await db
       .update(projects)
@@ -78,150 +109,28 @@ export class ProjectsDAL {
       .where(eq(projects.id, id));
   }
 
+  static async getLatestRenders(projectId: string, limit = 4) {
+    console.log('🖼️ [ProjectsDAL] Fetching latest renders for project:', projectId);
+    
+    const latestRenders = await db
+      .select({
+        id: renders.id,
+        outputUrl: renders.outputUrl,
+        status: renders.status,
+        type: renders.type,
+        createdAt: renders.createdAt,
+      })
+      .from(renders)
+      .where(eq(renders.projectId, projectId))
+      .orderBy(desc(renders.createdAt))
+      .limit(limit);
+
+    console.log(`✅ [ProjectsDAL] Found ${latestRenders.length} latest renders for project`);
+    return latestRenders;
+  }
+
   static async delete(id: string): Promise<void> {
     await db.delete(projects).where(eq(projects.id, id));
   }
 }
 
-export class RendersDAL {
-  static async create(render: NewRender): Promise<Render> {
-    const [newRender] = await db.insert(renders).values(render).returning();
-    return newRender;
-  }
-
-  static async getById(id: string): Promise<Render | null> {
-    const [render] = await db.select().from(renders).where(eq(renders.id, id));
-    return render || null;
-  }
-
-  static async getByUser(userId: string, projectId?: string | null, limit = 20, offset = 0): Promise<Render[]> {
-    const whereClause = projectId 
-      ? and(eq(renders.userId, userId), eq(renders.projectId, projectId))
-      : eq(renders.userId, userId);
-    
-    return db
-      .select()
-      .from(renders)
-      .where(whereClause)
-      .orderBy(desc(renders.createdAt))
-      .limit(limit)
-      .offset(offset);
-  }
-
-  static async getByProjectId(projectId: string): Promise<Render[]> {
-    return db
-      .select()
-      .from(renders)
-      .where(eq(renders.projectId, projectId))
-      .orderBy(desc(renders.createdAt));
-  }
-
-  static async updateStatus(
-    id: string,
-    status: 'pending' | 'processing' | 'completed' | 'failed',
-    outputUrl?: string,
-    outputKey?: string,
-    errorMessage?: string,
-    processingTime?: number
-  ): Promise<void> {
-    const updateData: any = { status, updatedAt: new Date() };
-    if (outputUrl) updateData.outputUrl = outputUrl;
-    if (outputKey) updateData.outputKey = outputKey;
-    if (errorMessage) updateData.errorMessage = errorMessage;
-    if (processingTime) updateData.processingTime = processingTime;
-
-    await db.update(renders).set(updateData).where(eq(renders.id, id));
-  }
-
-  static async updateOutput(
-    id: string,
-    outputUrl: string,
-    outputKey: string,
-    status: 'completed' | 'failed',
-    processingTime?: number,
-    errorMessage?: string
-  ): Promise<void> {
-    const updateData: any = { 
-      outputUrl, 
-      outputKey, 
-      status, 
-      completedAt: new Date(),
-      updatedAt: new Date() 
-    };
-    if (processingTime) updateData.processingTime = processingTime;
-    if (errorMessage) updateData.errorMessage = errorMessage;
-
-    await db.update(renders).set(updateData).where(eq(renders.id, id));
-  }
-
-  static async getPublicGallery(limit = 20, offset = 0) {
-    return db
-      .select({
-        id: galleryItems.id,
-        renderId: galleryItems.renderId,
-        userId: galleryItems.userId,
-        isPublic: galleryItems.isPublic,
-        likes: galleryItems.likes,
-        views: galleryItems.views,
-        createdAt: galleryItems.createdAt,
-        render: {
-          id: renders.id,
-          type: renders.type,
-          prompt: renders.prompt,
-          outputUrl: renders.outputUrl,
-          status: renders.status,
-          createdAt: renders.createdAt,
-        },
-        user: {
-          id: users.id,
-          name: users.name,
-          avatar: users.avatar,
-        },
-      })
-      .from(galleryItems)
-      .innerJoin(renders, eq(galleryItems.renderId, renders.id))
-      .innerJoin(users, eq(galleryItems.userId, users.id))
-      .where(and(eq(galleryItems.isPublic, true), eq(renders.status, 'completed')))
-      .orderBy(desc(galleryItems.createdAt))
-      .limit(limit)
-      .offset(offset);
-  }
-
-  static async incrementViews(id: string): Promise<void> {
-    await db
-      .update(galleryItems)
-      .set({ views: sql`${galleryItems.views} + 1` })
-      .where(eq(galleryItems.id, id));
-  }
-
-  static async addToGallery(renderId: string, userId: string, isPublic: boolean): Promise<void> {
-    await db.insert(galleryItems).values({
-      renderId,
-      userId,
-      isPublic,
-      likes: 0,
-      views: 0,
-      featured: false,
-    });
-  }
-
-  static async toggleLike(id: string, userId: string): Promise<{ liked: boolean; likes: number }> {
-    // This is a simplified implementation
-    // In a real app, you'd want a separate likes table
-    const [item] = await db.select().from(galleryItems).where(eq(galleryItems.id, id));
-    if (!item) throw new Error('Gallery item not found');
-
-    const newLikes = item.likes + 1;
-    await db.update(galleryItems).set({ likes: newLikes }).where(eq(galleryItems.id, id));
-    
-    return { liked: true, likes: newLikes };
-  }
-
-  static async getByChainId(chainId: string): Promise<Render[]> {
-    return db
-      .select()
-      .from(renders)
-      .where(eq(renders.chainId, chainId))
-      .orderBy(renders.chainPosition, desc(renders.createdAt));
-  }
-}

@@ -134,7 +134,7 @@ export function RenderSettings() {
               <div className="space-y-0.5">
                 <Label htmlFor="watermark">Add Watermark</Label>
                 <p className="text-sm text-muted-foreground">
-                  Add AecoSec watermark to generated images
+                  Add arqihive watermark to generated images
                 </p>
               </div>
               <input

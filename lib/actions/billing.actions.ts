@@ -55,8 +55,8 @@ export async function getUserCredits() {
   try {
     // This function should be called from client components that have user context
     // We'll need to get the user ID from the auth context
-    const { createClient } = await import('@/lib/supabase/client');
-    const supabase = createClient();
+    const { createClient } = await import('@/lib/supabase/server');
+    const supabase = await createClient();
     
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     

@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
-import { renders, renderChains } from '@/lib/db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { renders, renderChains, galleryItems, users } from '@/lib/db/schema';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { ContextData, CreateRenderWithChainData } from '@/lib/types/render-chain';
 
 export interface CreateRenderData {
@@ -81,6 +81,19 @@ export class RendersDAL {
     return userRenders;
   }
 
+  static async getByProjectId(projectId: string) {
+    console.log('🔍 Fetching renders for project:', projectId);
+    
+    const projectRenders = await db
+      .select()
+      .from(renders)
+      .where(eq(renders.projectId, projectId))
+      .orderBy(desc(renders.createdAt));
+
+    console.log(`✅ Found ${projectRenders.length} renders for project`);
+    return projectRenders;
+  }
+
   static async updateStatus(id: string, status: 'pending' | 'processing' | 'completed' | 'failed', errorMessage?: string) {
     console.log('🔄 Updating render status:', { id, status, errorMessage });
     
@@ -154,7 +167,7 @@ export class RendersDAL {
       .select()
       .from(renders)
       .where(eq(renders.chainId, chainId))
-      .orderBy(desc(renders.chainPosition));
+      .orderBy(renders.chainPosition);
 
     console.log(`✅ Found ${chainRenders.length} renders in chain`);
     return chainRenders;
@@ -250,5 +263,92 @@ export class RendersDAL {
 
     console.log('✅ Render with chain created:', render.id);
     return render;
+  }
+
+  static async getPublicGallery(limit = 20, offset = 0) {
+    console.log('🖼️ Fetching public gallery items:', { limit, offset });
+    
+    const items = await db
+      .select({
+        id: galleryItems.id,
+        renderId: galleryItems.renderId,
+        userId: galleryItems.userId,
+        isPublic: galleryItems.isPublic,
+        likes: galleryItems.likes,
+        views: galleryItems.views,
+        createdAt: galleryItems.createdAt,
+        render: {
+          id: renders.id,
+          type: renders.type,
+          prompt: renders.prompt,
+          outputUrl: renders.outputUrl,
+          status: renders.status,
+          createdAt: renders.createdAt,
+        },
+        user: {
+          id: users.id,
+          name: users.name,
+          avatar: users.avatar,
+        },
+      })
+      .from(galleryItems)
+      .innerJoin(renders, eq(galleryItems.renderId, renders.id))
+      .innerJoin(users, eq(galleryItems.userId, users.id))
+      .where(eq(galleryItems.isPublic, true))
+      .orderBy(desc(galleryItems.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    console.log(`✅ Found ${items.length} public gallery items`);
+    return items;
+  }
+
+  static async addToGallery(renderId: string, userId: string, isPublic: boolean) {
+    console.log('📸 Adding render to gallery:', { renderId, userId, isPublic });
+    
+    const [galleryItem] = await db
+      .insert(galleryItems)
+      .values({
+        renderId,
+        userId,
+        isPublic,
+      })
+      .returning();
+
+    console.log('✅ Render added to gallery:', galleryItem.id);
+    return galleryItem;
+  }
+
+  static async incrementViews(itemId: string) {
+    console.log('👁️ Incrementing views for gallery item:', itemId);
+    
+    await db
+      .update(galleryItems)
+      .set({
+        views: sql`${galleryItems.views} + 1`,
+      })
+      .where(eq(galleryItems.id, itemId));
+
+    console.log('✅ Views incremented for gallery item:', itemId);
+  }
+
+  static async toggleLike(itemId: string, userId: string) {
+    console.log('❤️ Toggling like for gallery item:', { itemId, userId });
+    
+    // For now, just increment likes - in a full implementation,
+    // you'd want to track individual user likes to prevent double-liking
+    const [updatedItem] = await db
+      .update(galleryItems)
+      .set({
+        likes: sql`${galleryItems.likes} + 1`,
+      })
+      .where(eq(galleryItems.id, itemId))
+      .returning();
+
+    console.log('✅ Like toggled for gallery item:', itemId);
+    return {
+      likes: updatedItem.likes,
+      liked: true, // In a real implementation, check if user already liked
+    };
   }
 }

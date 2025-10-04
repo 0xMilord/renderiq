@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Download, 
   Share2, 
@@ -19,12 +20,17 @@ import {
   Settings,
   History,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Maximize,
+  Minimize,
+  Expand,
+  ChevronDown
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RenderChainViz } from './render-chain-viz';
 import { VersionSelector } from './version-selector';
-import { Render } from '@/lib/db/schema';
+import { Render } from '@/lib/types/render';
+import { useUpscaling } from '@/lib/hooks/use-upscaling';
 
 interface RenderResult {
   imageUrl: string;
@@ -49,6 +55,9 @@ interface RenderPreviewProps {
   onSelectRender?: (renderId: string) => void;
   onIterate?: (imageUrl: string) => void;
   onVersionSelect?: (render: Render) => void;
+  chainId?: string;
+  onChainDeleted?: () => void;
+  onNewChain?: () => void;
 }
 
 export function RenderPreview({ 
@@ -62,7 +71,10 @@ export function RenderPreview({
   selectedRenderId,
   onSelectRender,
   onIterate,
-  onVersionSelect
+  onVersionSelect,
+  chainId,
+  onChainDeleted,
+  onNewChain
 }: RenderPreviewProps) {
   console.log('🖼️ RenderPreview: Component rendered with result:', result);
   console.log('🖼️ RenderPreview: isGenerating:', isGenerating);
@@ -72,6 +84,10 @@ export function RenderPreview({
   const [isLiked, setIsLiked] = useState(false);
   const [activeTab, setActiveTab] = useState('current');
   const [versions, setVersions] = useState<any[]>([]);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  
+  // Upscaling functionality
+  const { upscaleImage, isUpscaling, upscalingResult, error: upscalingError } = useUpscaling();
 
   // Debug result changes
   useEffect(() => {
@@ -106,6 +122,21 @@ export function RenderPreview({
     setLikes(prev => isLiked ? prev - 1 : prev + 1);
     setIsLiked(!isLiked);
     console.log('✅ RenderPreview: Like state updated');
+  };
+
+  const handleUpscale = async (scale: 2 | 4 | 10) => {
+    if (!result?.imageUrl) return;
+    
+    console.log(`🔍 Upscaling image by ${scale}x`);
+    await upscaleImage({
+      imageUrl: result.imageUrl,
+      scale,
+      quality: 'high'
+    });
+  };
+
+  const handleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
   };
 
   const handleDownload = () => {
@@ -255,20 +286,50 @@ export function RenderPreview({
                         className="w-full h-full object-cover"
                         poster={result.thumbnail}
                       />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <img
-                          src={result.imageUrl}
-                          alt={`Generated ${engineType} render`}
-                          className="max-w-full max-h-full object-contain rounded-lg"
-                          onLoad={() => console.log('✅ RenderPreview: Image loaded successfully:', result.imageUrl)}
-                          onError={(e) => {
-                            console.error('❌ RenderPreview: Image failed to load:', result.imageUrl, e);
-                            console.error('❌ RenderPreview: Image error details:', e.currentTarget);
-                          }}
-                        />
-                      </div>
-                    )
+                     ) : (
+                       <div className="w-full h-full flex items-center justify-center relative">
+                         <img
+                           src={result.imageUrl}
+                           alt={`Generated ${engineType} render`}
+                           className={cn(
+                             "max-w-full max-h-full object-contain rounded-lg",
+                             isFullscreen && "fixed inset-0 z-50 bg-black object-contain"
+                           )}
+                           onLoad={() => console.log('✅ RenderPreview: Image loaded successfully:', result.imageUrl)}
+                           onError={(e) => {
+                             console.error('❌ RenderPreview: Image failed to load:', result.imageUrl, e);
+                             console.error('❌ RenderPreview: Image error details:', e.currentTarget);
+                           }}
+                         />
+                         
+                         {/* Image Badges */}
+                         <div className="absolute top-4 left-4 flex flex-wrap gap-2">
+                           <Badge variant="secondary" className="text-xs">
+                             {result.style}
+                           </Badge>
+                           <Badge variant="secondary" className="text-xs">
+                             {result.aspectRatio}
+                           </Badge>
+                           <Badge variant="secondary" className="text-xs">
+                             {result.quality}
+                           </Badge>
+                           <Badge variant="secondary" className="text-xs">
+                             <Clock className="h-3 w-3 mr-1" />
+                             {result.processingTime?.toFixed(1)}s
+                           </Badge>
+                         </div>
+                         
+                         {/* Fullscreen Toggle */}
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           onClick={handleFullscreen}
+                           className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white"
+                         >
+                           {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+                         </Button>
+                       </div>
+                     )
                   ) : (
                     <div className="h-full flex flex-col">
                       {/* Version Navigation */}
@@ -334,89 +395,95 @@ export function RenderPreview({
                       </div>
                     </div>
                     
-                    <div className="flex items-center space-x-2">
-                      <Button variant="outline" size="sm" onClick={handleDownload}>
-                        <Download className="h-4 w-4 mr-1" />
-                        Download
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={handleShare}>
-                        <Share2 className="h-4 w-4 mr-1" />
-                        Share
-                      </Button>
-                      {onIterate && (
-                        <Button 
-                          variant="default" 
-                          size="sm" 
-                          onClick={() => {
-                            console.log('🔄 RenderPreview: Iterate button clicked');
-                            if (result?.imageUrl) {
-                              onIterate(result.imageUrl);
-                              console.log('✅ RenderPreview: Iterate callback triggered with:', result.imageUrl);
-                            }
-                          }}
-                        >
-                          <RefreshCw className="h-4 w-4 mr-1" />
-                          Iterate
-                        </Button>
-                      )}
-                      {onVersionSelect && chainRenders.length > 0 && (
-                        <VersionSelector
-                          renders={chainRenders}
-                          selectedVersionId={selectedRenderId}
-                          onSelectVersion={(id) => {
-                            const selectedRender = chainRenders.find(r => r.id === id);
-                            if (selectedRender && onSelectRender) {
-                              console.log('👁️ RenderPreview: Version selected for preview:', selectedRender.id);
-                              onSelectRender(selectedRender.id);
-                            }
-                          }}
-                          onUseAsReference={(id) => {
-                            const selectedRender = chainRenders.find(r => r.id === id);
-                            if (selectedRender) {
-                              console.log('📋 RenderPreview: Version selected for auto-fill:', selectedRender);
-                              onVersionSelect(selectedRender);
-                            }
-                          }}
-                        />
-                      )}
-                    </div>
+                     <div className="flex items-center space-x-2">
+                       <Button variant="outline" size="sm" onClick={handleDownload} title="Download">
+                         <Download className="h-4 w-4" />
+                       </Button>
+                       <Button variant="outline" size="sm" onClick={handleShare} title="Share">
+                         <Share2 className="h-4 w-4" />
+                       </Button>
+                       {onIterate && (
+                         <Button 
+                           variant="default" 
+                           size="sm" 
+                           onClick={() => {
+                             console.log('🔄 RenderPreview: Iterate button clicked');
+                             if (result?.imageUrl) {
+                               onIterate(result.imageUrl);
+                               console.log('✅ RenderPreview: Iterate callback triggered with:', result.imageUrl);
+                             }
+                           }}
+                           title="Iterate"
+                         >
+                           <RefreshCw className="h-4 w-4" />
+                         </Button>
+                       )}
+                       
+                       {/* Upscaling Options - Compact Dropdown */}
+                       <div className="flex items-center space-x-2">
+                         <Select onValueChange={(value) => handleUpscale(parseInt(value))} disabled={isUpscaling}>
+                           <SelectTrigger className="w-24 h-8 text-xs">
+                             <SelectValue placeholder="Upscale" />
+                           </SelectTrigger>
+                           <SelectContent>
+                             <SelectItem value="2">2x</SelectItem>
+                             <SelectItem value="4">4x</SelectItem>
+                             <SelectItem value="10">10x</SelectItem>
+                           </SelectContent>
+                         </Select>
+                         {isUpscaling && (
+                           <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
+                         )}
+                       </div>
+                     </div>
                   </div>
 
-                  {/* Generation Details */}
-                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                    <div>
-                      <span className="font-medium">Style:</span> {result.style}
+                  {/* Upscaling Result */}
+                  {upscalingResult && (
+                    <div className="mt-4 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-green-800 dark:text-green-200">
+                          ✅ Upscaling Complete ({upscalingResult.scale}x)
+                        </span>
+                        <Badge variant="secondary" className="text-xs">
+                          {upscalingResult.processingTime}s
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-green-700 dark:text-green-300 space-y-1">
+                        <div>• Image upscaled by {upscalingResult.scale}x successfully</div>
+                        <div>• Processing time: {upscalingResult.processingTime}s</div>
+                        <div>• Provider: {upscalingResult.provider}</div>
+                      </div>
                     </div>
-                    <div>
-                      <span className="font-medium">Quality:</span> {result.quality}
+                  )}
+
+                  {/* Upscaling Error */}
+                  {upscalingError && (
+                    <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
+                      <div className="text-sm font-medium text-red-800 dark:text-red-200 mb-1">
+                        ❌ Upscaling Failed
+                      </div>
+                      <div className="text-xs text-red-700 dark:text-red-300">
+                        {upscalingError}
+                      </div>
                     </div>
-                    <div>
-                      <span className="font-medium">Aspect Ratio:</span> {result.aspectRatio}
+                  )}
+
+                  {/* Render Chain Visualization */}
+                  {chainRenders && chainRenders.length > 0 && (
+                    <div className="mt-4">
+                      <RenderChainViz
+                        renders={chainRenders}
+                        selectedRenderId={selectedRenderId}
+                        onSelectRender={onSelectRender || (() => {})}
+                        onVersionSelect={onVersionSelect}
+                        chainId={chainId}
+                        onChainDeleted={onChainDeleted}
+                        onNewChain={onNewChain}
+                        isMobile={isMobile}
+                      />
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <Clock className="h-3 w-3" />
-                      <span>{result.processingTime?.toFixed(1)}s</span>
-                    </div>
-                  </div>
-                  
-                  {/* Render Status & Audit Info */}
-                  <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">Render Status</span>
-                      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                        ✅ Complete
-                      </span>
-                    </div>
-                    <div className="text-xs text-muted-foreground space-y-1">
-                      <div>• Image generated successfully</div>
-                      <div>• {result.processingTime ? `${result.processingTime.toFixed(1)}s` : 'Fast'} processing time</div>
-                      <div>• {result.style} style applied</div>
-                      <div>• {result.quality} quality output</div>
-                      {isMobile && (
-                        <div>• Mobile-optimized display</div>
-                      )}
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
             ) : (

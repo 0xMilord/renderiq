@@ -23,7 +23,7 @@ export default function GalleryPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+      <div className="container mx-auto py-12">
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
             Public Gallery
@@ -61,6 +61,11 @@ export default function GalleryPage() {
           onLoadMore={handleLoadMore}
           onLike={likeItem}
           onView={viewItem}
+          onRemix={(prompt) => {
+            // Navigate to the appropriate engine with the prompt
+            // This would need to be implemented based on your routing
+            console.log('Remix with prompt:', prompt);
+          }}
         />
       </div>
     </div>

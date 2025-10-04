@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { VertexAI } from '@google-cloud/vertexai';
 import { Render } from '@/lib/db/schema';
 import { ChainContext } from '@/lib/types/render-chain';
 import { ContextPromptService } from './context-prompt';
@@ -12,6 +13,7 @@ export interface GoogleAIImageRequest {
   uploadedImageType?: string;
   negativePrompt?: string;
   imageType?: string;
+  seed?: number;
   // Context awareness fields
   referenceRender?: Render;
   chainContext?: ChainContext;
@@ -60,9 +62,20 @@ export interface GoogleAIVideoResponse {
 export class GoogleAIService {
   private static instance: GoogleAIService;
   private genAI: GoogleGenerativeAI;
+  private vertexAI: VertexAI | null = null;
 
   constructor() {
     this.genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!);
+    
+    // Only initialize Vertex AI if project ID is available
+    if (process.env.GOOGLE_CLOUD_PROJECT_ID) {
+      this.vertexAI = new VertexAI({
+        project: process.env.GOOGLE_CLOUD_PROJECT_ID,
+        location: process.env.GOOGLE_CLOUD_LOCATION || 'us-central1',
+      });
+    } else {
+      console.log('⚠️ GoogleAIService: GOOGLE_CLOUD_PROJECT_ID not set, Vertex AI disabled. Seed support will not be available.');
+    }
   }
 
   static getInstance(): GoogleAIService {
@@ -78,13 +91,14 @@ export class GoogleAIService {
       style: request.style, 
       aspectRatio: request.aspectRatio,
       quality: request.quality,
-      hasUploadedImage: !!request.uploadedImageData
+      hasUploadedImage: !!request.uploadedImageData,
+      hasSeed: !!request.seed
     });
     
     try {
       const startTime = Date.now();
       
-      // Build context-aware prompt
+      // Build context-aware prompt with quality enhancement
       const enhancedPrompt = await this.buildContextAwareImagePrompt(
         request.prompt,
         request.style,
@@ -93,72 +107,211 @@ export class GoogleAIService {
         request.referenceRender,
         request.chainContext
       );
+
+      // Add quality-specific enhancements
+      const qualityEnhancedPrompt = this.enhancePromptForQuality(enhancedPrompt, request.quality);
       
       console.log('🎨 GoogleAI: Context-aware prompt created', { 
-        enhancedPrompt,
+        enhancedPrompt: qualityEnhancedPrompt,
         hasReferenceRender: !!request.referenceRender,
         hasChainContext: !!request.chainContext
       });
       
-      // Use Gemini 2.5 Flash Image for image generation
-      const model = this.genAI.getGenerativeModel({ 
-        model: 'gemini-2.5-flash-image' 
-      });
-
-      // Configure aspect ratio based on request
-      const aspectRatioConfig = this.getAspectRatioConfig(request.aspectRatio);
+      let imageData: string;
+      let provider: string;
       
-      console.log('🎨 GoogleAI: Generating with aspect ratio', { aspectRatioConfig });
-      
-      // Prepare content for Gemini API
-      let content;
-      
-      if (request.uploadedImageData && request.uploadedImageType) {
-        console.log('🎨 GoogleAI: Using uploaded image data for multimodal generation');
+      // Use Vertex AI if seed is provided for deterministic generation
+      if (request.seed !== undefined && this.vertexAI) {
+        console.log('🎨 GoogleAI: Using Vertex AI for seeded generation', { seed: request.seed });
         
-        // Create multimodal content with image and text
-        content = [
-          {
-            text: enhancedPrompt
-          },
-          {
-            inlineData: {
-              mimeType: request.uploadedImageType,
-              data: request.uploadedImageData
-            }
-          }
-        ];
-      } else {
-        // Text-only generation
-        content = enhancedPrompt;
-      }
-      
-      // Use the correct configuration format for Gemini 2.5 Flash Image
-      const result = await model.generateContent(content);
-      
-      console.log('🎨 GoogleAI: Received response from Gemini');
-      const response = await result.response;
-      
-      // Extract image data from response - check all parts for image data
-      const parts = response.candidates?.[0]?.content?.parts || [];
-      let imageData = null;
-      
-      console.log('🎨 GoogleAI: Processing response parts', { partCount: parts.length });
-      
-      for (const part of parts) {
-        if (part.inlineData?.data) {
-          imageData = part.inlineData.data;
-          console.log('🎨 GoogleAI: Found image data in part');
-          break;
-        }
-      }
-      
-      if (!imageData) {
-        console.error('❌ GoogleAI: No image data in response', { 
-          response: response,
-          parts: parts.map(p => ({ hasInlineData: !!p.inlineData, hasText: !!p.text }))
+        const model = this.vertexAI.getGenerativeModel({
+          model: 'gemini-2.5-flash-image',
         });
-        throw new Error('No image data received from Gemini');
+        
+        const generationConfig = {
+          seed: request.seed,
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 8192,
+        };
+        
+        // Prepare content for Vertex AI
+        let content;
+        if (request.uploadedImageData && request.uploadedImageType) {
+          console.log('🎨 GoogleAI: Using uploaded image data for multimodal generation with Vertex AI');
+          content = [
+            {
+              text: qualityEnhancedPrompt
+            },
+            {
+              inlineData: {
+                mimeType: request.uploadedImageType,
+                data: request.uploadedImageData
+              }
+            }
+          ];
+        } else {
+          content = enhancedPrompt;
+        }
+        
+        const result = await model.generateContent({
+          contents: [{ role: 'user', parts: content }],
+          generationConfig,
+        });
+        
+        const response = await result.response;
+        const parts = response.candidates?.[0]?.content?.parts || [];
+        
+        for (const part of parts) {
+          if (part.inlineData?.data) {
+            imageData = part.inlineData.data;
+            break;
+          }
+        }
+        
+        if (!imageData) {
+          throw new Error('No image data received from Vertex AI');
+        }
+        
+        provider = 'vertex-ai-gemini-2.5-flash-image';
+      } else if (request.seed !== undefined && !this.vertexAI) {
+        console.log('⚠️ GoogleAI: Seed provided but Vertex AI not available, falling back to standard Gemini API (seed will be ignored)');
+        
+        // Fall back to standard Gemini API but warn that seed is ignored
+        const model = this.genAI.getGenerativeModel({ 
+          model: 'gemini-2.5-flash-image' 
+        });
+
+        // Configure aspect ratio based on request
+        const aspectRatioConfig = this.getAspectRatioConfig(request.aspectRatio);
+        
+        console.log('🎨 GoogleAI: Generating with aspect ratio', { aspectRatioConfig });
+        
+        // Prepare content for Gemini API
+        let content;
+        
+        if (request.uploadedImageData && request.uploadedImageType) {
+          console.log('🎨 GoogleAI: Using uploaded image data for multimodal generation');
+          
+          // Create multimodal content with image and text
+          content = [
+            {
+              text: qualityEnhancedPrompt
+            },
+            {
+              inlineData: {
+                mimeType: request.uploadedImageType,
+                data: request.uploadedImageData
+              }
+            }
+          ];
+        } else {
+          // Text-only generation
+          content = qualityEnhancedPrompt;
+        }
+        
+        // Use the correct configuration format for Gemini 2.5 Flash Image
+        const result = await model.generateContent(content);
+        
+        console.log('🎨 GoogleAI: Received response from Gemini');
+        const response = await result.response;
+        
+        // Extract image data from response - check all parts for image data
+        const parts = response.candidates?.[0]?.content?.parts || [];
+        
+        console.log('🎨 GoogleAI: Processing response parts', { partCount: parts.length });
+        
+        for (const part of parts) {
+          if (part.inlineData?.data) {
+            imageData = part.inlineData.data;
+            console.log('🎨 GoogleAI: Found image data in part');
+            break;
+          }
+        }
+        
+        if (!imageData) {
+          console.error('❌ GoogleAI: No image data in response', { 
+            response: response,
+            parts: parts.map(p => ({ hasInlineData: !!p.inlineData, hasText: !!p.text }))
+          });
+          throw new Error('No image data received from Gemini');
+        }
+        
+        provider = 'gemini-2.5-flash-image';
+      } else {
+        // Choose model based on quality setting
+        const modelName = request.quality === 'high' || request.quality === 'ultra' 
+          ? 'gemini-2.5-flash-image' // Enhanced model for high quality
+          : 'gemini-2.5-flash-image'; // Standard model for standard quality
+        
+        console.log('🎨 GoogleAI: Using Gemini API for generation', { 
+          model: modelName, 
+          quality: request.quality,
+          enhanced: request.quality === 'high' || request.quality === 'ultra'
+        });
+        
+        // Use Gemini 2.5 Flash Image for image generation
+        const model = this.genAI.getGenerativeModel({ 
+          model: modelName 
+        });
+
+        // Configure aspect ratio based on request
+        const aspectRatioConfig = this.getAspectRatioConfig(request.aspectRatio);
+        
+        console.log('🎨 GoogleAI: Generating with aspect ratio', { aspectRatioConfig });
+        
+        // Prepare content for Gemini API
+        let content;
+        
+        if (request.uploadedImageData && request.uploadedImageType) {
+          console.log('🎨 GoogleAI: Using uploaded image data for multimodal generation');
+          
+          // Create multimodal content with image and text
+          content = [
+            {
+              text: qualityEnhancedPrompt
+            },
+            {
+              inlineData: {
+                mimeType: request.uploadedImageType,
+                data: request.uploadedImageData
+              }
+            }
+          ];
+        } else {
+          // Text-only generation
+          content = qualityEnhancedPrompt;
+        }
+        
+        // Use the correct configuration format for Gemini 2.5 Flash Image
+        const result = await model.generateContent(content);
+        
+        console.log('🎨 GoogleAI: Received response from Gemini');
+        const response = await result.response;
+        
+        // Extract image data from response - check all parts for image data
+        const parts = response.candidates?.[0]?.content?.parts || [];
+        
+        console.log('🎨 GoogleAI: Processing response parts', { partCount: parts.length });
+        
+        for (const part of parts) {
+          if (part.inlineData?.data) {
+            imageData = part.inlineData.data;
+            console.log('🎨 GoogleAI: Found image data in part');
+            break;
+          }
+        }
+        
+        if (!imageData) {
+          console.error('❌ GoogleAI: No image data in response', { 
+            response: response,
+            parts: parts.map(p => ({ hasInlineData: !!p.inlineData, hasText: !!p.text }))
+          });
+          throw new Error('No image data received from Gemini');
+        }
+        
+        provider = 'gemini-2.5-flash-image';
       }
 
       console.log('🎨 GoogleAI: Image data received, preparing for storage');
@@ -166,9 +319,11 @@ export class GoogleAIService {
       // Return base64 data for server-side processing
       const processingTime = (Date.now() - startTime) / 1000;
       console.log('✅ GoogleAI: Image generation completed successfully', { 
-        id: `gemini_${Date.now()}`,
+        id: `generated_${Date.now()}`,
         processingTime: `${processingTime}s`,
-        aspectRatio: request.aspectRatio
+        aspectRatio: request.aspectRatio,
+        provider,
+        seed: request.seed
       });
 
       return {
@@ -176,24 +331,25 @@ export class GoogleAIService {
         data: {
           imageData: imageData, // base64 string
           imageUrl: `data:image/png;base64,${imageData}`, // data URL for immediate display
-          id: `gemini_${Date.now()}`,
+          id: `generated_${Date.now()}`,
           prompt: request.prompt,
           style: request.style,
           quality: request.quality,
           aspectRatio: request.aspectRatio,
           processingTime,
-          provider: 'gemini-2.5-flash-image',
+          provider,
         },
       };
     } catch (error) {
       console.error('❌ GoogleAI: Image generation failed', { 
         error: error instanceof Error ? error.message : 'Unknown error',
         prompt: request.prompt,
-        style: request.style
+        style: request.style,
+        seed: request.seed
       });
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to generate image with Gemini',
+        error: error instanceof Error ? error.message : 'Failed to generate image',
       };
     }
   }
@@ -302,6 +458,22 @@ export class GoogleAIService {
       negativePrompt,
       imageType
     );
+  }
+
+  /**
+   * Enhance prompt based on quality setting
+   */
+  private enhancePromptForQuality(prompt: string, quality: 'standard' | 'high' | 'ultra'): string {
+    if (quality === 'standard') {
+      return prompt;
+    }
+
+    const qualityEnhancements = {
+      high: '\n\nEnhanced quality requirements: Maximum detail, professional architectural visualization, photorealistic rendering, high resolution, sharp focus, accurate lighting and materials.',
+      ultra: '\n\nUltra quality requirements: Exceptional detail, studio-quality architectural visualization, ultra-photorealistic rendering, maximum resolution, perfect focus, cinematic lighting and materials, professional architectural photography quality.'
+    };
+
+    return prompt + qualityEnhancements[quality];
   }
 
   private buildImagePrompt(userPrompt: string, style: string, negativePrompt?: string, imageType?: string): string {

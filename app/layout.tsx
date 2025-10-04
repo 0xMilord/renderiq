@@ -20,10 +20,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://aecosec.com'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://arqihive.com'),
   title: {
-    default: "AecoSec - AI Architectural Visualization & Rendering Platform",
-    template: "%s | AecoSec"
+    default: "arqihive - AI Architectural Visualization & Rendering Platform",
+    template: "%s | arqihive"
   },
   description: "Transform architectural designs into photorealistic renders with AI. Real-time visualization, rapid prototyping, and intelligent material testing for architects and designers. Try our AI-powered interior design, exterior rendering, and site planning tools.",
   keywords: [
@@ -44,9 +44,9 @@ export const metadata: Metadata = {
     "computational design",
     "AI for architects"
   ],
-  authors: [{ name: "AecoSec" }],
-  creator: "AecoSec",
-  publisher: "AecoSec",
+  authors: [{ name: "arqihive" }],
+  creator: "arqihive",
+  publisher: "arqihive",
   formatDetection: {
     email: false,
     address: false,
@@ -55,25 +55,25 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: process.env.NEXT_PUBLIC_BASE_URL || 'https://aecosec.com',
-    siteName: "AecoSec",
-    title: "AecoSec - AI Architectural Visualization & Rendering",
+    url: process.env.NEXT_PUBLIC_BASE_URL || 'https://arqihive.com',
+    siteName: "arqihive",
+    title: "arqihive - AI Architectural Visualization & Rendering",
     description: "Transform architectural designs into photorealistic renders with AI. Real-time visualization for architects and designers.",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "AecoSec - AI Architectural Visualization"
+        alt: "arqihive - AI Architectural Visualization"
       }
     ]
   },
   twitter: {
     card: "summary_large_image",
-    title: "AecoSec - AI Architectural Visualization",
+    title: "arqihive - AI Architectural Visualization",
     description: "Transform architectural designs into photorealistic renders with AI",
     images: ["/og-image.png"],
-    creator: "@aecosec"
+    creator: "@arqihive"
   },
   robots: {
     index: true,

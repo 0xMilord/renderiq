@@ -17,18 +17,18 @@ export function JsonLd({ data }: JsonLdProps) {
 export const organizationSchema = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
-  name: 'AecoSec',
-  url: 'https://aecosec.com',
-  logo: 'https://aecosec.com/logo.png',
+  name: 'arqihive',
+  url: 'https://arqihive.com',
+  logo: 'https://arqihive.com/logo.png',
   description: 'AI-powered architectural visualization and rendering platform for architects and designers',
   sameAs: [
-    'https://twitter.com/aecosec',
-    'https://linkedin.com/company/aecosec',
-    'https://github.com/aecosec'
+    'https://twitter.com/arqihive',
+    'https://linkedin.com/company/arqihive',
+    'https://github.com/arqihive'
   ],
   contactPoint: {
     '@type': 'ContactPoint',
-    email: 'support@aecosec.com',
+    email: 'support@arqihive.com',
     contactType: 'Customer Support',
     availableLanguage: ['English']
   }
@@ -38,7 +38,7 @@ export const organizationSchema = {
 export const softwareSchema = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
-  name: 'AecoSec',
+  name: 'arqihive',
   applicationCategory: 'DesignApplication',
   operatingSystem: 'Web',
   offers: {
@@ -57,7 +57,7 @@ export const softwareSchema = {
     'Exterior visualization',
     'Site planning'
   ],
-  screenshot: 'https://aecosec.com/screenshot.png',
+  screenshot: 'https://arqihive.com/screenshot.png',
   aggregateRating: {
     '@type': 'AggregateRating',
     ratingValue: '4.8',
@@ -69,12 +69,12 @@ export const softwareSchema = {
 export const websiteSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
-  name: 'AecoSec',
-  url: 'https://aecosec.com',
+  name: 'arqihive',
+  url: 'https://arqihive.com',
   description: 'Transform architectural designs into photorealistic renders with AI',
   potentialAction: {
     '@type': 'SearchAction',
-    target: 'https://aecosec.com/search?q={search_term_string}',
+    target: 'https://arqihive.com/search?q={search_term_string}',
     'query-input': 'required name=search_term_string'
   }
 };
@@ -99,7 +99,7 @@ export function generateArticleSchema({
   description,
   datePublished,
   dateModified,
-  author = 'AecoSec',
+  author = 'arqihive',
   image
 }: {
   title: string;
@@ -114,7 +114,7 @@ export function generateArticleSchema({
     '@type': 'Article',
     headline: title,
     description: description,
-    image: image || 'https://aecosec.com/og-image.png',
+    image: image || 'https://arqihive.com/og-image.png',
     datePublished: datePublished,
     dateModified: dateModified || datePublished,
     author: {
@@ -123,10 +123,10 @@ export function generateArticleSchema({
     },
     publisher: {
       '@type': 'Organization',
-      name: 'AecoSec',
+      name: 'arqihive',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://aecosec.com/logo.png'
+        url: 'https://arqihive.com/logo.png'
       }
     }
   };

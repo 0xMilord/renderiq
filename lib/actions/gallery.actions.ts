@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { RendersDAL } from '@/lib/dal/projects';
+import { RendersDAL } from '@/lib/dal/renders';
 import { createClient } from '@/lib/supabase/server';
 
 export async function getPublicGallery(page = 1, limit = 20) {

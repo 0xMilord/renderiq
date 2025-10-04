@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  title: "AI Rapid Prototyping for Architecture | Initial Design Concepts | AecoSec",
+  title: "AI Rapid Prototyping for Architecture | Initial Design Concepts | arqihive",
   description: "Generate multiple architectural design concepts in minutes with AI. Rapid prototyping for architects enables faster design exploration, early stakeholder feedback, and reduces design time by 80%.",
   keywords: [
     "rapid prototyping architecture",
