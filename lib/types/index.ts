@@ -54,8 +54,13 @@ export interface GalleryItemWithDetails {
     id: string;
     type: 'image' | 'video';
     prompt: string;
+    settings: Record<string, any> | null;
     outputUrl: string | null;
     status: 'pending' | 'processing' | 'completed' | 'failed';
+    processingTime: number | null;
+    uploadedImageUrl: string | null;
+    uploadedImageKey: string | null;
+    uploadedImageId: string | null;
     createdAt: Date;
   };
   user: {

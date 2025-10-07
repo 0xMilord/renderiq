@@ -96,9 +96,12 @@ export function useImageGeneration() {
         formData.append('versionContext', JSON.stringify(params.versionContext));
       }
 
-      console.log('📤 Sending request to API:', { 
+      console.log('📤 Hook: Sending request to API:', { 
         prompt: params.prompt, 
         style: params.style, 
+        quality: params.quality,
+        aspectRatio: params.aspectRatio,
+        imageType: params.imageType,
         type: params.type,
         hasImage: !!params.uploadedImage,
         chainId: params.chainId,

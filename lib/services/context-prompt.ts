@@ -4,74 +4,62 @@ import { ChainContext, EnhancedPrompt, PromptFeedback } from '@/lib/types/render
 
 export class ContextPromptService {
   /**
-   * Build enhanced prompt with context awareness
+   * Build enhanced prompt with context awareness - MINIMAL and SMART
    */
   static async buildContextAwarePrompt(
     userPrompt: string,
     referenceRender?: Render,
     chainContext?: ChainContext,
-    style?: string,
-    imageType?: string
+    _style?: string,
+    _imageType?: string
   ): Promise<EnhancedPrompt> {
+    // Detect conversation patterns
+    const isIteration = this.isIterationRequest(userPrompt);
+    const isReferenceRequest = userPrompt.includes('@') || userPrompt.includes('version');
+    const isNewImage = !referenceRender && !chainContext;
+    
+    console.log('🧠 ContextPrompt: Analyzing prompt:', {
+      isIteration,
+      isReferenceRequest,
+      isNewImage,
+      hasReferenceRender: !!referenceRender,
+      hasChainContext: !!chainContext
+    });
+
+    // MINIMAL context - only add what's absolutely necessary
     const contextElements: string[] = [];
     const styleModifiers: string[] = [];
 
-    // Add reference render context
-    if (referenceRender?.contextData) {
-      if (referenceRender.contextData.successfulElements) {
-        contextElements.push(
-          `Maintain these successful elements: ${referenceRender.contextData.successfulElements.join(', ')}`
-        );
-      }
-      
-      if (referenceRender.contextData.userFeedback) {
-        contextElements.push(
-          `Previous feedback: ${referenceRender.contextData.userFeedback}`
-        );
-      }
+    // Only add reference context if user explicitly mentions it or it's a new image
+    if ((isReferenceRequest || isNewImage) && referenceRender?.contextData?.successfulElements) {
+      // Extract only the most relevant elements (max 3)
+      const keyElements = referenceRender.contextData.successfulElements.slice(0, 3);
+      contextElements.push(`Keep: ${keyElements.join(', ')}`);
     }
 
-    // Add chain evolution context
-    if (chainContext) {
-      if (chainContext.successfulElements) {
-        contextElements.push(
-          `Proven successful elements from chain: ${chainContext.successfulElements.join(', ')}`
-        );
-      }
-
-      if (chainContext.chainEvolution) {
-        contextElements.push(
-          `Chain evolution context: ${chainContext.chainEvolution}`
-        );
-      }
-
-      if (chainContext.previousPrompts && chainContext.previousPrompts.length > 0) {
-        const recentPrompts = chainContext.previousPrompts.slice(-3);
-        contextElements.push(
-          `Building upon previous iterations: ${recentPrompts.join(' → ')}`
-        );
-      }
+    // Only add chain context for new images or explicit chain references
+    if ((isNewImage || userPrompt.includes('chain')) && chainContext?.successfulElements) {
+      const keyElements = chainContext.successfulElements.slice(0, 2);
+      contextElements.push(`Chain elements: ${keyElements.join(', ')}`);
     }
 
-    // Add style modifiers
-    if (style) {
-      styleModifiers.push(`Style: ${style}`);
-    }
+    // NEVER add style/type modifiers - they're handled elsewhere and cause conflicts
+    // The user's prompt and UI selections should be sufficient
 
-    if (imageType) {
-      styleModifiers.push(`Type: ${imageType}`);
-    }
-
-    // Build enhanced prompt
+    // Build clean enhanced prompt
     let enhancedPrompt = userPrompt;
 
-    if (contextElements.length > 0) {
-      enhancedPrompt = `${userPrompt}\n\nContext: ${contextElements.join('. ')}`;
+    // Only add minimal context if absolutely necessary
+    if (contextElements.length > 0 && !isIteration && !isReferenceRequest) {
+      enhancedPrompt = `${userPrompt}. ${contextElements.join('. ')}`;
     }
 
-    if (styleModifiers.length > 0) {
-      enhancedPrompt += `\n\nRequirements: ${styleModifiers.join(', ')}`;
-    }
+    console.log('🧠 ContextPrompt: Enhanced prompt created:', {
+      originalLength: userPrompt.length,
+      enhancedLength: enhancedPrompt.length,
+      contextElementsCount: contextElements.length,
+      styleModifiersCount: styleModifiers.length
+    });
 
     return {
       originalPrompt: userPrompt,
@@ -79,6 +67,20 @@ export class ContextPromptService {
       contextElements,
       styleModifiers,
     };
+  }
+
+  /**
+   * Smart detection of iteration requests
+   */
+  private static isIterationRequest(prompt: string): boolean {
+    const iterationKeywords = [
+      'ADD', 'REMOVE', 'CHANGE', 'MAKE', 'MORE', 'LESS',
+      'MODIFY', 'UPDATE', 'ADJUST', 'ALTER', 'REFINE',
+      'ITERATE', 'IMPROVE', 'ENHANCE', 'FIX'
+    ];
+    
+    const upperPrompt = prompt.toUpperCase();
+    return iterationKeywords.some(keyword => upperPrompt.includes(keyword));
   }
 
   /**
@@ -160,7 +162,7 @@ export class ContextPromptService {
    */
   static async generateIterationSuggestions(
     chainId: string,
-    currentPrompt: string
+    _currentPrompt: string
   ): Promise<string[]> {
     const renders = await RendersDAL.getByChainId(chainId);
     const suggestions: string[] = [];

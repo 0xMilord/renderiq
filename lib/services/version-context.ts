@@ -44,7 +44,7 @@ export class VersionContextService {
   }
 
   /**
-   * Parse a prompt with mentions and extract version contexts
+   * Parse a prompt with mentions and extract version contexts - SMART and MINIMAL
    */
   async parsePromptWithMentions(
     prompt: string, 
@@ -52,48 +52,73 @@ export class VersionContextService {
     chainRenders?: Render[]
   ): Promise<{ success: boolean; data?: ParsedPrompt; error?: string }> {
     try {
-      console.log('🔍 VersionContextService: Parsing prompt with mentions:', prompt);
+      console.log('🔍 VersionContext: Parsing prompt with mentions:', prompt);
 
       const mentionedVersions: MentionedVersion[] = [];
       let userIntent = prompt;
 
-      // Find all @ mentions in the prompt (capture version number only)
-      const mentionRegex = /@version\s+(\d+)/g;
-      const matches = prompt.matchAll(mentionRegex);
+      // Enhanced mention detection - support multiple formats
+      const mentionPatterns = [
+        /@version\s+(\d+)/g,           // @version 1
+        /@(\d+)/g,                     // @1 (short format)
+        /version\s+(\d+)/g,            // version 1
+        /#(\d+)/g,                     // #1 (hash format)
+        /@latest/g,                    // @latest
+        /@previous/g,                  // @previous
+        /@first/g                      // @first
+      ];
 
-      for (const match of matches) {
-        const fullMatch = match[0]; // e.g., "@version 1"
-        const versionNumber = match[1]; // e.g., "1"
-        const mentionText = `version ${versionNumber}`;
+      for (const pattern of mentionPatterns) {
+        const matches = prompt.matchAll(pattern);
         
-        console.log('🔍 Found mention:', { fullMatch, mentionText });
+        for (const match of matches) {
+          const fullMatch = match[0];
+          let mentionText: string;
+          let versionNumber: string | null = null;
 
-        // Try to find the referenced render
-        const referencedRender = this.findReferencedRender(mentionText, userRenders, chainRenders);
-        
-        if (referencedRender) {
-          console.log('✅ Found referenced render:', referencedRender.id);
+          // Handle different mention formats
+          if (fullMatch.includes('@latest')) {
+            mentionText = 'latest version';
+          } else if (fullMatch.includes('@previous')) {
+            mentionText = 'previous version';
+          } else if (fullMatch.includes('@first')) {
+            mentionText = 'first version';
+          } else if (match[1]) {
+            versionNumber = match[1];
+            mentionText = `version ${versionNumber}`;
+          } else {
+            continue; // Skip invalid matches
+          }
           
-          // Get full context for this render
-          const context = await this.getVersionContext(referencedRender);
-          
-          mentionedVersions.push({
-            mentionText,
-            renderId: referencedRender.id,
-            context
-          });
+          console.log('🔍 Found mention:', { fullMatch, mentionText, versionNumber });
 
-          // Remove only the @version X part, keep the rest of the user's request
-          userIntent = userIntent.replace(fullMatch, '').trim();
-        } else {
-          console.log('⚠️ Could not find render for mention:', mentionText);
+          // Try to find the referenced render
+          const referencedRender = this.findReferencedRender(mentionText, userRenders, chainRenders);
           
-          // Still add the mention but without context
-          mentionedVersions.push({
-            mentionText,
-            renderId: undefined,
-            context: undefined
-          });
+          if (referencedRender) {
+            console.log('✅ Found referenced render:', referencedRender.id);
+            
+            // Get MINIMAL context for this render
+            const context = await this.getMinimalVersionContext(referencedRender);
+            
+            mentionedVersions.push({
+              mentionText,
+              renderId: referencedRender.id,
+              context
+            });
+
+            // Remove the mention from user intent
+            userIntent = userIntent.replace(fullMatch, '').trim();
+          } else {
+            console.log('⚠️ Could not find render for mention:', mentionText);
+            
+            // Still add the mention but without context
+            mentionedVersions.push({
+              mentionText,
+              renderId: undefined,
+              context: undefined
+            });
+          }
         }
       }
 
@@ -104,7 +129,7 @@ export class VersionContextService {
         hasMentions: mentionedVersions.length > 0
       };
 
-      console.log('✅ VersionContextService: Parsed prompt:', {
+      console.log('✅ VersionContext: Parsed prompt:', {
         userIntent,
         mentionsCount: mentionedVersions.length,
         hasMentions: parsedPrompt.hasMentions
@@ -116,7 +141,7 @@ export class VersionContextService {
       };
 
     } catch (error) {
-      console.error('❌ VersionContextService: Error parsing prompt:', error);
+      console.error('❌ VersionContext: Error parsing prompt:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to parse prompt'
@@ -229,14 +254,14 @@ export class VersionContextService {
   }
 
   /**
-   * Get full context for a render including image data
+   * Get MINIMAL context for a render - only essential info
    */
-  private async getVersionContext(render: Render): Promise<VersionContext> {
-    console.log('🔍 VersionContextService: Getting context for render:', render.id);
+  private async getMinimalVersionContext(render: Render): Promise<VersionContext> {
+    console.log('🔍 VersionContext: Getting minimal context for render:', render.id);
 
     let imageData: string | undefined;
 
-    // Download and encode the image if it exists
+    // Only download image if absolutely necessary (for @ mentions)
     if (render.outputUrl) {
       try {
         console.log('📸 Downloading reference image...');
@@ -264,7 +289,7 @@ export class VersionContextService {
       imageData,
       metadata: {
         processingTime: render.processingTime,
-        provider: 'unknown', // Could be enhanced to track provider
+        provider: 'unknown',
         quality: render.settings?.quality || 'standard',
         style: render.settings?.style || 'realistic',
         aspectRatio: render.settings?.aspectRatio || '16:9',
@@ -272,55 +297,65 @@ export class VersionContextService {
       }
     };
 
-    console.log('✅ VersionContextService: Context created:', {
+    console.log('✅ VersionContext: Minimal context created:', {
       renderId: context.renderId,
       hasImageData: !!context.imageData,
-      promptLength: context.prompt.length,
-      settingsKeys: Object.keys(context.settings)
+      promptLength: context.prompt.length
     });
 
     return context;
   }
 
   /**
-   * Create a comprehensive prompt with version context for AI generation
+   * Get full context for a render including image data (DEPRECATED - use getMinimalVersionContext)
+   */
+  private async getVersionContext(render: Render): Promise<VersionContext> {
+    return this.getMinimalVersionContext(render);
+  }
+
+  /**
+   * Create a CLEAN prompt with version context for AI generation - MINIMAL NOISE
    */
   createContextualPrompt(parsedPrompt: ParsedPrompt): string {
     if (!parsedPrompt.hasMentions) {
       return parsedPrompt.userIntent;
     }
 
-    // If userIntent is empty, extract it from the original prompt by removing mentions
+    // Extract clean user request
     let userRequest = parsedPrompt.userIntent;
     if (!userRequest || userRequest.trim() === '') {
-      // Remove @version X patterns from the original prompt to get the user's request
-      userRequest = parsedPrompt.originalPrompt.replace(/@version\s+\d+/g, '').trim();
+      // Remove all mention patterns to get clean user request
+      userRequest = parsedPrompt.originalPrompt
+        .replace(/@version\s+\d+/g, '')
+        .replace(/@\d+/g, '')
+        .replace(/version\s+\d+/g, '')
+        .replace(/#\d+/g, '')
+        .replace(/@latest/g, '')
+        .replace(/@previous/g, '')
+        .replace(/@first/g, '')
+        .trim();
     }
 
-    let contextualPrompt = `User Request: ${userRequest}\n\n`;
+    // Build MINIMAL contextual prompt
+    let contextualPrompt = userRequest;
 
-    // Add context from each mentioned version
-    for (const mention of parsedPrompt.mentionedVersions) {
-      if (mention.context) {
-        contextualPrompt += `Reference from @${mention.mentionText}:\n`;
-        contextualPrompt += `- Original prompt: "${mention.context.prompt}"\n`;
-        contextualPrompt += `- Style: ${mention.context.metadata?.style || 'realistic'}\n`;
-        contextualPrompt += `- Quality: ${mention.context.metadata?.quality || 'standard'}\n`;
-        contextualPrompt += `- Aspect ratio: ${mention.context.metadata?.aspectRatio || '16:9'}\n`;
-        contextualPrompt += `- Image type: ${mention.context.metadata?.imageType || '3d-mass'}\n`;
-        
-        if (mention.context.metadata?.processingTime) {
-          contextualPrompt += `- Processing time: ${mention.context.metadata.processingTime}s\n`;
-        }
-        
-        contextualPrompt += '\n';
+    // Only add essential reference info if multiple versions mentioned
+    if (parsedPrompt.mentionedVersions.length > 0) {
+      const references = parsedPrompt.mentionedVersions
+        .filter(m => m.context)
+        .map(m => `${m.mentionText}`)
+        .join(', ');
+      
+      if (references) {
+        contextualPrompt += `. Use ${references} as reference`;
       }
     }
 
-    contextualPrompt += `Please generate a new image based on the user request, using the referenced version(s) as context. `;
-    contextualPrompt += `Maintain consistency with the referenced styles and settings where appropriate, but prioritize the user's specific request.`;
-
-    console.log('🔍 VersionContextService: Created contextual prompt:', contextualPrompt.substring(0, 200) + '...');
+    console.log('🔍 VersionContext: Created clean contextual prompt:', {
+      originalLength: parsedPrompt.originalPrompt.length,
+      contextualLength: contextualPrompt.length,
+      mentionsCount: parsedPrompt.mentionedVersions.length
+    });
 
     return contextualPrompt;
   }

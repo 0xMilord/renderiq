@@ -126,17 +126,40 @@ export class ImageGenerationService {
 
     try {
       console.log('🎨 ImageGenService: Calling Google AI service');
+      
+      // Determine what image data will be used
+      const finalImageData = params.uploadedImageData || referenceImageData;
+      const finalImageType = params.uploadedImageType || referenceImageType;
+      
+      console.log('🎨 ImageGenService: Image data summary', {
+        hasOriginalUpload: !!params.uploadedImageData,
+        hasReferenceImage: !!referenceImageData,
+        willUseImageData: !!finalImageData,
+        imageType: finalImageType
+      });
+      
       // Use Google AI Gemini 2.5 Flash for image generation
       const result = await this.googleAIService.generateImage({
         prompt: finalPrompt,
         style: params.style,
         quality: params.quality,
         aspectRatio: params.aspectRatio,
-        uploadedImageData: params.uploadedImageData || referenceImageData,
-        uploadedImageType: params.uploadedImageType || referenceImageType,
+        uploadedImageData: finalImageData,
+        uploadedImageType: finalImageType,
         negativePrompt: params.negativePrompt,
         imageType: params.imageType,
         seed: params.seed,
+        referenceRender: params.referenceRenderId ? {
+          id: params.referenceRenderId,
+          prompt: params.prompt,
+          settings: params.settings || {},
+          outputUrl: '', // Will be fetched if needed
+          type: params.type || 'image',
+          createdAt: new Date(),
+          chainPosition: params.chainPosition,
+          imageData: referenceImageData
+        } : undefined,
+        chainContext: undefined, // TODO: Implement chain context if needed
       });
 
       if (!result.success || !result.data) {

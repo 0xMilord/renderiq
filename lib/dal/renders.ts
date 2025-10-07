@@ -292,8 +292,13 @@ export class RendersDAL {
           id: renders.id,
           type: renders.type,
           prompt: renders.prompt,
+          settings: renders.settings,
           outputUrl: renders.outputUrl,
           status: renders.status,
+          processingTime: renders.processingTime,
+          uploadedImageUrl: renders.uploadedImageUrl,
+          uploadedImageKey: renders.uploadedImageKey,
+          uploadedImageId: renders.uploadedImageId,
           createdAt: renders.createdAt,
         },
         user: {

@@ -219,11 +219,15 @@ export function UnifiedChatInterface({
   // Form state (from control bar)
   const [selectedStyle, setSelectedStyle] = useState('realistic');
   const [renderMode, setRenderMode] = useState('exact');
-  const [renderSpeed, setRenderSpeed] = useState('fast');
+  const [renderSpeed, setRenderSpeed] = useState<'fast' | 'balanced' | 'best'>('fast');
   const [aspectRatio, setAspectRatio] = useState('16:9');
   const [imageType, setImageType] = useState('photo');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  
+  // Advanced photography controls
+  const [cameraSettings, setCameraSettings] = useState<string>('auto'); // auto, wide, standard, telephoto, macro
+  const [lightingMode, setLightingMode] = useState<string>('auto'); // auto, natural, dramatic, soft, studio
   
   // Modal states
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -402,7 +406,8 @@ export function UnifiedChatInterface({
 
   const getCreditsCost = () => {
     const baseCost = activeTab === 'image-to-video' ? 5 : 1;
-    const speedMultiplier = renderSpeed === 'best' ? 2 : 1;
+    // fast = 1x, balanced = 2x, best = 3x (matching quality multiplier)
+    const speedMultiplier = renderSpeed === 'best' ? 3 : renderSpeed === 'balanced' ? 2 : 1;
     return baseCost * speedMultiplier;
   };
 
@@ -636,11 +641,49 @@ export function UnifiedChatInterface({
     setMessages(prev => [...prev, assistantMessage]);
 
     try {
+      // Build custom prompt additions based on user camera/lighting choices
+      let customPromptAdditions = '';
+      if (cameraSettings !== 'auto') {
+        const cameraSpecs = {
+          wide: 'Shot with wide-angle lens (16mm), capturing expansive view. ',
+          standard: 'Shot with standard lens (35mm), natural perspective. ',
+          telephoto: 'Shot with telephoto lens (85mm), compressed perspective. ',
+          macro: 'Macro photography, extreme close-up details. '
+        };
+        customPromptAdditions += cameraSpecs[cameraSettings as keyof typeof cameraSpecs] || '';
+      }
+      
+      if (lightingMode !== 'auto') {
+        const lightingSpecs = {
+          natural: 'Natural daylight, soft shadows, golden hour lighting. ',
+          dramatic: 'Dramatic lighting, strong contrast, deep shadows. ',
+          soft: 'Soft diffused lighting, minimal shadows, even illumination. ',
+          studio: 'Studio lighting setup, controlled illumination, professional setup. '
+        };
+        customPromptAdditions += lightingSpecs[lightingMode as keyof typeof lightingSpecs] || '';
+      }
+
+      // Prepend custom settings to user prompt for priority
+      const enhancedPrompt = customPromptAdditions ? `${customPromptAdditions}${finalPrompt}` : finalPrompt;
+
+      // Log generation parameters before sending
+      console.log('🎯 Chat: Sending generation request with parameters:', {
+        style: selectedStyle,
+        quality: renderSpeed === 'best' ? 'ultra' : renderSpeed === 'balanced' ? 'high' : 'standard',
+        aspectRatio,
+        imageType,
+        cameraSettings,
+        lightingMode,
+        hasCustomSettings: customPromptAdditions.length > 0,
+        renderSpeed,
+        type: activeTab === 'image-to-video' ? 'video' : 'image'
+      });
+
       // Use image generation hook for actual generation
       const result = await generateImage({
-        prompt: finalPrompt, // Use the processed prompt (with context if applicable)
+        prompt: enhancedPrompt, // Use the enhanced prompt with camera/lighting settings
         style: selectedStyle,
-        quality: renderSpeed === 'best' ? 'high' : 'standard',
+        quality: renderSpeed === 'best' ? 'ultra' : renderSpeed === 'balanced' ? 'high' : 'standard',
         aspectRatio,
         type: activeTab === 'image-to-video' ? 'video' : 'image',
         duration: activeTab === 'image-to-video' ? 5 : undefined,
@@ -651,6 +694,7 @@ export function UnifiedChatInterface({
         imageType: imageType || undefined,
         seed: undefined,
         versionContext: versionContext, // Pass the version context
+        isPublic: true, // Add to public gallery
       });
       
       // Check if generation was successful
@@ -665,12 +709,15 @@ export function UnifiedChatInterface({
           prompt: currentPrompt,
           settings: {
             style: selectedStyle,
-            quality: renderSpeed === 'best' ? 'high' : 'standard',
+            quality: renderSpeed === 'best' ? 'ultra' : renderSpeed === 'balanced' ? 'high' : 'standard',
             aspectRatio,
             imageType,
           },
           outputUrl: result.imageUrl || '',
           outputKey: '',
+          uploadedImageUrl: null,
+          uploadedImageKey: null,
+          uploadedImageId: null,
           status: 'completed',
           errorMessage: null,
           processingTime: result.processingTime,
@@ -1217,6 +1264,43 @@ export function UnifiedChatInterface({
                 </div>
               </div>
 
+              {/* Camera and Lighting Controls */}
+              <div className="grid grid-cols-2 gap-2">
+                {/* Camera Settings */}
+                <div className="space-y-0.5 sm:space-y-1">
+                  <Label className="text-[10px] sm:text-xs font-medium">Camera</Label>
+                  <Select value={cameraSettings} onValueChange={setCameraSettings}>
+                    <SelectTrigger className="h-7 sm:h-8 text-[10px] sm:text-xs w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto" className="text-[10px] sm:text-xs">Auto</SelectItem>
+                      <SelectItem value="wide" className="text-[10px] sm:text-xs">Wide (16mm)</SelectItem>
+                      <SelectItem value="standard" className="text-[10px] sm:text-xs">Standard (35mm)</SelectItem>
+                      <SelectItem value="telephoto" className="text-[10px] sm:text-xs">Telephoto (85mm)</SelectItem>
+                      <SelectItem value="macro" className="text-[10px] sm:text-xs">Macro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Lighting Mode */}
+                <div className="space-y-0.5 sm:space-y-1">
+                  <Label className="text-[10px] sm:text-xs font-medium">Lighting</Label>
+                  <Select value={lightingMode} onValueChange={setLightingMode}>
+                    <SelectTrigger className="h-7 sm:h-8 text-[10px] sm:text-xs w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto" className="text-[10px] sm:text-xs">Auto</SelectItem>
+                      <SelectItem value="natural" className="text-[10px] sm:text-xs">Natural/Golden Hour</SelectItem>
+                      <SelectItem value="dramatic" className="text-[10px] sm:text-xs">Dramatic</SelectItem>
+                      <SelectItem value="soft" className="text-[10px] sm:text-xs">Soft/Diffused</SelectItem>
+                      <SelectItem value="studio" className="text-[10px] sm:text-xs">Studio</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               {/* Render Mode and Speed Toggles */}
               <div className="grid grid-cols-2 gap-1 sm:gap-2">
                 {/* Render Mode Toggle */}
@@ -1244,23 +1328,34 @@ export function UnifiedChatInterface({
 
                 {/* Render Speed Toggle */}
                 <div className="space-y-0.5 sm:space-y-1">
-                  <Label className="text-[10px] sm:text-xs font-medium">Speed</Label>
+                  <Label className="text-[10px] sm:text-xs font-medium">Quality</Label>
                   <div className="flex bg-muted rounded-lg p-0.5 sm:p-1">
                     <Button
                       variant={renderSpeed === 'fast' ? 'default' : 'ghost'}
                       size="sm"
                       onClick={() => setRenderSpeed('fast')}
                       className="flex-1 h-5 sm:h-6 text-[10px] sm:text-xs"
+                      title="Standard quality (1x credits)"
                     >
                       Fast
+                    </Button>
+                    <Button
+                      variant={renderSpeed === 'balanced' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setRenderSpeed('balanced')}
+                      className="flex-1 h-5 sm:h-6 text-[10px] sm:text-xs"
+                      title="High quality (2x credits)"
+                    >
+                      High
                     </Button>
                     <Button
                       variant={renderSpeed === 'best' ? 'default' : 'ghost'}
                       size="sm"
                       onClick={() => setRenderSpeed('best')}
                       className="flex-1 h-5 sm:h-6 text-[10px] sm:text-xs"
+                      title="Ultra quality (3x credits)"
                     >
-                      Best
+                      Ultra
                     </Button>
                   </div>
                 </div>

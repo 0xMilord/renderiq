@@ -6,6 +6,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { 
   X, 
   Download, 
@@ -51,6 +52,7 @@ export function ImageModal({
   const renderData = 'render' in item ? item.render : item;
   const userData = 'user' in item ? item.user : null;
   const isGalleryItem = 'render' in item;
+  const hasComparison = !!(renderData.uploadedImageUrl && renderData.outputUrl);
 
   const handleImageLoad = () => {
     setImageLoading(false);
@@ -126,37 +128,108 @@ export function ImageModal({
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full overflow-y-auto">
           {/* Image/Video Display - 3/4 width on desktop, full width on mobile */}
           <div className="lg:col-span-3 space-y-4">
-            <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
-              {imageLoading && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Loader2 className="h-8 w-8 animate-spin" />
-                </div>
-              )}
-              {imageError ? (
-                <div className="w-full h-full flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="text-4xl mb-2">🖼️</div>
-                    <p className="text-muted-foreground">Failed to load image</p>
+            {hasComparison ? (
+              <Tabs defaultValue="generated" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-4">
+                  <TabsTrigger value="uploaded">Before (Uploaded)</TabsTrigger>
+                  <TabsTrigger value="generated">After (Generated)</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="uploaded" className="mt-0">
+                  <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+                    {imageLoading && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-muted z-20">
+                        <Loader2 className="h-8 w-8 animate-spin" />
+                      </div>
+                    )}
+                    {imageError ? (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="text-4xl mb-2">🖼️</div>
+                          <p className="text-muted-foreground">Failed to load image</p>
+                        </div>
+                      </div>
+                    ) : (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={renderData.uploadedImageUrl || ''}
+                        alt="Uploaded image"
+                        className="w-full h-full object-contain"
+                        onLoad={handleImageLoad}
+                        onError={handleImageError}
+                      />
+                    )}
+                    <div className="absolute top-3 right-3 z-30">
+                      <Badge className={cn("text-xs", getStatusColor(renderData.status))}>
+                        {renderData.status}
+                      </Badge>
+                    </div>
                   </div>
+                </TabsContent>
+
+                <TabsContent value="generated" className="mt-0">
+                  <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+                    {imageLoading && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-muted z-20">
+                        <Loader2 className="h-8 w-8 animate-spin" />
+                      </div>
+                    )}
+                    {imageError ? (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="text-4xl mb-2">🖼️</div>
+                          <p className="text-muted-foreground">Failed to load image</p>
+                        </div>
+                      </div>
+                    ) : (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={renderData.outputUrl || ''}
+                        alt="Generated image"
+                        className="w-full h-full object-contain"
+                        onLoad={handleImageLoad}
+                        onError={handleImageError}
+                      />
+                    )}
+                    <div className="absolute top-3 right-3 z-30">
+                      <Badge className={cn("text-xs", getStatusColor(renderData.status))}>
+                        {renderData.status}
+                      </Badge>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            ) : (
+              <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+                {imageLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-muted z-20">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  </div>
+                )}
+                {imageError ? (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="text-4xl mb-2">🖼️</div>
+                      <p className="text-muted-foreground">Failed to load image</p>
+                    </div>
+                  </div>
+                ) : (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={renderData.outputUrl || ''}
+                    alt={renderData.prompt}
+                    className="w-full h-full object-contain"
+                    onLoad={handleImageLoad}
+                    onError={handleImageError}
+                  />
+                )}
+                <div className="absolute top-3 right-3 z-30">
+                  <Badge className={cn("text-xs", getStatusColor(renderData.status))}>
+                    {renderData.status}
+                  </Badge>
                 </div>
-              ) : (
-                <img
-                  src={renderData.outputUrl || ''}
-                  alt={renderData.prompt}
-                  className={cn(
-                    "w-full h-full object-cover",
-                    imageLoading && "opacity-0"
-                  )}
-                  onLoad={handleImageLoad}
-                  onError={handleImageError}
-                />
-              )}
-              <div className="absolute top-3 right-3">
-                <Badge className={cn("text-xs", getStatusColor(renderData.status))}>
-                  {renderData.status}
-                </Badge>
               </div>
-            </div>
+            )}
 
           </div>
 

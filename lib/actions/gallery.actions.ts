@@ -33,12 +33,13 @@ export async function viewGalleryItem(itemId: string) {
 
 export async function likeGalleryItem(itemId: string) {
   try {
-    const { user } = await createClient().auth.getUser();
-    if (!user.data.user) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       return { success: false, error: 'Authentication required' };
     }
 
-    const result = await RendersDAL.toggleLike(itemId, user.data.user.id);
+    const result = await RendersDAL.toggleLike(itemId, user.id);
     revalidatePath('/gallery');
     return { success: true, data: result };
   } catch (error) {

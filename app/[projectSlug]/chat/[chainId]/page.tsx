@@ -34,10 +34,9 @@ export default function ProjectChatPage() {
 
   const handleRenderComplete = (render: any) => {
     console.log('Render completed:', render);
-    // Refresh chain data to get the latest renders
-    if (fetchChain) {
-      fetchChain();
-    }
+    // ✅ DO NOT refresh chain data - UnifiedChatInterface manages its own state
+    // Calling fetchChain() causes a full page reload which is bad UX
+    // The chat interface updates its messages state directly when a render completes
   };
 
   const handleRenderStart = () => {
