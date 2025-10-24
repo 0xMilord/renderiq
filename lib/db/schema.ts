@@ -157,6 +157,9 @@ export const renders = pgTable('renders', {
     imageType?: string;
     negativePrompt?: string;
     renderMode?: string;
+    // Video-specific fields
+    model?: 'veo3' | 'veo3_fast';
+    generationType?: 'text-to-video' | 'image-to-video' | 'keyframe-sequence';
   }>(),
   outputUrl: text('output_url'),
   outputKey: text('output_key'),

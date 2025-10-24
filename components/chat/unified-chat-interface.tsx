@@ -19,8 +19,6 @@ import {
   Wand2, 
   Download, 
   Share2,
-  Heart,
-  Eye,
   Loader2,
   Sparkles,
   Upload,
@@ -31,26 +29,14 @@ import {
   ChevronDown,
   ChevronUp,
   Maximize,
-  Minimize,
   MessageSquare,
   ArrowLeft,
   Copy,
+  Play,
+  RotateCcw,
   Zap
 } from 'lucide-react';
 import { 
-  FaBuilding, 
-  FaDesktop, 
-  FaMoon, 
-  FaSnowflake, 
-  FaCloudRain, 
-  FaPencilAlt, 
-  FaPalette, 
-  FaImage,
-  FaCubes,
-  FaCamera,
-  FaPencilRuler,
-  FaProjectDiagram,
-  FaHardHat,
   FaSquare,
   FaTv,
   FaTabletAlt
@@ -59,9 +45,9 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useCredits } from '@/lib/hooks/use-credits';
 import { useUpscaling } from '@/lib/hooks/use-upscaling';
-import { useImageGeneration } from '@/lib/hooks/use-image-generation';
-import { usePromptEnhancement } from '@/lib/hooks/use-prompt-enhancement';
+import { usePromptEnhancement, useImageGeneration, useVideoGeneration, useAIChat } from '@/lib/hooks/use-ai-sdk';
 import { useVersionContext } from '@/lib/hooks/use-version-context';
+import { VideoPlayer } from '@/components/video/video-player';
 import { UploadModal } from './upload-modal';
 import { GalleryModal } from './gallery-modal';
 import { MentionTagger } from './mention-tagger';
@@ -71,7 +57,7 @@ import Image from 'next/image';
 
 interface Message {
   id: string;
-  type: 'user' | 'assistant';
+  type: 'user' | 'assistant' | 'video';
   content: string;
   timestamp: Date;
   render?: Render;
@@ -96,33 +82,8 @@ interface UnifiedChatInterfaceProps {
   onBackToProjects?: () => void;
 }
 
-// Style configurations from control bar
-const styles = [
-  { value: 'none', label: 'None', icon: X, color: 'text-muted-foreground' },
-  { value: 'realistic', label: 'Realistic', icon: FaBuilding, color: 'text-primary' },
-  { value: 'cgi', label: 'CGI', icon: FaDesktop, color: 'text-primary' },
-  { value: 'night', label: 'Night', icon: FaMoon, color: 'text-primary' },
-  { value: 'snow', label: 'Snow', icon: FaSnowflake, color: 'text-primary' },
-  { value: 'rain', label: 'Rain', icon: FaCloudRain, color: 'text-primary' },
-  { value: 'sketch', label: 'Sketch', icon: FaPencilAlt, color: 'text-primary' },
-  { value: 'watercolor', label: 'Watercolor', icon: FaPalette, color: 'text-primary' },
-  { value: 'illustration', label: 'Illustration', icon: FaImage, color: 'text-primary' },
-];
-
-const aspectRatios = [
-  { value: '1:1', label: 'Square', icon: FaSquare, color: 'text-primary', description: '1:1' },
-  { value: '16:9', label: 'Wide', icon: FaTv, color: 'text-primary', description: '16:9' },
-  { value: '4:3', label: 'Standard', icon: FaTabletAlt, color: 'text-primary', description: '4:3' },
-  { value: '3:2', label: 'Photo', icon: FaCamera, color: 'text-primary', description: '3:2' },
-];
-
-const imageTypes = [
-  { value: '3d-mass', label: '3D Mass', icon: FaCubes, color: 'text-primary' },
-  { value: 'photo', label: 'Photo', icon: FaCamera, color: 'text-primary' },
-  { value: 'drawing', label: 'Drawing', icon: FaPencilRuler, color: 'text-primary' },
-  { value: 'wireframe', label: 'Wireframe', icon: FaProjectDiagram, color: 'text-primary' },
-  { value: 'construction', label: 'Build', icon: FaHardHat, color: 'text-primary' },
-];
+// Fixed aspect ratio for better quality - using 16:9 as default
+const DEFAULT_ASPECT_RATIO = '16:9';
 
 // Component for truncated messages with expand/collapse functionality
 function TruncatedMessage({ 
@@ -200,7 +161,6 @@ export function UnifiedChatInterface({
   chain,
   onRenderComplete, 
   onRenderStart,
-  onRefreshChain,
   projectName,
   onBackToProjects
 }: UnifiedChatInterfaceProps) {
@@ -216,18 +176,13 @@ export function UnifiedChatInterface({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [referenceRenderId, setReferenceRenderId] = useState<string | undefined>();
   
-  // Form state (from control bar)
-  const [selectedStyle, setSelectedStyle] = useState('realistic');
-  const [renderMode, setRenderMode] = useState('exact');
-  const [renderSpeed, setRenderSpeed] = useState<'fast' | 'balanced' | 'best'>('fast');
-  const [aspectRatio, setAspectRatio] = useState('16:9');
-  const [imageType, setImageType] = useState('photo');
+  // Fixed aspect ratio for better quality
+  const aspectRatio = DEFAULT_ASPECT_RATIO;
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   
-  // Advanced photography controls
-  const [cameraSettings, setCameraSettings] = useState<string>('auto'); // auto, wide, standard, telephoto, macro
-  const [lightingMode, setLightingMode] = useState<string>('auto'); // auto, natural, dramatic, soft, studio
+  // Simplified video controls
+  const [videoDuration, setVideoDuration] = useState(5);
   
   // Modal states
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -239,8 +194,6 @@ export function UnifiedChatInterface({
   const [currentMentionPosition, setCurrentMentionPosition] = useState(-1);
   
   // UI state
-  const [likes, setLikes] = useState(0);
-  const [views] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
   
   // Mobile view state - toggle between chat and render
@@ -252,13 +205,12 @@ export function UnifiedChatInterface({
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Hooks
-  const { credits, loading: creditsLoading } = useCredits();
+  const { credits } = useCredits();
   const { upscaleImage, isUpscaling, upscalingResult, error: upscalingError } = useUpscaling();
   
-  // Image generation hook
-  const { generate: generateImage, isGenerating: isImageGenerating } = useImageGeneration();
-  
-  // Prompt enhancement hook
+  // Vercel AI SDK hooks
+  const { generateImage, isGenerating: isImageGenerating } = useImageGeneration();
+  const { generateVideo, isGenerating: isVideoGenerating } = useVideoGeneration();
   const { enhancePrompt, isEnhancing, error: enhancementError, isEnhanced, restoreOriginal } = usePromptEnhancement();
   
   // Version context hook
@@ -266,7 +218,7 @@ export function UnifiedChatInterface({
 
   // Update progress during generation
   useEffect(() => {
-    if (isImageGenerating) {
+    if (isImageGenerating || isVideoGenerating) {
       const interval = setInterval(() => {
         setProgress(prev => {
           if (prev >= 90) return prev;
@@ -277,7 +229,7 @@ export function UnifiedChatInterface({
     } else {
       setProgress(0);
     }
-  }, [isImageGenerating]);
+  }, [isImageGenerating, isVideoGenerating]);
 
   // Load chain data when component mounts or chain changes
   useEffect(() => {
@@ -379,13 +331,21 @@ export function UnifiedChatInterface({
 
   // Dropzone for file upload
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
+    if (acceptedFiles.length === 0) return;
     
-    if (!file.type.startsWith('image/')) return;
-    if (file.size > 10 * 1024 * 1024) return;
+    // Check if all files are images and within size limit
+    const validFiles = acceptedFiles.filter(file => 
+      file.type.startsWith('image/') && file.size <= 10 * 1024 * 1024
+    );
     
+    if (validFiles.length === 0) return;
+    
+    // Single image upload
+    const file = validFiles[0];
     setUploadedFile(file);
-  }, []);
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+  }, [activeTab]);
 
   const { getRootProps, getInputProps } = useDropzone({
     onDrop,
@@ -394,6 +354,7 @@ export function UnifiedChatInterface({
     },
     maxFiles: 1,
     maxSize: 10 * 1024 * 1024,
+    multiple: false,
   });
 
   const removeFile = () => {
@@ -405,10 +366,15 @@ export function UnifiedChatInterface({
   };
 
   const getCreditsCost = () => {
-    const baseCost = activeTab === 'image-to-video' ? 5 : 1;
-    // fast = 1x, balanced = 2x, best = 3x (matching quality multiplier)
-    const speedMultiplier = renderSpeed === 'best' ? 3 : renderSpeed === 'balanced' ? 2 : 1;
-    return baseCost * speedMultiplier;
+    if (activeTab === 'image-to-video') {
+      // Video generation costs
+      const baseCost = 5;
+      const durationMultiplier = videoDuration / 5;
+      return Math.ceil(baseCost * durationMultiplier);
+    } else {
+      // Image generation costs
+      return 1;
+    }
   };
 
   const handleEnhancePrompt = async () => {
@@ -444,6 +410,7 @@ export function UnifiedChatInterface({
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
   };
+
 
   // Gallery modal handlers
   const handleGalleryModalOpen = () => {
@@ -641,64 +608,49 @@ export function UnifiedChatInterface({
     setMessages(prev => [...prev, assistantMessage]);
 
     try {
-      // Build custom prompt additions based on user camera/lighting choices
-      let customPromptAdditions = '';
-      if (cameraSettings !== 'auto') {
-        const cameraSpecs = {
-          wide: 'Shot with wide-angle lens (16mm), capturing expansive view. ',
-          standard: 'Shot with standard lens (35mm), natural perspective. ',
-          telephoto: 'Shot with telephoto lens (85mm), compressed perspective. ',
-          macro: 'Macro photography, extreme close-up details. '
-        };
-        customPromptAdditions += cameraSpecs[cameraSettings as keyof typeof cameraSpecs] || '';
-      }
-      
-      if (lightingMode !== 'auto') {
-        const lightingSpecs = {
-          natural: 'Natural daylight, soft shadows, golden hour lighting. ',
-          dramatic: 'Dramatic lighting, strong contrast, deep shadows. ',
-          soft: 'Soft diffused lighting, minimal shadows, even illumination. ',
-          studio: 'Studio lighting setup, controlled illumination, professional setup. '
-        };
-        customPromptAdditions += lightingSpecs[lightingMode as keyof typeof lightingSpecs] || '';
-      }
-
-      // Prepend custom settings to user prompt for priority
-      const enhancedPrompt = customPromptAdditions ? `${customPromptAdditions}${finalPrompt}` : finalPrompt;
+      // Use the final prompt directly - Vercel AI SDK handles optimization
+      const enhancedPrompt = finalPrompt;
 
       // Log generation parameters before sending
       console.log('🎯 Chat: Sending generation request with parameters:', {
-        style: selectedStyle,
-        quality: renderSpeed === 'best' ? 'ultra' : renderSpeed === 'balanced' ? 'high' : 'standard',
         aspectRatio,
-        imageType,
-        cameraSettings,
-        lightingMode,
-        hasCustomSettings: customPromptAdditions.length > 0,
-        renderSpeed,
+        videoDuration: activeTab === 'image-to-video' ? videoDuration : undefined,
         type: activeTab === 'image-to-video' ? 'video' : 'image'
       });
 
-      // Use image generation hook for actual generation
-      const result = await generateImage({
-        prompt: enhancedPrompt, // Use the enhanced prompt with camera/lighting settings
-        style: selectedStyle,
-        quality: renderSpeed === 'best' ? 'ultra' : renderSpeed === 'balanced' ? 'high' : 'standard',
-        aspectRatio,
-        type: activeTab === 'image-to-video' ? 'video' : 'image',
-        duration: activeTab === 'image-to-video' ? 5 : undefined,
-        uploadedImage: userMessage.uploadedImage?.file || undefined,
-        projectId: projectId || undefined,
-        chainId: chainId || undefined,
-        referenceRenderId: referenceRenderId,
-        imageType: imageType || undefined,
-        seed: undefined,
-        versionContext: versionContext, // Pass the version context
-        isPublic: true, // Add to public gallery
-      });
+      // Branch between image and video generation
+      let result;
+      
+      if (activeTab === 'image-to-video') {
+        // Automatically determine video generation type based on what's uploaded
+        console.log('🎬 Initiating video generation:', {
+          hasUploadedImage: !!userMessage.uploadedImage?.file,
+          duration: videoDuration
+        });
+        
+        result = await generateVideo({
+          prompt: enhancedPrompt,
+          duration: videoDuration,
+          aspectRatio: aspectRatio as '16:9' | '9:16' | '1:1',
+          projectId: projectId || '',
+          chainId: chainId || undefined,
+          referenceRenderId: referenceRenderId,
+        });
+      } else {
+        // Use image generation hook
+        result = await generateImage({
+          prompt: enhancedPrompt,
+          aspectRatio,
+          projectId: projectId || undefined,
+          chainId: chainId || undefined,
+          referenceRenderId: referenceRenderId,
+          versionContext: versionContext, // Pass the version context
+          isPublic: true, // Add to public gallery
+        });
+      }
       
       // Check if generation was successful
-      if (result && result.imageUrl) {
+      if (result && (result.imageUrl || result.videoUrl || (result.success && result.data))) {
         // Create a new render version for this chat message
         // Note: The actual render will be created by the API with a proper database ID
         const newRender: Render = {
@@ -708,12 +660,9 @@ export function UnifiedChatInterface({
           type: activeTab === 'image-to-video' ? 'video' : 'image',
           prompt: currentPrompt,
           settings: {
-            style: selectedStyle,
-            quality: renderSpeed === 'best' ? 'ultra' : renderSpeed === 'balanced' ? 'high' : 'standard',
             aspectRatio,
-            imageType,
           },
-          outputUrl: result.imageUrl || '',
+          outputUrl: result.imageUrl || result.videoUrl || result.data?.outputUrl || '',
           outputKey: '',
           uploadedImageUrl: null,
           uploadedImageKey: null,
@@ -724,6 +673,7 @@ export function UnifiedChatInterface({
           chainId: chainId || null,
           chainPosition: Math.floor(messages.length / 2), // Position in chain (every 2 messages = 1 render)
           referenceRenderId: currentRender?.id || null, // Reference to previous version
+          creditsCost: getCreditsCost(),
           createdAt: new Date(),
           updatedAt: new Date()
         };
@@ -773,10 +723,6 @@ export function UnifiedChatInterface({
     }
   };
 
-  const handleLike = () => {
-    setLikes(prev => isLiked ? prev - 1 : prev + 1);
-    setIsLiked(!isLiked);
-  };
 
   const handleDownload = () => {
     if (currentRender?.outputUrl) {
@@ -1001,13 +947,24 @@ export function UnifiedChatInterface({
                         }}
                         style={{ minWidth: '400px', width: '100%' }}
                       >
-                        <Image
-                          src={message.render.outputUrl}
-                          alt="Generated render"
-                          fill
-                          className="object-cover"
-                          sizes="100vw"
-                        />
+                        {message.render.type === 'video' ? (
+                          <VideoPlayer
+                            videoUrl={message.render.outputUrl}
+                            title={`Generated Video - Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
+                            duration={message.render.settings?.duration}
+                            status="completed"
+                            processingTime={message.render.processingTime}
+                            className="w-full h-full"
+                          />
+                        ) : (
+                          <Image
+                            src={message.render.outputUrl}
+                            alt="Generated render"
+                            fill
+                            className="object-cover"
+                            sizes="100vw"
+                          />
+                        )}
                       </div>
                       {/* Action buttons below image - always visible */}
                       <div className="flex items-center justify-center gap-2 mt-2">
@@ -1093,7 +1050,7 @@ export function UnifiedChatInterface({
               </div>
             )}
             
-            <div className="space-y-1 sm:space-y-2">
+            <div>
               {/* Detected Mentions */}
               {inputValue.includes('@') && (
                 <div className="flex flex-wrap gap-1">
@@ -1118,7 +1075,7 @@ export function UnifiedChatInterface({
                     value={inputValue}
                     onChange={handleInputChange}
                     onKeyPress={handleKeyPress}
-                    placeholder={isEnhancing ? "Enhancing your prompt..." : "Describe your vision..."}
+                    placeholder={isEnhancing ? "Enhancing your prompt..." : activeTab === 'image-to-video' ? "Describe the video you want to create..." : "Describe your vision..."}
                     className={cn(
                       "h-[104px] sm:h-[116px] resize-none w-full text-xs sm:text-sm",
                       isEnhancing && "animate-pulse bg-muted/50"
@@ -1146,6 +1103,8 @@ export function UnifiedChatInterface({
                     <>
                       {isGenerating ? (
                         <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                      ) : activeTab === 'image-to-video' ? (
+                        <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       ) : (
                         <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       )}
@@ -1190,176 +1149,27 @@ export function UnifiedChatInterface({
               </Alert>
             )}
             
-              {/* Compact Controls */}
-              <div className="space-y-1">
-                {/* Style, Aspect Ratio, and Image Type in one row */}
-                <div className="grid grid-cols-3 gap-2">
-                {/* Style Selection */}
-                <div className="space-y-0.5 sm:space-y-1">
-                  <Label className="text-[10px] sm:text-xs font-medium">Style</Label>
-                  <Select value={selectedStyle} onValueChange={setSelectedStyle}>
-                    <SelectTrigger className="h-7 sm:h-8 text-[10px] sm:text-xs w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {styles.map((style) => {
-                        const IconComponent = style.icon;
-                        return (
-                          <SelectItem key={style.value} value={style.value} className="text-[10px] sm:text-xs">
-                            <div className="flex items-center space-x-1 sm:space-x-2">
-                              <IconComponent className={cn("h-2.5 w-2.5 sm:h-3 sm:w-3", style.color)} />
-                              <span>{style.label}</span>
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
+              {/* Simplified Controls */}
+              <div>
+                {/* Aspect Ratio - Only essential setting */}
+                {/* Aspect ratio is now fixed at 16:9 for better quality */}
 
-                {/* Aspect Ratio */}
-                <div className="space-y-0.5 sm:space-y-1">
-                  <Label className="text-[10px] sm:text-xs font-medium">Ratio</Label>
-                  <Select value={aspectRatio} onValueChange={setAspectRatio}>
-                    <SelectTrigger className="h-7 sm:h-8 text-[10px] sm:text-xs w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {aspectRatios.map((ratio) => {
-                        const IconComponent = ratio.icon;
-                        return (
-                          <SelectItem key={ratio.value} value={ratio.value} className="text-[10px] sm:text-xs">
-                            <div className="flex items-center space-x-1 sm:space-x-2">
-                              <IconComponent className={cn("h-2.5 w-2.5 sm:h-3 sm:w-3", ratio.color)} />
-                              <span>{ratio.label}</span>
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Image Type */}
-                <div className="space-y-0.5 sm:space-y-1">
-                  <Label className="text-[10px] sm:text-xs font-medium">Type</Label>
-                  <Select value={imageType} onValueChange={setImageType}>
-                    <SelectTrigger className="h-7 sm:h-8 text-[10px] sm:text-xs w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {imageTypes.map((type) => {
-                        const IconComponent = type.icon;
-                        return (
-                          <SelectItem key={type.value} value={type.value} className="text-[10px] sm:text-xs">
-                            <div className="flex items-center space-x-1 sm:space-x-2">
-                              <IconComponent className={cn("h-2.5 w-2.5 sm:h-3 sm:w-3", type.color)} />
-                              <span>{type.label}</span>
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Camera and Lighting Controls */}
-              <div className="grid grid-cols-2 gap-2">
-                {/* Camera Settings */}
-                <div className="space-y-0.5 sm:space-y-1">
-                  <Label className="text-[10px] sm:text-xs font-medium">Camera</Label>
-                  <Select value={cameraSettings} onValueChange={setCameraSettings}>
-                    <SelectTrigger className="h-7 sm:h-8 text-[10px] sm:text-xs w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="auto" className="text-[10px] sm:text-xs">Auto</SelectItem>
-                      <SelectItem value="wide" className="text-[10px] sm:text-xs">Wide (16mm)</SelectItem>
-                      <SelectItem value="standard" className="text-[10px] sm:text-xs">Standard (35mm)</SelectItem>
-                      <SelectItem value="telephoto" className="text-[10px] sm:text-xs">Telephoto (85mm)</SelectItem>
-                      <SelectItem value="macro" className="text-[10px] sm:text-xs">Macro</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Lighting Mode */}
-                <div className="space-y-0.5 sm:space-y-1">
-                  <Label className="text-[10px] sm:text-xs font-medium">Lighting</Label>
-                  <Select value={lightingMode} onValueChange={setLightingMode}>
-                    <SelectTrigger className="h-7 sm:h-8 text-[10px] sm:text-xs w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="auto" className="text-[10px] sm:text-xs">Auto</SelectItem>
-                      <SelectItem value="natural" className="text-[10px] sm:text-xs">Natural/Golden Hour</SelectItem>
-                      <SelectItem value="dramatic" className="text-[10px] sm:text-xs">Dramatic</SelectItem>
-                      <SelectItem value="soft" className="text-[10px] sm:text-xs">Soft/Diffused</SelectItem>
-                      <SelectItem value="studio" className="text-[10px] sm:text-xs">Studio</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Render Mode and Speed Toggles */}
-              <div className="grid grid-cols-2 gap-1 sm:gap-2">
-                {/* Render Mode Toggle */}
-                <div className="space-y-0.5 sm:space-y-1">
-                  <Label className="text-[10px] sm:text-xs font-medium">Mode</Label>
-                  <div className="flex bg-muted rounded-lg p-0.5 sm:p-1">
-                    <Button
-                      variant={renderMode === 'exact' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setRenderMode('exact')}
-                      className="flex-1 h-5 sm:h-6 text-[10px] sm:text-xs"
-                    >
-                      Exact
-                    </Button>
-                    <Button
-                      variant={renderMode === 'creative' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setRenderMode('creative')}
-                      className="flex-1 h-5 sm:h-6 text-[10px] sm:text-xs"
-                    >
-                      Creative
-                    </Button>
+                {/* Video Duration - Only for video generation */}
+                {activeTab === 'image-to-video' && (
+                  <div className="space-y-0.5 sm:space-y-1">
+                    <Label className="text-[10px] sm:text-xs font-medium">Duration</Label>
+                    <Select value={videoDuration.toString()} onValueChange={(value) => setVideoDuration(parseInt(value))}>
+                      <SelectTrigger className="h-7 sm:h-8 text-[10px] sm:text-xs w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="3" className="text-[10px] sm:text-xs">3s</SelectItem>
+                        <SelectItem value="5" className="text-[10px] sm:text-xs">5s</SelectItem>
+                        <SelectItem value="10" className="text-[10px] sm:text-xs">10s</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                </div>
-
-                {/* Render Speed Toggle */}
-                <div className="space-y-0.5 sm:space-y-1">
-                  <Label className="text-[10px] sm:text-xs font-medium">Quality</Label>
-                  <div className="flex bg-muted rounded-lg p-0.5 sm:p-1">
-                    <Button
-                      variant={renderSpeed === 'fast' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setRenderSpeed('fast')}
-                      className="flex-1 h-5 sm:h-6 text-[10px] sm:text-xs"
-                      title="Standard quality (1x credits)"
-                    >
-                      Fast
-                    </Button>
-                    <Button
-                      variant={renderSpeed === 'balanced' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setRenderSpeed('balanced')}
-                      className="flex-1 h-5 sm:h-6 text-[10px] sm:text-xs"
-                      title="High quality (2x credits)"
-                    >
-                      High
-                    </Button>
-                    <Button
-                      variant={renderSpeed === 'best' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setRenderSpeed('best')}
-                      className="flex-1 h-5 sm:h-6 text-[10px] sm:text-xs"
-                      title="Ultra quality (3x credits)"
-                    >
-                      Ultra
-                    </Button>
-                  </div>
-                </div>
-              </div>
+                )}
 
               {/* File Upload - Hidden, triggered by + button */}
               <div className="hidden">
@@ -1471,7 +1281,7 @@ export function UnifiedChatInterface({
               )}
               
               <div className="flex-1 overflow-hidden w-full max-h-[calc(100vh-8rem)]">
-              {isGenerating || isImageGenerating ? (
+              {isGenerating || isImageGenerating || isVideoGenerating ? (
                 <Card className="w-full h-full py-0 gap-0">
                   <CardContent className="p-0 h-full">
                     <div className="h-full flex flex-col">
@@ -1644,13 +1454,19 @@ export function UnifiedChatInterface({
                           <div className="text-[10px] xl:text-xs text-muted-foreground mb-1">
                             V{message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}
                           </div>
-                          <Image
-                            src={message.render!.outputUrl}
-                            alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
-                            width={100}
-                            height={60}
-                            className="w-full h-12 xl:h-16 object-cover rounded"
-                          />
+                          {message.render!.type === 'video' ? (
+                            <div className="w-full h-12 xl:h-16 bg-muted rounded flex items-center justify-center">
+                              <Video className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                          ) : (
+                            <Image
+                              src={message.render!.outputUrl}
+                              alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
+                              width={100}
+                              height={60}
+                              className="w-full h-12 xl:h-16 object-cover rounded"
+                            />
+                          )}
                           <div className="text-[10px] xl:text-xs text-muted-foreground mt-1 truncate">
                             {message.content}
                           </div>
@@ -1663,19 +1479,272 @@ export function UnifiedChatInterface({
           </TabsContent>
 
           <TabsContent value="image-to-video" className="h-full">
-            <div className="h-full flex items-center justify-center p-4">
-              <div className="text-center">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-muted rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                  <Video className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 text-muted-foreground" />
+            <div className="h-full flex flex-col lg:flex-row items-center justify-center max-h-[calc(100vh-8rem)]">
+              {/* Mobile Version Selector */}
+              {messages.some(m => m.render) && (
+                <div className="lg:hidden w-full mb-2">
+                  <Select
+                    value={currentRender?.id || ''}
+                    onValueChange={(value) => {
+                      const render = messages.find(m => m.render?.id === value)?.render;
+                      if (render) setCurrentRender(render);
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a version" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {messages
+                        .filter(m => m.render)
+                        .map((message, index) => (
+                          <SelectItem key={message.render!.id} value={message.render!.id}>
+                            Version {message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <h3 className="text-sm sm:text-base lg:text-lg font-semibold mb-2">Image to Video</h3>
-                <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
-                  Upload an image to transform it into a video
-                </p>
-                <Button className="h-8 sm:h-9 lg:h-10 text-xs sm:text-sm">
-                  <Video className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
-                  Upload Image
-                </Button>
+              )}
+
+              {/* Desktop Layout */}
+              <div className="hidden lg:flex h-full w-full">
+                {/* Left Sidebar - Versions */}
+                {messages.some(m => m.render) && (
+                  <div className="w-48 p-2 border-r bg-muted/30 overflow-y-auto">
+                    <h3 className="text-sm font-semibold mb-2">Versions</h3>
+                    {messages
+                      .filter(m => m.render)
+                      .map((message, index) => (
+                        <div
+                          key={message.id}
+                          className="p-1.5 xl:p-2 rounded border cursor-pointer transition-colors mb-2"
+                          onClick={() => setCurrentRender(message.render!)}
+                        >
+                          <div className="text-[10px] xl:text-xs text-muted-foreground mb-1">
+                            V{message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}
+                          </div>
+                          {message.render!.type === 'video' ? (
+                            <div className="w-full h-12 xl:h-16 bg-muted rounded flex items-center justify-center">
+                              <Video className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                          ) : (
+                            <Image
+                              src={message.render!.outputUrl}
+                              alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
+                              width={100}
+                              height={60}
+                              className="w-full h-12 xl:h-16 object-cover rounded"
+                            />
+                          )}
+                          <div className="text-[10px] xl:text-xs text-muted-foreground mt-1 truncate">
+                            {message.content}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+
+                {/* Main Content Area */}
+                <div className="flex-1 flex flex-col">
+                  {/* Render Display */}
+                  {currentRender ? (
+                    <div className="flex-1 p-4 flex items-center justify-center">
+                      <div className="max-w-full max-h-full">
+                        {currentRender.type === 'video' ? (
+                          <VideoPlayer
+                            videoUrl={currentRender.outputUrl}
+                            title={`Generated Video - Version ${currentRender.chainPosition !== undefined ? currentRender.chainPosition + 1 : 1}`}
+                            duration={currentRender.settings?.duration}
+                            status="completed"
+                            processingTime={currentRender.processingTime}
+                            className="max-w-full max-h-full"
+                          />
+                        ) : (
+                          <Image
+                            src={currentRender.outputUrl}
+                            alt="Generated render"
+                            width={800}
+                            height={600}
+                            className="max-w-full max-h-full object-contain"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center p-8">
+                      <div className="text-center">
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-muted rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                          <Play className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 text-muted-foreground" />
+                        </div>
+                        <h3 className="text-sm sm:text-base lg:text-lg font-semibold mb-2">Ready to Generate Video</h3>
+                        <p className="text-xs sm:text-sm text-muted-foreground">
+                          Describe your vision in the chat to create amazing videos
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Chat Interface */}
+                  <div className="border-t p-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <Textarea
+                          value={inputValue}
+                          onChange={(e) => setInputValue(e.target.value)}
+                          placeholder="Describe the video you want to create..."
+                          className="min-h-[2.5rem] max-h-32 resize-none text-sm"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              handleSendMessage();
+                            }
+                          }}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <Button
+                          onClick={handleSendMessage}
+                          disabled={!inputValue.trim() || isGenerating || (credits && credits.balance < getCreditsCost())}
+                          className="h-8 sm:h-9 w-8 sm:w-9 shrink-0"
+                          size="sm"
+                        >
+                          {credits && credits.balance < getCreditsCost() ? (
+                            <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                          ) : (
+                            <>
+                              {isGenerating ? (
+                                <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                              ) : (
+                                <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                              )}
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          onClick={isEnhanced ? handleRestorePrompt : handleEnhancePrompt}
+                          disabled={!inputValue.trim() || isEnhancing}
+                          variant="outline"
+                          className="h-8 sm:h-9 w-8 sm:w-9 shrink-0"
+                          size="sm"
+                          title={isEnhanced ? "Restore original prompt" : "Enhance prompt"}
+                        >
+                          {isEnhancing ? (
+                            <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                          ) : isEnhanced ? (
+                            <RotateCcw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                          ) : (
+                            <Wand2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mobile Layout */}
+              <div className="lg:hidden w-full h-full flex flex-col">
+                {mobileView === 'chat' ? (
+                  <div className="flex-1 flex flex-col">
+                    {/* Chat Messages */}
+                    <div className="flex-1 overflow-y-auto p-2 space-y-4">
+                      {messages.map((message, index) => (
+                        <div
+                          key={message.id}
+                          className={cn(
+                            "flex gap-2",
+                            message.type === 'user' ? "justify-end" : "justify-start"
+                          )}
+                        >
+                          <div className={cn(
+                            "max-w-[80%] rounded-lg p-3 text-sm",
+                            message.type === 'user' 
+                              ? "bg-primary text-primary-foreground" 
+                              : "bg-muted"
+                          )}>
+                            {message.uploadedImage && (
+                              <div className="mb-2">
+                                <img
+                                  src={message.uploadedImage.previewUrl}
+                                  alt="Uploaded"
+                                  className="w-20 h-20 object-cover rounded"
+                                />
+                              </div>
+                            )}
+                            <div className="whitespace-pre-wrap">
+                              {message.content}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Chat Input */}
+                    <div className="border-t p-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1">
+                          <Textarea
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            placeholder="Describe the video you want to create..."
+                            className="min-h-[2.5rem] max-h-32 resize-none text-sm"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSendMessage();
+                              }
+                            }}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <Button
+                            onClick={handleSendMessage}
+                            disabled={!inputValue.trim() || isGenerating || (credits && credits.balance < getCreditsCost())}
+                            className="h-8 sm:h-9 w-8 sm:w-9 shrink-0"
+                            size="sm"
+                          >
+                            {credits && credits.balance < getCreditsCost() ? (
+                              <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            ) : (
+                              <>
+                                {isGenerating ? (
+                                  <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                                ) : (
+                                  <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                )}
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-1 p-4 flex items-center justify-center">
+                    {currentRender && (
+                      <div className="max-w-full max-h-full">
+                        {currentRender.type === 'video' ? (
+                          <VideoPlayer
+                            videoUrl={currentRender.outputUrl}
+                            title={`Generated Video - Version ${currentRender.chainPosition !== undefined ? currentRender.chainPosition + 1 : 1}`}
+                            duration={currentRender.settings?.duration}
+                            status="completed"
+                            processingTime={currentRender.processingTime}
+                            className="max-w-full max-h-full"
+                          />
+                        ) : (
+                          <Image
+                            src={currentRender.outputUrl}
+                            alt="Generated render"
+                            width={800}
+                            height={600}
+                            className="max-w-full max-h-full object-contain"
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </TabsContent>

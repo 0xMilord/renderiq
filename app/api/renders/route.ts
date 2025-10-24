@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { ImageGenerationService } from '@/lib/services/image-generation';
+import { AISDKService } from '@/lib/services/ai-sdk-service';
 import { addCredits, deductCredits } from '@/lib/actions/billing.actions';
 import { ProjectsDAL } from '@/lib/dal/projects';
 import { RendersDAL } from '@/lib/dal/renders';
 import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { StorageService } from '@/lib/services/storage';
 
-const imageService = ImageGenerationService.getInstance();
+const aiService = AISDKService.getInstance();
 
 export async function POST(request: NextRequest) {
   try {
@@ -219,31 +219,129 @@ export async function POST(request: NextRequest) {
     try {
       // Generate image/video
       console.log('🎨 Starting AI generation');
-      // Parse version context if provided
-      let versionContext = undefined;
-      if (versionContextData) {
-        try {
-          versionContext = JSON.parse(versionContextData);
-          console.log('🔍 Using version context for generation');
-        } catch (error) {
-          console.log('⚠️ Failed to parse version context, ignoring:', error);
-        }
-      }
+      
+      let result;
+      
+      // Branch based on type
+      if (type === 'video') {
+        console.log('🎬 Using Veo3Service for video generation');
+        
+        // Get video-specific parameters
+        const model = (formData.get('model') as 'veo3' | 'veo3_fast') || 'veo3';
+        const duration = parseInt(formData.get('duration') as string) || 5;
+        const generationType = (formData.get('generationType') as 'text-to-video' | 'image-to-video' | 'keyframe-sequence') || 'text-to-video';
+        
+        console.log('🎬 Video parameters:', { model, duration, generationType, aspectRatio });
+        
+        // Prepare video generation request
+        const veo3Request = {
+          prompt,
+          model: model as 'veo3' | 'veo3_fast',
+          aspectRatio: aspectRatio as '16:9' | '9:16',
+          resolution: '720p' as const,
+          imageData: undefined as string | undefined
+        };
 
-      const result = await imageService.generateImage({
-        prompt,
-        style,
-        quality,
-        aspectRatio,
-        type,
-        uploadedImageData: uploadedImageData || undefined,
-        uploadedImageType: uploadedImageType || undefined,
-        negativePrompt: negativePrompt || undefined,
-        imageType: imageType || undefined,
-        seed,
-        referenceRenderId: validatedReferenceRenderId || undefined,
-        versionContext,
-      });
+        // Add image data if image-to-video or keyframe
+        if (generationType === 'image-to-video' && uploadedImageData) {
+          const imageData = uploadedImageData.includes(',') ? uploadedImageData.split(',')[1] : uploadedImageData;
+          veo3Request.imageData = imageData;
+        } else if (generationType === 'keyframe-sequence') {
+          // Collect keyframes
+          const keyframeCount = parseInt(formData.get('keyframeCount') as string) || 0;
+          const keyframeData: string[] = [];
+          
+          for (let i = 0; i < keyframeCount; i++) {
+            const keyframeFile = formData.get(`keyframe_${i}`) as File;
+            if (keyframeFile) {
+              const buffer = await keyframeFile.arrayBuffer();
+              const base64 = Buffer.from(buffer).toString('base64');
+              keyframeData.push(base64);
+            }
+          }
+          
+          if (keyframeData.length === 0) {
+            throw new Error('No keyframes provided for keyframe sequence generation');
+          }
+          
+          // Use the convenience method for keyframes
+          const keyframeResult = await veo3Service.generateAndDownloadVideo({
+            ...veo3Request,
+            imageData: keyframeData[0] // Use first keyframe
+          });
+          
+          if (!keyframeResult.success || !keyframeResult.data) {
+            console.log('❌ Keyframe video generation failed:', keyframeResult.error);
+            result = {
+              success: false,
+              error: keyframeResult.error || 'Keyframe video generation failed'
+            };
+          } else {
+            const videoBase64 = keyframeResult.data.toString('base64');
+            result = {
+              success: true,
+              data: {
+                imageData: videoBase64,
+                processingTime: keyframeResult.processingTime || 60,
+                provider: 'google-veo3'
+              }
+            };
+          }
+        }
+        
+        // If not keyframe (already handled above), do standard generation
+        if (!result && generationType !== 'keyframe-sequence') {
+        // Use Vercel AI SDK for video generation
+        const videoResult = await aiService.generateVideo({
+          prompt,
+          duration: duration,
+          aspectRatio: aspectRatio as '16:9' | '9:16',
+          uploadedImageData: uploadedImageData || undefined,
+        });
+          
+          if (!videoResult.success || !videoResult.data) {
+            console.log('❌ Veo3 video generation failed:', videoResult.error);
+            result = {
+              success: false,
+              error: videoResult.error || 'Video generation failed'
+            };
+          } else {
+            const videoBase64 = videoResult.data.toString('base64');
+            result = {
+              success: true,
+              data: {
+                imageData: videoBase64,
+                processingTime: videoResult.processingTime || 60,
+                provider: 'google-veo3'
+              }
+            };
+          }
+        }
+        
+      } else {
+        // Image generation
+        console.log('🎨 Using ImageGenerationService for image generation');
+        
+        // Parse version context if provided
+        let versionContext = undefined;
+        if (versionContextData) {
+          try {
+            versionContext = JSON.parse(versionContextData);
+            console.log('🔍 Using version context for generation');
+          } catch (error) {
+            console.log('⚠️ Failed to parse version context, ignoring:', error);
+          }
+        }
+
+        result = await aiService.generateImage({
+          prompt,
+          aspectRatio,
+          uploadedImageData: uploadedImageData || undefined,
+          uploadedImageType: uploadedImageType || undefined,
+          negativePrompt: negativePrompt || undefined,
+          seed,
+        });
+      }
 
       if (!result.success || !result.data) {
         console.log('❌ Generation failed:', result.error);
@@ -259,21 +357,25 @@ export async function POST(request: NextRequest) {
       let uploadResult;
       if (result.data.imageData) {
         // Use base64 data directly
-        console.log('📤 Uploading base64 image data to storage');
+        const fileExtension = type === 'video' ? 'mp4' : 'png';
+        console.log(`📤 Uploading base64 ${type} data to storage`);
         const buffer = Buffer.from(result.data.imageData, 'base64');
         uploadResult = await StorageService.uploadFile(
           buffer,
           'renders',
           user.id,
-          `render_${render.id}.png`,
+          `render_${render.id}.${fileExtension}`,
           project.slug
         );
       } else if (result.data.imageUrl) {
         // Fallback to URL fetch (for video or other cases)
-        console.log('📤 Fetching image from URL for storage');
+        console.log(`📤 Fetching ${type} from URL for storage`);
         const response = await fetch(result.data.imageUrl);
         const blob = await response.blob();
-        const outputFile = new File([blob], `render_${render.id}.${type === 'video' ? 'mp4' : 'png'}`);
+        const fileExtension = type === 'video' ? 'mp4' : 'png';
+        const outputFile = new File([blob], `render_${render.id}.${fileExtension}`, {
+          type: type === 'video' ? 'video/mp4' : 'image/png'
+        });
         uploadResult = await StorageService.uploadFile(
           outputFile,
           'renders',
@@ -282,12 +384,12 @@ export async function POST(request: NextRequest) {
           project.slug
         );
       } else {
-        console.error('❌ No image data available:', { 
+        console.error('❌ No data available:', { 
           hasImageData: !!result.data.imageData, 
           hasImageUrl: !!result.data.imageUrl,
           dataKeys: Object.keys(result.data)
         });
-        throw new Error('No image data or URL received from generation service');
+        throw new Error('No data or URL received from generation service');
       }
 
       console.log('✅ File uploaded to storage:', uploadResult.url);

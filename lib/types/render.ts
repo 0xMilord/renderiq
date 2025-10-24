@@ -12,6 +12,7 @@ export interface Render {
   status: 'pending' | 'processing' | 'completed' | 'failed';
   errorMessage: string | null;
   processingTime: number | null;
+  creditsCost: number;
   chainId: string | null;
   chainPosition: number | null;
   referenceRenderId: string | null;

@@ -1,4 +1,4 @@
-import { ImageGenerationService } from './image-generation';
+import { AISDKService } from './ai-sdk-service';
 import { StorageService } from './storage';
 import { ProjectsDAL } from '@/lib/dal/projects';
 import { RendersDAL as RendersDALNew } from '@/lib/dal/renders';
@@ -10,10 +10,10 @@ import { eq, desc } from 'drizzle-orm';
 import type { CreateRenderData } from '@/lib/types';
 
 export class RenderService {
-  private imageGenerationService: ImageGenerationService;
+  private aiService: AISDKService;
 
   constructor() {
-    this.imageGenerationService = ImageGenerationService.getInstance();
+    this.aiService = AISDKService.getInstance();
   }
 
   async createProject(
@@ -200,24 +200,19 @@ export class RenderService {
 
       let result;
       if (renderData.type === 'image') {
-        console.log('🖼️ [processRender] Generating image...');
-        result = await this.imageGenerationService.generateImage({
+        console.log('🖼️ [processRender] Generating image with Vercel AI SDK...');
+        result = await this.aiService.generateImage({
           prompt: renderData.prompt,
-          style: renderData.settings.style,
-          quality: renderData.settings.quality,
-          aspectRatio: renderData.settings.aspectRatio,
-          type: 'image',
+          aspectRatio: renderData.settings.aspectRatio || '16:9',
           uploadedImageData: uploadedImageData?.uploadedImageData || imageBase64,
           uploadedImageType: uploadedImageData?.uploadedImageType || 'image/jpeg',
         });
       } else {
-        console.log('🎬 [processRender] Generating video...');
-        result = await this.imageGenerationService.generateVideo({
+        console.log('🎬 [processRender] Generating video with Vercel AI SDK...');
+        result = await this.aiService.generateVideo({
           prompt: renderData.prompt,
-          style: renderData.settings.style,
-          quality: renderData.settings.quality,
-          aspectRatio: renderData.settings.aspectRatio,
           duration: renderData.settings.duration || 5,
+          aspectRatio: renderData.settings.aspectRatio || '16:9',
         });
       }
 

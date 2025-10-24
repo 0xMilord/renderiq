@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { upscaleImageAction } from '@/lib/actions/upscaling.actions';
+import { AISDKService } from '@/lib/services/ai-sdk-service';
 
 export interface UpscalingRequest {
   imageUrl: string;
@@ -24,16 +24,43 @@ export function useUpscaling() {
 
   const upscaleImage = useCallback(async (request: UpscalingRequest) => {
     try {
-      console.log('🔍 useUpscaling: Starting upscaling', request);
+      console.log('🔍 useUpscaling: Starting upscaling with AI SDK', request);
       setIsUpscaling(true);
       setError(null);
       setUpscalingResult(null);
 
-      const result = await upscaleImageAction(request);
+      // Use AI SDK service for upscaling
+      const aiService = AISDKService.getInstance();
+      
+      // Convert image URL to base64 for processing
+      const response = await fetch(request.imageUrl);
+      const arrayBuffer = await response.arrayBuffer();
+      const base64 = Buffer.from(arrayBuffer).toString('base64');
+      
+      // Create enhanced prompt for upscaling
+      const upscalingPrompt = `Upscale this image by ${request.scale}x while maintaining perfect quality and detail. 
+      Enhance the image to ${request.quality} resolution without any artifacts, 
+      blurriness, or pixelation. Preserve all original details and improve sharpness and clarity. 
+      The output should be a crisp, professional-quality image that looks natural and realistic.`;
+
+      const result = await aiService.generateImage({
+        prompt: upscalingPrompt,
+        aspectRatio: '16:9', // Maintain aspect ratio
+        uploadedImageData: base64,
+        uploadedImageType: 'image/jpeg',
+      });
 
       if (result.success && result.data) {
-        setUpscalingResult(result.data);
-        console.log('✅ useUpscaling: Upscaling completed', result.data);
+        const upscalingResult: UpscalingResult = {
+          imageUrl: result.data.imageUrl,
+          originalUrl: request.imageUrl,
+          scale: request.scale,
+          processingTime: result.data.processingTime,
+          provider: result.data.provider
+        };
+        
+        setUpscalingResult(upscalingResult);
+        console.log('✅ useUpscaling: Upscaling completed', upscalingResult);
       } else {
         setError(result.error || 'Upscaling failed');
         console.error('❌ useUpscaling: Upscaling failed', result.error);
