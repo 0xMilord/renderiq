@@ -33,14 +33,33 @@ export async function POST(request: NextRequest) {
       seed
     });
 
+    if (!result.success || !result.data) {
+      return Response.json(
+        { success: false, error: result.error || 'Image generation failed' },
+        { status: 500 }
+      );
+    }
+
+    // Convert base64 to data URL if needed
+    let imageUrl = result.data.imageUrl;
+    if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
+      imageUrl = `data:image/png;base64,${imageUrl}`;
+    }
+
     console.log('✅ AI Image: Generation successful', {
-      processingTime: result.processingTime,
-      provider: result.provider
+      processingTime: result.data.processingTime,
+      provider: result.data.provider
     });
 
     return Response.json({
       success: true,
-      data: result
+      data: {
+        imageUrl: imageUrl,
+        url: imageUrl, // Alias for compatibility
+        processingTime: result.data.processingTime,
+        provider: result.data.provider,
+        metadata: result.data.metadata
+      }
     });
 
   } catch (error) {

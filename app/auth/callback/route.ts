@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { UserOnboardingService } from '@/lib/services/user-onboarding';
 import { AvatarService } from '@/lib/services/avatar';
 import { NextResponse } from 'next/server';
+import { getPostAuthRedirectUrl } from '@/lib/utils/auth-redirect';
 
 export async function GET(request: Request) {
   console.log('🔄 Auth Callback: Processing OAuth callback');
@@ -61,39 +62,8 @@ export async function GET(request: Request) {
         console.log('⚠️ Auth Callback: Email not verified yet, profile creation skipped');
       }
       
-      const forwardedHost = request.headers.get('x-forwarded-host');
-      const isLocalEnv = process.env.NODE_ENV === 'development';
-      const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-      
-      console.log('🔄 Auth Callback: Redirect logic -', {
-        origin,
-        forwardedHost,
-        isLocalEnv,
-        isLocalhost,
-        siteUrl,
-        next
-      });
-      
-      let redirectUrl: string;
-      
-      if (isLocalEnv && isLocalhost) {
-        // Force localhost:3000 for local development
-        redirectUrl = `http://localhost:3000${next}`;
-        console.log('🔄 Auth Callback: Using localhost for development');
-      } else if (siteUrl) {
-        // Use configured site URL
-        redirectUrl = `${siteUrl}${next}`;
-        console.log('🔄 Auth Callback: Using configured site URL');
-      } else if (forwardedHost) {
-        // Use forwarded host for production
-        redirectUrl = `https://${forwardedHost}${next}`;
-        console.log('🔄 Auth Callback: Using forwarded host for production');
-      } else {
-        // Fallback to origin
-        redirectUrl = `${origin}${next}`;
-        console.log('🔄 Auth Callback: Using origin as fallback');
-      }
+      // Use centralized redirect logic (handles localhost in dev)
+      const redirectUrl = getPostAuthRedirectUrl(request, next);
       
       console.log('🔄 Auth Callback: Final redirect URL:', redirectUrl);
       return NextResponse.redirect(redirectUrl);

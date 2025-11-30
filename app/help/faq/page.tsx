@@ -2,11 +2,11 @@ import { Metadata } from 'next';
 import { JsonLd } from '@/components/seo/json-ld';
 
 export const metadata: Metadata = {
-  title: 'FAQ - AI Architecture Tools | arqihive',
-  description: 'Frequently asked questions about arqihive AI architecture tools, pricing, features, and support. Get answers to common questions about AI-powered architectural visualization.',
+  title: 'FAQ - AI Architecture Tools | renderiq',
+  description: 'Frequently asked questions about renderiq AI architecture tools, pricing, features, and support. Get answers to common questions about AI-powered architectural visualization.',
   keywords: [
     'AI architecture FAQ',
-    'arqihive FAQ',
+    'renderiq FAQ',
     'AI rendering questions',
     'architectural visualization FAQ',
     'AI design tools help',
@@ -16,8 +16,8 @@ export const metadata: Metadata = {
 
 const faqs = [
   {
-    question: "What is arqihive and how does it work?",
-    answer: "arqihive is an AI-powered architectural visualization platform that transforms sketches into hyperrealistic renders and videos. Simply upload your architectural sketch, and our AI engines analyze the design elements to generate photorealistic visualizations in minutes."
+    question: "What is renderiq and how does it work?",
+    answer: "renderiq is an AI-powered architectural visualization platform that transforms sketches into hyperrealistic renders and videos. Simply upload your architectural sketch, and our AI engines analyze the design elements to generate photorealistic visualizations in minutes."
   },
   {
     question: "How accurate is the AI rendering?",
@@ -40,7 +40,7 @@ const faqs = [
     answer: "We offer a free plan with 10 credits, Starter plan at $29/month (100 credits), and Professional plan at $99/month (500 credits). Enterprise plans are available with custom pricing and features."
   },
   {
-    question: "Can I integrate arqihive with my existing workflow?",
+    question: "Can I integrate renderiq with my existing workflow?",
     answer: "Yes, we offer API access, CAD software compatibility, cloud storage sync, and various export formats. We support integration with popular architecture and design software like AutoCAD, Revit, and SketchUp."
   },
   {
@@ -56,12 +56,12 @@ const faqs = [
     answer: "Absolutely! Our AI-generated renders are perfect for client presentations, proposals, and marketing materials. The photorealistic quality helps clients visualize projects before construction begins."
   },
   {
-    question: "What makes arqihive different from other AI tools?",
-    answer: "arqihive offers multiple specialized AI engines, faster rendering times, higher accuracy, comprehensive feature set, and excellent customer support. We're specifically designed for architects and designers with professional-grade output quality."
+    question: "What makes renderiq different from other AI tools?",
+    answer: "renderiq offers multiple specialized AI engines, faster rendering times, higher accuracy, comprehensive feature set, and excellent customer support. We're specifically designed for architects and designers with professional-grade output quality."
   },
   {
     question: "Is there a mobile app available?",
-    answer: "arqihive is fully responsive and works on all devices through your web browser. We're developing dedicated mobile apps for iOS and Android, coming in 2025."
+    answer: "renderiq is fully responsive and works on all devices through your web browser. We're developing dedicated mobile apps for iOS and Android, coming in 2025."
   }
 ];
 
@@ -90,7 +90,7 @@ export default function FAQPage() {
                 Frequently Asked Questions
               </h1>
               <p className="text-xl text-gray-600 dark:text-gray-300">
-                Get answers to common questions about arqihive AI architecture tools
+                Get answers to common questions about renderiq AI architecture tools
               </p>
             </div>
 
@@ -112,11 +112,11 @@ export default function FAQPage() {
                 Still have questions?
               </h2>
               <p className="text-gray-600 dark:text-gray-300 mb-8">
-                Our support team is here to help you get the most out of arqihive.
+                Our support team is here to help you get the most out of renderiq.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <a 
-                  href="mailto:support@arqihive.com"
+                  href="mailto:support@renderiq.com"
                   className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
                 >
                   Contact Support

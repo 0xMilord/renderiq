@@ -127,3 +127,61 @@
     -webkit-line-clamp: 2;
   }
 }
+
+/* React Flow Custom Styles */
+.react-flow__minimap {
+  @apply !bg-[#252526] !border !border-[#3d3d3d] !rounded-md !shadow-lg;
+  position: absolute !important;
+  bottom: 1rem !important;
+  right: 1rem !important;
+  width: 200px !important;
+  height: 150px !important;
+  z-index: 10 !important;
+}
+
+.react-flow__controls {
+  @apply !bg-[#252526] !border-[#3d3d3d];
+}
+
+.react-flow__controls button {
+  @apply !bg-[#2d2d2d] !border-[#3d3d3d] !text-white;
+}
+
+.react-flow__controls button:hover {
+  @apply !bg-[#3d3d3d];
+}
+
+.react-flow__handle {
+  @apply !border-2 !border-[#1e1e1e];
+  cursor: crosshair !important;
+  transition: none !important;
+  pointer-events: all !important;
+}
+
+.react-flow__handle-connecting {
+  background: #0e639c !important;
+}
+
+.react-flow__handle-valid {
+  background: #6bcf33 !important;
+}
+
+/* Prevent node dragging when interacting with form elements */
+.react-flow__node textarea,
+.react-flow__node input,
+.react-flow__node select,
+.react-flow__node button {
+  pointer-events: auto !important;
+}
+
+.react-flow__node .nodrag {
+  pointer-events: auto !important;
+}
+
+.react-flow__edge-path {
+  stroke-width: 2;
+}
+
+.react-flow__connection-line {
+  stroke-width: 2;
+}

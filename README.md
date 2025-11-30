@@ -1,4 +1,4 @@
-# arqihive - AI Architectural Visualization Platform
+# renderiq - AI Architectural Visualization Platform
 
 Transform your architectural sketches into hyperrealistic AI renders and videos using the Nano Banana SDK.
 
@@ -79,7 +79,7 @@ Transform your architectural sketches into hyperrealistic AI renders and videos 
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd arqihive
+   cd renderiq
    ```
 
 2. **Install dependencies**
@@ -117,7 +117,7 @@ Transform your architectural sketches into hyperrealistic AI renders and videos 
 ## Project Structure
 
 ```
-arqihive/
+renderiq/
 ├── app/                    # Next.js App Router pages
 │   ├── api-docs/          # API documentation page
 │   ├── gallery/           # Public gallery page
@@ -263,7 +263,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-For support, email support@arqihive.com or join our Discord community.
+For support, email support@renderiq.com or join our Discord community.
 
 ## Roadmap
 

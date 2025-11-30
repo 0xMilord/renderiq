@@ -2,8 +2,8 @@ import { Metadata } from 'next';
 import { JsonLd } from '@/components/seo/json-ld';
 
 export const metadata: Metadata = {
-  title: 'Best AI Architecture Tools 2025 - arqihive Platform',
-  description: 'Discover the best AI architecture tools for 2025. arqihive leads the industry with advanced AI-powered architectural visualization, rendering, and design automation for architects and designers.',
+  title: 'Best AI Architecture Tools 2025 - renderiq Platform',
+  description: 'Discover the best AI architecture tools for 2025. renderiq leads the industry with advanced AI-powered architectural visualization, rendering, and design automation for architects and designers.',
   keywords: [
     'best AI architecture tools',
     'AI architecture software 2025',
@@ -17,8 +17,8 @@ export const metadata: Metadata = {
     'AI visualization tools for architects'
   ],
   openGraph: {
-    title: 'Best AI Architecture Tools 2025 - arqihive Platform',
-    description: 'Discover the best AI architecture tools for 2025. arqihive leads the industry with advanced AI-powered architectural visualization.',
+    title: 'Best AI Architecture Tools 2025 - renderiq Platform',
+    description: 'Discover the best AI architecture tools for 2025. renderiq leads the industry with advanced AI-powered architectural visualization.',
     images: ['/ai-architecture-tools-og.png'],
   },
 };
@@ -27,20 +27,20 @@ const articleSchema = {
   '@context': 'https://schema.org',
   '@type': 'Article',
   headline: 'Best AI Architecture Tools 2025 - Complete Guide',
-  description: 'Comprehensive guide to the best AI architecture tools available in 2025, featuring arqihive as the leading AI-powered architectural visualization platform.',
-  image: 'https://arqihive.com/ai-architecture-tools-og.png',
+  description: 'Comprehensive guide to the best AI architecture tools available in 2025, featuring renderiq as the leading AI-powered architectural visualization platform.',
+  image: 'https://renderiq.com/ai-architecture-tools-og.png',
   datePublished: new Date().toISOString(),
   dateModified: new Date().toISOString(),
   author: {
     '@type': 'Organization',
-    name: 'arqihive'
+    name: 'renderiq'
   },
   publisher: {
     '@type': 'Organization',
-    name: 'arqihive',
+    name: 'renderiq',
     logo: {
       '@type': 'ImageObject',
-      url: 'https://arqihive.com/logo.png'
+      url: 'https://renderiq.com/logo.png'
     }
   }
 };
@@ -90,12 +90,12 @@ export default function AIArchitectureToolsPage() {
               </h2>
               
               <div className="grid gap-8">
-                {/* arqihive - Featured */}
+                {/* renderiq - Featured */}
                 <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-xl border-2 border-blue-500">
                   <div className="flex items-start justify-between mb-6">
                     <div>
                       <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                        arqihive - Leading AI Architecture Platform
+                        renderiq - Leading AI Architecture Platform
                       </h3>
                       <div className="flex items-center space-x-2 mb-4">
                         <span className="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full">
@@ -127,7 +127,7 @@ export default function AIArchitectureToolsPage() {
                       </ul>
                     </div>
                     <div>
-                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Why Choose arqihive:</h4>
+                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Why Choose renderiq:</h4>
                       <ul className="space-y-2 text-gray-600 dark:text-gray-300">
                         <li>• Fastest rendering times (2-5 minutes)</li>
                         <li>• Most accurate AI interpretation</li>
@@ -241,7 +241,7 @@ export default function AIArchitectureToolsPage() {
                 Ready to Transform Your Architecture Workflow?
               </h2>
               <p className="text-xl mb-8 opacity-90">
-                Join thousands of architects using arqihive to create stunning AI-powered visualizations.
+                Join thousands of architects using renderiq to create stunning AI-powered visualizations.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <a 

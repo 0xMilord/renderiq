@@ -22,10 +22,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://arqihive.com'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.com'),
   title: {
-    default: "arqihive - AI Architectural Visualization & Rendering Platform",
-    template: "%s | arqihive"
+    default: "renderiq - AI Architectural Visualization & Rendering Platform",
+    template: "%s | renderiq"
   },
   description: "Transform architectural sketches into hyperrealistic AI renders and videos using advanced artificial intelligence. The best AI architecture tool for architects, designers, and developers. Create stunning visualizations in minutes with our AI-powered rendering platform.",
   keywords: [
@@ -60,9 +60,9 @@ export const metadata: Metadata = {
     "AI design solution",
     "AI rendering platform"
   ],
-  authors: [{ name: "arqihive" }],
-  creator: "arqihive",
-  publisher: "arqihive",
+  authors: [{ name: "renderiq" }],
+  creator: "renderiq",
+  publisher: "renderiq",
   formatDetection: {
     email: false,
     address: false,
@@ -71,25 +71,25 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: process.env.NEXT_PUBLIC_BASE_URL || 'https://arqihive.com',
-    siteName: "arqihive",
-    title: "arqihive - AI Architectural Visualization & Rendering",
+    url: process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.com',
+    siteName: "renderiq",
+    title: "renderiq - AI Architectural Visualization & Rendering",
     description: "Transform architectural designs into photorealistic renders with AI. Real-time visualization for architects and designers.",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "arqihive - AI Architectural Visualization"
+        alt: "renderiq - AI Architectural Visualization"
       }
     ]
   },
   twitter: {
     card: "summary_large_image",
-    title: "arqihive - AI Architectural Visualization",
+    title: "renderiq - AI Architectural Visualization",
     description: "Transform architectural designs into photorealistic renders with AI",
     images: ["/og-image.png"],
-    creator: "@arqihive"
+    creator: "@renderiq"
   },
   robots: {
     index: true,

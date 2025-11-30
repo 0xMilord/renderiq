@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  title: "AI Design Iteration for Architecture | Version Control & A/B Testing | arqihive",
+  title: "AI Design Iteration for Architecture | Version Control & A/B Testing | renderiq",
   description: "Iterate architectural designs with unprecedented speed. AI-powered version control, A/B testing, and real-time design comparisons for architects. Track changes and explore alternatives effortlessly.",
   keywords: [
     "design iteration AI",

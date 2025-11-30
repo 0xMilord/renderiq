@@ -3,6 +3,9 @@ import { db } from '@/lib/db';
 import { userSubscriptions, subscriptionPlans, userCredits, creditTransactions } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
+// Maximum initial credits for new users on signup
+const INITIAL_SIGNUP_CREDITS = 10;
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-02-24.acacia',
 });
@@ -217,19 +220,24 @@ export class BillingService {
       const userCredit = await db.select().from(userCredits).where(eq(userCredits.userId, userId)).limit(1);
       
       if (!userCredit[0]) {
-        // Create initial credits record
+        // Create initial credits record (capped at max 10 for signup)
+        const initialCredits = Math.min(
+          parseInt(process.env.DEFAULT_FREE_CREDITS || String(INITIAL_SIGNUP_CREDITS)),
+          INITIAL_SIGNUP_CREDITS
+        );
+        
         await db.insert(userCredits).values({
           userId,
-          balance: parseInt(process.env.DEFAULT_FREE_CREDITS || '10'),
-          totalEarned: parseInt(process.env.DEFAULT_FREE_CREDITS || '10'),
+          balance: initialCredits,
+          totalEarned: initialCredits,
           totalSpent: 0,
         });
         
         return {
           success: true,
           credits: {
-            balance: parseInt(process.env.DEFAULT_FREE_CREDITS || '10'),
-            totalEarned: parseInt(process.env.DEFAULT_FREE_CREDITS || '10'),
+            balance: initialCredits,
+            totalEarned: initialCredits,
             totalSpent: 0,
           },
         };

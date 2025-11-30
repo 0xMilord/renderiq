@@ -290,6 +290,20 @@ export const userSettings = pgTable('user_settings', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// Canvas graphs for node-based editor
+export const canvasGraphs = pgTable('canvas_graphs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  chainId: uuid('chain_id').references(() => renderChains.id, { onDelete: 'cascade' }).notNull().unique(),
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  nodes: jsonb('nodes').notNull(),
+  connections: jsonb('connections').notNull(),
+  viewport: jsonb('viewport').$type<{ x: number; y: number; zoom: number }>(),
+  version: integer('version').default(1).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 // Create Zod schemas
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
@@ -345,6 +359,9 @@ export const selectRenderQueueSchema = createSelectSchema(renderQueue);
 export const insertUserSettingsSchema = createInsertSchema(userSettings);
 export const selectUserSettingsSchema = createSelectSchema(userSettings);
 
+export const insertCanvasGraphSchema = createInsertSchema(canvasGraphs);
+export const selectCanvasGraphSchema = createSelectSchema(canvasGraphs);
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -399,3 +416,6 @@ export type NewRenderQueue = typeof renderQueue.$inferInsert;
 
 export type UserSettings = typeof userSettings.$inferSelect;
 export type NewUserSettings = typeof userSettings.$inferInsert;
+
+export type CanvasGraph = typeof canvasGraphs.$inferSelect;
+export type NewCanvasGraph = typeof canvasGraphs.$inferInsert;

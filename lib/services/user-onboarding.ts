@@ -1,6 +1,9 @@
 import { AuthDAL } from '@/lib/dal/auth';
 import { AvatarService } from './avatar';
 
+// Maximum initial credits for new users on signup
+const INITIAL_SIGNUP_CREDITS = 10;
+
 export interface UserProfile {
   id: string;
   email: string;
@@ -54,7 +57,7 @@ export class UserOnboardingService {
 
       console.log('✅ UserOnboarding: User profile created:', newUser.id);
 
-      // Initialize user credits with 10 free credits
+      // Initialize user credits with initial signup credits (max 10)
       await this.initializeUserCredits(userProfile.id);
 
       // Create welcome transaction
@@ -82,8 +85,8 @@ export class UserOnboardingService {
         return { success: true };
       }
 
-      // Create user credits record with 10 free credits
-      const userCredit = await AuthDAL.createUserCredits(userId, 10);
+      // Create user credits record with initial signup credits (max 10)
+      const userCredit = await AuthDAL.createUserCredits(userId, INITIAL_SIGNUP_CREDITS);
 
       console.log('✅ UserOnboarding: User credits initialized:', userCredit.balance);
 
@@ -104,9 +107,9 @@ export class UserOnboardingService {
       // Create welcome bonus transaction
       await AuthDAL.createCreditTransaction(
         userId,
-        10,
+        INITIAL_SIGNUP_CREDITS,
         'bonus',
-        'Welcome bonus - 10 free credits to get started!',
+        `Welcome bonus - ${INITIAL_SIGNUP_CREDITS} free credits to get started!`,
         undefined,
         'bonus'
       );

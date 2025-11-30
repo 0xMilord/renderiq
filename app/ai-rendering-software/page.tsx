@@ -2,8 +2,8 @@ import { Metadata } from 'next';
 import { JsonLd } from '@/components/seo/json-ld';
 
 export const metadata: Metadata = {
-  title: 'AI Rendering Software for Architecture - arqihive',
-  description: 'Discover the best AI rendering software for architectural visualization. arqihive offers advanced AI-powered rendering that transforms sketches into photorealistic visualizations in minutes.',
+  title: 'AI Rendering Software for Architecture - renderiq',
+  description: 'Discover the best AI rendering software for architectural visualization. renderiq offers advanced AI-powered rendering that transforms sketches into photorealistic visualizations in minutes.',
   keywords: [
     'AI rendering software',
     'AI architectural rendering',
@@ -22,19 +22,19 @@ const articleSchema = {
   '@context': 'https://schema.org',
   '@type': 'Article',
   headline: 'AI Rendering Software for Architecture - Complete Guide',
-  description: 'Comprehensive guide to AI rendering software for architectural visualization, featuring arqihive as the leading AI-powered rendering platform.',
+  description: 'Comprehensive guide to AI rendering software for architectural visualization, featuring renderiq as the leading AI-powered rendering platform.',
   datePublished: new Date().toISOString(),
   dateModified: new Date().toISOString(),
   author: {
     '@type': 'Organization',
-    name: 'arqihive'
+    name: 'renderiq'
   },
   publisher: {
     '@type': 'Organization',
-    name: 'arqihive',
+    name: 'renderiq',
     logo: {
       '@type': 'ImageObject',
-      url: 'https://arqihive.com/logo.png'
+      url: 'https://renderiq.com/logo.png'
     }
   }
 };
@@ -69,7 +69,7 @@ export default function AIRenderingSoftwarePage() {
               
               <div className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-lg border-2 border-green-500">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-                  AI Rendering with arqihive
+                  AI Rendering with renderiq
                 </h2>
                 <ul className="text-gray-600 dark:text-gray-300 space-y-2">
                   <li>• Minutes to complete</li>
@@ -82,7 +82,7 @@ export default function AIRenderingSoftwarePage() {
             
             <div className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-xl">
               <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">
-                Why Choose arqihive AI Rendering Software?
+                Why Choose renderiq AI Rendering Software?
               </h2>
               <div className="grid md:grid-cols-3 gap-6">
                 <div className="text-center">

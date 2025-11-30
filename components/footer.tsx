@@ -14,12 +14,12 @@ export function Footer() {
             <div className="flex items-center space-x-2 mb-4">
               <Image
                 src="/logo.svg"
-                alt="Arqihive"
+                alt="renderiq"
                 width={32}
                 height={32}
                 className="w-8 h-8"
               />
-              <span className="text-xl font-bold text-foreground">Arqihive</span>
+              <span className="text-xl font-bold text-foreground">renderiq</span>
             </div>
             <p className="text-muted-foreground mb-4 max-w-md">
               Transform your architectural sketches into hyperrealistic AI renders and videos. 
@@ -107,7 +107,7 @@ export function Footer() {
 
         <div className="border-t mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-muted-foreground text-sm">
-            © 2024 Arqihive. All rights reserved.
+            © 2024 renderiq. All rights reserved.
           </p>
           <div className="flex space-x-6 mt-4 md:mt-0">
             <Link href="/terms" className="text-muted-foreground hover:text-primary transition-colors text-sm">

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  title: "Real-Time Architectural Visualization with AI | Instant Rendering | arqihive",
+  title: "Real-Time Architectural Visualization with AI | Instant Rendering | renderiq",
   description: "Transform architectural designs into photorealistic renders in seconds. AI-powered real-time visualization for architects enables instant client presentations, live design iterations, and immediate feedback.",
   keywords: [
     "real-time architectural visualization",

@@ -12,21 +12,21 @@ export function StructuredData({ type, data }: StructuredDataProps) {
         return {
           "@context": "https://schema.org",
           "@type": "Organization",
-          "name": "arqihive",
-          "url": "https://arqihive.com",
-          "logo": "https://arqihive.com/logo.png",
+          "name": "renderiq",
+          "url": "https://renderiq.com",
+          "logo": "https://renderiq.com/logo.png",
           "description": "AI-powered architectural visualization platform that transforms sketches into hyperrealistic renders and videos",
           "foundingDate": "2024",
           "contactPoint": {
             "@type": "ContactPoint",
-            "telephone": "+1-555-ARQIHIVE",
+            "telephone": "+1-555-renderiq",
             "contactType": "customer service",
-            "email": "support@arqihive.com"
+            "email": "support@renderiq.com"
           },
           "sameAs": [
-            "https://twitter.com/arqihive",
-            "https://linkedin.com/company/arqihive",
-            "https://github.com/arqihive"
+            "https://twitter.com/renderiq",
+            "https://linkedin.com/company/renderiq",
+            "https://github.com/renderiq"
           ],
           "address": {
             "@type": "PostalAddress",
@@ -38,10 +38,10 @@ export function StructuredData({ type, data }: StructuredDataProps) {
         return {
           "@context": "https://schema.org",
           "@type": "SoftwareApplication",
-          "name": "arqihive",
+          "name": "renderiq",
           "applicationCategory": "DesignApplication",
           "operatingSystem": "Web Browser",
-          "url": "https://arqihive.com",
+          "url": "https://renderiq.com",
           "description": "Transform architectural sketches into hyperrealistic AI renders and videos using advanced AI technology",
           "offers": {
             "@type": "Offer",
@@ -61,10 +61,10 @@ export function StructuredData({ type, data }: StructuredDataProps) {
             "API access for enterprise",
             "Secure and private processing"
           ],
-          "screenshot": "https://arqihive.com/screenshot.png",
+          "screenshot": "https://renderiq.com/screenshot.png",
           "author": {
             "@type": "Organization",
-            "name": "arqihive"
+            "name": "renderiq"
           },
           "aggregateRating": {
             "@type": "AggregateRating",
@@ -85,7 +85,7 @@ export function StructuredData({ type, data }: StructuredDataProps) {
                 "@type": "Person",
                 "name": "Sarah Chen"
               },
-              "reviewBody": "arqihive has revolutionized our architectural visualization workflow. The AI quality is exceptional and saves us hours of work."
+              "reviewBody": "renderiq has revolutionized our architectural visualization workflow. The AI quality is exceptional and saves us hours of work."
             }
           ]
         };
@@ -94,11 +94,11 @@ export function StructuredData({ type, data }: StructuredDataProps) {
         return {
           "@context": "https://schema.org",
           "@type": "Product",
-          "name": "arqihive AI Architecture Platform",
+          "name": "renderiq AI Architecture Platform",
           "description": "AI-powered architectural visualization platform for architects and designers",
           "brand": {
             "@type": "Brand",
-            "name": "arqihive"
+            "name": "renderiq"
           },
           "category": "Architecture Software",
           "offers": [
@@ -137,10 +137,10 @@ export function StructuredData({ type, data }: StructuredDataProps) {
           "mainEntity": [
             {
               "@type": "Question",
-              "name": "What is arqihive?",
+              "name": "What is renderiq?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "arqihive is an AI-powered architectural visualization platform that transforms sketches into hyperrealistic renders and videos using advanced artificial intelligence technology."
+                "text": "renderiq is an AI-powered architectural visualization platform that transforms sketches into hyperrealistic renders and videos using advanced artificial intelligence technology."
               }
             },
             {
@@ -169,7 +169,7 @@ export function StructuredData({ type, data }: StructuredDataProps) {
             },
             {
               "@type": "Question",
-              "name": "Can I integrate arqihive with my existing workflow?",
+              "name": "Can I integrate renderiq with my existing workflow?",
               "acceptedAnswer": {
                 "@type": "Answer",
                 "text": "Yes, we offer API access, CAD software compatibility, cloud storage sync, and various export formats to integrate seamlessly with your design workflow."
@@ -186,23 +186,23 @@ export function StructuredData({ type, data }: StructuredDataProps) {
           "description": data.description || "Learn how AI is transforming architectural visualization",
           "author": {
             "@type": "Organization",
-            "name": "arqihive"
+            "name": "renderiq"
           },
           "publisher": {
             "@type": "Organization",
-            "name": "arqihive",
+            "name": "renderiq",
             "logo": {
               "@type": "ImageObject",
-              "url": "https://arqihive.com/logo.png"
+              "url": "https://renderiq.com/logo.png"
             }
           },
           "datePublished": data.datePublished || new Date().toISOString(),
           "dateModified": data.dateModified || new Date().toISOString(),
           "mainEntityOfPage": {
             "@type": "WebPage",
-            "@id": data.url || "https://arqihive.com"
+            "@id": data.url || "https://renderiq.com"
           },
-          "image": data.image || "https://arqihive.com/article-image.png"
+          "image": data.image || "https://renderiq.com/article-image.png"
         };
 
       default:

@@ -24,12 +24,12 @@ export function Navbar() {
             <Link href="/" className="flex items-center space-x-2">
               <Image
                 src="/logo.svg"
-                alt="Arqihive"
+                alt="renderiq"
                 width={24}
                 height={24}
                 className="w-6 h-6"
               />
-              <span className="text-lg font-bold text-foreground">Arqihive</span>
+              <span className="text-lg font-bold text-foreground">renderiq</span>
             </Link>
           </div>
 

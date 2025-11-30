@@ -5,8 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export const metadata: Metadata = {
-  title: "Terms of Service | arqihive - AI Architectural Visualization",
-  description: "Read the terms and conditions for using arqihive's AI architectural visualization and rendering platform.",
+  title: "Terms of Service | renderiq - AI Architectural Visualization",
+  description: "Read the terms and conditions for using renderiq's AI architectural visualization and rendering platform.",
   robots: "index, follow"
 };
 
@@ -16,7 +16,7 @@ const sections = [
     title: "1. Acceptance of Terms",
     content: [
       {
-        text: "By accessing or using arqihive's platform, you agree to be bound by these Terms of Service and all applicable laws and regulations. If you do not agree with any part of these terms, you may not use our services."
+        text: "By accessing or using renderiq's platform, you agree to be bound by these Terms of Service and all applicable laws and regulations. If you do not agree with any part of these terms, you may not use our services."
       },
       {
         text: "These terms apply to all users of the platform, including free trial users, paid subscribers, and visitors."
@@ -37,7 +37,7 @@ const sections = [
       },
       {
         subtitle: "Our Platform",
-        text: "The arqihive platform, including its software, AI models, design, and functionality, is owned by us and protected by copyright, trademark, and other intellectual property laws."
+        text: "The renderiq platform, including its software, AI models, design, and functionality, is owned by us and protected by copyright, trademark, and other intellectual property laws."
       },
       {
         subtitle: "Restrictions",
@@ -143,7 +143,7 @@ const additionalSections = [
   {
     title: "8. Indemnification",
     content: [
-      "You agree to indemnify and hold harmless arqihive, its affiliates, and employees from any claims, damages, or expenses arising from your use of the platform or violation of these terms.",
+      "You agree to indemnify and hold harmless renderiq, its affiliates, and employees from any claims, damages, or expenses arising from your use of the platform or violation of these terms.",
       "This includes claims related to content you upload, generate, or share through our platform."
     ]
   },
@@ -160,7 +160,7 @@ const additionalSections = [
     content: [
       "These Terms are governed by the laws of [Your Jurisdiction], without regard to conflict of law provisions.",
       "Any disputes will be resolved through binding arbitration in accordance with [Arbitration Rules], except where prohibited by law.",
-      "You may opt out of arbitration within 30 days of account creation by contacting legal@arqihive.com."
+      "You may opt out of arbitration within 30 days of account creation by contacting legal@renderiq.com."
     ]
   }
 ];
@@ -192,7 +192,7 @@ export default function TermsPage() {
             Last updated: October 3, 2025
           </p>
           <p className="text-base text-muted-foreground max-w-2xl mx-auto">
-            Please read these terms carefully before using arqihive's AI architectural visualization platform.
+            Please read these terms carefully before using renderiq's AI architectural visualization platform.
           </p>
         </div>
       </section>
@@ -265,8 +265,8 @@ export default function TermsPage() {
                 For questions about these Terms of Service, please contact us:
               </p>
               <div className="space-y-2 text-sm">
-                <p><strong>Email:</strong> legal@arqihive.com</p>
-                <p><strong>Support:</strong> support@arqihive.com</p>
+                <p><strong>Email:</strong> legal@renderiq.com</p>
+                <p><strong>Support:</strong> support@renderiq.com</p>
                 <p><strong>Address:</strong> [Your Business Address]</p>
               </div>
             </CardContent>
@@ -276,7 +276,7 @@ export default function TermsPage() {
           <div className="mt-12 p-6 bg-muted/50 rounded-lg">
             <h3 className="font-semibold mb-2">Acknowledgment</h3>
             <p className="text-sm text-muted-foreground">
-              By using arqihive's platform, you acknowledge that you have read, understood, and agree 
+              By using renderiq's platform, you acknowledge that you have read, understood, and agree 
               to be bound by these Terms of Service and our Privacy Policy. If you do not agree to 
               these terms, please discontinue use of the platform immediately.
             </p>

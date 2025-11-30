@@ -1,6 +1,6 @@
 import { generateText, generateObject, streamText, experimental_generateImage as generateImage } from 'ai';
 import { google } from '@ai-sdk/google';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { z } from 'zod';
 
 // Enhanced prompt schema for structured output
@@ -183,27 +183,97 @@ Technical specifications:
 - Realistic architectural rendering quality
 ${request.negativePrompt ? `\nNegative elements: ${request.negativePrompt}` : ''}`;
 
-      // Use Vercel AI SDK for actual image generation
-      const result = await generateImage({
-        model: google.image('imagen-3.0-generate-002'), // Google's latest image model
-        prompt: enhancedPrompt,
-        aspectRatio: request.aspectRatio,
-        seed: request.seed,
+      // Use Vercel AI SDK with Google Imagen (this is the correct way)
+      console.log('🎨 AISDKService: Calling Google Imagen via Vercel AI SDK...', {
+        promptLength: enhancedPrompt.length,
+        aspectRatio: request.aspectRatio
       });
+
+      // Try imagen-4.0-generate-001 first, fallback to gemini-3-pro-image-preview if needed
+      let result;
+      let modelUsed = 'imagen-4.0-generate-001';
+      try {
+        result = await generateImage({
+          model: google.image('imagen-4.0-generate-001'),
+          prompt: enhancedPrompt,
+          aspectRatio: request.aspectRatio,
+          seed: request.seed,
+        });
+      } catch (error: any) {
+        // If imagen-4.0 fails, try the newer gemini model
+        if (error?.statusCode === 404 || error?.message?.includes('not found')) {
+          console.log('⚠️ AISDKService: imagen-4.0-generate-001 not found, trying gemini-3-pro-image-preview...');
+          modelUsed = 'gemini-3-pro-image-preview';
+          result = await generateImage({
+            model: google.image('gemini-3-pro-image-preview'),
+            prompt: enhancedPrompt,
+            aspectRatio: request.aspectRatio,
+            seed: request.seed,
+          });
+        } else {
+          throw error;
+        }
+      }
 
       const processingTime = Date.now() - startTime;
 
-      console.log('🎨 AISDKService: Image generation successful', {
+      console.log('🎨 AISDKService: Image generation response received', {
         processingTime,
-        provider: 'imagen-3.0-generate-002'
+        provider: modelUsed,
+        resultType: typeof result,
+        hasImage: !!result.image,
+        imageType: typeof result.image,
+        imageKeys: result.image && typeof result.image === 'object' ? Object.keys(result.image) : []
+      });
+
+      // Extract image URL from result - Vercel AI SDK returns result.image
+      let imageUrl: string;
+      
+      if (!result || !result.image) {
+        console.error('❌ AISDKService: No image in result', result);
+        throw new Error('No image data returned from generation');
+      }
+
+      // Handle different response formats from Vercel AI SDK
+      if (typeof result.image === 'string') {
+        // Direct string (could be base64 or URL)
+        imageUrl = result.image.startsWith('data:') || result.image.startsWith('http') 
+          ? result.image 
+          : `data:image/png;base64,${result.image}`;
+      } else if (result.image && typeof result.image === 'object') {
+        // Object with properties
+        if ('base64' in result.image && result.image.base64) {
+          imageUrl = `data:image/png;base64,${result.image.base64}`;
+        } else if ('url' in result.image && result.image.url) {
+          imageUrl = result.image.url;
+        } else if ('data' in result.image && result.image.data) {
+          const data = result.image.data;
+          imageUrl = typeof data === 'string' 
+            ? (data.startsWith('data:') ? data : `data:image/png;base64,${data}`)
+            : `data:image/png;base64,${data}`;
+        } else {
+          // Last resort: try to stringify
+          console.warn('⚠️ AISDKService: Unexpected image format, attempting extraction...', result.image);
+          const imageValue = (result.image as any).image || (result.image as any).content || JSON.stringify(result.image);
+          imageUrl = typeof imageValue === 'string' 
+            ? (imageValue.startsWith('data:') || imageValue.startsWith('http') ? imageValue : `data:image/png;base64,${imageValue}`)
+            : `data:image/png;base64,${imageValue}`;
+        }
+      } else {
+        throw new Error('Unexpected image format in result');
+      }
+
+      console.log('✅ AISDKService: Image URL prepared successfully', {
+        urlLength: imageUrl.length,
+        urlPreview: imageUrl.substring(0, 50)
       });
 
       return {
         success: true,
         data: {
-          imageUrl: result.image.base64, // Use base64 data from the result
+          imageUrl: imageUrl,
           processingTime,
-          provider: 'imagen-3.0-generate-002',
+          provider: modelUsed,
           metadata: {
             prompt: enhancedPrompt,
             style: 'realistic',

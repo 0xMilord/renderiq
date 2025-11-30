@@ -32,7 +32,7 @@ export default async function Home() {
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10"></div>
+        <div className="absolute inset-0 bg-muted/30"></div>
         <div className="max-w-7xl mx-auto relative">
           <div className="text-center">
             <Badge className="mb-6 bg-primary text-primary-foreground border-0 px-4 py-2 text-sm font-medium">
@@ -313,7 +313,7 @@ export default async function Home() {
               What our users say
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Join thousands of architects and designers who trust arqihive for their visualization needs
+              Join thousands of architects and designers who trust renderiq for their visualization needs
             </p>
           </div>
 
@@ -328,7 +328,7 @@ export default async function Home() {
               </div>
               <Quote className="h-8 w-8 text-primary mb-4" />
               <p className="text-muted-foreground mb-6">
-                &ldquo;arqihive has revolutionized how we present our designs to clients. The AI renders are so realistic that clients can immediately visualize the final result. It&apos;s saved us countless hours of manual rendering work.&rdquo;
+                &ldquo;renderiq has revolutionized how we present our designs to clients. The AI renders are so realistic that clients can immediately visualize the final result. It&apos;s saved us countless hours of manual rendering work.&rdquo;
               </p>
               <div className="flex items-center">
                 <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mr-4">
@@ -374,7 +374,7 @@ export default async function Home() {
               </div>
               <Quote className="h-8 w-8 text-primary mb-4" />
               <p className="text-muted-foreground mb-6">
-                &ldquo;As a freelance architect, arqihive has given me the tools to compete with larger firms. The quality of renders I can produce now is professional-grade, and it&apos;s helped me win more projects.&rdquo;
+                &ldquo;As a freelance architect, renderiq has given me the tools to compete with larger firms. The quality of renders I can produce now is professional-grade, and it&apos;s helped me win more projects.&rdquo;
               </p>
               <div className="flex items-center">
                 <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mr-4">
@@ -492,7 +492,7 @@ export default async function Home() {
             Ready to transform your ideas?
           </h2>
           <p className="text-xl md:text-2xl text-primary-foreground/80 mb-12 max-w-4xl mx-auto">
-            Join thousands of architects and designers creating stunning visualizations with arqihive
+            Join thousands of architects and designers creating stunning visualizations with renderiq
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/signup">

@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { UserOnboardingService } from './user-onboarding';
+import { getOAuthCallbackUrl } from '@/lib/utils/auth-redirect';
+import { headers } from 'next/headers';
 import { z } from 'zod';
 
 // Validation schemas
@@ -174,16 +176,37 @@ export class AuthService {
     }
   }
 
-  static async signInWithOAuth(provider: 'google' | 'github'): Promise<AuthResult> {
+  static async signInWithOAuth(provider: 'google' | 'github', request?: Request): Promise<AuthResult> {
     console.log('🔐 AuthService: Signing in with OAuth:', provider);
     
     try {
       const supabase = await createClient();
       
-      // Determine the correct redirect URL based on environment
-      const isLocalEnv = process.env.NODE_ENV === 'development';
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (isLocalEnv ? 'http://localhost:3000' : 'https://arqihive.com');
-      const redirectTo = `${siteUrl}/auth/callback`;
+      // Get origin from request or headers (for server actions)
+      let origin: string | undefined;
+      if (request) {
+        try {
+          const url = new URL(request.url);
+          origin = url.origin;
+        } catch (error) {
+          console.warn('Failed to parse request URL:', error);
+        }
+      } else {
+        // For server actions, try to get origin from headers
+        try {
+          const headersList = await headers();
+          const host = headersList.get('host');
+          const protocol = headersList.get('x-forwarded-proto') || 'http';
+          if (host) {
+            origin = `${protocol}://${host}`;
+          }
+        } catch (error) {
+          console.warn('Failed to get origin from headers:', error);
+        }
+      }
+      
+      // Get the correct OAuth callback URL (handles localhost in dev)
+      const redirectTo = getOAuthCallbackUrl(request, '/', origin);
       
       console.log('🔐 AuthService: OAuth redirect URL:', redirectTo);
       
