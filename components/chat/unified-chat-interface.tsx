@@ -1016,7 +1016,7 @@ export function UnifiedChatInterface({
               className="h-7 px-3 flex-1 text-xs"
             >
               <ImageIcon className="h-3 w-3 mr-1" />
-              Render
+              Result
             </Button>
           </div>
         </div>
@@ -1817,13 +1817,13 @@ export function UnifiedChatInterface({
       {/* Render Output Area - Responsive width */}
       <div className={cn(
         "flex-1 flex flex-col overflow-hidden",
-        // Mobile: show/hide based on mobileView
+        // Mobile: show/hide based on mobileView - ONLY show in output area, never in chat
         mobileView === 'render' ? 'flex' : 'hidden lg:flex'
       )}>
-        {/* Header with Toolbar */}
+        {/* Header with Toolbar - ONLY in output area, never in chat */}
         <div className="border-b border-border bg-background sticky top-0 z-10">
           <div className="px-4 py-1.5 h-11 flex items-center">
-            {/* Toolbar - Only show when there's a render */}
+            {/* Toolbar - Only show when there's a render AND we're in output area (not chat) */}
             {currentRender && (() => {
               const versionNumber = currentRender.chainPosition !== undefined 
                 ? currentRender.chainPosition + 1 
