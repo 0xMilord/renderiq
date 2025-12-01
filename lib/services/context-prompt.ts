@@ -46,11 +46,11 @@ export class ContextPromptService {
     // NEVER add style/type modifiers - they're handled elsewhere and cause conflicts
     // The user's prompt and UI selections should be sufficient
 
-    // Build clean enhanced prompt
+    // Build clean enhanced prompt - use user prompt directly
     let enhancedPrompt = userPrompt;
 
-    // Only add minimal context if absolutely necessary
-    if (contextElements.length > 0 && !isIteration && !isReferenceRequest) {
+    // Only add minimal context if user explicitly requests it or it's a new image
+    if (contextElements.length > 0 && (isReferenceRequest || isNewImage)) {
       enhancedPrompt = `${userPrompt}. ${contextElements.join('. ')}`;
     }
 
@@ -70,17 +70,13 @@ export class ContextPromptService {
   }
 
   /**
-   * Smart detection of iteration requests
+   * Simple detection of iteration requests - less strict
    */
   private static isIterationRequest(prompt: string): boolean {
-    const iterationKeywords = [
-      'ADD', 'REMOVE', 'CHANGE', 'MAKE', 'MORE', 'LESS',
-      'MODIFY', 'UPDATE', 'ADJUST', 'ALTER', 'REFINE',
-      'ITERATE', 'IMPROVE', 'ENHANCE', 'FIX'
-    ];
-    
+    // Only detect obvious iteration keywords, let user intent guide
+    const iterationKeywords = ['ADD', 'REMOVE', 'CHANGE', 'MODIFY'];
     const upperPrompt = prompt.toUpperCase();
-    return iterationKeywords.some(keyword => upperPrompt.includes(keyword));
+    return iterationKeywords.some(keyword => upperPrompt.startsWith(keyword) || upperPrompt.includes(` ${keyword} `));
   }
 
   /**

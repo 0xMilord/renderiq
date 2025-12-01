@@ -40,6 +40,12 @@ export async function POST(request: NextRequest) {
     const seedParam = formData.get('seed') as string | null;
     const seed = seedParam ? parseInt(seedParam) : undefined;
     const versionContextData = formData.get('versionContext') as string | null;
+    const environment = formData.get('environment') as string | null;
+    const effect = formData.get('effect') as string | null;
+    const styleTransferImageData = formData.get('styleTransferImageData') as string | null;
+    const styleTransferImageType = formData.get('styleTransferImageType') as string | null;
+    const temperatureParam = formData.get('temperature') as string | null;
+    const temperature = temperatureParam ? parseFloat(temperatureParam) : 0.7;
 
     console.log('📝 Render parameters:', { 
       prompt, 
@@ -201,6 +207,8 @@ export async function POST(request: NextRequest) {
         aspectRatio,
         ...(imageType && { imageType }),
         ...(negativePrompt && { negativePrompt }),
+        ...(environment && { environment }),
+        ...(effect && { effect }),
       },
       status: 'pending',
       chainId: finalChainId,
@@ -340,6 +348,11 @@ export async function POST(request: NextRequest) {
           uploadedImageType: uploadedImageType || undefined,
           negativePrompt: negativePrompt || undefined,
           seed,
+          environment: environment || undefined,
+          effect: effect || undefined,
+          styleTransferImageData: styleTransferImageData || undefined,
+          styleTransferImageType: styleTransferImageType || undefined,
+          temperature,
         });
       }
 

@@ -101,23 +101,16 @@ export class AISDKService {
     try {
       const model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
-      const prompt = `You are an expert AI prompt engineer specializing in architectural and design image generation. Your task is to enhance the user's prompt to create a more detailed, specific, and visually compelling description that will generate better images.
+      const prompt = `You are an AI prompt assistant. Enhance the user's prompt to be more detailed and visually compelling while keeping the core intent.
 
-Guidelines:
-1. Keep the core intent and style of the original prompt
-2. Add specific architectural details, materials, lighting, and composition elements
-3. Include technical specifications when relevant (dimensions, proportions, etc.)
-4. Enhance visual descriptions with colors, textures, and atmospheric details
-5. Make it 2x more detailed and meaningful while staying true to the original vision
-6. Focus on architectural and design elements
-7. Keep the enhanced prompt under 200 words
-8. Provide a clarity score (0-100) for the original prompt
-9. Identify any potential conflicts or issues
-10. Suggest improvements
-11. List specific architectural details added
-12. List visual elements added
+General guidelines:
+- Keep the original intent and style
+- Add relevant visual details when helpful
+- Keep it clear and concise (under 200 words)
+- Provide a clarity score (0-100)
+- Note any potential issues or improvements
 
-Return your response as a JSON object with the following structure:
+Return your response as a JSON object:
 {
   "enhancedPrompt": "the enhanced prompt text",
   "clarity": 85,
@@ -186,6 +179,11 @@ Original prompt: "${originalPrompt}"`;
     uploadedImageType?: string;
     negativePrompt?: string;
     seed?: number;
+    environment?: string;
+    effect?: string;
+    styleTransferImageData?: string;
+    styleTransferImageType?: string;
+    temperature?: number;
   }): Promise<{ success: boolean; data?: ImageGenerationResult; error?: string }> {
     console.log('🎨 AISDKService: Starting image generation', {
       prompt: request.prompt,
@@ -196,25 +194,31 @@ Original prompt: "${originalPrompt}"`;
     const startTime = Date.now();
 
     try {
-      // Enhanced prompt following Google Imagen guidelines
-      const enhancedPrompt = `Professional architectural visualization: ${request.prompt}
-
-Subject: Architectural design with detailed materials and textures
-Action: Static architectural composition with optimal lighting
-Style: Realistic architectural rendering, professional quality
-Camera: Wide shot composition with ${request.aspectRatio} aspect ratio
-Ambiance: Natural lighting with architectural accuracy
-Composition: Clean architectural lines and professional presentation
-Focus: High-resolution architectural details and material textures
-
-Technical specifications:
-- Professional architectural accuracy
-- Detailed material textures and finishes
-- Optimal lighting and shadow placement
-- Clean composition and professional presentation
-- High-resolution architectural visualization
-- Realistic architectural rendering quality
-${request.negativePrompt ? `\nNegative elements: ${request.negativePrompt}` : ''}`;
+      // Use user prompt directly, only add minimal context if needed
+      let enhancedPrompt = request.prompt;
+      
+      // Add environment if provided
+      if (request.environment) {
+        enhancedPrompt += `, ${request.environment} environment`;
+      }
+      
+      // Add effect/style if provided
+      if (request.effect) {
+        enhancedPrompt += `, ${request.effect} style`;
+      }
+      
+      // Only add aspect ratio context if not already mentioned
+      if (request.aspectRatio && !enhancedPrompt.toLowerCase().includes('aspect ratio') && !enhancedPrompt.toLowerCase().includes(request.aspectRatio)) {
+        enhancedPrompt += `, ${request.aspectRatio} aspect ratio`;
+      }
+      
+      // Add negative prompt if provided
+      if (request.negativePrompt) {
+        enhancedPrompt += `\nNegative: ${request.negativePrompt}`;
+      }
+      
+      // Note: Style transfer and style ref images are handled separately by the AI model
+      // They should be passed as image inputs to the generation API, not in the prompt
 
       console.log('🎨 AISDKService: Calling Google Imagen...', {
         promptLength: enhancedPrompt.length,
@@ -224,8 +228,12 @@ ${request.negativePrompt ? `\nNegative elements: ${request.negativePrompt}` : ''
       // Use Gemini model for image generation (imagen models may need different approach)
       // Note: Google Generative AI SDK v0.21.0 may have different image generation methods
       // This is a placeholder that should work with available models
+      // Temperature: 0.0 = strict/deterministic, 1.0 = creative/random
       const model = this.genAI.getGenerativeModel({ 
         model: 'gemini-2.0-flash-exp',
+        generationConfig: {
+          temperature: request.temperature ?? 0.7,
+        },
       });
 
       // For image generation, we might need to use a different approach
@@ -268,26 +276,22 @@ ${request.negativePrompt ? `\nNegative elements: ${request.negativePrompt}` : ''
     const startTime = Date.now();
 
     try {
-      // Enhanced prompt following Google Veo 3.1 guidelines
-      const enhancedPrompt = `Architectural video visualization: ${request.prompt}
-
-Subject: Architectural design and built environment
-Action: Smooth architectural motion and cinematic transitions
-Style: Professional architectural cinematography, realistic rendering
-Camera: Cinematic wide shot with ${request.aspectRatio} aspect ratio, smooth camera movement
-Composition: Professional architectural framing and composition
-Ambiance: Natural architectural lighting with professional quality
-Duration: ${request.duration} seconds of architectural content
-Focus: Architectural accuracy and professional presentation
-
-Technical specifications:
-- Professional architectural cinematography
-- Smooth architectural motion and transitions
-- Consistent visual architectural style
-- High-quality architectural rendering
-- Professional architectural accuracy
-- Engaging architectural content flow
-${request.uploadedImageData ? '\nReference: Use uploaded architectural image as starting frame' : ''}`;
+      // Use user prompt directly, only add minimal context if needed
+      let enhancedPrompt = request.prompt;
+      
+      // Only add aspect ratio and duration if not already mentioned
+      if (request.aspectRatio && !enhancedPrompt.toLowerCase().includes('aspect ratio') && !enhancedPrompt.toLowerCase().includes(request.aspectRatio)) {
+        enhancedPrompt += `, ${request.aspectRatio} aspect ratio`;
+      }
+      
+      if (request.duration && !enhancedPrompt.toLowerCase().includes('duration') && !enhancedPrompt.toLowerCase().includes(`${request.duration} second`)) {
+        enhancedPrompt += `, ${request.duration} seconds`;
+      }
+      
+      // Add reference note if image provided
+      if (request.uploadedImageData) {
+        enhancedPrompt += ', use uploaded image as reference';
+      }
 
       // Video generation with Veo requires Google Cloud Vertex AI or GenAI SDK
       // For now, return an error indicating video generation needs to be configured

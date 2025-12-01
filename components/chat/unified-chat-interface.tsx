@@ -5,17 +5,18 @@ import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   Send, 
   Image as ImageIcon, 
-  Video, 
-  Edit3, 
+  Video,
   Wand2, 
   Download, 
   Share2,
@@ -25,16 +26,19 @@ import {
   X,
   AlertCircle,
   RefreshCw,
-  Clock,
   ChevronDown,
   ChevronUp,
   Maximize,
   MessageSquare,
   ArrowLeft,
   Copy,
-  Play,
-  RotateCcw,
-  Zap
+  Zap,
+  HelpCircle,
+  ChevronLeft,
+  ChevronRight,
+  MoreVertical,
+  PanelLeft,
+  PanelRight
 } from 'lucide-react';
 import { 
   FaSquare,
@@ -45,7 +49,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useCredits } from '@/lib/hooks/use-credits';
 import { useUpscaling } from '@/lib/hooks/use-upscaling';
-import { usePromptEnhancement, useImageGeneration, useVideoGeneration, useAIChat } from '@/lib/hooks/use-ai-sdk';
+import { usePromptEnhancement, useImageGeneration, useVideoGeneration } from '@/lib/hooks/use-ai-sdk';
 import { useVersionContext } from '@/lib/hooks/use-version-context';
 import { VideoPlayer } from '@/components/video/video-player';
 import { UploadModal } from './upload-modal';
@@ -167,7 +171,6 @@ export function UnifiedChatInterface({
   // Chat state
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
-  const [activeTab, setActiveTab] = useState<'prompt-to-image' | 'image-to-video' | 'canvas-editor'>('prompt-to-image');
   
   // Render state
   const [currentRender, setCurrentRender] = useState<Render | null>(null);
@@ -181,7 +184,15 @@ export function UnifiedChatInterface({
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   
-  // Simplified video controls
+  
+  // Style settings
+  const [environment, setEnvironment] = useState<string>('none');
+  const [effect, setEffect] = useState<string>('none');
+  const [styleTransferImage, setStyleTransferImage] = useState<File | null>(null);
+  const [styleTransferPreview, setStyleTransferPreview] = useState<string | null>(null);
+  const [temperature, setTemperature] = useState<string>('0.5'); // Default 50% (0.5), options: 0, 0.25, 0.5, 0.75, 1.0
+  
+  // Video controls
   const [videoDuration, setVideoDuration] = useState(5);
   
   // Modal states
@@ -199,6 +210,13 @@ export function UnifiedChatInterface({
   // Mobile view state - toggle between chat and render
   const [mobileView, setMobileView] = useState<'chat' | 'render'>('chat');
   
+  // Version carousel state
+  const [carouselScrollPosition, setCarouselScrollPosition] = useState(0);
+  const [mobileCarouselScrollPosition, setMobileCarouselScrollPosition] = useState(0);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const mobileCarouselRef = useRef<HTMLDivElement>(null);
+  
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -209,8 +227,8 @@ export function UnifiedChatInterface({
   const { upscaleImage, isUpscaling, upscalingResult, error: upscalingError } = useUpscaling();
   
   // Google Generative AI hooks
-  const { generateImage, isGenerating: isImageGenerating } = useImageGeneration();
-  const { generateVideo, isGenerating: isVideoGenerating } = useVideoGeneration();
+  const { isGenerating: isImageGenerating } = useImageGeneration();
+  const { isGenerating: isVideoGenerating } = useVideoGeneration();
   const { enhancePrompt, isEnhancing, error: enhancementError, isEnhanced, restoreOriginal } = usePromptEnhancement();
   
   // Version context hook
@@ -345,7 +363,7 @@ export function UnifiedChatInterface({
     setUploadedFile(file);
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
-  }, [activeTab]);
+  }, []);
 
   const { getRootProps, getInputProps } = useDropzone({
     onDrop,
@@ -366,15 +384,8 @@ export function UnifiedChatInterface({
   };
 
   const getCreditsCost = () => {
-    if (activeTab === 'image-to-video') {
-      // Video generation costs
-      const baseCost = 5;
-      const durationMultiplier = videoDuration / 5;
-      return Math.ceil(baseCost * durationMultiplier);
-    } else {
-      // Image generation costs
-      return 1;
-    }
+    // Image generation costs
+    return 1;
   };
 
   const handleEnhancePrompt = async () => {
@@ -611,53 +622,178 @@ export function UnifiedChatInterface({
       // Use the final prompt directly - Google Generative AI handles optimization
       const enhancedPrompt = finalPrompt;
 
-      // Log generation parameters before sending
-      console.log('🎯 Chat: Sending generation request with parameters:', {
-        aspectRatio,
-        videoDuration: activeTab === 'image-to-video' ? videoDuration : undefined,
-        type: activeTab === 'image-to-video' ? 'video' : 'image'
-      });
+       // Log generation parameters before sending
+       console.log('🎯 Chat: Sending generation request with parameters:', {
+         aspectRatio,
+         videoDuration: userMessage.uploadedImage?.file ? videoDuration : undefined,
+         type: userMessage.uploadedImage?.file ? 'video' : 'image'
+       });
 
-      // Branch between image and video generation
-      let result;
-      
-      if (activeTab === 'image-to-video') {
-        // Automatically determine video generation type based on what's uploaded
-        console.log('🎬 Initiating video generation:', {
-          hasUploadedImage: !!userMessage.uploadedImage?.file,
-          duration: videoDuration
+       // Branch between image and video generation
+       let result;
+       
+       // If user uploaded an image, generate video; otherwise generate image
+       if (userMessage.uploadedImage?.file) {
+         // Video generation
+         console.log('🎬 Initiating video generation:', {
+           hasUploadedImage: !!userMessage.uploadedImage?.file,
+           duration: videoDuration
+         });
+         
+         // Prepare form data for video generation
+         const videoFormData = new FormData();
+         videoFormData.append('prompt', enhancedPrompt);
+         videoFormData.append('style', 'realistic');
+         videoFormData.append('quality', 'standard');
+         videoFormData.append('aspectRatio', aspectRatio);
+         videoFormData.append('type', 'video');
+         videoFormData.append('duration', videoDuration.toString());
+         videoFormData.append('projectId', projectId || '');
+         
+         if (chainId) {
+           videoFormData.append('chainId', chainId);
+         }
+         
+         if (referenceRenderId) {
+           videoFormData.append('referenceRenderId', referenceRenderId);
+         }
+         
+         videoFormData.append('isPublic', 'true');
+         
+         // Add uploaded image if provided
+         if (userMessage.uploadedImage?.file) {
+           const reader = new FileReader();
+           const base64 = await new Promise<string>((resolve) => {
+             reader.onload = (e) => {
+               const result = e.target?.result as string;
+               resolve(result.split(',')[1]);
+             };
+             reader.readAsDataURL(userMessage.uploadedImage!.file!);
+           });
+           videoFormData.append('uploadedImageData', base64);
+           videoFormData.append('uploadedImageType', userMessage.uploadedImage.file.type);
+         }
+         
+         // Call the API directly
+         const videoResponse = await fetch('/api/renders', {
+           method: 'POST',
+           body: videoFormData,
+         });
+         
+         const videoApiResult = await videoResponse.json();
+         
+         if (videoApiResult.success && videoApiResult.data) {
+           result = {
+             success: true,
+             videoUrl: videoApiResult.data.outputUrl || '',
+             processingTime: videoApiResult.data.processingTime || 0,
+             provider: videoApiResult.data.provider || 'google-generative-ai'
+           };
+         } else {
+           result = {
+             success: false,
+             error: videoApiResult.error || 'Video generation failed'
+           };
+         }
+       } else {
+         // Prepare form data for image generation
+        const formData = new FormData();
+        formData.append('prompt', enhancedPrompt);
+        formData.append('style', 'realistic'); // Default style
+        formData.append('quality', 'standard');
+        formData.append('aspectRatio', aspectRatio);
+        formData.append('type', 'image');
+        formData.append('projectId', projectId || '');
+        
+        if (chainId) {
+          formData.append('chainId', chainId);
+        }
+        
+        if (referenceRenderId) {
+          formData.append('referenceRenderId', referenceRenderId);
+        }
+        
+        if (versionContext) {
+          formData.append('versionContext', JSON.stringify(versionContext));
+        }
+        
+        formData.append('isPublic', 'true');
+        
+        // Add environment if selected (not "none")
+        if (environment && environment !== 'none') {
+          formData.append('environment', environment);
+        }
+        
+        // Add effect if selected (not "none")
+        if (effect && effect !== 'none') {
+          formData.append('effect', effect);
+        }
+        
+        // Add uploaded image (main image being edited)
+        if (userMessage.uploadedImage?.file) {
+          const reader = new FileReader();
+          const base64 = await new Promise<string>((resolve) => {
+            reader.onload = (e) => {
+              const result = e.target?.result as string;
+              resolve(result.split(',')[1]); // Remove data:image/...;base64, prefix
+            };
+            reader.readAsDataURL(userMessage.uploadedImage!.file!);
+          });
+          formData.append('uploadedImageData', base64);
+          formData.append('uploadedImageType', userMessage.uploadedImage.file.type);
+        }
+        
+        // Add style transfer image
+        if (styleTransferImage) {
+          const reader = new FileReader();
+          const base64 = await new Promise<string>((resolve) => {
+            reader.onload = (e) => {
+              const result = e.target?.result as string;
+              resolve(result.split(',')[1]);
+            };
+            reader.readAsDataURL(styleTransferImage);
+          });
+          formData.append('styleTransferImageData', base64);
+          formData.append('styleTransferImageType', styleTransferImage.type);
+        }
+        
+        // Add temperature (0.0-1.0, default 0.5)
+        formData.append('temperature', temperature);
+        
+        // Call the API directly
+        const response = await fetch('/api/renders', {
+          method: 'POST',
+          body: formData,
         });
         
-        result = await generateVideo({
-          prompt: enhancedPrompt,
-          duration: videoDuration,
-          aspectRatio: aspectRatio as '16:9' | '9:16' | '1:1',
-          projectId: projectId || '',
-          chainId: chainId || undefined,
-          referenceRenderId: referenceRenderId,
-        });
-      } else {
-        // Use image generation hook
-        result = await generateImage({
-          prompt: enhancedPrompt,
-          aspectRatio,
-          projectId: projectId || undefined,
-          chainId: chainId || undefined,
-          referenceRenderId: referenceRenderId,
-          versionContext: versionContext, // Pass the version context
-          isPublic: true, // Add to public gallery
-        });
-      }
+        const apiResult = await response.json();
+        
+        if (apiResult.success && apiResult.data) {
+          result = {
+            success: true,
+            data: {
+              outputUrl: apiResult.data.outputUrl || '',
+              processingTime: apiResult.data.processingTime || 0,
+              provider: apiResult.data.provider || 'google-generative-ai'
+            }
+          };
+        } else {
+          result = {
+            success: false,
+            error: apiResult.error || 'Image generation failed'
+          };
+        }
+       }
       
       // Check if generation was successful
       if (result && (result.imageUrl || result.videoUrl || (result.success && result.data))) {
-        // Create a new render version for this chat message
-        // Note: The actual render will be created by the API with a proper database ID
-        const newRender: Render = {
-          id: 'temp-' + Date.now(), // Temporary ID for frontend display
-          projectId,
-          userId: '',
-          type: activeTab === 'image-to-video' ? 'video' : 'image',
+         // Create a new render version for this chat message
+         // Note: The actual render will be created by the API with a proper database ID
+         const newRender: Render = {
+           id: 'temp-' + Date.now(), // Temporary ID for frontend display
+           projectId,
+           userId: '',
+           type: result.videoUrl ? 'video' : 'image',
           prompt: currentPrompt,
           settings: {
             aspectRatio,
@@ -761,18 +897,6 @@ export function UnifiedChatInterface({
     });
   };
 
-  const getTabIcon = (tab: string) => {
-    switch (tab) {
-      case 'prompt-to-image':
-        return <ImageIcon className="h-4 w-4" />;
-      case 'image-to-video':
-        return <Video className="h-4 w-4" />;
-      case 'canvas-editor':
-        return <Edit3 className="h-4 w-4" />;
-      default:
-        return <Sparkles className="h-4 w-4" />;
-    }
-  };
 
 
   return (
@@ -813,31 +937,175 @@ export function UnifiedChatInterface({
             </Button>
           </div>
         </div>
+        
+        {/* Version Carousel - Mobile */}
+        {messages.some(m => m.render && m.render.type === 'image') && (
+          <div className="relative px-4 py-2 border-t border-border">
+            <div className="flex items-center gap-2">
+              <Button
+                variant={mobileCarouselScrollPosition > 0 ? "ghost" : "outline"}
+                size="sm"
+                className="h-8 w-8 p-0 shrink-0"
+                disabled={mobileCarouselScrollPosition <= 0}
+                onClick={() => {
+                  if (mobileCarouselRef.current && mobileCarouselScrollPosition > 0) {
+                    mobileCarouselRef.current.scrollBy({ left: -320, behavior: 'smooth' });
+                  }
+                }}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div
+                ref={mobileCarouselRef}
+                className="flex-1 overflow-x-auto scroll-smooth [&::-webkit-scrollbar]:hidden"
+                onScroll={(e) => {
+                  setMobileCarouselScrollPosition(e.currentTarget.scrollLeft);
+                }}
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                <div className="flex gap-2">
+                  {messages
+                    .filter(m => m.render && m.render.type === 'image')
+                    .map((message, index) => (
+                      <div
+                        key={message.id}
+                        className={cn(
+                          "relative w-8 h-8 rounded border-2 cursor-pointer transition-all shrink-0 overflow-hidden",
+                          currentRender?.id === message.render?.id
+                            ? "border-primary ring-2 ring-primary/20"
+                            : "border-border hover:border-primary/50"
+                        )}
+                        onClick={() => setCurrentRender(message.render!)}
+                      >
+                        <Image
+                          src={message.render!.outputUrl}
+                          alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    ))}
+                </div>
+              </div>
+              <Button
+                variant={mobileCarouselRef.current && mobileCarouselScrollPosition < (mobileCarouselRef.current.scrollWidth - mobileCarouselRef.current.clientWidth - 10) ? "ghost" : "outline"}
+                size="sm"
+                className="h-8 w-8 p-0 shrink-0"
+                disabled={mobileCarouselRef.current ? mobileCarouselScrollPosition >= (mobileCarouselRef.current.scrollWidth - mobileCarouselRef.current.clientWidth - 10) : true}
+                onClick={() => {
+                  if (mobileCarouselRef.current) {
+                    const canScroll = mobileCarouselScrollPosition < (mobileCarouselRef.current.scrollWidth - mobileCarouselRef.current.clientWidth - 10);
+                    if (canScroll) {
+                      mobileCarouselRef.current.scrollBy({ left: 320, behavior: 'smooth' });
+                    }
+                  }
+                }}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Render Area - Responsive width */}
       <div className={cn(
-        "border-r border-border flex flex-col overflow-hidden",
-        "w-full lg:w-1/4 h-full",
+        "border-r border-border flex flex-col overflow-hidden transition-all duration-300",
+        "w-full h-full",
+        isSidebarCollapsed ? "lg:w-0 lg:border-r-0 lg:overflow-hidden" : "lg:w-1/4",
         // Mobile: show/hide based on mobileView
         mobileView === 'chat' ? 'flex' : 'hidden lg:flex'
       )}>
         {/* Header - Desktop only */}
-        <div className="hidden lg:block px-4 py-1.5 border-b border-border h-11 flex items-center">
-          <div className="flex items-center justify-between gap-2 w-full">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onBackToProjects}
-              className="justify-start h-8 px-2 w-fit shrink-0"
-            >
-              <ArrowLeft className="h-3 w-3 mr-1" />
-              Back
-            </Button>
-            <div className="text-right flex-1 min-w-0">
-              <h1 className="text-sm font-semibold truncate">{projectName}</h1>
+        <div className={cn(
+          "hidden lg:block border-b border-border",
+          isSidebarCollapsed && "lg:hidden"
+        )}>
+          <div className="px-4 py-1.5 h-11 flex items-center">
+            <div className="flex items-center justify-between gap-2 w-full">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onBackToProjects}
+                className="justify-start h-8 px-2 w-fit shrink-0"
+              >
+                <ArrowLeft className="h-3 w-3 mr-1" />
+                Back
+              </Button>
+              <div className="text-right flex-1 min-w-0">
+                <h1 className="text-sm font-semibold truncate">{projectName}</h1>
+              </div>
             </div>
           </div>
+          
+          {/* Version Carousel - Desktop */}
+          {messages.some(m => m.render && m.render.type === 'image') && (
+            <div className="relative px-4 py-2 border-t border-border">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={carouselScrollPosition > 0 ? "ghost" : "outline"}
+                  size="sm"
+                  className="h-8 w-8 p-0 shrink-0"
+                  disabled={carouselScrollPosition <= 0}
+                  onClick={() => {
+                    if (carouselRef.current && carouselScrollPosition > 0) {
+                      carouselRef.current.scrollBy({ left: -320, behavior: 'smooth' });
+                    }
+                  }}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div
+                  ref={carouselRef}
+                  className="flex-1 overflow-x-auto scroll-smooth [&::-webkit-scrollbar]:hidden"
+                  onScroll={(e) => {
+                    setCarouselScrollPosition(e.currentTarget.scrollLeft);
+                  }}
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                  <div className="flex gap-2">
+                    {messages
+                      .filter(m => m.render && m.render.type === 'image')
+                      .map((message, index) => (
+                        <div
+                          key={message.id}
+                          className={cn(
+                            "relative w-8 h-8 rounded border-2 cursor-pointer transition-all shrink-0 overflow-hidden",
+                            currentRender?.id === message.render?.id
+                              ? "border-primary ring-2 ring-primary/20"
+                              : "border-border hover:border-primary/50"
+                          )}
+                          onClick={() => setCurrentRender(message.render!)}
+                        >
+                          <Image
+                            src={message.render!.outputUrl}
+                            alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                      ))}
+                  </div>
+                </div>
+                <Button
+                  variant={carouselRef.current && carouselScrollPosition < (carouselRef.current.scrollWidth - carouselRef.current.clientWidth - 10) ? "ghost" : "outline"}
+                  size="sm"
+                  className="h-8 w-8 p-0 shrink-0"
+                  disabled={carouselRef.current ? carouselScrollPosition >= (carouselRef.current.scrollWidth - carouselRef.current.clientWidth - 10) : true}
+                  onClick={() => {
+                    if (carouselRef.current) {
+                      const canScroll = carouselScrollPosition < (carouselRef.current.scrollWidth - carouselRef.current.clientWidth - 10);
+                      if (canScroll) {
+                        carouselRef.current.scrollBy({ left: 320, behavior: 'smooth' });
+                      }
+                    }
+                  }}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Messages */}
@@ -900,7 +1168,7 @@ export function UnifiedChatInterface({
                           className="h-6 w-6 p-0"
                           title="Edit and resend"
                         >
-                          <Edit3 className="h-3 w-3" />
+                          <Copy className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
@@ -947,24 +1215,13 @@ export function UnifiedChatInterface({
                         }}
                         style={{ minWidth: '400px', width: '100%' }}
                       >
-                        {message.render.type === 'video' ? (
-                          <VideoPlayer
-                            videoUrl={message.render.outputUrl}
-                            title={`Generated Video - Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
-                            duration={message.render.settings?.duration}
-                            status="completed"
-                            processingTime={message.render.processingTime}
-                            className="w-full h-full"
-                          />
-                        ) : (
-                          <Image
-                            src={message.render.outputUrl}
-                            alt="Generated render"
-                            fill
-                            className="object-cover"
-                            sizes="100vw"
-                          />
-                        )}
+                        <Image
+                          src={message.render.outputUrl}
+                          alt="Generated render"
+                          fill
+                          className="object-cover"
+                          sizes="100vw"
+                        />
                       </div>
                       {/* Action buttons below image - always visible */}
                       <div className="flex items-center justify-center gap-2 mt-2">
@@ -1023,7 +1280,10 @@ export function UnifiedChatInterface({
         </div>
 
         {/* Input Area */}
-        <div className="p-2 sm:p-2 border-t border-border flex-shrink-0 bg-background">
+        <div className={cn(
+          "p-2 sm:p-2 border-t border-border flex-shrink-0 bg-background",
+          isSidebarCollapsed && "lg:hidden"
+        )}>
           <div className="space-y-1">
             {/* Uploaded Image Attachment */}
             {uploadedFile && previewUrl && (
@@ -1075,7 +1335,7 @@ export function UnifiedChatInterface({
                     value={inputValue}
                     onChange={handleInputChange}
                     onKeyPress={handleKeyPress}
-                    placeholder={isEnhancing ? "Enhancing your prompt..." : activeTab === 'image-to-video' ? "Describe the video you want to create..." : "Describe your vision..."}
+                     placeholder={isEnhancing ? "Enhancing your prompt..." : "Describe your vision..."}
                     className={cn(
                       "h-[104px] sm:h-[116px] resize-none w-full text-xs sm:text-sm",
                       isEnhancing && "animate-pulse bg-muted/50"
@@ -1101,13 +1361,11 @@ export function UnifiedChatInterface({
                     <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   ) : (
                     <>
-                      {isGenerating ? (
-                        <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-                      ) : activeTab === 'image-to-video' ? (
-                        <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                      ) : (
-                        <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                      )}
+                       {isGenerating ? (
+                         <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                       ) : (
+                         <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                       )}
                     </>
                   )}
                 </Button>
@@ -1139,6 +1397,203 @@ export function UnifiedChatInterface({
               </div>
             </div>
             
+             {/* Style Settings - 2 columns: Environment/Temperature (3/4) and Style Transfer (1/4) */}
+             <div>
+               <div className="flex gap-2 sm:gap-3 items-start">
+                 {/* Left Column: Environment/Effect and Temperature (3/4 width, 2 rows) */}
+                 <div className="flex-[3] flex flex-col gap-2 sm:gap-3">
+                  {/* Row 1: Environment and Effect dropdowns */}
+                  <div className="flex gap-2 sm:gap-3">
+                    {/* Environment Dropdown */}
+                    <div className="space-y-1 flex flex-col flex-1">
+                      <div className="flex items-center gap-1">
+                        <Label className="text-[10px] sm:text-xs font-medium">Environment</Label>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Set the weather and lighting conditions (sunny, rainy, sunset, etc.)</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <Select value={environment} onValueChange={setEnvironment}>
+                        <SelectTrigger className="h-7 sm:h-8 text-[10px] sm:text-xs w-full">
+                          <SelectValue placeholder="Select environment" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none" className="text-[10px] sm:text-xs">None</SelectItem>
+                          <SelectItem value="sunny" className="text-[10px] sm:text-xs">Sunny</SelectItem>
+                          <SelectItem value="overcast" className="text-[10px] sm:text-xs">Overcast</SelectItem>
+                          <SelectItem value="rainy" className="text-[10px] sm:text-xs">Rainy</SelectItem>
+                          <SelectItem value="sunset" className="text-[10px] sm:text-xs">Sunset</SelectItem>
+                          <SelectItem value="sunrise" className="text-[10px] sm:text-xs">Sunrise</SelectItem>
+                          <SelectItem value="night" className="text-[10px] sm:text-xs">Night</SelectItem>
+                          <SelectItem value="foggy" className="text-[10px] sm:text-xs">Foggy</SelectItem>
+                          <SelectItem value="cloudy" className="text-[10px] sm:text-xs">Cloudy</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Effect Dropdown */}
+                    <div className="space-y-1 flex flex-col flex-1">
+                      <div className="flex items-center gap-1">
+                        <Label className="text-[10px] sm:text-xs font-medium">Effect</Label>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Choose visualization style and rendering mode</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <Select value={effect} onValueChange={setEffect}>
+                        <SelectTrigger className="h-7 sm:h-8 text-[10px] sm:text-xs w-full">
+                          <SelectValue placeholder="Select effect" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none" className="text-[10px] sm:text-xs">None</SelectItem>
+                          <SelectItem value="wireframe" className="text-[10px] sm:text-xs">Wireframe</SelectItem>
+                          <SelectItem value="photoreal" className="text-[10px] sm:text-xs">Photoreal</SelectItem>
+                          <SelectItem value="illustration" className="text-[10px] sm:text-xs">Illustration</SelectItem>
+                          <SelectItem value="sketch" className="text-[10px] sm:text-xs">Sketch</SelectItem>
+                          <SelectItem value="watercolor" className="text-[10px] sm:text-xs">Watercolor</SelectItem>
+                          <SelectItem value="line-art" className="text-[10px] sm:text-xs">Line Art</SelectItem>
+                          <SelectItem value="concept-art" className="text-[10px] sm:text-xs">Concept Art</SelectItem>
+                          <SelectItem value="architectural-drawing" className="text-[10px] sm:text-xs">Architectural Drawing</SelectItem>
+                          <SelectItem value="technical-drawing" className="text-[10px] sm:text-xs">Technical Drawing</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Temperature Toggle */}
+                  <div className="space-y-1 flex flex-col">
+                    <div className="flex items-center gap-1">
+                      <Label className="text-[10px] sm:text-xs font-medium">Temperature</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Control creativity: 0 = strict/deterministic, 1 = creative/random</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <ToggleGroup
+                      type="single"
+                      value={temperature}
+                      onValueChange={(value) => {
+                        if (value) setTemperature(value);
+                      }}
+                      className="h-7 sm:h-8 w-full"
+                      variant="outline"
+                      size="sm"
+                    >
+                      <ToggleGroupItem value="0" aria-label="0" className="flex-1 text-[10px] sm:text-xs">
+                        0
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="0.25" aria-label="0.25" className="flex-1 text-[10px] sm:text-xs">
+                        0.25
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="0.5" aria-label="0.5" className="flex-1 text-[10px] sm:text-xs">
+                        0.5
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="0.75" aria-label="0.75" className="flex-1 text-[10px] sm:text-xs">
+                        0.75
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="1" aria-label="1" className="flex-1 text-[10px] sm:text-xs">
+                        1
+                      </ToggleGroupItem>
+                    </ToggleGroup>
+                  </div>
+                </div>
+
+                 {/* Right Column: Style Transfer (1/4 width, matches combined height) */}
+                 <div className="flex-[1] space-y-1 flex flex-col">
+                   <div className="flex items-center gap-1">
+                     <Label className="text-[10px] sm:text-xs font-medium whitespace-nowrap">Style Transfer</Label>
+                     <Tooltip>
+                       <TooltipTrigger asChild>
+                         <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help shrink-0" />
+                       </TooltipTrigger>
+                       <TooltipContent>
+                         <p>Upload an image to transfer its style to your generated image</p>
+                       </TooltipContent>
+                     </Tooltip>
+                   </div>
+                   <div className="relative w-full h-[5.75rem] sm:h-[6.25rem]">
+                    {styleTransferImage ? (
+                      <>
+                        <div className="h-full w-full rounded border overflow-hidden cursor-pointer relative" onClick={() => {
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.accept = 'image/*';
+                          input.onchange = (e) => {
+                            const file = (e.target as HTMLInputElement).files?.[0];
+                            if (file) {
+                              setStyleTransferImage(file);
+                              const reader = new FileReader();
+                              reader.onload = (e) => {
+                                setStyleTransferPreview(e.target?.result as string);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          };
+                          input.click();
+                        }}>
+                          <Image
+                            src={styleTransferPreview || ''}
+                            alt="Style transfer"
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="absolute -top-1 -right-1 h-4 w-4 p-0 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 z-10"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setStyleTransferImage(null);
+                            setStyleTransferPreview(null);
+                          }}
+                        >
+                          <X className="h-2.5 w-2.5" />
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-full w-full p-0"
+                        onClick={() => {
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.accept = 'image/*';
+                          input.onchange = (e) => {
+                            const file = (e.target as HTMLInputElement).files?.[0];
+                            if (file) {
+                              setStyleTransferImage(file);
+                              const reader = new FileReader();
+                              reader.onload = (e) => {
+                                setStyleTransferPreview(e.target?.result as string);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          };
+                          input.click();
+                        }}
+                      >
+                        <ImageIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                      </Button>
+                    )}
+                  </div>
+                 </div>
+               </div>
+             </div>
+            
             {/* Enhancement Error */}
             {enhancementError && (
               <Alert variant="destructive" className="py-1">
@@ -1154,22 +1609,6 @@ export function UnifiedChatInterface({
                 {/* Aspect Ratio - Only essential setting */}
                 {/* Aspect ratio is now fixed at 16:9 for better quality */}
 
-                {/* Video Duration - Only for video generation */}
-                {activeTab === 'image-to-video' && (
-                  <div className="space-y-0.5 sm:space-y-1">
-                    <Label className="text-[10px] sm:text-xs font-medium">Duration</Label>
-                    <Select value={videoDuration.toString()} onValueChange={(value) => setVideoDuration(parseInt(value))}>
-                      <SelectTrigger className="h-7 sm:h-8 text-[10px] sm:text-xs w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="3" className="text-[10px] sm:text-xs">3s</SelectItem>
-                        <SelectItem value="5" className="text-[10px] sm:text-xs">5s</SelectItem>
-                        <SelectItem value="10" className="text-[10px] sm:text-xs">10s</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
 
               {/* File Upload - Hidden, triggered by + button */}
               <div className="hidden">
@@ -1210,50 +1649,129 @@ export function UnifiedChatInterface({
         // Mobile: show/hide based on mobileView
         mobileView === 'render' ? 'flex' : 'hidden lg:flex'
       )}>
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'prompt-to-image' | 'image-to-video' | 'canvas-editor')} className="flex flex-col h-full">
-          <div className="border-b border-border flex-shrink-0 h-11 flex items-center">
-            <TabsList className="w-full justify-start rounded-none h-full">
-              <TabsTrigger 
-                value="prompt-to-image" 
-                className={cn(
-                  "flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm px-2 sm:px-4",
-                  activeTab === 'prompt-to-image' && "!border-primary !text-primary data-[state=active]:!text-primary dark:data-[state=active]:!text-primary"
-                )}
-              >
-                {getTabIcon('prompt-to-image')}
-                <span className="hidden sm:inline">Prompt to Image</span>
-                <span className="sm:hidden">Prompt</span>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="image-to-video" 
-                className={cn(
-                  "flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm px-2 sm:px-4",
-                  activeTab === 'image-to-video' && "!border-primary !text-primary data-[state=active]:!text-primary dark:data-[state=active]:!text-primary"
-                )}
-              >
-                {getTabIcon('image-to-video')}
-                <span className="hidden sm:inline">Image to Video</span>
-                <span className="sm:hidden">Video</span>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="canvas-editor" 
-                className={cn(
-                  "flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm px-2 sm:px-4",
-                  activeTab === 'canvas-editor' && "!border-primary !text-primary data-[state=active]:!text-primary dark:data-[state=active]:!text-primary"
-                )}
-              >
-                {getTabIcon('canvas-editor')}
-                <span className="hidden sm:inline">Canvas Editor</span>
-                <span className="sm:hidden">Canvas</span>
-              </TabsTrigger>
-            </TabsList>
+        {/* Header with Toolbar */}
+        <div className="border-b border-border bg-background sticky top-0 z-10">
+          <div className="px-4 py-1.5 h-11 flex items-center">
+            {/* Toolbar - Only show when there's a render */}
+            {currentRender && (() => {
+              const versionNumber = currentRender.chainPosition !== undefined 
+                ? currentRender.chainPosition + 1 
+                : messages.findIndex(m => m.render?.id === currentRender.id) + 1;
+              return (
+                <div className="flex items-center gap-3 w-full">
+                  {/* Sidebar Toggle Button */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                    className="h-7 w-7 p-0 shrink-0"
+                    title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                  >
+                    {isSidebarCollapsed ? (
+                      <PanelRight className="h-3 w-3" />
+                    ) : (
+                      <PanelLeft className="h-3 w-3" />
+                    )}
+                  </Button>
+                  
+                  {/* Separator */}
+                  <div className="h-4 w-px bg-border shrink-0"></div>
+                  
+                  {/* Version Number */}
+                  <div className="text-xs font-medium text-muted-foreground shrink-0">
+                    Version {versionNumber}
+                  </div>
+                  
+                  {/* Separator */}
+                  <div className="h-4 w-px bg-border shrink-0"></div>
+                  
+                  {/* Tools - Spread evenly */}
+                  <div className="flex items-center justify-between gap-2 flex-1">
+                    {/* Upscale */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-7 px-2 text-[10px] flex-1 flex items-center justify-center gap-1.5"
+                          disabled={isUpscaling}
+                        >
+                          {isUpscaling ? (
+                            <>
+                              <RefreshCw className="h-3 w-3 animate-spin shrink-0" />
+                              <span>Upscaling...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Zap className="h-3 w-3 shrink-0" />
+                              <span>Upscale</span>
+                            </>
+                          )}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem onClick={() => handleUpscale(2)} disabled={isUpscaling}>
+                          2x
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleUpscale(4)} disabled={isUpscaling}>
+                          4x
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleUpscale(10)} disabled={isUpscaling}>
+                          10x
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    {/* Convert to Video */}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => {}} 
+                      className="h-7 px-2 text-[10px] flex-1 flex items-center justify-center gap-1.5" 
+                      disabled
+                    >
+                      <Video className="h-3 w-3 shrink-0" />
+                      <span>Video</span>
+                    </Button>
+                    {/* Download */}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleDownload} 
+                      className="h-7 px-2 text-[10px] flex-1 flex items-center justify-center gap-1.5"
+                    >
+                      <Download className="h-3 w-3 shrink-0" />
+                      <span>Download</span>
+                    </Button>
+                    {/* Share */}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleShare} 
+                      className="h-7 px-2 text-[10px] flex-1 flex items-center justify-center gap-1.5"
+                    >
+                      <Share2 className="h-3 w-3 shrink-0" />
+                      <span>Share</span>
+                    </Button>
+                    {/* More Tools - Placeholder */}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => {}} 
+                      className="h-7 px-2 text-[10px] flex-1 flex items-center justify-center gap-1.5" 
+                      disabled
+                    >
+                      <MoreVertical className="h-3 w-3 shrink-0" />
+                      <span>More</span>
+                    </Button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
-
-          {/* Render Content */}
-          <div className="flex-1 p-1 sm:p-2 overflow-hidden min-h-0">
-          <TabsContent value="prompt-to-image" className="h-full">
-            <div className="h-full flex flex-col lg:flex-row items-center justify-center max-h-[calc(100vh-8rem)]">
+        </div>
+        {/* Render Content */}
+        <div className="flex-1 p-1 sm:p-2 overflow-hidden min-h-0">
+            <div className="h-full w-full flex flex-col lg:flex-row items-center justify-center overflow-hidden">
               {/* Mobile Version Selector */}
               {messages.some(m => m.render) && (
                 <div className="lg:hidden w-full mb-2">
@@ -1280,14 +1798,14 @@ export function UnifiedChatInterface({
                 </div>
               )}
               
-              <div className="flex-1 overflow-hidden w-full max-h-[calc(100vh-8rem)]">
+              <div className="flex-1 overflow-hidden w-full h-full min-w-0 min-h-0">
               {isGenerating || isImageGenerating || isVideoGenerating ? (
-                <Card className="w-full h-full py-0 gap-0">
-                  <CardContent className="p-0 h-full">
-                    <div className="h-full flex flex-col">
+                <Card className="w-full h-full py-0 gap-0 overflow-hidden">
+                  <CardContent className="p-0 h-full overflow-hidden">
+                    <div className="h-full w-full flex flex-col overflow-hidden">
                       {/* Loading Display */}
-                      <div className="flex-1 bg-muted rounded-t-lg overflow-hidden relative min-h-[200px] sm:min-h-[300px]">
-                        <div className="w-full h-full flex items-center justify-center relative p-1">
+                      <div className="flex-1 bg-muted rounded-t-lg overflow-hidden relative min-h-[200px] sm:min-h-[300px] min-w-0">
+                        <div className="w-full h-full flex items-center justify-center relative p-1 overflow-hidden min-w-0">
                           <div className="text-center space-y-3 sm:space-y-6">
                             <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
                               <RefreshCw className="h-6 w-6 sm:h-8 sm:w-8 text-primary animate-spin" />
@@ -1309,18 +1827,19 @@ export function UnifiedChatInterface({
                   </CardContent>
                 </Card>
               ) : currentRender ? (
-                <Card className="w-full h-full py-0 gap-0">
-                  <CardContent className="p-0 h-full">
-                    <div className="h-full flex flex-col">
+                <Card className="w-full h-full py-0 gap-0 overflow-hidden">
+                  <CardContent className="p-0 h-full overflow-hidden">
+                    <div className="h-full w-full flex flex-col overflow-hidden">
                       {/* Image Display */}
-                      <div className="flex-1 bg-muted rounded-t-lg overflow-hidden relative min-h-[200px] sm:min-h-[300px]">
-                        <div className="w-full h-full flex items-center justify-center relative p-0.5 sm:p-1">
+                      <div className="flex-1 bg-muted rounded-t-lg overflow-hidden relative min-h-[200px] sm:min-h-[300px] min-w-0">
+                        <div className="w-full h-full flex items-center justify-center relative p-0.5 sm:p-1 overflow-hidden min-w-0">
                         <Image
                           src={currentRender.outputUrl}
                           alt={currentRender.prompt}
                           width={800}
                           height={600}
-                          className="max-w-full max-h-full object-contain rounded-lg cursor-pointer"
+                          className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg cursor-pointer"
+                          style={{ maxWidth: '100%', maxHeight: '100%' }}
                           onClick={() => setIsFullscreen(true)}
                         />
                           
@@ -1337,57 +1856,10 @@ export function UnifiedChatInterface({
                         </div>
                       </div>
 
-                      {/* Result Info and Actions */}
-                      <div className="p-1.5 sm:p-2 border-t border-border bg-background flex-shrink-0">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 sm:mb-2">
-                          <div className="flex flex-wrap gap-1 sm:gap-2">
-                            <Badge variant="default" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
-                              {currentRender.settings?.style}
-                            </Badge>
-                            <Badge variant="default" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
-                              {currentRender.settings?.aspectRatio}
-                            </Badge>
-                            <Badge variant="default" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
-                              {currentRender.settings?.quality}
-                            </Badge>
-                            <Badge variant="default" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 flex items-center gap-0.5">
-                              <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                              {currentRender.processingTime?.toFixed(1)}s
-                            </Badge>
-                          </div>
-                          
-                          <div className="flex items-center space-x-1 sm:space-x-2 w-full sm:w-auto">
-                            <Button variant="outline" size="sm" onClick={handleDownload} title="Download" className="h-7 w-7 sm:h-8 sm:w-8 p-0 sm:px-3 sm:w-auto">
-                              <Download className="h-3 w-3 sm:h-4 sm:w-4" />
-                              <span className="hidden sm:inline ml-2">Download</span>
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={handleShare} title="Share" className="h-7 w-7 sm:h-8 sm:w-8 p-0 sm:px-3 sm:w-auto">
-                              <Share2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                              <span className="hidden sm:inline ml-2">Share</span>
-                            </Button>
-                            
-                            {/* Upscaling Options */}
-                            <div className="flex items-center space-x-1 sm:space-x-2 flex-1 sm:flex-initial">
-                              <Select onValueChange={(value: string) => handleUpscale(parseInt(value) as 2 | 4 | 10)} disabled={isUpscaling}>
-                                <SelectTrigger className="w-full sm:w-20 h-7 sm:h-8 text-[10px] sm:text-xs">
-                                  <SelectValue placeholder="Upscale" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="2" className="text-xs">2x</SelectItem>
-                                  <SelectItem value="4" className="text-xs">4x</SelectItem>
-                                  <SelectItem value="10" className="text-xs">10x</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              {isUpscaling && (
-                                <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 animate-spin text-muted-foreground" />
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Upscaling Result */}
-                        {upscalingResult && (
-                          <div className="mt-1.5 sm:mt-2 p-1.5 sm:p-2 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                      {/* Upscaling Result */}
+                      {upscalingResult && (
+                        <div className="p-1.5 sm:p-2 border-t border-border bg-background flex-shrink-0">
+                          <div className="p-1.5 sm:p-2 bg-green-50 dark:bg-green-950/20 rounded-lg">
                             <div className="flex items-center justify-between mb-1 sm:mb-2">
                               <span className="text-xs sm:text-sm font-medium text-green-800 dark:text-green-200">
                                 ✅ Upscaling Complete ({upscalingResult.scale}x)
@@ -1402,11 +1874,13 @@ export function UnifiedChatInterface({
                               <div>• Provider: {upscalingResult.provider}</div>
                             </div>
                           </div>
-                        )}
+                        </div>
+                      )}
 
-                        {/* Upscaling Error */}
-                        {upscalingError && (
-                          <div className="mt-1.5 sm:mt-2 p-1.5 sm:p-2 bg-red-50 dark:bg-red-950/20 rounded-lg">
+                      {/* Upscaling Error */}
+                      {upscalingError && (
+                        <div className="p-1.5 sm:p-2 border-t border-border bg-background flex-shrink-0">
+                          <div className="p-1.5 sm:p-2 bg-red-50 dark:bg-red-950/20 rounded-lg">
                             <div className="text-xs sm:text-sm font-medium text-red-800 dark:text-red-200 mb-1">
                               ❌ Upscaling Failed
                             </div>
@@ -1414,9 +1888,8 @@ export function UnifiedChatInterface({
                               {upscalingError}
                             </div>
                           </div>
-                        )}
-
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -1433,341 +1906,8 @@ export function UnifiedChatInterface({
               )}
               </div>
               
-              {/* Version History Sidebar - Right side, Desktop only */}
-              {messages.some(m => m.render) && (
-                <div className="hidden lg:flex lg:flex-col w-32 xl:w-48 border-l border-border pl-2 xl:pl-4 ml-2 xl:ml-4 max-h-[calc(100vh-8rem)]">
-                  <h3 className="text-xs xl:text-sm font-medium mb-2 xl:mb-3 flex-shrink-0">Versions</h3>
-                  <div className="space-y-1.5 xl:space-y-2 flex-1 overflow-y-auto min-h-0">
-                    {messages
-                      .filter(m => m.render)
-                      .map((message, index) => (
-                        <div
-                          key={message.id}
-                          className={cn(
-                            "p-1.5 xl:p-2 rounded border cursor-pointer transition-colors",
-                            currentRender?.id === message.render?.id
-                              ? "bg-primary/10 border-primary"
-                              : "hover:bg-muted"
-                          )}
-                          onClick={() => setCurrentRender(message.render!)}
-                        >
-                          <div className="text-[10px] xl:text-xs text-muted-foreground mb-1">
-                            V{message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}
-                          </div>
-                          {message.render!.type === 'video' ? (
-                            <div className="w-full h-12 xl:h-16 bg-muted rounded flex items-center justify-center">
-                              <Video className="h-4 w-4 text-muted-foreground" />
-                            </div>
-                          ) : (
-                            <Image
-                              src={message.render!.outputUrl}
-                              alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
-                              width={100}
-                              height={60}
-                              className="w-full h-12 xl:h-16 object-cover rounded"
-                            />
-                          )}
-                          <div className="text-[10px] xl:text-xs text-muted-foreground mt-1 truncate">
-                            {message.content}
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="image-to-video" className="h-full">
-            <div className="h-full flex flex-col lg:flex-row items-center justify-center max-h-[calc(100vh-8rem)]">
-              {/* Mobile Version Selector */}
-              {messages.some(m => m.render) && (
-                <div className="lg:hidden w-full mb-2">
-                  <Select
-                    value={currentRender?.id || ''}
-                    onValueChange={(value) => {
-                      const render = messages.find(m => m.render?.id === value)?.render;
-                      if (render) setCurrentRender(render);
-                    }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a version" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {messages
-                        .filter(m => m.render)
-                        .map((message, index) => (
-                          <SelectItem key={message.render!.id} value={message.render!.id}>
-                            Version {message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {/* Desktop Layout */}
-              <div className="hidden lg:flex h-full w-full">
-                {/* Left Sidebar - Versions */}
-                {messages.some(m => m.render) && (
-                  <div className="w-48 p-2 border-r bg-muted/30 overflow-y-auto">
-                    <h3 className="text-sm font-semibold mb-2">Versions</h3>
-                    {messages
-                      .filter(m => m.render)
-                      .map((message, index) => (
-                        <div
-                          key={message.id}
-                          className="p-1.5 xl:p-2 rounded border cursor-pointer transition-colors mb-2"
-                          onClick={() => setCurrentRender(message.render!)}
-                        >
-                          <div className="text-[10px] xl:text-xs text-muted-foreground mb-1">
-                            V{message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}
-                          </div>
-                          {message.render!.type === 'video' ? (
-                            <div className="w-full h-12 xl:h-16 bg-muted rounded flex items-center justify-center">
-                              <Video className="h-4 w-4 text-muted-foreground" />
-                            </div>
-                          ) : (
-                            <Image
-                              src={message.render!.outputUrl}
-                              alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
-                              width={100}
-                              height={60}
-                              className="w-full h-12 xl:h-16 object-cover rounded"
-                            />
-                          )}
-                          <div className="text-[10px] xl:text-xs text-muted-foreground mt-1 truncate">
-                            {message.content}
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                )}
-
-                {/* Main Content Area */}
-                <div className="flex-1 flex flex-col">
-                  {/* Render Display */}
-                  {currentRender ? (
-                    <div className="flex-1 p-4 flex items-center justify-center">
-                      <div className="max-w-full max-h-full">
-                        {currentRender.type === 'video' ? (
-                          <VideoPlayer
-                            videoUrl={currentRender.outputUrl}
-                            title={`Generated Video - Version ${currentRender.chainPosition !== undefined ? currentRender.chainPosition + 1 : 1}`}
-                            duration={currentRender.settings?.duration}
-                            status="completed"
-                            processingTime={currentRender.processingTime}
-                            className="max-w-full max-h-full"
-                          />
-                        ) : (
-                          <Image
-                            src={currentRender.outputUrl}
-                            alt="Generated render"
-                            width={800}
-                            height={600}
-                            className="max-w-full max-h-full object-contain"
-                          />
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex-1 flex items-center justify-center p-8">
-                      <div className="text-center">
-                        <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-muted rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                          <Play className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 text-muted-foreground" />
-                        </div>
-                        <h3 className="text-sm sm:text-base lg:text-lg font-semibold mb-2">Ready to Generate Video</h3>
-                        <p className="text-xs sm:text-sm text-muted-foreground">
-                          Describe your vision to create amazing videos
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Render Interface */}
-                  <div className="border-t p-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1">
-                        <Textarea
-                          value={inputValue}
-                          onChange={(e) => setInputValue(e.target.value)}
-                          placeholder="Describe the video you want to create..."
-                          className="min-h-[2.5rem] max-h-32 resize-none text-sm"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault();
-                              handleSendMessage();
-                            }
-                          }}
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <Button
-                          onClick={handleSendMessage}
-                          disabled={!inputValue.trim() || isGenerating || (credits && credits.balance < getCreditsCost())}
-                          className="h-8 sm:h-9 w-8 sm:w-9 shrink-0"
-                          size="sm"
-                        >
-                          {credits && credits.balance < getCreditsCost() ? (
-                            <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                          ) : (
-                            <>
-                              {isGenerating ? (
-                                <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-                              ) : (
-                                <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                              )}
-                            </>
-                          )}
-                        </Button>
-                        <Button
-                          onClick={isEnhanced ? handleRestorePrompt : handleEnhancePrompt}
-                          disabled={!inputValue.trim() || isEnhancing}
-                          variant="outline"
-                          className="h-8 sm:h-9 w-8 sm:w-9 shrink-0"
-                          size="sm"
-                          title={isEnhanced ? "Restore original prompt" : "Enhance prompt"}
-                        >
-                          {isEnhancing ? (
-                            <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-                          ) : isEnhanced ? (
-                            <RotateCcw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                          ) : (
-                            <Wand2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Mobile Layout */}
-              <div className="lg:hidden w-full h-full flex flex-col">
-                {mobileView === 'chat' ? (
-                  <div className="flex-1 flex flex-col">
-                    {/* Render Messages */}
-                    <div className="flex-1 overflow-y-auto p-2 space-y-4">
-                      {messages.map((message, index) => (
-                        <div
-                          key={message.id}
-                          className={cn(
-                            "flex gap-2",
-                            message.type === 'user' ? "justify-end" : "justify-start"
-                          )}
-                        >
-                          <div className={cn(
-                            "max-w-[80%] rounded-lg p-3 text-sm",
-                            message.type === 'user' 
-                              ? "bg-primary text-primary-foreground" 
-                              : "bg-muted"
-                          )}>
-                            {message.uploadedImage && (
-                              <div className="mb-2">
-                                <img
-                                  src={message.uploadedImage.previewUrl}
-                                  alt="Uploaded"
-                                  className="w-20 h-20 object-cover rounded"
-                                />
-                              </div>
-                            )}
-                            <div className="whitespace-pre-wrap">
-                              {message.content}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Render Input */}
-                    <div className="border-t p-2">
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1">
-                          <Textarea
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            placeholder="Describe the video you want to create..."
-                            className="min-h-[2.5rem] max-h-32 resize-none text-sm"
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault();
-                                handleSendMessage();
-                              }
-                            }}
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <Button
-                            onClick={handleSendMessage}
-                            disabled={!inputValue.trim() || isGenerating || (credits && credits.balance < getCreditsCost())}
-                            className="h-8 sm:h-9 w-8 sm:w-9 shrink-0"
-                            size="sm"
-                          >
-                            {credits && credits.balance < getCreditsCost() ? (
-                              <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                            ) : (
-                              <>
-                                {isGenerating ? (
-                                  <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-                                ) : (
-                                  <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                )}
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex-1 p-4 flex items-center justify-center">
-                    {currentRender && (
-                      <div className="max-w-full max-h-full">
-                        {currentRender.type === 'video' ? (
-                          <VideoPlayer
-                            videoUrl={currentRender.outputUrl}
-                            title={`Generated Video - Version ${currentRender.chainPosition !== undefined ? currentRender.chainPosition + 1 : 1}`}
-                            duration={currentRender.settings?.duration}
-                            status="completed"
-                            processingTime={currentRender.processingTime}
-                            className="max-w-full max-h-full"
-                          />
-                        ) : (
-                          <Image
-                            src={currentRender.outputUrl}
-                            alt="Generated render"
-                            width={800}
-                            height={600}
-                            className="max-w-full max-h-full object-contain"
-                          />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="canvas-editor" className="h-full">
-            <div className="h-full flex items-center justify-center p-4">
-              <div className="text-center">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-muted rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                  <Edit3 className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 text-muted-foreground" />
-                </div>
-                <h3 className="text-sm sm:text-base lg:text-lg font-semibold mb-2">Canvas Editor</h3>
-                <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
-                  Select and edit specific portions of your images
-                </p>
-                <Button className="h-8 sm:h-9 lg:h-10 text-xs sm:text-sm">
-                  <Edit3 className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
-                  Open Editor
-                </Button>
-              </div>
-            </div>
-          </TabsContent>
-          </div>
-        </Tabs>
+             </div>
+           </div>
       </div>
 
       {/* Modals */}

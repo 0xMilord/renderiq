@@ -37,11 +37,8 @@ export function useUpscaling() {
       const arrayBuffer = await response.arrayBuffer();
       const base64 = Buffer.from(arrayBuffer).toString('base64');
       
-      // Create enhanced prompt for upscaling
-      const upscalingPrompt = `Upscale this image by ${request.scale}x while maintaining perfect quality and detail. 
-      Enhance the image to ${request.quality} resolution without any artifacts, 
-      blurriness, or pixelation. Preserve all original details and improve sharpness and clarity. 
-      The output should be a crisp, professional-quality image that looks natural and realistic.`;
+      // Simple upscaling prompt
+      const upscalingPrompt = `Upscale this image by ${request.scale}x to ${request.quality} quality`;
 
       const result = await aiService.generateImage({
         prompt: upscalingPrompt,
