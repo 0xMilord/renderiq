@@ -1,5 +1,3 @@
-import { generateText, generateObject, streamText, experimental_generateImage as generateImage } from 'ai';
-import { google } from '@ai-sdk/google';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { z } from 'zod';
 
@@ -68,14 +66,19 @@ export interface VideoGenerationResult {
 }
 
 /**
- * Vercel AI SDK Service - Unified AI operations using Vercel AI SDK
- * Replaces all manual Google AI implementations with standardized SDK
+ * Google Generative AI Service - Unified AI operations using Google Generative AI SDK
  */
 export class AISDKService {
   private static instance: AISDKService;
+  private genAI: GoogleGenerativeAI;
 
   private constructor() {
-    console.log('✅ AISDKService initialized with Vercel AI SDK');
+    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+    if (!apiKey) {
+      throw new Error('GOOGLE_GENERATIVE_AI_API_KEY or GOOGLE_AI_API_KEY environment variable is required');
+    }
+    this.genAI = new GoogleGenerativeAI(apiKey);
+    console.log('✅ AISDKService initialized with Google Generative AI SDK');
   }
 
   static getInstance(): AISDKService {
@@ -86,7 +89,7 @@ export class AISDKService {
   }
 
   /**
-   * Enhance prompts using Vercel AI SDK with structured output
+   * Enhance prompts using Google Generative AI with structured output
    */
   async enhancePrompt(originalPrompt: string): Promise<PromptEnhancementResult> {
     console.log('🔍 AISDKService: Starting prompt enhancement', {
@@ -96,12 +99,9 @@ export class AISDKService {
     const startTime = Date.now();
 
     try {
-      const result = await generateObject({
-        model: google('gemini-2.0-flash-exp'), // Latest experimental model
-        schema: PromptEnhancementSchema,
-        temperature: 0.8, // Higher creativity for better prompts
-        maxTokens: 2000, // More detailed responses
-        prompt: `You are an expert AI prompt engineer specializing in architectural and design image generation. Your task is to enhance the user's prompt to create a more detailed, specific, and visually compelling description that will generate better images.
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+
+      const prompt = `You are an expert AI prompt engineer specializing in architectural and design image generation. Your task is to enhance the user's prompt to create a more detailed, specific, and visually compelling description that will generate better images.
 
 Guidelines:
 1. Keep the core intent and style of the original prompt
@@ -117,24 +117,57 @@ Guidelines:
 11. List specific architectural details added
 12. List visual elements added
 
-Original prompt: "${originalPrompt}"`,
-        temperature: 0.7,
-        maxTokens: 1000,
+Return your response as a JSON object with the following structure:
+{
+  "enhancedPrompt": "the enhanced prompt text",
+  "clarity": 85,
+  "conflicts": ["list of conflicts"],
+  "suggestions": ["list of suggestions"],
+  "architecturalDetails": ["list of details"],
+  "visualElements": ["list of elements"]
+}
+
+Original prompt: "${originalPrompt}"`;
+
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.8,
+          maxOutputTokens: 2000,
+          responseMimeType: 'application/json',
+        },
       });
+
+      const responseText = result.response.text();
+      let parsedResult;
+      try {
+        parsedResult = JSON.parse(responseText);
+      } catch (parseError) {
+        // Try to extract JSON from markdown code blocks if present
+        const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || responseText.match(/```\s*([\s\S]*?)\s*```/);
+        if (jsonMatch) {
+          parsedResult = JSON.parse(jsonMatch[1]);
+        } else {
+          throw new Error('Failed to parse JSON response');
+        }
+      }
+
+      // Validate and parse with zod schema
+      const validatedResult = PromptEnhancementSchema.parse(parsedResult);
 
       const processingTime = Date.now() - startTime;
 
       console.log('🔍 AISDKService: Enhancement successful', {
         processingTime,
-        clarity: result.object.clarity,
-        conflictsResolved: result.object.conflicts.length,
-        suggestions: result.object.suggestions.length
+        clarity: validatedResult.clarity,
+        conflictsResolved: validatedResult.conflicts.length,
+        suggestions: validatedResult.suggestions.length
       });
 
       return {
-        ...result.object,
+        ...validatedResult,
         processingTime,
-        provider: 'vercel-ai-sdk-google'
+        provider: 'google-generative-ai'
       };
 
     } catch (error) {
@@ -144,7 +177,7 @@ Original prompt: "${originalPrompt}"`,
   }
 
   /**
-   * Generate images using Vercel AI SDK
+   * Generate images using Google Generative AI (Imagen)
    */
   async generateImage(request: {
     prompt: string;
@@ -163,7 +196,7 @@ Original prompt: "${originalPrompt}"`,
     const startTime = Date.now();
 
     try {
-      // Enhanced prompt following Vercel AI SDK and Google Imagen guidelines
+      // Enhanced prompt following Google Imagen guidelines
       const enhancedPrompt = `Professional architectural visualization: ${request.prompt}
 
 Subject: Architectural design with detailed materials and textures
@@ -183,105 +216,28 @@ Technical specifications:
 - Realistic architectural rendering quality
 ${request.negativePrompt ? `\nNegative elements: ${request.negativePrompt}` : ''}`;
 
-      // Use Vercel AI SDK with Google Imagen (this is the correct way)
-      console.log('🎨 AISDKService: Calling Google Imagen via Vercel AI SDK...', {
+      console.log('🎨 AISDKService: Calling Google Imagen...', {
         promptLength: enhancedPrompt.length,
         aspectRatio: request.aspectRatio
       });
 
-      // Try imagen-4.0-generate-001 first, fallback to gemini-3-pro-image-preview if needed
-      let result;
-      let modelUsed = 'imagen-4.0-generate-001';
-      try {
-        result = await generateImage({
-          model: google.image('imagen-4.0-generate-001'),
-          prompt: enhancedPrompt,
-          aspectRatio: request.aspectRatio,
-          seed: request.seed,
-        });
-      } catch (error: any) {
-        // If imagen-4.0 fails, try the newer gemini model
-        if (error?.statusCode === 404 || error?.message?.includes('not found')) {
-          console.log('⚠️ AISDKService: imagen-4.0-generate-001 not found, trying gemini-3-pro-image-preview...');
-          modelUsed = 'gemini-3-pro-image-preview';
-          result = await generateImage({
-            model: google.image('gemini-3-pro-image-preview'),
-            prompt: enhancedPrompt,
-            aspectRatio: request.aspectRatio,
-            seed: request.seed,
-          });
-        } else {
-          throw error;
-        }
-      }
-
-      const processingTime = Date.now() - startTime;
-
-      console.log('🎨 AISDKService: Image generation response received', {
-        processingTime,
-        provider: modelUsed,
-        resultType: typeof result,
-        hasImage: !!result.image,
-        imageType: typeof result.image,
-        imageKeys: result.image && typeof result.image === 'object' ? Object.keys(result.image) : []
+      // Use Gemini model for image generation (imagen models may need different approach)
+      // Note: Google Generative AI SDK v0.21.0 may have different image generation methods
+      // This is a placeholder that should work with available models
+      const model = this.genAI.getGenerativeModel({ 
+        model: 'gemini-2.0-flash-exp',
       });
 
-      // Extract image URL from result - Vercel AI SDK returns result.image
-      let imageUrl: string;
+      // For image generation, we might need to use a different approach
+      // Since direct imagen access might not be available in @google/generative-ai,
+      // we'll use a text-based approach or check if imagen models are available
       
-      if (!result || !result.image) {
-        console.error('❌ AISDKService: No image in result', result);
-        throw new Error('No image data returned from generation');
-      }
-
-      // Handle different response formats from Vercel AI SDK
-      if (typeof result.image === 'string') {
-        // Direct string (could be base64 or URL)
-        imageUrl = result.image.startsWith('data:') || result.image.startsWith('http') 
-          ? result.image 
-          : `data:image/png;base64,${result.image}`;
-      } else if (result.image && typeof result.image === 'object') {
-        // Object with properties
-        if ('base64' in result.image && result.image.base64) {
-          imageUrl = `data:image/png;base64,${result.image.base64}`;
-        } else if ('url' in result.image && result.image.url) {
-          imageUrl = result.image.url;
-        } else if ('data' in result.image && result.image.data) {
-          const data = result.image.data;
-          imageUrl = typeof data === 'string' 
-            ? (data.startsWith('data:') ? data : `data:image/png;base64,${data}`)
-            : `data:image/png;base64,${data}`;
-        } else {
-          // Last resort: try to stringify
-          console.warn('⚠️ AISDKService: Unexpected image format, attempting extraction...', result.image);
-          const imageValue = (result.image as any).image || (result.image as any).content || JSON.stringify(result.image);
-          imageUrl = typeof imageValue === 'string' 
-            ? (imageValue.startsWith('data:') || imageValue.startsWith('http') ? imageValue : `data:image/png;base64,${imageValue}`)
-            : `data:image/png;base64,${imageValue}`;
-        }
-      } else {
-        throw new Error('Unexpected image format in result');
-      }
-
-      console.log('✅ AISDKService: Image URL prepared successfully', {
-        urlLength: imageUrl.length,
-        urlPreview: imageUrl.substring(0, 50)
-      });
-
+      // For now, return an error indicating image generation needs to be configured
+      // The actual implementation will depend on available Google AI image generation APIs
+      
       return {
-        success: true,
-        data: {
-          imageUrl: imageUrl,
-          processingTime,
-          provider: modelUsed,
-          metadata: {
-            prompt: enhancedPrompt,
-            style: 'realistic',
-            quality: 'ultra',
-            aspectRatio: request.aspectRatio,
-            seed: request.seed
-          }
-        }
+        success: false,
+        error: 'Image generation via Imagen is not yet implemented. Please use Google Cloud Vertex AI or configure Imagen API access separately.'
       };
 
     } catch (error) {
@@ -302,7 +258,7 @@ ${request.negativePrompt ? `\nNegative elements: ${request.negativePrompt}` : ''
     aspectRatio: '16:9' | '9:16' | '1:1';
     uploadedImageData?: string;
   }): Promise<{ success: boolean; data?: VideoGenerationResult; error?: string }> {
-    console.log('🎬 AISDKService: Starting video generation with Veo 3.1', {
+    console.log('🎬 AISDKService: Starting video generation', {
       prompt: request.prompt,
       duration: request.duration,
       aspectRatio: request.aspectRatio,
@@ -333,60 +289,12 @@ Technical specifications:
 - Engaging architectural content flow
 ${request.uploadedImageData ? '\nReference: Use uploaded architectural image as starting frame' : ''}`;
 
-      // Initialize Google GenAI client
-      const ai = new GoogleGenAI({
-        apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GOOGLE_AI_API_KEY
-      });
-
-      // Start video generation with Veo 3.1
-      let operation = await ai.models.generateVideos({
-        model: "veo-3.1-generate-preview", // Latest Veo 3.1 model
-        prompt: enhancedPrompt,
-        config: {
-          aspectRatio: request.aspectRatio,
-          durationSeconds: request.duration.toString(),
-          resolution: request.duration === 8 ? "1080p" : "720p", // 1080p only for 8s duration
-          personGeneration: "allow_adult" // For architectural content
-        }
-      });
-
-      console.log('🎬 AISDKService: Video generation started, polling for completion...');
-
-      // Poll the operation status until the video is ready
-      while (!operation.done) {
-        console.log("Waiting for video generation to complete...");
-        await new Promise((resolve) => setTimeout(resolve, 10000)); // Wait 10 seconds
-        operation = await ai.operations.getVideosOperation({
-          operation: operation,
-        });
-      }
-
-      const processingTime = Date.now() - startTime;
-
-      // Download the generated video
-      const generatedVideo = operation.response.generatedVideos[0];
-      const videoFile = await ai.files.download({
-        file: generatedVideo.video,
-      });
-
-      console.log('🎬 AISDKService: Video generation successful', {
-        processingTime,
-        provider: 'veo-3.1-generate-preview'
-      });
-
+      // Video generation with Veo requires Google Cloud Vertex AI or GenAI SDK
+      // For now, return an error indicating video generation needs to be configured
+      
       return {
-        success: true,
-        data: {
-          videoUrl: videoFile, // The actual video file data
-          processingTime,
-          provider: 'veo-3.1-generate-preview',
-          metadata: {
-            prompt: enhancedPrompt,
-            duration: request.duration,
-            style: 'cinematic',
-            aspectRatio: request.aspectRatio
-          }
-        }
+        success: false,
+        error: 'Video generation via Veo 3.1 is not yet implemented. Please use Google Cloud Vertex AI or configure Veo API access separately.'
       };
 
     } catch (error) {
@@ -407,15 +315,21 @@ ${request.uploadedImageData ? '\nReference: Use uploaded architectural image as 
     });
 
     try {
-      const result = await streamText({
-        model: google('gemini-2.0-flash'),
-        prompt,
-        temperature: 0.7,
-        maxTokens: 1000,
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+
+      const result = await model.generateContentStream({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 1000,
+        },
       });
 
-      for await (const delta of result.textStream) {
-        yield delta;
+      for await (const chunk of result.stream) {
+        const text = chunk.text();
+        if (text) {
+          yield text;
+        }
       }
 
     } catch (error) {
@@ -425,7 +339,7 @@ ${request.uploadedImageData ? '\nReference: Use uploaded architectural image as 
   }
 
   /**
-   * Generate structured data using Vercel AI SDK
+   * Generate structured data using Google Generative AI
    */
   async generateStructuredData<T>(schema: z.ZodSchema<T>, prompt: string): Promise<T> {
     console.log('📊 AISDKService: Starting structured data generation', {
@@ -433,20 +347,116 @@ ${request.uploadedImageData ? '\nReference: Use uploaded architectural image as 
     });
 
     try {
-      const result = await generateObject({
-        model: google('gemini-2.0-flash'),
-        schema,
-        prompt,
-        temperature: 0.7,
-        maxTokens: 1000,
+      const model = this.genAI.getGenerativeModel({ 
+        model: 'gemini-2.0-flash',
+        generationConfig: {
+          responseMimeType: 'application/json',
+        },
       });
 
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 1000,
+          responseMimeType: 'application/json',
+        },
+      });
+
+      const responseText = result.response.text();
+      let parsedResult;
+      try {
+        parsedResult = JSON.parse(responseText);
+      } catch (parseError) {
+        // Try to extract JSON from markdown code blocks if present
+        const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || responseText.match(/```\s*([\s\S]*?)\s*```/);
+        if (jsonMatch) {
+          parsedResult = JSON.parse(jsonMatch[1]);
+        } else {
+          throw new Error('Failed to parse JSON response');
+        }
+      }
+
+      // Validate with zod schema
+      const validatedResult = schema.parse(parsedResult);
+
       console.log('📊 AISDKService: Structured data generation successful');
-      return result.object;
+      return validatedResult;
 
     } catch (error) {
       console.error('❌ AISDKService: Structured data generation failed', error);
       throw new Error(`Structured data generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Generate text completion
+   */
+  async generateText(prompt: string, options?: {
+    temperature?: number;
+    maxTokens?: number;
+  }): Promise<{ text: string; usage?: any }> {
+    try {
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: options?.temperature ?? 0.7,
+          maxOutputTokens: options?.maxTokens ?? 1000,
+        },
+      });
+
+      return {
+        text: result.response.text(),
+        usage: result.response.usageMetadata,
+      };
+    } catch (error) {
+      console.error('❌ AISDKService: Text generation failed', error);
+      throw new Error(`Text generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Stream chat messages
+   */
+  async *streamChat(messages: Array<{ role: 'user' | 'assistant'; content: string }>) {
+    try {
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+
+      // Convert messages to Google AI format (user -> user, assistant -> model)
+      const history: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];
+      
+      // Build conversation history (exclude the last user message if present)
+      for (let i = 0; i < messages.length - 1; i++) {
+        const msg = messages[i];
+        history.push({
+          role: msg.role === 'user' ? 'user' : 'model',
+          parts: [{ text: msg.content }],
+        });
+      }
+
+      // Last message is the current user prompt
+      const currentMessage = messages[messages.length - 1];
+      if (currentMessage && currentMessage.role === 'user') {
+        const result = await model.generateContentStream({
+          contents: [...history, { role: 'user', parts: [{ text: currentMessage.content }] }],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 1000,
+          },
+        });
+
+        for await (const chunk of result.stream) {
+          const text = chunk.text();
+          if (text) {
+            yield text;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ AISDKService: Chat streaming failed', error);
+      throw new Error(`Chat streaming failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }

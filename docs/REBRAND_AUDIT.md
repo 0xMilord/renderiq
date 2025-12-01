@@ -76,6 +76,6 @@ Complete audit of the codebase to ensure all instances of the old brand name "ar
 1. ✅ Complete - All instances audited
 2. ✅ Complete - Old files removed
 3. ⚠️ Pending - Regenerate PNG/ICO files from updated SVG logos
-4. ⚠️ Pending - Update og-image.png with new branding
+4. ⚠️ Pending - Update og-image.jpg with new branding
 
 

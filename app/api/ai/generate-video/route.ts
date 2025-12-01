@@ -2,8 +2,7 @@ import { AISDKService } from '@/lib/services/ai-sdk-service';
 import { NextRequest } from 'next/server';
 
 /**
- * Vercel AI SDK Video Generation API Route
- * Replaces manual video generation API
+ * Google Generative AI Video Generation API Route
  */
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +15,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('🎬 AI Video: Starting video generation via Vercel AI SDK', {
+    console.log('🎬 AI Video: Starting video generation via Google Generative AI', {
       prompt: prompt.substring(0, 100) + '...',
       duration,
       style,
@@ -31,14 +30,21 @@ export async function POST(request: NextRequest) {
       aspectRatio: aspectRatio || '16:9'
     });
 
+    if (!result.success || !result.data) {
+      return Response.json(
+        { success: false, error: result.error || 'Video generation failed' },
+        { status: 500 }
+      );
+    }
+
     console.log('✅ AI Video: Generation successful', {
-      processingTime: result.processingTime,
-      provider: result.provider
+      processingTime: result.data.processingTime,
+      provider: result.data.provider
     });
 
     return Response.json({
       success: true,
-      data: result
+      data: result.data
     });
 
   } catch (error) {

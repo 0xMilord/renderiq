@@ -59,7 +59,7 @@ The following raster image files need to be regenerated from the updated `logo.s
 - **Action Required:** Generate from `logo.svg` at specified sizes
 
 ### Open Graph Image
-- **File:** `public/og-image.png`
+- **File:** `public/og-image.jpg`
 - **Action Required:** Regenerate with neon green theme for social media sharing
 - **Usage:** Used in `app/layout.tsx` and SEO metadata
 - **Recommended Size:** 1200x630px (Open Graph standard)

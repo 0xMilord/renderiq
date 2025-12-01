@@ -1,29 +1,32 @@
-import { google } from '@ai-sdk/google';
-import { generateText } from 'ai';
+import { AISDKService } from '@/lib/services/ai-sdk-service';
 import { NextRequest } from 'next/server';
 
 /**
- * Vercel AI SDK Completion API Route
- * Replaces manual completion implementations
+ * Google Generative AI Completion API Route
  */
 export async function POST(request: NextRequest) {
   try {
     const { prompt } = await request.json();
 
-    console.log('📝 AI Completion: Starting completion via Vercel AI SDK', {
-      prompt: prompt?.substring(0, 100) + '...'
+    if (!prompt || typeof prompt !== 'string') {
+      return Response.json(
+        { success: false, error: 'Prompt is required' },
+        { status: 400 }
+      );
+    }
+
+    console.log('📝 AI Completion: Starting completion via Google Generative AI', {
+      prompt: prompt.substring(0, 100) + '...'
     });
 
-    const result = await generateText({
-      model: google('gemini-2.0-flash'),
-      prompt,
+    const aiService = AISDKService.getInstance();
+    const result = await aiService.generateText(prompt, {
       temperature: 0.7,
       maxTokens: 1000,
     });
 
     console.log('✅ AI Completion: Completion successful', {
-      usage: result.usage,
-      finishReason: result.finishReason
+      usage: result.usage
     });
 
     return Response.json({
@@ -31,8 +34,7 @@ export async function POST(request: NextRequest) {
       data: {
         text: result.text,
         usage: result.usage,
-        finishReason: result.finishReason,
-        provider: 'vercel-ai-sdk-google'
+        provider: 'google-generative-ai'
       }
     });
 

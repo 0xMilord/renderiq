@@ -163,7 +163,7 @@ export function generateArticleSchema({
     '@type': 'Article',
     headline: title,
     description: description,
-    image: image || 'https://renderiq.com/og-image.png',
+    image: image || 'https://renderiq.com/og-image.jpg',
     datePublished: datePublished,
     dateModified: dateModified || datePublished,
     author: {

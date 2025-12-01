@@ -200,7 +200,7 @@ export class RenderService {
 
       let result;
       if (renderData.type === 'image') {
-        console.log('🖼️ [processRender] Generating image with Vercel AI SDK...');
+        console.log('🖼️ [processRender] Generating image with Google Generative AI...');
         result = await this.aiService.generateImage({
           prompt: renderData.prompt,
           aspectRatio: renderData.settings.aspectRatio || '16:9',
@@ -208,7 +208,7 @@ export class RenderService {
           uploadedImageType: uploadedImageData?.uploadedImageType || 'image/jpeg',
         });
       } else {
-        console.log('🎬 [processRender] Generating video with Vercel AI SDK...');
+        console.log('🎬 [processRender] Generating video with Google Generative AI...');
         result = await this.aiService.generateVideo({
           prompt: renderData.prompt,
           duration: renderData.settings.duration || 5,

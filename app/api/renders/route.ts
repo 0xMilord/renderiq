@@ -291,7 +291,7 @@ export async function POST(request: NextRequest) {
         
         // If not keyframe (already handled above), do standard generation
         if (!result && generationType !== 'keyframe-sequence') {
-        // Use Vercel AI SDK for video generation
+        // Use Google Generative AI for video generation
         const videoResult = await aiService.generateVideo({
           prompt,
           duration: duration,

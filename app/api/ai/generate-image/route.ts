@@ -2,8 +2,7 @@ import { AISDKService } from '@/lib/services/ai-sdk-service';
 import { NextRequest } from 'next/server';
 
 /**
- * Vercel AI SDK Image Generation API Route
- * Replaces manual image generation API
+ * Google Generative AI Image Generation API Route
  */
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +15,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('🎨 AI Image: Starting image generation via Vercel AI SDK', {
+    console.log('🎨 AI Image: Starting image generation via Google Generative AI', {
       prompt: prompt.substring(0, 100) + '...',
       style,
       quality,

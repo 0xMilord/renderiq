@@ -208,7 +208,7 @@ export function UnifiedChatInterface({
   const { credits } = useCredits();
   const { upscaleImage, isUpscaling, upscalingResult, error: upscalingError } = useUpscaling();
   
-  // Vercel AI SDK hooks
+  // Google Generative AI hooks
   const { generateImage, isGenerating: isImageGenerating } = useImageGeneration();
   const { generateVideo, isGenerating: isVideoGenerating } = useVideoGeneration();
   const { enhancePrompt, isEnhancing, error: enhancementError, isEnhanced, restoreOriginal } = usePromptEnhancement();
@@ -608,7 +608,7 @@ export function UnifiedChatInterface({
     setMessages(prev => [...prev, assistantMessage]);
 
     try {
-      // Use the final prompt directly - Vercel AI SDK handles optimization
+      // Use the final prompt directly - Google Generative AI handles optimization
       const enhancedPrompt = finalPrompt;
 
       // Log generation parameters before sending

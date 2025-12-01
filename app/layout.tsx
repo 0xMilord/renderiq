@@ -77,7 +77,7 @@ export const metadata: Metadata = {
     description: "Transform architectural designs into photorealistic renders with AI. Real-time visualization for architects and designers.",
     images: [
       {
-        url: "/og-image.png",
+        url: "/og-image.jpg",
         width: 1200,
         height: 630,
         alt: "renderiq - AI Architectural Visualization"
@@ -88,7 +88,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "renderiq - AI Architectural Visualization",
     description: "Transform architectural designs into photorealistic renders with AI",
-    images: ["/og-image.png"],
+    images: ["/og-image.jpg"],
     creator: "@renderiq"
   },
   robots: {

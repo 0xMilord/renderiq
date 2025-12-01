@@ -2,8 +2,7 @@ import { AISDKService } from '@/lib/services/ai-sdk-service';
 import { NextRequest } from 'next/server';
 
 /**
- * Vercel AI SDK Prompt Enhancement API Route
- * Replaces manual prompt enhancement API
+ * Google Generative AI Prompt Enhancement API Route
  */
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +15,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('🔍 AI Enhancement: Starting prompt enhancement via Vercel AI SDK', {
+    console.log('🔍 AI Enhancement: Starting prompt enhancement via Google Generative AI', {
       prompt: prompt.substring(0, 100) + '...'
     });
 
