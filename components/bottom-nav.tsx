@@ -16,8 +16,8 @@ const navItems = [
 export function BottomNav() {
   const pathname = usePathname();
 
-  // Hide bottom nav on render routes
-  if (pathname.includes('/render')) {
+  // Hide bottom nav on render routes and project/chain routes
+  if (pathname.includes('/render') || pathname.startsWith('/project/')) {
     return null;
   }
 

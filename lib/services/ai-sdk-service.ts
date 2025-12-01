@@ -1,4 +1,4 @@
-import { GoogleGenAI, MediaResolution } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
 
 // Enhanced prompt schema for structured output
@@ -277,9 +277,9 @@ Original prompt: "${originalPrompt}"`;
         });
       }
 
-      // Determine model based on quality/complexity
-      // Use gemini-3-pro-image-preview for better quality, gemini-2.5-flash-image for speed
-      const modelName = 'gemini-2.5-flash-image'; // Fast and efficient
+      // Use Gemini 3 Pro Image Preview (Nano Banana Pro) for professional asset production
+      // This model supports up to 4K resolution and advanced features
+      const modelName = 'gemini-3-pro-image-preview';
       
       // Map aspect ratio to valid format
       const validAspectRatios = ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'];
@@ -287,56 +287,41 @@ Original prompt: "${originalPrompt}"`;
         ? request.aspectRatio 
         : '16:9';
 
-      // Map media resolution to Gemini API MediaResolution enum
-      // Default to MEDIUM for general use (balanced quality/cost)
-      // HIGH for upscaling/quality tasks (maximum detail)
-      // LOW for fast/simple tasks (lower cost)
-      const mediaResolution = request.mediaResolution || 'MEDIUM';
-      
-      // Map to MediaResolution enum from SDK
-      let mediaResolutionEnum: MediaResolution | undefined;
-      switch (mediaResolution) {
-        case 'LOW':
-          mediaResolutionEnum = MediaResolution.MEDIA_RESOLUTION_LOW;
-          break;
-        case 'MEDIUM':
-          mediaResolutionEnum = MediaResolution.MEDIA_RESOLUTION_MEDIUM;
-          break;
-        case 'HIGH':
-          mediaResolutionEnum = MediaResolution.MEDIA_RESOLUTION_HIGH;
-          break;
-        case 'UNSPECIFIED':
-        default:
-          mediaResolutionEnum = undefined; // Use default
-          break;
+      // For Gemini 3 Pro Image, determine image size based on mediaResolution request
+      // Map mediaResolution to imageSize: HIGH -> 4K (for upscaling), MEDIUM -> 2K, LOW -> 1K
+      // Note: mediaResolution parameter is NOT for image generation models
+      // It's only for multimodal models processing input media
+      // For image generation, we use imageSize in imageConfig instead
+      let imageSize: '1K' | '2K' | '4K' = '1K'; // Default to 1K
+      if (request.mediaResolution === 'HIGH') {
+        imageSize = '4K'; // Use 4K for high quality requests (upscaling, maximum detail)
+      } else if (request.mediaResolution === 'MEDIUM') {
+        imageSize = '2K'; // Use 2K for medium quality
+      } else {
+        imageSize = '1K'; // Default to 1K for LOW or UNSPECIFIED
       }
 
       console.log('🎨 AISDKService: Calling Gemini Native Image Generation...', {
         model: modelName,
         aspectRatio,
-        mediaResolution: mediaResolutionEnum ? MediaResolution[mediaResolutionEnum] : 'UNSPECIFIED',
-        contentsCount: contents.length
+        imageSize,
+        contentsCount: contents.length,
+        note: 'Using Gemini 3 Pro Image Preview (Nano Banana Pro)'
       });
 
       // Generate image using Gemini Native Image Generation
-      // Configure media resolution for input images (affects processing quality)
+      // For image generation models, use imageConfig with aspectRatio and imageSize
+      // DO NOT use mediaResolution - it's only for multimodal models processing input media
       const config: {
         responseModalities: string[];
-        imageConfig: { aspectRatio: string };
-        mediaResolution?: MediaResolution;
+        imageConfig: { aspectRatio: string; imageSize?: string };
       } = {
         responseModalities: ['IMAGE'], // Only return image, no text
         imageConfig: {
-          aspectRatio: aspectRatio
+          aspectRatio: aspectRatio,
+          imageSize: imageSize // Gemini 3 Pro supports 1K, 2K, 4K
         }
       };
-
-      // Add media resolution if specified (for processing input images)
-      // This controls how much detail the model extracts from input images
-      // HIGH resolution = 1120 tokens per image (Gemini 2.5) for maximum quality
-      if (mediaResolutionEnum) {
-        config.mediaResolution = mediaResolutionEnum;
-      }
 
       const response = await this.genAI.models.generateContent({
         model: modelName,

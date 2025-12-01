@@ -40,7 +40,8 @@ import {
   MoreVertical,
   PanelLeft,
   PanelRight,
-  Plus
+  Plus,
+  Pencil
 } from 'lucide-react';
 import { 
   FaSquare,
@@ -194,6 +195,7 @@ export function UnifiedChatInterface({
   const [styleTransferImage, setStyleTransferImage] = useState<File | null>(null);
   const [styleTransferPreview, setStyleTransferPreview] = useState<string | null>(null);
   const [temperature, setTemperature] = useState<string>('0.5'); // Default 50% (0.5), options: 0, 0.25, 0.5, 0.75, 1.0
+  const [quality, setQuality] = useState<string>('standard'); // Default quality: standard, high, ultra
   
   // Video controls
   const [videoDuration, setVideoDuration] = useState(5);
@@ -238,20 +240,31 @@ export function UnifiedChatInterface({
   // Version context hook
   const { parsePrompt } = useVersionContext();
 
-  // Update progress during generation
+  // Update progress during generation - sync with actual generation state
   useEffect(() => {
-    if (isImageGenerating || isVideoGenerating) {
+    if (isGenerating || isImageGenerating || isVideoGenerating) {
+      // Reset progress when generation starts
+      setProgress(10);
+      
       const interval = setInterval(() => {
         setProgress(prev => {
-          if (prev >= 90) return prev;
-          return prev + Math.random() * 10;
+          // Gradually increase progress, but cap at 90% until completion
+          if (prev >= 90) return 90;
+          // More realistic progress: slower at start, faster in middle
+          const increment = prev < 30 ? 2 : prev < 70 ? 5 : 3;
+          return Math.min(prev + increment, 90);
         });
-      }, 1000);
-      return () => clearInterval(interval);
-    } else {
-      setProgress(0);
+      }, 500); // Update every 500ms for smoother progress
+      
+      return () => {
+        clearInterval(interval);
+        // When generation stops, complete the progress bar
+        setProgress(100);
+        // Reset after a brief moment
+        setTimeout(() => setProgress(0), 300);
+      };
     }
-  }, [isImageGenerating, isVideoGenerating]);
+  }, [isGenerating, isImageGenerating, isVideoGenerating]);
 
   // Load chain data when component mounts or chain changes
   useEffect(() => {
@@ -582,6 +595,15 @@ export function UnifiedChatInterface({
       } else if (currentRender && currentRender.status === 'completed') {
         referenceRenderId = currentRender.id;
         console.log('🔗 Using currentRender as fallback reference:', referenceRenderId);
+      } else if (chain && chain.renders && chain.renders.length > 0) {
+        // Fallback: use the most recent completed render from the chain
+        const completedRenders = chain.renders.filter(render => render.status === 'completed');
+        if (completedRenders.length > 0) {
+          const latestRender = completedRenders
+            .sort((a, b) => (b.chainPosition || 0) - (a.chainPosition || 0))[0];
+          referenceRenderId = latestRender.id;
+          console.log('🔗 Using most recent render from chain as reference:', referenceRenderId);
+        }
       }
     }
 
@@ -609,6 +631,7 @@ export function UnifiedChatInterface({
     }
     
     setIsGenerating(true);
+    setProgress(0); // Reset progress when starting new generation
     onRenderStart?.();
 
     // Add assistant message with generating state
@@ -640,7 +663,7 @@ export function UnifiedChatInterface({
         const formData = new FormData();
         formData.append('prompt', enhancedPrompt);
         formData.append('style', 'realistic'); // Default style
-        formData.append('quality', 'standard');
+        formData.append('quality', quality);
         formData.append('aspectRatio', aspectRatio);
         formData.append('type', 'image');
         formData.append('projectId', projectId || '');
@@ -812,6 +835,7 @@ export function UnifiedChatInterface({
       ));
     } finally {
       setIsGenerating(false);
+      setProgress(0); // Reset progress when generation completes or fails
     }
   };
 
@@ -854,12 +878,107 @@ export function UnifiedChatInterface({
   const handleUpscale = async (scale: 2 | 4 | 10) => {
     if (!currentRender?.outputUrl) return;
     
+    // Get aspect ratio from current render settings or default
+    const renderAspectRatio = currentRender.settings?.aspectRatio || aspectRatio;
+    
     await upscaleImage({
       imageUrl: currentRender.outputUrl,
       scale,
-      quality: 'high'
+      quality: 'high',
+      projectId: projectId || '',
+      chainId: chainId || undefined,
+      referenceRenderId: currentRender.id || undefined,
+      aspectRatio: renderAspectRatio
     });
   };
+  
+  // Track processed upscaling results to avoid duplicates
+  const processedUpscaleResultsRef = useRef<Set<string>>(new Set());
+  
+  // Handle upscaling result - add as new version in chat
+  useEffect(() => {
+    if (upscalingResult && upscalingResult.outputUrl) {
+      // Check if we've already processed this upscaling result
+      if (processedUpscaleResultsRef.current.has(upscalingResult.outputUrl)) {
+        console.log('🎯 Chat: Upscaling result already processed, skipping');
+        return;
+      }
+      
+      // Mark as processed
+      processedUpscaleResultsRef.current.add(upscalingResult.outputUrl);
+      
+      console.log('🎯 Chat: Upscaling completed, adding to chat as new version', upscalingResult);
+      
+      // Get aspect ratio from current render settings or default
+      const renderAspectRatio = currentRender?.settings?.aspectRatio || aspectRatio;
+      
+      // Create user message for upscale action
+      const userMessage: Message = {
+        id: `user-upscale-${Date.now()}`,
+        type: 'user',
+        content: `Upscale ${upscalingResult.scale}x`,
+        timestamp: new Date(),
+        referenceRenderId: currentRender?.id
+      };
+      
+      // Create assistant message with upscaled render
+      const upscaledRender: Render = {
+        id: upscalingResult.renderId || `temp-upscale-${Date.now()}`,
+        projectId: projectId || '',
+        userId: '',
+        type: 'image',
+        prompt: `Upscale by ${upscalingResult.scale}x`,
+        settings: {
+          aspectRatio: renderAspectRatio,
+          quality: 'high'
+        },
+        outputUrl: upscalingResult.outputUrl,
+        outputKey: '',
+        uploadedImageUrl: null,
+        uploadedImageKey: null,
+        uploadedImageId: null,
+        status: 'completed',
+        errorMessage: null,
+        processingTime: upscalingResult.processingTime,
+        chainId: chainId || null,
+        chainPosition: 0, // Will be set correctly when chain is refreshed
+        referenceRenderId: currentRender?.id || null,
+        creditsCost: 0,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      const assistantMessage: Message = {
+        id: `assistant-upscale-${Date.now()}`,
+        type: 'assistant',
+        content: '',
+        timestamp: new Date(),
+        render: upscaledRender,
+        isGenerating: false
+      };
+      
+      // Add messages to chat
+      setMessages(prev => {
+        // Check if already added to prevent duplicates
+        const alreadyExists = prev.some(msg => 
+          msg.render?.outputUrl === upscalingResult.outputUrl
+        );
+        if (alreadyExists) {
+          return prev;
+        }
+        return [...prev, userMessage, assistantMessage];
+      });
+      
+      // Update current render to the upscaled version
+      setCurrentRender(upscaledRender);
+      onRenderComplete?.(upscaledRender);
+      
+      // Scroll to bottom to show new upscaled version
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  }, [upscalingResult, projectId, chainId, currentRender, aspectRatio, onRenderComplete]);
 
 
 
@@ -1181,8 +1300,10 @@ export function UnifiedChatInterface({
                     message.type === 'user'
                       ? 'bg-primary text-primary-foreground animate-in slide-in-from-right-5 duration-300'
                       : 'bg-muted animate-in slide-in-from-left-5 duration-300',
-                    // Allow assistant messages with renders to be wider
-                    message.type === 'assistant' && message.render && 'max-w-[98%] sm:max-w-[95%]'
+                    // Allow assistant messages with renders to be wider, but ensure no overflow
+                    message.type === 'assistant' && message.render && 'max-w-[98%] sm:max-w-[95%]',
+                    // Ensure container respects parent width
+                    'w-full min-w-0 overflow-hidden'
                   )}
                 >
                   {/* Only show copy/edit buttons for user messages */}
@@ -1218,7 +1339,7 @@ export function UnifiedChatInterface({
                           className="h-6 w-6 p-0"
                           title="Edit and resend"
                         >
-                          <Copy className="h-3 w-3" />
+                          <Pencil className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
@@ -1254,16 +1375,15 @@ export function UnifiedChatInterface({
                     </div>
                   )}
                   {message.render && (
-                    <div className="mt-2">
+                    <div className="mt-2 w-full max-w-full overflow-hidden">
                       <div className="mb-1">
                         <span className="text-[10px] sm:text-xs text-muted-foreground">Version {message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}</span>
                       </div>
-                      <div className="relative w-full aspect-video rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity bg-muted animate-in fade-in-0 zoom-in-95 duration-500"
+                      <div className="relative w-full max-w-full aspect-video rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity bg-muted animate-in fade-in-0 zoom-in-95 duration-500"
                         onClick={() => {
                           setCurrentRender(message.render!);
                           setMobileView('render');
                         }}
-                        style={{ minWidth: '400px', width: '100%' }}
                       >
                         {message.render.type === 'video' ? (
                           <video
@@ -1280,7 +1400,7 @@ export function UnifiedChatInterface({
                             alt="Generated render"
                             fill
                             className="object-cover"
-                            sizes="100vw"
+                            sizes="(max-width: 768px) 100vw, 95vw"
                           />
                         )}
                       </div>
@@ -1483,45 +1603,75 @@ export function UnifiedChatInterface({
                     </div>
                   </div>
 
-                  {/* Temperature Toggle */}
+                  {/* Temperature and Quality Row */}
                   <div className="space-y-1 flex flex-col">
-                    <div className="flex items-center gap-1">
-                      <Label className="text-[10px] sm:text-xs font-medium">Temperature</Label>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Control creativity: 0 = strict/deterministic, 1 = creative/random</p>
-                        </TooltipContent>
-                      </Tooltip>
+                    <div className="flex items-center gap-2 w-full">
+                      {/* Temperature - 3/4 width */}
+                      <div className="flex-[3] space-y-1 flex flex-col">
+                        <div className="flex items-center gap-1">
+                          <Label className="text-[10px] sm:text-xs font-medium">Temperature</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Control creativity: 0 = strict/deterministic, 1 = creative/random</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <ToggleGroup
+                          type="single"
+                          value={temperature}
+                          onValueChange={(value) => {
+                            if (value) setTemperature(value);
+                          }}
+                          className="h-7 sm:h-8 w-full"
+                          variant="outline"
+                          size="sm"
+                        >
+                          <ToggleGroupItem value="0" aria-label="0" className="flex-1 text-[10px] sm:text-xs">
+                            0
+                          </ToggleGroupItem>
+                          <ToggleGroupItem value="0.25" aria-label="0.25" className="flex-1 text-[10px] sm:text-xs">
+                            0.25
+                          </ToggleGroupItem>
+                          <ToggleGroupItem value="0.5" aria-label="0.5" className="flex-1 text-[10px] sm:text-xs">
+                            0.5
+                          </ToggleGroupItem>
+                          <ToggleGroupItem value="0.75" aria-label="0.75" className="flex-1 text-[10px] sm:text-xs">
+                            0.75
+                          </ToggleGroupItem>
+                          <ToggleGroupItem value="1" aria-label="1" className="flex-1 text-[10px] sm:text-xs">
+                            1
+                          </ToggleGroupItem>
+                        </ToggleGroup>
+                      </div>
+                      
+                      {/* Quality - 1/4 width */}
+                      <div className="flex-[1] space-y-1 flex flex-col">
+                        <div className="flex items-center gap-1">
+                          <Label className="text-[10px] sm:text-xs font-medium">Quality</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Image generation quality: Standard (fast), High (balanced), Ultra (best quality)</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <Select value={quality} onValueChange={setQuality}>
+                          <SelectTrigger className="h-7 sm:h-8 text-[10px] sm:text-xs w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="standard" className="text-[10px] sm:text-xs">Standard</SelectItem>
+                            <SelectItem value="high" className="text-[10px] sm:text-xs">High</SelectItem>
+                            <SelectItem value="ultra" className="text-[10px] sm:text-xs">Ultra</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                    <ToggleGroup
-                      type="single"
-                      value={temperature}
-                      onValueChange={(value) => {
-                        if (value) setTemperature(value);
-                      }}
-                      className="h-7 sm:h-8 w-full"
-                      variant="outline"
-                      size="sm"
-                    >
-                      <ToggleGroupItem value="0" aria-label="0" className="flex-1 text-[10px] sm:text-xs">
-                        0
-                      </ToggleGroupItem>
-                      <ToggleGroupItem value="0.25" aria-label="0.25" className="flex-1 text-[10px] sm:text-xs">
-                        0.25
-                      </ToggleGroupItem>
-                      <ToggleGroupItem value="0.5" aria-label="0.5" className="flex-1 text-[10px] sm:text-xs">
-                        0.5
-                      </ToggleGroupItem>
-                      <ToggleGroupItem value="0.75" aria-label="0.75" className="flex-1 text-[10px] sm:text-xs">
-                        0.75
-                      </ToggleGroupItem>
-                      <ToggleGroupItem value="1" aria-label="1" className="flex-1 text-[10px] sm:text-xs">
-                        1
-                      </ToggleGroupItem>
-                    </ToggleGroup>
                   </div>
                 </div>
 
@@ -1558,12 +1708,18 @@ export function UnifiedChatInterface({
                           };
                           input.click();
                         }}>
-                          <Image
-                            src={styleTransferPreview || ''}
-                            alt="Style transfer"
-                            fill
-                            className="object-cover"
-                          />
+                          {styleTransferPreview ? (
+                            <Image
+                              src={styleTransferPreview}
+                              alt="Style transfer"
+                              fill
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="h-full w-full flex items-center justify-center bg-muted">
+                              <Upload className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                          )}
                         </div>
                         <Button
                           variant="ghost"

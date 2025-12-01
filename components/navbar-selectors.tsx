@@ -141,16 +141,16 @@ export function NavbarSelectors() {
         onValueChange={handleProjectChange}
         disabled={projectsLoading}
       >
-        <SelectTrigger className="h-8 w-[160px] border-2 border-primary bg-background hover:bg-accent hover:border-primary text-sm shadow-sm ring-1 ring-primary/20">
+        <SelectTrigger className="h-8 w-[160px] border border-border bg-background hover:bg-accent text-sm min-w-0 overflow-hidden">
           {projectsLoading ? (
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              <span className="text-xs text-muted-foreground">Loading...</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <Loader2 className="h-3 w-3 animate-spin shrink-0" />
+              <span className="text-xs text-muted-foreground truncate">Loading...</span>
             </div>
           ) : (
             <>
-              <FolderOpen className="h-3 w-3 mr-2 text-primary shrink-0" />
-              <SelectValue placeholder="Select Project">
+              <FolderOpen className="h-3 w-3 mr-2 text-muted-foreground shrink-0" />
+              <SelectValue placeholder="Select Project" className="truncate">
                 {currentProject 
                   ? currentProject.name 
                   : selectedProjectId 
@@ -187,7 +187,7 @@ export function NavbarSelectors() {
       
       {/* Separator */}
       {(selectedProjectId || currentProject) && (
-        <span className="text-primary/60 font-medium text-sm">/</span>
+        <span className="text-muted-foreground font-medium text-sm shrink-0">/</span>
       )}
       
       {/* Chain Selector - Only show if a project is selected or current */}
@@ -197,16 +197,16 @@ export function NavbarSelectors() {
           onValueChange={handleChainChange}
           disabled={chainsLoading || !projectIdForChains}
         >
-          <SelectTrigger className="h-8 w-[160px] border-2 border-primary bg-background hover:bg-accent hover:border-primary text-sm shadow-sm ring-1 ring-primary/20">
+          <SelectTrigger className="h-8 w-[160px] border border-border bg-background hover:bg-accent text-sm min-w-0 overflow-hidden">
             {chainsLoading ? (
-              <div className="flex items-center gap-2">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                <span className="text-xs text-muted-foreground">Loading...</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <Loader2 className="h-3 w-3 animate-spin shrink-0" />
+                <span className="text-xs text-muted-foreground truncate">Loading...</span>
               </div>
             ) : (
               <>
-                <MessageSquare className="h-3 w-3 mr-2 text-primary shrink-0" />
-                <SelectValue placeholder="Select Chain">
+                <MessageSquare className="h-3 w-3 mr-2 text-muted-foreground shrink-0" />
+                <SelectValue placeholder="Select Chain" className="truncate">
                   {currentChainId 
                     ? availableChains.find(c => c.id === currentChainId)?.name || 'Chain'
                     : 'Select Chain'}

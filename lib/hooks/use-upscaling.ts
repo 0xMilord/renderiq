@@ -1,12 +1,15 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { AISDKService } from '@/lib/services/ai-sdk-service';
 
 export interface UpscalingRequest {
   imageUrl: string;
   scale: 2 | 4 | 10;
   quality: 'standard' | 'high' | 'ultra';
+  projectId: string;
+  chainId?: string;
+  referenceRenderId?: string;
+  aspectRatio?: string;
 }
 
 export interface UpscalingResult {
@@ -15,6 +18,8 @@ export interface UpscalingResult {
   scale: number;
   processingTime: number;
   provider: string;
+  renderId?: string;
+  outputUrl?: string;
 }
 
 export function useUpscaling() {
@@ -24,45 +29,71 @@ export function useUpscaling() {
 
   const upscaleImage = useCallback(async (request: UpscalingRequest) => {
     try {
-      console.log('🔍 useUpscaling: Starting upscaling with AI SDK', request);
+      console.log('🔍 useUpscaling: Starting upscaling via API', request);
       setIsUpscaling(true);
       setError(null);
       setUpscalingResult(null);
 
-      // Use AI SDK service for upscaling
-      const aiService = AISDKService.getInstance();
-      
       // Convert image URL to base64 for processing
-      const response = await fetch(request.imageUrl);
-      const arrayBuffer = await response.arrayBuffer();
-      const base64 = Buffer.from(arrayBuffer).toString('base64');
+      const imageResponse = await fetch(request.imageUrl);
+      const arrayBuffer = await imageResponse.arrayBuffer();
+      // Convert ArrayBuffer to base64 in browser
+      const bytes = new Uint8Array(arrayBuffer);
+      const binary = bytes.reduce((acc, byte) => acc + String.fromCharCode(byte), '');
+      const base64 = btoa(binary);
       
-      // Simple upscaling prompt
-      const upscalingPrompt = `Upscale this image by ${request.scale}x to ${request.quality} quality`;
+      // Determine image type from URL or response
+      const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+      const imageType = contentType.startsWith('image/') ? contentType : 'image/jpeg';
+      
+      // Create upscaling prompt
+      const upscalingPrompt = `Upscale this image by ${request.scale}x to ${request.quality} quality, maintaining all details and improving resolution`;
 
-      // Use HIGH media resolution for upscaling to ensure maximum quality
-      const result = await aiService.generateImage({
-        prompt: upscalingPrompt,
-        aspectRatio: '16:9', // Maintain aspect ratio
-        uploadedImageData: base64,
-        uploadedImageType: 'image/jpeg',
-        mediaResolution: 'HIGH', // Use high resolution for upscaling to preserve details
+      // Call the renders API endpoint for upscaling
+      const formData = new FormData();
+      formData.append('prompt', upscalingPrompt);
+      formData.append('style', 'realistic');
+      formData.append('quality', request.quality);
+      formData.append('aspectRatio', request.aspectRatio || '16:9');
+      formData.append('type', 'image');
+      formData.append('projectId', request.projectId);
+      
+      if (request.chainId) {
+        formData.append('chainId', request.chainId);
+      }
+      
+      if (request.referenceRenderId) {
+        formData.append('referenceRenderId', request.referenceRenderId);
+      }
+      
+      formData.append('uploadedImageData', base64);
+      formData.append('uploadedImageType', imageType);
+      formData.append('isPublic', 'true');
+      formData.append('temperature', '0.5'); // Lower temperature for upscaling (more deterministic)
+
+      const apiResponse = await fetch('/api/renders', {
+        method: 'POST',
+        body: formData,
       });
 
-      if (result.success && result.data) {
+      const apiResult = await apiResponse.json();
+
+      if (apiResult.success && apiResult.data) {
         const upscalingResult: UpscalingResult = {
-          imageUrl: result.data.imageUrl,
+          imageUrl: apiResult.data.outputUrl || '',
           originalUrl: request.imageUrl,
           scale: request.scale,
-          processingTime: result.data.processingTime,
-          provider: result.data.provider
+          processingTime: apiResult.data.processingTime || 0,
+          provider: apiResult.data.provider || 'google-generative-ai',
+          renderId: apiResult.data.renderId || apiResult.data.id,
+          outputUrl: apiResult.data.outputUrl
         };
         
         setUpscalingResult(upscalingResult);
         console.log('✅ useUpscaling: Upscaling completed', upscalingResult);
       } else {
-        setError(result.error || 'Upscaling failed');
-        console.error('❌ useUpscaling: Upscaling failed', result.error);
+        setError(apiResult.error || 'Upscaling failed');
+        console.error('❌ useUpscaling: Upscaling failed', apiResult.error);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Upscaling failed';
