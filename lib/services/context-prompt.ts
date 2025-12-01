@@ -46,12 +46,16 @@ export class ContextPromptService {
     // NEVER add style/type modifiers - they're handled elsewhere and cause conflicts
     // The user's prompt and UI selections should be sufficient
 
-    // Build clean enhanced prompt - use user prompt directly
-    let enhancedPrompt = userPrompt;
+    // Build clean enhanced prompt following best practices
+    // Start with user's prompt - it's the primary instruction
+    let enhancedPrompt = userPrompt.trim();
 
-    // Only add minimal context if user explicitly requests it or it's a new image
+    // Only add minimal context if explicitly needed
+    // Keep it concise and avoid redundancy
     if (contextElements.length > 0 && (isReferenceRequest || isNewImage)) {
-      enhancedPrompt = `${userPrompt}. ${contextElements.join('. ')}`;
+      // Use clear, structured format
+      const contextText = contextElements.join('. ');
+      enhancedPrompt = `${userPrompt}. ${contextText}`;
     }
 
     console.log('🧠 ContextPrompt: Enhanced prompt created:', {

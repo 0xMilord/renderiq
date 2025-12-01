@@ -708,6 +708,13 @@ export function UnifiedChatInterface({
         
         const apiResult = await response.json();
         
+        console.log('🎯 Chat: API response received', {
+          success: apiResult.success,
+          hasData: !!apiResult.data,
+          hasOutputUrl: !!apiResult.data?.outputUrl,
+          error: apiResult.error
+        });
+        
         if (apiResult.success && apiResult.data) {
           result = {
             success: true,
@@ -718,6 +725,11 @@ export function UnifiedChatInterface({
             }
           };
         } else {
+          console.error('❌ Chat: API returned error', {
+            success: apiResult.success,
+            error: apiResult.error,
+            data: apiResult.data
+          });
           result = {
             success: false,
             error: apiResult.error || 'Image generation failed'
@@ -727,7 +739,17 @@ export function UnifiedChatInterface({
       // Check if generation was successful
       
       // Check if generation was successful
-      if (result && (result.imageUrl || result.videoUrl || (result.success && result.data))) {
+      const resultWithUrls = result as { imageUrl?: string; videoUrl?: string; success?: boolean; data?: { outputUrl?: string } };
+      console.log('🎯 Chat: Checking result', {
+        hasResult: !!result,
+        hasImageUrl: !!resultWithUrls?.imageUrl,
+        hasVideoUrl: !!resultWithUrls?.videoUrl,
+        hasSuccess: result?.success,
+        hasData: !!result?.data,
+        hasOutputUrl: !!result?.data?.outputUrl
+      });
+      
+      if (result && (resultWithUrls.imageUrl || resultWithUrls.videoUrl || (result.success && result.data && result.data.outputUrl))) {
          // Create a new render version for this chat message
          // Note: The actual render will be created by the API with a proper database ID
          const newRender: Render = {
@@ -805,7 +827,8 @@ export function UnifiedChatInterface({
     if (currentRender?.outputUrl) {
       const link = document.createElement('a');
       link.href = currentRender.outputUrl;
-      link.download = `render-${currentRender.id}.png`;
+      const fileExtension = currentRender.type === 'video' ? 'mp4' : 'png';
+      link.download = `render-${currentRender.id}.${fileExtension}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -880,7 +903,7 @@ export function UnifiedChatInterface({
         </div>
         
         {/* Version Carousel - Mobile */}
-        {messages.some(m => m.render && m.render.type === 'image') && (
+        {messages.some(m => m.render && (m.render.type === 'image' || m.render.type === 'video')) && (
           <div className="relative px-4 py-2 border-t border-border">
             <div className="flex items-center gap-2">
               <Button
@@ -906,7 +929,7 @@ export function UnifiedChatInterface({
               >
                 <div className="flex gap-2">
                   {messages
-                    .filter(m => m.render && m.render.type === 'image')
+                    .filter(m => m.render && (m.render.type === 'image' || m.render.type === 'video'))
                     .map((message, index) => (
                       <div
                         key={message.id}
@@ -918,12 +941,21 @@ export function UnifiedChatInterface({
                         )}
                         onClick={() => setCurrentRender(message.render!)}
                       >
-                        <Image
-                          src={message.render!.outputUrl}
-                          alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
-                          fill
-                          className="object-cover"
-                        />
+                        {message.render!.type === 'video' ? (
+                          <video
+                            src={message.render!.outputUrl}
+                            className="w-full h-full object-cover"
+                            muted
+                            playsInline
+                          />
+                        ) : (
+                          <Image
+                            src={message.render!.outputUrl}
+                            alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
+                            fill
+                            className="object-cover"
+                          />
+                        )}
                       </div>
                     ))}
                 </div>
@@ -980,7 +1012,7 @@ export function UnifiedChatInterface({
           </div>
           
           {/* Version Carousel - Desktop */}
-          {messages.some(m => m.render && m.render.type === 'image') && (
+          {messages.some(m => m.render && (m.render.type === 'image' || m.render.type === 'video')) && (
             <div className="relative px-4 py-2 border-t border-border">
               <div className="flex items-center gap-2">
                 <Button
@@ -1006,7 +1038,7 @@ export function UnifiedChatInterface({
                 >
                   <div className="flex gap-2">
                     {messages
-                      .filter(m => m.render && m.render.type === 'image')
+                      .filter(m => m.render && (m.render.type === 'image' || m.render.type === 'video'))
                       .map((message, index) => (
                         <div
                           key={message.id}
@@ -1018,12 +1050,21 @@ export function UnifiedChatInterface({
                           )}
                           onClick={() => setCurrentRender(message.render!)}
                         >
-                          <Image
-                            src={message.render!.outputUrl}
-                            alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
-                            fill
-                            className="object-cover"
-                          />
+                          {message.render!.type === 'video' ? (
+                            <video
+                              src={message.render!.outputUrl}
+                              className="w-full h-full object-cover"
+                              muted
+                              playsInline
+                            />
+                          ) : (
+                            <Image
+                              src={message.render!.outputUrl}
+                              alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
+                              fill
+                              className="object-cover"
+                            />
+                          )}
                         </div>
                       ))}
                   </div>
@@ -1109,10 +1150,31 @@ export function UnifiedChatInterface({
               <div
                 key={`${message.id}-${message.timestamp.getTime()}`}
                 className={cn(
-                  'flex',
-                  message.type === 'user' ? 'justify-end' : 'justify-start'
+                  'flex flex-col',
+                  message.type === 'user' ? 'items-end' : 'items-start'
                 )}
               >
+                {/* Sender name above message */}
+                <div className={cn(
+                  'text-[10px] sm:text-xs text-muted-foreground mb-1 px-1',
+                  message.type === 'user' ? 'text-right' : 'text-left flex items-center gap-1.5'
+                )}>
+                  {message.type === 'assistant' && (
+                    <>
+                      <div className="relative w-4 h-4 rounded-full overflow-hidden flex-shrink-0">
+                        <Image
+                          src="/logo.svg"
+                          alt="RenderIQ"
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <span>RenderIQ</span>
+                    </>
+                  )}
+                  {message.type === 'user' && 'You'}
+                </div>
+                
                 <div
                   className={cn(
                     'max-w-[85%] sm:max-w-[80%] rounded-lg p-2 sm:p-3',
@@ -1203,61 +1265,26 @@ export function UnifiedChatInterface({
                         }}
                         style={{ minWidth: '400px', width: '100%' }}
                       >
-                        <Image
-                          src={message.render.outputUrl}
-                          alt="Generated render"
-                          fill
-                          className="object-cover"
-                          sizes="100vw"
-                        />
+                        {message.render.type === 'video' ? (
+                          <video
+                            src={message.render.outputUrl}
+                            className="w-full h-full object-cover"
+                            controls
+                            loop
+                            muted
+                            playsInline
+                          />
+                        ) : (
+                          <Image
+                            src={message.render.outputUrl}
+                            alt="Generated render"
+                            fill
+                            className="object-cover"
+                            sizes="100vw"
+                          />
+                        )}
                       </div>
-                      {/* Action buttons below image - always visible */}
-                      <div className="flex items-center justify-center gap-2 mt-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const link = document.createElement('a');
-                            link.href = message.render!.outputUrl;
-                            link.download = `render-${message.render!.id}.${message.render!.type === 'video' ? 'mp4' : 'png'}`;
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                            toast.success('Download started');
-                          }}
-                          className="h-7 w-7 p-0"
-                          title="Download"
-                        >
-                          <Download className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toast.info('Upscale feature coming soon');
-                          }}
-                          className="h-7 w-7 p-0"
-                          title="Upscale"
-                        >
-                          <Zap className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setReferenceRenderId(message.render!.id);
-                            setInputValue(message.render!.prompt);
-                            toast.info('Prompt loaded. Modify and send to regenerate with context.');
-                          }}
-                          className="h-7 w-7 p-0"
-                          title="Regenerate"
-                        >
-                          <RefreshCw className="h-3 w-3" />
-                        </Button>
-                      </div>
+                      {/* No action buttons in assistant message bubble - removed per user request */}
                     </div>
                   )}
                 </div>
@@ -1818,18 +1845,31 @@ export function UnifiedChatInterface({
                 <Card className="w-full h-full py-0 gap-0 overflow-hidden">
                   <CardContent className="p-0 h-full overflow-hidden">
                     <div className="h-full w-full flex flex-col overflow-hidden">
-                      {/* Image Display */}
+                      {/* Image/Video Display */}
                       <div className="flex-1 bg-muted rounded-t-lg overflow-hidden relative min-h-[200px] sm:min-h-[300px] min-w-0">
                         <div className="w-full h-full flex items-center justify-center relative p-0.5 sm:p-1 overflow-hidden min-w-0">
-                        <Image
-                          src={currentRender.outputUrl}
-                          alt={currentRender.prompt}
-                          width={800}
-                          height={600}
-                          className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg cursor-pointer"
-                          style={{ maxWidth: '100%', maxHeight: '100%' }}
-                          onClick={() => setIsFullscreen(true)}
-                        />
+                        {currentRender.type === 'video' ? (
+                          <video
+                            src={currentRender.outputUrl}
+                            className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg cursor-pointer"
+                            controls
+                            loop
+                            muted
+                            playsInline
+                            style={{ maxWidth: '100%', maxHeight: '100%' }}
+                            onClick={() => setIsFullscreen(true)}
+                          />
+                        ) : (
+                          <Image
+                            src={currentRender.outputUrl}
+                            alt={currentRender.prompt}
+                            width={800}
+                            height={600}
+                            className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg cursor-pointer"
+                            style={{ maxWidth: '100%', maxHeight: '100%' }}
+                            onClick={() => setIsFullscreen(true)}
+                          />
+                        )}
                           
                           
                           {/* Fullscreen Toggle */}
@@ -1919,14 +1959,27 @@ export function UnifiedChatInterface({
           onClick={() => setIsFullscreen(false)}
         >
           <div className="relative w-full h-full flex items-center justify-center p-4">
-            <Image
-              src={currentRender.outputUrl}
-              alt={currentRender.prompt}
-              width={1200}
-              height={800}
-              className="max-w-full max-h-full object-contain"
-              onClick={(e) => e.stopPropagation()}
-            />
+            {currentRender.type === 'video' ? (
+              <video
+                src={currentRender.outputUrl}
+                className="max-w-full max-h-full object-contain"
+                controls
+                loop
+                muted
+                playsInline
+                autoPlay
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <Image
+                src={currentRender.outputUrl}
+                alt={currentRender.prompt}
+                width={1200}
+                height={800}
+                className="max-w-full max-h-full object-contain"
+                onClick={(e) => e.stopPropagation()}
+              />
+            )}
             
             {/* Close Button */}
             <Button

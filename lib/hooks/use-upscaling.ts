@@ -40,11 +40,13 @@ export function useUpscaling() {
       // Simple upscaling prompt
       const upscalingPrompt = `Upscale this image by ${request.scale}x to ${request.quality} quality`;
 
+      // Use HIGH media resolution for upscaling to ensure maximum quality
       const result = await aiService.generateImage({
         prompt: upscalingPrompt,
         aspectRatio: '16:9', // Maintain aspect ratio
         uploadedImageData: base64,
         uploadedImageType: 'image/jpeg',
+        mediaResolution: 'HIGH', // Use high resolution for upscaling to preserve details
       });
 
       if (result.success && result.data) {

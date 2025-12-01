@@ -28,7 +28,10 @@ export async function POST(request: NextRequest) {
     const style = formData.get('style') as string;
     const quality = formData.get('quality') as 'standard' | 'high' | 'ultra';
     const aspectRatio = formData.get('aspectRatio') as string;
-    const type = formData.get('type') as 'image' | 'video';
+    // Ensure type is explicitly set - default to 'image' if not provided or invalid
+    // Video generation should ONLY happen when explicitly requested via video button
+    const typeParam = formData.get('type') as string;
+    const type = (typeParam === 'video' ? 'video' : 'image') as 'image' | 'video';
     const uploadedImageData = formData.get('uploadedImageData') as string | null;
     const uploadedImageType = formData.get('uploadedImageType') as string | null;
     const projectId = formData.get('projectId') as string;
@@ -45,6 +48,8 @@ export async function POST(request: NextRequest) {
     const styleTransferImageData = formData.get('styleTransferImageData') as string | null;
     const styleTransferImageType = formData.get('styleTransferImageType') as string | null;
     const temperatureParam = formData.get('temperature') as string | null;
+    // Default temperature: 0.7 (balanced creativity/determinism)
+    // Note: For Gemini 3, default is 1.0, but we use 0.7 for Gemini 2.5 compatibility
     const temperature = temperatureParam ? parseFloat(temperatureParam) : 0.7;
 
     console.log('📝 Render parameters:', { 

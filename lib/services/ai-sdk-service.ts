@@ -1,5 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, MediaResolution } from '@google/genai';
 import { z } from 'zod';
 
 // Enhanced prompt schema for structured output
@@ -43,6 +42,7 @@ export interface PromptEnhancementResult {
 
 export interface ImageGenerationResult {
   imageUrl: string;
+  imageData?: string; // Base64 string without data: prefix
   processingTime: number;
   provider: string;
   metadata: {
@@ -71,17 +71,27 @@ export interface VideoGenerationResult {
  */
 export class AISDKService {
   private static instance: AISDKService;
-  private genAI: GoogleGenerativeAI;
-  private genAIImage: GoogleGenAI;
+  private genAI: GoogleGenAI;
 
   private constructor() {
-    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+    // The new @google/genai SDK can read from GEMINI_API_KEY automatically
+    // But we'll also check our custom env vars for compatibility
+    const apiKey = process.env.GEMINI_API_KEY || 
+                   process.env.GOOGLE_GENERATIVE_AI_API_KEY || 
+                   process.env.GOOGLE_AI_API_KEY;
+    
     if (!apiKey) {
-      throw new Error('GOOGLE_GENERATIVE_AI_API_KEY or GOOGLE_AI_API_KEY environment variable is required');
+      throw new Error('GEMINI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, or GOOGLE_AI_API_KEY environment variable is required');
     }
-    this.genAI = new GoogleGenerativeAI(apiKey);
-    this.genAIImage = new GoogleGenAI({ apiKey });
-    console.log('✅ AISDKService initialized with Google Generative AI SDK');
+    
+    // Use the new @google/genai SDK for all operations
+    // According to docs: new GoogleGenAI({}) reads from GEMINI_API_KEY automatically
+    // But we'll pass it explicitly to ensure it works
+    this.genAI = new GoogleGenAI({ apiKey });
+    console.log('✅ AISDKService initialized with Google Generative AI SDK (@google/genai)', {
+      apiKeyPresent: !!apiKey,
+      apiKeyPrefix: apiKey.substring(0, 10) + '...'
+    });
   }
 
   static getInstance(): AISDKService {
@@ -102,8 +112,6 @@ export class AISDKService {
     const startTime = Date.now();
 
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-
       const prompt = `You are an AI prompt assistant. Enhance the user's prompt to be more detailed and visually compelling while keeping the core intent.
 
 General guidelines:
@@ -125,16 +133,18 @@ Return your response as a JSON object:
 
 Original prompt: "${originalPrompt}"`;
 
-      const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
+      // Use the new @google/genai SDK API
+      const response = await this.genAI.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
           temperature: 0.8,
           maxOutputTokens: 2000,
           responseMimeType: 'application/json',
         },
       });
 
-      const responseText = result.response.text();
+      const responseText = response.text;
       let parsedResult;
       try {
         parsedResult = JSON.parse(responseText);
@@ -187,6 +197,7 @@ Original prompt: "${originalPrompt}"`;
     styleTransferImageData?: string;
     styleTransferImageType?: string;
     temperature?: number;
+    mediaResolution?: 'LOW' | 'MEDIUM' | 'HIGH' | 'UNSPECIFIED';
   }): Promise<{ success: boolean; data?: ImageGenerationResult; error?: string }> {
     console.log('🎨 AISDKService: Starting image generation with Gemini Native Image', {
       prompt: request.prompt.substring(0, 100),
@@ -200,21 +211,48 @@ Original prompt: "${originalPrompt}"`;
     const startTime = Date.now();
 
     try {
-      // Build the prompt with all context
-      let enhancedPrompt = request.prompt;
+      // Build clean, structured prompt following best practices
+      // Start with user's original prompt - it's the primary input
+      let enhancedPrompt = request.prompt.trim();
       
-      // Add environment if provided (weather/time conditions)
+      // Only add settings if they're not already mentioned in the prompt
+      // This avoids redundancy and token waste
+      const promptLower = enhancedPrompt.toLowerCase();
+      
+      // Add environment if provided and not already mentioned
+      // Follow best practice: only add if not redundant
       if (request.environment && request.environment !== 'none') {
-        enhancedPrompt += `, ${request.environment} environment`;
+        // Check if environment/weather is already mentioned in prompt
+        const envKeywords = ['rainy', 'sunny', 'overcast', 'sunset', 'sunrise', 'night', 'day', 'dusk', 'dawn', 'weather', 'environment'];
+        const envValue = request.environment.toLowerCase();
+        const isEnvMentioned = envKeywords.some(keyword => 
+          promptLower.includes(keyword) && (promptLower.includes(envValue) || promptLower.includes('environment') || promptLower.includes('weather'))
+        );
+        
+        if (!isEnvMentioned) {
+          enhancedPrompt += `, ${request.environment} environment`;
+        }
       }
       
-      // Add effect/style if provided
+      // Add effect/style if provided and not already mentioned
+      // Follow best practice: avoid redundancy
       if (request.effect && request.effect !== 'none') {
-        enhancedPrompt += `, ${request.effect} style`;
+        // Check if style/effect is already mentioned in prompt
+        const styleKeywords = ['photoreal', 'realistic', 'illustration', 'wireframe', 'sketch', 'painting', 'digital art', 'style', 'effect'];
+        const effectValue = request.effect.toLowerCase();
+        const isStyleMentioned = styleKeywords.some(keyword => 
+          promptLower.includes(keyword) && (promptLower.includes(effectValue) || promptLower.includes('style'))
+        );
+        
+        if (!isStyleMentioned) {
+          enhancedPrompt += `, ${request.effect} style`;
+        }
       }
       
       // Build contents array with text and images
-      const contents: any[] = [];
+      // For Gemini 3, we can set per-part media resolution, but for now we'll use global
+      type ContentPart = { text: string } | { inlineData: { mimeType: string; data: string } };
+      const contents: ContentPart[] = [];
       
       // Add text prompt
       contents.push({ text: enhancedPrompt });
@@ -249,58 +287,134 @@ Original prompt: "${originalPrompt}"`;
         ? request.aspectRatio 
         : '16:9';
 
+      // Map media resolution to Gemini API MediaResolution enum
+      // Default to MEDIUM for general use (balanced quality/cost)
+      // HIGH for upscaling/quality tasks (maximum detail)
+      // LOW for fast/simple tasks (lower cost)
+      const mediaResolution = request.mediaResolution || 'MEDIUM';
+      
+      // Map to MediaResolution enum from SDK
+      let mediaResolutionEnum: MediaResolution | undefined;
+      switch (mediaResolution) {
+        case 'LOW':
+          mediaResolutionEnum = MediaResolution.MEDIA_RESOLUTION_LOW;
+          break;
+        case 'MEDIUM':
+          mediaResolutionEnum = MediaResolution.MEDIA_RESOLUTION_MEDIUM;
+          break;
+        case 'HIGH':
+          mediaResolutionEnum = MediaResolution.MEDIA_RESOLUTION_HIGH;
+          break;
+        case 'UNSPECIFIED':
+        default:
+          mediaResolutionEnum = undefined; // Use default
+          break;
+      }
+
       console.log('🎨 AISDKService: Calling Gemini Native Image Generation...', {
         model: modelName,
         aspectRatio,
+        mediaResolution: mediaResolutionEnum ? MediaResolution[mediaResolutionEnum] : 'UNSPECIFIED',
         contentsCount: contents.length
       });
 
       // Generate image using Gemini Native Image Generation
-      const response = await this.genAIImage.models.generateContent({
+      // Configure media resolution for input images (affects processing quality)
+      const config: {
+        responseModalities: string[];
+        imageConfig: { aspectRatio: string };
+        mediaResolution?: MediaResolution;
+      } = {
+        responseModalities: ['IMAGE'], // Only return image, no text
+        imageConfig: {
+          aspectRatio: aspectRatio
+        }
+      };
+
+      // Add media resolution if specified (for processing input images)
+      // This controls how much detail the model extracts from input images
+      // HIGH resolution = 1120 tokens per image (Gemini 2.5) for maximum quality
+      if (mediaResolutionEnum) {
+        config.mediaResolution = mediaResolutionEnum;
+      }
+
+      const response = await this.genAI.models.generateContent({
         model: modelName,
         contents: contents,
-        config: {
-          responseModalities: ['IMAGE'], // Only return image, no text
-          imageConfig: {
-            aspectRatio: aspectRatio
-          }
-        }
+        config: config
       });
 
-      // Extract image from response
-      const parts = response.candidates?.[0]?.content?.parts || [];
-      let imageData: string | null = null;
+      console.log('🎨 AISDKService: Response received', {
+        hasResponse: !!response,
+        responseKeys: response ? Object.keys(response) : [],
+        candidates: response?.candidates?.length || 0
+      });
 
-      for (const part of parts) {
-        if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
-          imageData = part.inlineData.data;
-          break;
+      // Extract image from response - check new SDK response structure
+      // The new SDK might return data differently
+      let imageData: string | null = null;
+      let mimeType: string = 'image/png';
+
+      // Try different response structures
+      if (response.candidates && response.candidates.length > 0) {
+        const candidate = response.candidates[0];
+        if (candidate.content?.parts) {
+          for (const part of candidate.content.parts) {
+            if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
+              imageData = part.inlineData.data;
+              mimeType = part.inlineData.mimeType;
+              break;
+            }
+          }
+        }
+      }
+
+      // Alternative: check if response has direct image data
+      const responseAny = response as { imageData?: string; parts?: Array<{ inlineData?: { mimeType?: string; data?: string } }> };
+      if (!imageData && responseAny.imageData) {
+        imageData = responseAny.imageData;
+      }
+
+      // Alternative: check if response has parts at root level
+      if (!imageData && responseAny.parts) {
+        for (const part of responseAny.parts) {
+          if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
+            imageData = part.inlineData.data || null;
+            if (part.inlineData.mimeType) {
+              mimeType = part.inlineData.mimeType;
+            }
+            break;
+          }
         }
       }
 
       if (!imageData) {
-        console.error('❌ AISDKService: No image data in response');
+        console.error('❌ AISDKService: No image data in response', {
+          responseStructure: JSON.stringify(response, null, 2).substring(0, 500)
+        });
         return {
           success: false,
-          error: 'No image data returned from generation service'
+          error: 'No image data returned from generation service. Response structure may have changed.'
         };
       }
 
-      // Convert base64 to data URL for storage/display
-      const mimeType = parts.find(p => p.inlineData?.mimeType)?.inlineData?.mimeType || 'image/png';
-      const imageUrl = `data:${mimeType};base64,${imageData}`;
-
+      // Mime type already extracted above
+      
+      // Return base64 data (without data: prefix) for storage upload
+      // The API route will handle uploading to storage
       const processingTime = Math.round((Date.now() - startTime) / 1000);
 
       console.log('✅ AISDKService: Image generation successful', {
         processingTime,
-        aspectRatio
+        aspectRatio,
+        imageDataLength: imageData.length
       });
 
       return {
         success: true,
         data: {
-          imageUrl: imageUrl,
+          imageData: imageData, // Base64 string without data: prefix
+          imageUrl: `data:${mimeType};base64,${imageData}`, // Data URL for immediate display
           processingTime,
           provider: 'google-gemini-native-image',
           metadata: {
@@ -341,22 +455,23 @@ Original prompt: "${originalPrompt}"`;
     const startTime = Date.now();
 
     try {
-      // Use user prompt directly, only add minimal context if needed
-      let enhancedPrompt = request.prompt;
+      // Build clean, structured prompt following best practices
+      // Start with user's original prompt - it's the primary input
+      let enhancedPrompt = request.prompt.trim();
+      const promptLower = enhancedPrompt.toLowerCase();
       
-      // Only add aspect ratio and duration if not already mentioned
-      if (request.aspectRatio && !enhancedPrompt.toLowerCase().includes('aspect ratio') && !enhancedPrompt.toLowerCase().includes(request.aspectRatio)) {
+      // Only add aspect ratio if not already mentioned (avoid redundancy)
+      if (request.aspectRatio && !promptLower.includes('aspect ratio') && !promptLower.includes(request.aspectRatio.replace(':', ':'))) {
         enhancedPrompt += `, ${request.aspectRatio} aspect ratio`;
       }
       
-      if (request.duration && !enhancedPrompt.toLowerCase().includes('duration') && !enhancedPrompt.toLowerCase().includes(`${request.duration} second`)) {
+      // Only add duration if not already mentioned
+      if (request.duration && !promptLower.includes('duration') && !promptLower.includes(`${request.duration} second`)) {
         enhancedPrompt += `, ${request.duration} seconds`;
       }
       
-      // Add reference note if image provided
-      if (request.uploadedImageData) {
-        enhancedPrompt += ', use uploaded image as reference';
-      }
+      // Don't add redundant reference note - the uploaded image in contents is sufficient
+      // The model understands image-to-video from the multimodal input
 
       // Video generation with Veo requires Google Cloud Vertex AI or GenAI SDK
       // For now, return an error indicating video generation needs to be configured
@@ -384,18 +499,18 @@ Original prompt: "${originalPrompt}"`;
     });
 
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
-      const result = await model.generateContentStream({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
+      // Use the new @google/genai SDK API for streaming
+      const stream = await this.genAI.models.generateContentStream({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
           temperature: 0.7,
           maxOutputTokens: 1000,
         },
       });
 
-      for await (const chunk of result.stream) {
-        const text = chunk.text();
+      for await (const chunk of stream) {
+        const text = chunk.text;
         if (text) {
           yield text;
         }
@@ -416,23 +531,18 @@ Original prompt: "${originalPrompt}"`;
     });
 
     try {
-      const model = this.genAI.getGenerativeModel({ 
-        model: 'gemini-2.0-flash',
-        generationConfig: {
-          responseMimeType: 'application/json',
-        },
-      });
-
-      const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
+      // Use the new @google/genai SDK API
+      const response = await this.genAI.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
           temperature: 0.7,
           maxOutputTokens: 1000,
           responseMimeType: 'application/json',
         },
       });
 
-      const responseText = result.response.text();
+      const responseText = response.text;
       let parsedResult;
       try {
         parsedResult = JSON.parse(responseText);
@@ -464,21 +574,21 @@ Original prompt: "${originalPrompt}"`;
   async generateText(prompt: string, options?: {
     temperature?: number;
     maxTokens?: number;
-  }): Promise<{ text: string; usage?: any }> {
+  }): Promise<{ text: string; usage?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } }> {
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
-      const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
+      // Use the new @google/genai SDK API
+      const response = await this.genAI.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
           temperature: options?.temperature ?? 0.7,
           maxOutputTokens: options?.maxTokens ?? 1000,
         },
       });
 
       return {
-        text: result.response.text(),
-        usage: result.response.usageMetadata,
+        text: response.text,
+        usage: response.usageMetadata,
       };
     } catch (error) {
       console.error('❌ AISDKService: Text generation failed', error);
@@ -491,9 +601,8 @@ Original prompt: "${originalPrompt}"`;
    */
   async *streamChat(messages: Array<{ role: 'user' | 'assistant'; content: string }>) {
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
-      // Convert messages to Google AI format (user -> user, assistant -> model)
+      // Use the new @google/genai SDK API
+      // Convert messages to the new format
       const history: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];
       
       // Build conversation history (exclude the last user message if present)
@@ -508,16 +617,18 @@ Original prompt: "${originalPrompt}"`;
       // Last message is the current user prompt
       const currentMessage = messages[messages.length - 1];
       if (currentMessage && currentMessage.role === 'user') {
-        const result = await model.generateContentStream({
+        // Use the new @google/genai SDK API for streaming
+        const stream = await this.genAI.models.generateContentStream({
+          model: 'gemini-2.5-flash',
           contents: [...history, { role: 'user', parts: [{ text: currentMessage.content }] }],
-          generationConfig: {
+          config: {
             temperature: 0.7,
             maxOutputTokens: 1000,
           },
         });
 
-        for await (const chunk of result.stream) {
-          const text = chunk.text();
+        for await (const chunk of stream) {
+          const text = chunk.text;
           if (text) {
             yield text;
           }

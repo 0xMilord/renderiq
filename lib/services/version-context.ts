@@ -336,18 +336,19 @@ export class VersionContextService {
         .trim();
     }
 
-    // Build MINIMAL contextual prompt
-    let contextualPrompt = userRequest;
+    // Build clean, minimal contextual prompt
+    // Follow best practices: clear instructions, avoid redundancy
+    let contextualPrompt = userRequest.trim();
 
-    // Only add essential reference info if multiple versions mentioned
-    if (parsedPrompt.mentionedVersions.length > 0) {
-      const references = parsedPrompt.mentionedVersions
-        .filter(m => m.context)
-        .map(m => `${m.mentionText}`)
-        .join(', ');
-      
-      if (references) {
-        contextualPrompt += `. Use ${references} as reference`;
+    // Only add essential reference info if versions are mentioned
+    // Keep it concise - the model understands references from context
+    if (parsedPrompt.mentionedVersions.length > 0 && parsedPrompt.mentionedVersions.some(m => m.context)) {
+      // Use simple, direct reference instruction
+      const referenceCount = parsedPrompt.mentionedVersions.filter(m => m.context).length;
+      if (referenceCount === 1) {
+        contextualPrompt += `. Use the referenced version as a reference`;
+      } else {
+        contextualPrompt += `. Use the referenced versions as references`;
       }
     }
 
