@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { UserOnboardingService } from './user-onboarding';
-import { getOAuthCallbackUrl } from '@/lib/utils/auth-redirect';
+import { getOAuthCallbackUrl, getAuthRedirectUrl } from '@/lib/utils/auth-redirect';
 import { headers } from 'next/headers';
 import { z } from 'zod';
 
@@ -105,6 +105,9 @@ export class AuthService {
 
       const supabase = await createClient();
       
+      // Get the correct redirect URL for email verification (handles localhost in dev)
+      const emailRedirectTo = getOAuthCallbackUrl(undefined, '/');
+      
       // Sign up with Supabase - email confirmation required
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -113,7 +116,7 @@ export class AuthService {
           data: {
             name: name || null,
           },
-          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+          emailRedirectTo,
         },
       });
 

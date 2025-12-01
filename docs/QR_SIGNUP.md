@@ -96,3 +96,4 @@ Potential improvements:
 - Analytics tracking for QR code scans
 - Custom welcome messages for QR signups
 
+
