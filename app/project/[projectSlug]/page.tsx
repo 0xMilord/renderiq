@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,19 +10,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { 
   ArrowLeft, 
   Search, 
-  Filter, 
   MoreVertical, 
   Trash2, 
   Edit, 
   Copy, 
-  Download,
-  Eye,
-  Heart,
   Share2,
-  Calendar,
   Image as ImageIcon,
-  Video,
-  Loader2
+  Loader2,
+  Plus,
+  GitBranch
 } from 'lucide-react';
 import Link from 'next/link';
 import { ImageCard } from '@/components/projects/image-card';
@@ -35,23 +31,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useProjects } from '@/lib/hooks/use-projects';
+import { useProjectBySlug } from '@/lib/hooks/use-projects';
 import { useRenders } from '@/lib/hooks/use-renders';
 import { ChainList } from '@/components/projects/chain-list';
-import type { Render, Project } from '@/lib/db/schema';
+import type { Render } from '@/lib/db/schema';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createRenderChain } from '@/lib/actions/projects.actions';
-import { useRouter } from 'next/navigation';
 
 type ViewMode = 'default' | 'compact' | 'list';
 
-export default function ProjectSlugPage() {
+export default function ProjectPage() {
   const params = useParams();
   const router = useRouter();
-  const slug = params.slug as string;
-  const { projects } = useProjects();
+  const projectSlug = params.projectSlug as string;
   
-  const [project, setProject] = useState<Project | null>(null);
+  const { project, loading: projectLoading, error: projectError } = useProjectBySlug(projectSlug);
+  const { renders, chains, loading: rendersLoading, error: rendersError, fetchChains } = useRenders(project?.id || null);
+  
   const [viewMode, setViewMode] = useState<ViewMode>('default');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('newest');
@@ -59,26 +55,12 @@ export default function ProjectSlugPage() {
   const [selectedRender, setSelectedRender] = useState<Render | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Use the renders hook with proper architecture
-  const { renders, chains, loading: rendersLoading, error: rendersError, fetchChains } = useRenders(project?.id || null);
-
   // Fetch chains when project is loaded
   useEffect(() => {
     if (project?.id) {
       fetchChains();
     }
   }, [project?.id, fetchChains]);
-
-  useEffect(() => {
-    console.log('🔍 [ProjectSlugPage] Finding project by slug:', slug);
-    const foundProject = projects.find(p => p.slug === slug);
-    if (foundProject) {
-      console.log('✅ [ProjectSlugPage] Project found:', foundProject.name);
-      setProject(foundProject);
-    } else {
-      console.log('❌ [ProjectSlugPage] Project not found for slug:', slug);
-    }
-  }, [slug, projects]);
 
   const filteredRenders = renders.filter(render => {
     const matchesSearch = render.prompt.toLowerCase().includes(searchQuery.toLowerCase());
@@ -127,12 +109,10 @@ export default function ProjectSlugPage() {
   };
 
   const handleLike = (item: Render) => {
-    // Implement like functionality
     console.log('Like render:', item.id);
   };
 
   const handleShare = (item: Render) => {
-    // Implement share functionality
     console.log('Share render:', item.id);
   };
 
@@ -144,7 +124,7 @@ export default function ProjectSlugPage() {
       const result = await createRenderChain(project.id, chainName, `New render chain for ${project.name}`);
       
       if (result.success && result.data && project) {
-        // Redirect to unified project/chain route
+        // Navigate to the new chain
         router.push(`/project/${project.slug}/chain/${result.data.id}`);
       } else {
         console.error('Failed to create chain:', result.error);
@@ -156,8 +136,7 @@ export default function ProjectSlugPage() {
     }
   };
 
-  // Show loading state while projects are loading or project is not found yet
-  if (!project && projects.length === 0) {
+  if (projectLoading) {
     return (
       <div className="min-h-screen bg-background">
         <div className="max-w-[2400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -172,8 +151,7 @@ export default function ProjectSlugPage() {
     );
   }
 
-  // Show error state if project not found
-  if (!project) {
+  if (projectError || !project) {
     return (
       <div className="min-h-screen bg-background">
         <div className="max-w-[2400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -199,7 +177,7 @@ export default function ProjectSlugPage() {
         <div className="mb-8">
           <div className="flex items-center space-x-4 mb-4">
             <Button variant="ghost" size="sm" asChild>
-              <Link href="/dashboard/projects">
+              <Link href="/render">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Link>
@@ -251,10 +229,10 @@ export default function ProjectSlugPage() {
         </div>
 
         {/* Tabs for Chains and Renders */}
-        <Tabs defaultValue="renders" className="w-full">
+        <Tabs defaultValue="chains" className="w-full">
           <TabsList className="mb-6">
-            <TabsTrigger value="renders">All Renders</TabsTrigger>
             <TabsTrigger value="chains">Render Chains</TabsTrigger>
+            <TabsTrigger value="renders">All Renders</TabsTrigger>
           </TabsList>
 
           <TabsContent value="chains">
@@ -265,6 +243,7 @@ export default function ProjectSlugPage() {
                 renders: renders.filter(r => r.chainId === chain.id).slice(0, 5)
               }))} 
               projectId={project.id}
+              projectSlug={project.slug}
               onCreateChain={handleCreateChain}
             />
           </TabsContent>
@@ -272,96 +251,96 @@ export default function ProjectSlugPage() {
           <TabsContent value="renders">
             {/* Search and Filters */}
             <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search renders..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <div className="flex gap-2">
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">Newest first</SelectItem>
-                <SelectItem value="oldest">Oldest first</SelectItem>
-                <SelectItem value="status">By status</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[120px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All status</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
-              </SelectContent>
-            </Select>
-            <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
-          </div>
-        </div>
-
-        {/* Renders Grid */}
-        {rendersError ? (
-          <div className="text-center py-12">
-            <div className="text-red-500 mb-4">Error loading renders</div>
-            <p className="text-muted-foreground mb-4">{rendersError}</p>
-            <Button onClick={() => window.location.reload()}>
-              Try Again
-            </Button>
-          </div>
-        ) : rendersLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-              <p className="text-muted-foreground">Loading renders...</p>
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search renders..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="newest">Newest first</SelectItem>
+                    <SelectItem value="oldest">Oldest first</SelectItem>
+                    <SelectItem value="status">By status</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All status</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="processing">Processing</SelectItem>
+                    <SelectItem value="failed">Failed</SelectItem>
+                  </SelectContent>
+                </Select>
+                <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
+              </div>
             </div>
-          </div>
-        ) : sortedRenders.length > 0 ? (
-          <div className={cn("grid gap-4", getGridCols())}>
-            {sortedRenders.map((render) => (
-              <ImageCard
-                key={render.id}
-                render={render}
-                viewMode={viewMode}
-                onView={handleView}
-                onDownload={handleDownload}
-                onLike={handleLike}
-                onShare={handleShare}
-                onRemix={(render) => {
-                  // Navigate to chat with the prompt
-                  router.push(`/render?prompt=${encodeURIComponent(render.prompt)}`);
-                }}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <ImageIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">
-              {searchQuery ? 'No renders found' : 'No renders yet'}
-            </h3>
-            <p className="text-muted-foreground mb-4">
-              {searchQuery 
-                ? 'Try adjusting your search or filters'
-                : 'Generate your first AI render for this project'
-              }
-            </p>
-            {!searchQuery && (
-              <Button asChild>
-                <Link href="/render">
-                  Generate Render
-                </Link>
-              </Button>
+
+            {/* Renders Grid */}
+            {rendersError ? (
+              <div className="text-center py-12">
+                <div className="text-red-500 mb-4">Error loading renders</div>
+                <p className="text-muted-foreground mb-4">{rendersError}</p>
+                <Button onClick={() => window.location.reload()}>
+                  Try Again
+                </Button>
+              </div>
+            ) : rendersLoading ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+                  <p className="text-muted-foreground">Loading renders...</p>
+                </div>
+              </div>
+            ) : sortedRenders.length > 0 ? (
+              <div className={cn("grid gap-4", getGridCols())}>
+                {sortedRenders.map((render) => (
+                  <ImageCard
+                    key={render.id}
+                    render={render}
+                    viewMode={viewMode}
+                    onView={handleView}
+                    onDownload={handleDownload}
+                    onLike={handleLike}
+                    onShare={handleShare}
+                    onRemix={(render) => {
+                      // Navigate to render page with the prompt
+                      router.push(`/render?prompt=${encodeURIComponent(render.prompt)}`);
+                    }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <ImageIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">
+                  {searchQuery ? 'No renders found' : 'No renders yet'}
+                </h3>
+                <p className="text-muted-foreground mb-4">
+                  {searchQuery 
+                    ? 'Try adjusting your search or filters'
+                    : 'Generate your first AI render for this project'
+                  }
+                </p>
+                {!searchQuery && (
+                  <Button asChild>
+                    <Link href="/render">
+                      Generate Render
+                    </Link>
+                  </Button>
+                )}
+              </div>
             )}
-          </div>
-        )}
           </TabsContent>
         </Tabs>
       </div>
@@ -379,7 +358,6 @@ export default function ProjectSlugPage() {
           onDownload={handleDownload}
           onShare={handleShare}
           onRemix={(render) => {
-            // Navigate to engine with the prompt
             router.push(`/render?prompt=${encodeURIComponent(render.prompt)}`);
           }}
         />
@@ -387,3 +365,4 @@ export default function ProjectSlugPage() {
     </div>
   );
 }
+

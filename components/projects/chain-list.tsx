@@ -19,10 +19,11 @@ import { formatDistanceToNow } from 'date-fns';
 interface ChainListProps {
   chains: (RenderChain & { renders?: Render[]; renderCount?: number })[];
   projectId: string;
+  projectSlug?: string;
   onCreateChain?: () => void;
 }
 
-export function ChainList({ chains, projectId, onCreateChain }: ChainListProps) {
+export function ChainList({ chains, projectId, projectSlug, onCreateChain }: ChainListProps) {
   if (chains.length === 0) {
     return (
       <Card>
@@ -110,13 +111,13 @@ export function ChainList({ chains, projectId, onCreateChain }: ChainListProps) 
                 
                 {/* Action Buttons - Moved below images */}
                 <div className="grid grid-cols-2 gap-2">
-                  <Link href={`/render?chain=${chain.id}`}>
+                  <Link href={projectSlug ? `/project/${projectSlug}/chain/${chain.id}` : `/render?chain=${chain.id}`}>
                     <Button variant="outline" size="sm" className="w-full text-xs sm:text-sm">
                       <ImageIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                       Continue
                     </Button>
                   </Link>
-                  <Link href={`/dashboard/projects/${projectId}/chain/${chain.id}`}>
+                  <Link href={projectSlug ? `/project/${projectSlug}/chain/${chain.id}` : `/dashboard/projects/${projectId}/chain/${chain.id}`}>
                     <Button size="sm" className="w-full text-xs sm:text-sm">
                       View Details
                       <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 ml-1" />

@@ -9,7 +9,7 @@ import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
-export default function ProjectChatPage() {
+export default function ProjectChainPage() {
   const params = useParams();
   const router = useRouter();
   const projectSlug = params.projectSlug as string;
@@ -20,7 +20,7 @@ export default function ProjectChatPage() {
 
   // Debug logging
   useEffect(() => {
-    console.log('🔍 ProjectChatPage: Component state', {
+    console.log('🔍 ProjectChainPage: Component state', {
       projectSlug,
       chainId,
       hasProject: !!project,
@@ -81,7 +81,7 @@ export default function ProjectChatPage() {
 
   return (
     <div className="h-[calc(100vh-2.75rem)] bg-background overflow-hidden">
-      {/* Render Interface */}
+      {/* Unified Chat Interface */}
       <div className="h-full">
         <UnifiedChatInterface
           projectId={project.id}
@@ -98,3 +98,4 @@ export default function ProjectChatPage() {
     </div>
   );
 }
+

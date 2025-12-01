@@ -5,22 +5,23 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { UserDropdown } from '@/components/user-dropdown';
+import { NavbarSelectors } from '@/components/navbar-selectors';
 import { AlphaBanner } from '@/components/alpha-banner';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Menu, X, Home, MessageSquare, GalleryVertical, BookOpen, Lightbulb, CreditCard } from 'lucide-react';
+import { Menu, X, Home, MessageSquare, GalleryVertical, BookOpen, Lightbulb, CreditCard, Info, FileText, Mail } from 'lucide-react';
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
-  const { loading } = useAuth();
+  const { user, loading } = useAuth();
 
   return (
     <>
       <AlphaBanner />
       <nav className="bg-background shadow-sm border-b w-full relative z-50">
         <div className="w-full px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-11">
-          {/* Logo */}
-          <div className="flex items-center">
+        <div className="flex items-center justify-between h-11 gap-4">
+          {/* Logo and Selectors */}
+          <div className="flex items-center gap-3 flex-shrink-0">
             <Link href="/" className="flex items-center space-x-2">
               <Image
                 src="/logo.svg"
@@ -31,47 +32,77 @@ export function Navbar() {
               />
               <span className="text-lg font-bold text-foreground">renderiq</span>
             </Link>
+            
+            {/* Project and Chain Selectors - Only for authenticated users */}
+            {user && !loading && <NavbarSelectors />}
           </div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
-            <Link
-              href="/"
-              className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
-            >
-              <Home className="h-4 w-4" />
-              <span>Home</span>
-            </Link>
-            <Link
-              href="/render"
-              className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
-            >
-              <MessageSquare className="h-4 w-4" />
-              <span>Render</span>
-            </Link>
-            <Link
-              href="/use-cases"
-              className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
-            >
-              <Lightbulb className="h-4 w-4" />
-              <span>Use Cases</span>
-            </Link>
-            <Link
-              href="/gallery"
-              className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
-            >
-              <GalleryVertical className="h-4 w-4" />
-              <span>Gallery</span>
-            </Link>
-            <Link
-              href="/plans"
-              className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
-            >
-              <CreditCard className="h-4 w-4" />
-              <span>Plans</span>
-            </Link>
+          {/* Middle Section: Navigation Links (not authenticated) */}
+          <div className="flex-1 flex items-center justify-center">
+            {!user && !loading && (
+              <div className="hidden md:flex items-center space-x-8">
+                <Link
+                  href="/"
+                  className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <Home className="h-4 w-4" />
+                  <span>Home</span>
+                </Link>
+                <Link
+                  href="/render"
+                  className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  <span>Render</span>
+                </Link>
+                <Link
+                  href="/use-cases"
+                  className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <Lightbulb className="h-4 w-4" />
+                  <span>Use Cases</span>
+                </Link>
+                <Link
+                  href="/gallery"
+                  className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <GalleryVertical className="h-4 w-4" />
+                  <span>Gallery</span>
+                </Link>
+                <Link
+                  href="/plans"
+                  className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <CreditCard className="h-4 w-4" />
+                  <span>Pricing</span>
+                </Link>
+                <Link
+                  href="/about"
+                  className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <Info className="h-4 w-4" />
+                  <span>About</span>
+                </Link>
+                <Link
+                  href="/api-docs"
+                  className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <FileText className="h-4 w-4" />
+                  <span>API Docs</span>
+                </Link>
+                <Link
+                  href="/contact"
+                  className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <Mail className="h-4 w-4" />
+                  <span>Contact</span>
+                </Link>
+              </div>
+            )}
+          </div>
 
-            {/* User Dropdown */}
+          {/* Right Section: User Dropdown */}
+          <div className="flex items-center flex-shrink-0">
             {loading ? (
               <Skeleton className="w-8 h-8 rounded-full" />
             ) : (
@@ -139,7 +170,31 @@ export function Navbar() {
                 onClick={() => setIsOpen(false)}
               >
                 <CreditCard className="h-4 w-4" />
-                <span>Plans</span>
+                <span>Pricing</span>
+              </Link>
+              <Link
+                href="/about"
+                className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium"
+                onClick={() => setIsOpen(false)}
+              >
+                <Info className="h-4 w-4" />
+                <span>About</span>
+              </Link>
+              <Link
+                href="/api-docs"
+                className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium"
+                onClick={() => setIsOpen(false)}
+              >
+                <FileText className="h-4 w-4" />
+                <span>API Docs</span>
+              </Link>
+              <Link
+                href="/contact"
+                className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium"
+                onClick={() => setIsOpen(false)}
+              >
+                <Mail className="h-4 w-4" />
+                <span>Contact</span>
               </Link>
             </div>
           </div>

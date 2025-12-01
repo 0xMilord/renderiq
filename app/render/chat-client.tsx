@@ -71,7 +71,7 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
       );
 
       if (result.success && result.data) {
-        router.push(`/${project?.slug || 'project'}/render/${result.data.id}`);
+        router.push(`/project/${project?.slug || 'project'}/chain/${result.data.id}`);
       } else {
         toast.error(result.error || 'Failed to create chain');
       }
@@ -97,7 +97,7 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
     const chain = initialChains.find(c => c.id === selectedChainId);
     if (chain) {
       const project = initialProjects.find(p => p.id === chain.projectId);
-      router.push(`/${project?.slug || 'project'}/render/${selectedChainId}`);
+      router.push(`/project/${project?.slug || 'project'}/chain/${selectedChainId}`);
     }
   };
 

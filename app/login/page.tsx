@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import DotGrid from '@/components/ui/dot-grid';
 import { Eye, EyeOff, Loader2, Github, Chrome } from 'lucide-react';
 
 export default function LoginPage() {
@@ -73,13 +75,34 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      
-      <div className="flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen bg-background relative">
+      {/* DotGrid Background - shown on all devices */}
+      <div className="absolute inset-0 overflow-hidden -z-0">
+        <DotGrid
+          dotSize={10}
+          gap={15}
+          proximity={120}
+          shockRadius={250}
+          shockStrength={5}
+          resistance={750}
+          returnDuration={1.5}
+          className="h-full w-full"
+        />
+      </div>
+
+      <div className="flex h-screen">
+        {/* Login Form - 1/4 width on desktop, full width on mobile */}
+        <div className="w-full lg:w-1/4 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 border-r border-border relative z-10 bg-background/80 lg:bg-background backdrop-blur-sm lg:backdrop-blur-none">
+          <div className="max-w-md w-full space-y-8">
           <div>
-            <div className="mx-auto h-12 w-12 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-xl">A</span>
+            <div className="mx-auto flex items-center justify-center mb-6">
+              <Image
+                src="/logo.svg"
+                alt="renderiq"
+                width={128}
+                height={128}
+                className="w-32 h-32"
+              />
             </div>
             <h2 className="mt-6 text-center text-3xl font-extrabold text-foreground">
               Sign in to your account
@@ -221,6 +244,22 @@ export default function LoginPage() {
               </Button>
             </div>
           </form>
+          </div>
+        </div>
+
+        {/* Desktop Right Side - 3/4 width with text overlay */}
+        <div className="hidden lg:flex lg:w-3/4 relative z-10">
+          {/* Text Overlay */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="text-center px-8 max-w-4xl">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground mb-3 leading-tight">
+                Create what you imagine
+              </h1>
+              <h2 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground leading-tight">
+                Build what you imagine
+              </h2>
+            </div>
+          </div>
         </div>
       </div>
     </div>

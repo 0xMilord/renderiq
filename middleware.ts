@@ -44,11 +44,12 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Protect upload, render, dashboard, and engine routes
+  // Protect upload, render, dashboard, engine, and project routes
   if (
     !user &&
     (request.nextUrl.pathname.startsWith('/upload') ||
      request.nextUrl.pathname.startsWith('/render') ||
+     request.nextUrl.pathname.startsWith('/project') ||
      request.nextUrl.pathname.startsWith('/dashboard') ||
      request.nextUrl.pathname.startsWith('/api/protected') ||
      request.nextUrl.pathname.startsWith('/engine'))
