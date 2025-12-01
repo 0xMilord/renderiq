@@ -1,5 +1,6 @@
 import { AISDKService } from '@/lib/services/ai-sdk-service';
 import { NextRequest } from 'next/server';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * Google Generative AI Completion API Route
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('📝 AI Completion: Starting completion via Google Generative AI', {
+    logger.log('📝 AI Completion: Starting completion via Google Generative AI', {
       prompt: prompt.substring(0, 100) + '...'
     });
 
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
       maxTokens: 1000,
     });
 
-    console.log('✅ AI Completion: Completion successful', {
+    logger.log('✅ AI Completion: Completion successful', {
       usage: result.usage
     });
 
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('❌ AI Completion: Completion failed', error);
+    logger.error('❌ AI Completion: Completion failed', error);
     return Response.json(
       { 
         success: false,

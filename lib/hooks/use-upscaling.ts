@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { createRenderAction } from '@/lib/actions/render.actions';
 
 export interface UpscalingRequest {
   imageUrl: string;
@@ -71,12 +72,7 @@ export function useUpscaling() {
       formData.append('isPublic', 'true');
       formData.append('temperature', '0.5'); // Lower temperature for upscaling (more deterministic)
 
-      const apiResponse = await fetch('/api/renders', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const apiResult = await apiResponse.json();
+      const apiResult = await createRenderAction(formData);
 
       if (apiResult.success && apiResult.data) {
         const upscalingResult: UpscalingResult = {

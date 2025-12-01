@@ -15,7 +15,7 @@ OAuth is still linking to "arqihive" despite environment variables being set to 
 - **Function**: `getOAuthCallbackUrl()` constructs callback URLs
 - **Logic**: 
   - Development: Uses `localhost:3000`
-  - Production: Uses `NEXT_PUBLIC_SITE_URL` or falls back to `https://Renderiq.com`
+  - Production: Uses `NEXT_PUBLIC_SITE_URL` or falls back to `https://renderiq.io`
 - **No hardcoded "arqihive" references found**
 
 #### 2. OAuth Sign-In (`lib/services/auth.ts`)
@@ -43,20 +43,20 @@ OAuth is still linking to "arqihive" despite environment variables being set to 
 
 #### Required Variables:
 1. `NEXT_PUBLIC_SITE_URL` - Production site URL
-2. `NEXT_PUBLIC_BASE_URL` - Base URL for metadata (fallback: `https://Renderiq.com`)
+2. `NEXT_PUBLIC_BASE_URL` - Base URL for metadata (fallback: `https://renderiq.io`)
 3. `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
 4. `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon key
 
 #### Code References:
-- `lib/utils/auth-redirect.ts:59` - Uses `NEXT_PUBLIC_SITE_URL` (fallback: `https://Renderiq.com`)
+- `lib/utils/auth-redirect.ts:59` - Uses `NEXT_PUBLIC_SITE_URL` (fallback: `https://renderiq.io`)
 - `lib/services/auth.ts:116` - Uses `NEXT_PUBLIC_SITE_URL` directly
-- `app/layout.tsx:25,74` - Uses `NEXT_PUBLIC_BASE_URL` (fallback: `https://Renderiq.com`)
+- `app/layout.tsx:25,74` - Uses `NEXT_PUBLIC_BASE_URL` (fallback: `https://renderiq.io`)
 
 ### 🚨 Root Cause Analysis
 
 The issue is **NOT in the codebase**. The code correctly:
 1. Uses utility functions to construct redirect URLs
-2. Falls back to `https://Renderiq.com` if env vars are not set
+2. Falls back to `https://renderiq.io` if env vars are not set
 3. Has no hardcoded "arqihive" references
 
 **The problem is likely in Supabase Dashboard configuration:**
@@ -64,10 +64,10 @@ The issue is **NOT in the codebase**. The code correctly:
 #### Supabase Dashboard Settings to Check:
 
 1. **Authentication > URL Configuration**
-   - Site URL: Should be `https://Renderiq.com` (or your production URL)
+   - Site URL: Should be `https://renderiq.io` (or your production URL)
    - Redirect URLs: Must include:
-     - `https://Renderiq.com/auth/callback`
-     - `https://Renderiq.com/auth/callback?next=*`
+     - `https://renderiq.io/auth/callback`
+     - `https://renderiq.io/auth/callback?next=*`
      - `http://localhost:3000/auth/callback` (for development)
      - **Remove any URLs containing "arqihive"**
 
@@ -89,10 +89,10 @@ The issue is **NOT in the codebase**. The code correctly:
 
 #### Supabase Dashboard Fixes (Manual):
 1. ⚠️ **Go to Supabase Dashboard > Authentication > URL Configuration**
-   - Update Site URL to `https://Renderiq.com`
+   - Update Site URL to `https://renderiq.io`
    - Review and update Redirect URLs list
    - **Remove all URLs containing "arqihive"**
-   - Add `https://Renderiq.com/auth/callback` if not present
+   - Add `https://renderiq.io/auth/callback` if not present
 
 2. ⚠️ **Check Google OAuth Console**
    - Go to [Google Cloud Console](https://console.cloud.google.com/)
@@ -140,7 +140,7 @@ After applying fixes:
 4. **Test email verification:**
    - Sign up with email
    - Check verification email link
-   - Verify it points to "Renderiq.com" not "arqihive"
+   - Verify it points to "renderiq.io" not "arqihive"
 
 ### 🎯 Summary
 

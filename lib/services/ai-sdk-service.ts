@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
+import { logger } from '@/lib/utils/logger';
 
 // Enhanced prompt schema for structured output
 const PromptEnhancementSchema = z.object({
@@ -88,7 +89,7 @@ export class AISDKService {
     // According to docs: new GoogleGenAI({}) reads from GEMINI_API_KEY automatically
     // But we'll pass it explicitly to ensure it works
     this.genAI = new GoogleGenAI({ apiKey });
-    console.log('✅ AISDKService initialized with Google Generative AI SDK (@google/genai)', {
+    logger.log('✅ AISDKService initialized with Google Generative AI SDK (@google/genai)', {
       apiKeyPresent: !!apiKey,
       apiKeyPrefix: apiKey.substring(0, 10) + '...'
     });
@@ -105,7 +106,7 @@ export class AISDKService {
    * Enhance prompts using Google Generative AI with structured output
    */
   async enhancePrompt(originalPrompt: string): Promise<PromptEnhancementResult> {
-    console.log('🔍 AISDKService: Starting prompt enhancement', {
+    logger.log('🔍 AISDKService: Starting prompt enhancement', {
       originalPrompt: originalPrompt.substring(0, 100) + '...'
     });
 
@@ -163,7 +164,7 @@ Original prompt: "${originalPrompt}"`;
 
       const processingTime = Date.now() - startTime;
 
-      console.log('🔍 AISDKService: Enhancement successful', {
+      logger.log('🔍 AISDKService: Enhancement successful', {
         processingTime,
         clarity: validatedResult.clarity,
         conflictsResolved: validatedResult.conflicts.length,
@@ -177,7 +178,7 @@ Original prompt: "${originalPrompt}"`;
       };
 
     } catch (error) {
-      console.error('❌ AISDKService: Prompt enhancement failed', error);
+      logger.error('❌ AISDKService: Prompt enhancement failed', error);
       throw new Error(`Prompt enhancement failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -199,7 +200,7 @@ Original prompt: "${originalPrompt}"`;
     temperature?: number;
     mediaResolution?: 'LOW' | 'MEDIUM' | 'HIGH' | 'UNSPECIFIED';
   }): Promise<{ success: boolean; data?: ImageGenerationResult; error?: string }> {
-    console.log('🎨 AISDKService: Starting image generation with Gemini Native Image', {
+    logger.log('🎨 AISDKService: Starting image generation with Gemini Native Image', {
       prompt: request.prompt.substring(0, 100),
       aspectRatio: request.aspectRatio,
       hasUploadedImage: !!request.uploadedImageData,
@@ -301,7 +302,7 @@ Original prompt: "${originalPrompt}"`;
         imageSize = '1K'; // Default to 1K for LOW or UNSPECIFIED
       }
 
-      console.log('🎨 AISDKService: Calling Gemini Native Image Generation...', {
+      logger.log('🎨 AISDKService: Calling Gemini Native Image Generation...', {
         model: modelName,
         aspectRatio,
         imageSize,
@@ -329,7 +330,7 @@ Original prompt: "${originalPrompt}"`;
         config: config
       });
 
-      console.log('🎨 AISDKService: Response received', {
+      logger.log('🎨 AISDKService: Response received', {
         hasResponse: !!response,
         responseKeys: response ? Object.keys(response) : [],
         candidates: response?.candidates?.length || 0
@@ -374,7 +375,7 @@ Original prompt: "${originalPrompt}"`;
       }
 
       if (!imageData) {
-        console.error('❌ AISDKService: No image data in response', {
+        logger.error('❌ AISDKService: No image data in response', {
           responseStructure: JSON.stringify(response, null, 2).substring(0, 500)
         });
         return {
@@ -389,7 +390,7 @@ Original prompt: "${originalPrompt}"`;
       // The API route will handle uploading to storage
       const processingTime = Math.round((Date.now() - startTime) / 1000);
 
-      console.log('✅ AISDKService: Image generation successful', {
+      logger.log('✅ AISDKService: Image generation successful', {
         processingTime,
         aspectRatio,
         imageDataLength: imageData.length
@@ -413,7 +414,7 @@ Original prompt: "${originalPrompt}"`;
       };
 
     } catch (error) {
-      console.error('❌ AISDKService: Image generation failed', error);
+      logger.error('❌ AISDKService: Image generation failed', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Image generation failed'
@@ -430,7 +431,7 @@ Original prompt: "${originalPrompt}"`;
     aspectRatio: '16:9' | '9:16' | '1:1';
     uploadedImageData?: string;
   }): Promise<{ success: boolean; data?: VideoGenerationResult; error?: string }> {
-    console.log('🎬 AISDKService: Starting video generation', {
+    logger.log('🎬 AISDKService: Starting video generation', {
       prompt: request.prompt,
       duration: request.duration,
       aspectRatio: request.aspectRatio,
@@ -467,7 +468,7 @@ Original prompt: "${originalPrompt}"`;
       };
 
     } catch (error) {
-      console.error('❌ AISDKService: Video generation failed', error);
+      logger.error('❌ AISDKService: Video generation failed', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Video generation failed'
@@ -479,7 +480,7 @@ Original prompt: "${originalPrompt}"`;
    * Stream text generation for real-time responses
    */
   async *streamTextGeneration(prompt: string) {
-    console.log('📝 AISDKService: Starting text streaming', {
+    logger.log('📝 AISDKService: Starting text streaming', {
       prompt: prompt.substring(0, 100) + '...'
     });
 
@@ -502,7 +503,7 @@ Original prompt: "${originalPrompt}"`;
       }
 
     } catch (error) {
-      console.error('❌ AISDKService: Text streaming failed', error);
+      logger.error('❌ AISDKService: Text streaming failed', error);
       throw new Error(`Text streaming failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -511,7 +512,7 @@ Original prompt: "${originalPrompt}"`;
    * Generate structured data using Google Generative AI
    */
   async generateStructuredData<T>(schema: z.ZodSchema<T>, prompt: string): Promise<T> {
-    console.log('📊 AISDKService: Starting structured data generation', {
+    logger.log('📊 AISDKService: Starting structured data generation', {
       prompt: prompt.substring(0, 100) + '...'
     });
 
@@ -576,7 +577,7 @@ Original prompt: "${originalPrompt}"`;
         usage: response.usageMetadata,
       };
     } catch (error) {
-      console.error('❌ AISDKService: Text generation failed', error);
+      logger.error('❌ AISDKService: Text generation failed', error);
       throw new Error(`Text generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -620,7 +621,7 @@ Original prompt: "${originalPrompt}"`;
         }
       }
     } catch (error) {
-      console.error('❌ AISDKService: Chat streaming failed', error);
+      logger.error('❌ AISDKService: Chat streaming failed', error);
       throw new Error(`Chat streaming failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

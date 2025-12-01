@@ -1,5 +1,6 @@
 import { AISDKService } from '@/lib/services/ai-sdk-service';
 import { NextRequest } from 'next/server';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * Google Generative AI Image Generation API Route
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('🎨 AI Image: Starting image generation via Google Generative AI', {
+    logger.log('🎨 AI Image: Starting image generation via Google Generative AI', {
       prompt: prompt.substring(0, 100) + '...',
       style,
       quality,
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
       imageUrl = `data:image/png;base64,${imageUrl}`;
     }
 
-    console.log('✅ AI Image: Generation successful', {
+    logger.log('✅ AI Image: Generation successful', {
       processingTime: result.data.processingTime,
       provider: result.data.provider
     });
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('❌ AI Image: Generation failed', error);
+    logger.error('❌ AI Image: Generation failed', error);
     return Response.json(
       { 
         success: false,

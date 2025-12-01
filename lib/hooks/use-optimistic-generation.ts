@@ -123,17 +123,10 @@ export function useOptimisticGeneration() {
         formData.append('seed', params.seed.toString());
       }
 
-      console.log('📤 Sending optimistic request to API');
+      const { createRenderAction } = await import('@/lib/actions/render.actions');
+      const data = await createRenderAction(formData);
 
-      const response = await fetch('/api/renders', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
-      console.log('📥 API response:', data);
-
-      if (response.ok && data.success) {
+      if (data.success) {
         // Update optimistic render with success
         const successRender: OptimisticRender = {
           ...optimisticRender,

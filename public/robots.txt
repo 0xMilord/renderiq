@@ -1,4 +1,4 @@
-# Robots.txt for Renderiq.com
+# Robots.txt for renderiq.io
 # Optimized for AI crawlers and traditional search engines
 
 User-agent: *
@@ -45,7 +45,7 @@ Allow: /privacy
 Allow: /terms
 
 # Sitemap
-Sitemap: https://Renderiq.com/sitemap.xml
+Sitemap: https://renderiq.io/sitemap.xml
 
 # Crawl delay for respectful crawling
 Crawl-delay: 1

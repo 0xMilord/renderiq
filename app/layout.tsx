@@ -22,7 +22,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://Renderiq.com'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io'),
   title: {
     default: "Renderiq - AI Architectural Visualization & Rendering Platform",
     template: "%s | Renderiq"
@@ -71,7 +71,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: process.env.NEXT_PUBLIC_BASE_URL || 'https://Renderiq.com',
+    url: process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io',
     siteName: "Renderiq",
     title: "Renderiq - AI Architectural Visualization & Rendering",
     description: "Transform architectural designs into photorealistic renders with AI. Real-time visualization for architects and designers.",

@@ -42,7 +42,7 @@ Complete audit of the codebase to ensure all instances of the old brand name "ar
 ### Brand Name
 - **Primary:** Renderiq
 - **Display:** Renderiq (lowercase)
-- **Domain:** Renderiq.com
+- **Domain:** renderiq.io
 
 ### Brand Colors
 - **Primary:** #D1F24A (Neon Green)

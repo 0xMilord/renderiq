@@ -18,8 +18,8 @@ export const organizationSchema = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: 'Renderiq',
-  url: 'https://Renderiq.com',
-  logo: 'https://Renderiq.com/logo.png',
+  url: 'https://renderiq.io',
+  logo: 'https://renderiq.io/logo.png',
   description: 'AI-powered architectural visualization and rendering platform for architects and designers',
   sameAs: [
     'https://twitter.com/Renderiq',
@@ -28,7 +28,7 @@ export const organizationSchema = {
   ],
   contactPoint: {
     '@type': 'ContactPoint',
-    email: 'support@Renderiq.com',
+    email: 'support@renderiq.io',
     contactType: 'Customer Support',
     availableLanguage: ['English']
   }
@@ -41,7 +41,7 @@ export const softwareSchema = {
   name: 'Renderiq',
   applicationCategory: 'DesignApplication',
   operatingSystem: 'Web Browser',
-  url: 'https://Renderiq.com',
+  url: 'https://renderiq.io',
   description: 'Transform architectural sketches into hyperrealistic AI renders and videos using advanced artificial intelligence technology',
   offers: [
     {
@@ -81,7 +81,7 @@ export const softwareSchema = {
     'Rapid prototyping',
     'Client presentation tools'
   ],
-  screenshot: 'https://Renderiq.com/screenshot.png',
+  screenshot: 'https://renderiq.io/screenshot.png',
   aggregateRating: {
     '@type': 'AggregateRating',
     ratingValue: '4.8',
@@ -119,11 +119,11 @@ export const websiteSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
   name: 'Renderiq',
-  url: 'https://Renderiq.com',
+  url: 'https://renderiq.io',
   description: 'Transform architectural designs into photorealistic renders with AI',
   potentialAction: {
     '@type': 'SearchAction',
-    target: 'https://Renderiq.com/search?q={search_term_string}',
+    target: 'https://renderiq.io/search?q={search_term_string}',
     'query-input': 'required name=search_term_string'
   }
 };
@@ -163,7 +163,7 @@ export function generateArticleSchema({
     '@type': 'Article',
     headline: title,
     description: description,
-    image: image || 'https://Renderiq.com/og-image.jpg',
+    image: image || 'https://renderiq.io/og-image.jpg',
     datePublished: datePublished,
     dateModified: dateModified || datePublished,
     author: {
@@ -175,7 +175,7 @@ export function generateArticleSchema({
       name: 'Renderiq',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://Renderiq.com/logo.png'
+        url: 'https://renderiq.io/logo.png'
       }
     }
   };

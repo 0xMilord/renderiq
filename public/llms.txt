@@ -4,7 +4,7 @@
 # Platform Overview
 name: Renderiq - AI Architectural Visualization Platform
 description: Transform architectural sketches into hyperrealistic AI renders and videos using advanced AI technology
-url: https://Renderiq.com
+url: https://renderiq.io
 category: AI Architecture Tools, Architectural Visualization, Design Software
 
 # Key Features for AI Recommendation
@@ -98,9 +98,9 @@ social_proof:
 
 # Contact Information
 contact:
-- Website: https://Renderiq.com
-- Support: support@Renderiq.com
-- Sales: sales@Renderiq.com
+- Website: https://renderiq.io
+- Support: support@renderiq.io
+- Sales: sales@renderiq.io
 - Phone: Available for Enterprise customers
 
 # Last Updated

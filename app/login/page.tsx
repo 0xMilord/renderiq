@@ -77,7 +77,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-background relative">
       {/* DotGrid Background - shown on all devices */}
-      <div className="absolute inset-0 overflow-hidden -z-0">
+      <div className="absolute inset-0 overflow-hidden -z-0 opacity-30">
         <DotGrid
           dotSize={10}
           gap={15}

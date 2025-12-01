@@ -1,5 +1,6 @@
 import { AISDKService } from '@/lib/services/ai-sdk-service';
 import { NextRequest } from 'next/server';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * Google Generative AI Chat API Route with streaming support
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('💬 AI Chat: Starting chat via Google Generative AI', {
+    logger.log('💬 AI Chat: Starting chat via Google Generative AI', {
       messageCount: messages.length
     });
 
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
           controller.enqueue(done);
           controller.close();
         } catch (error) {
-          console.error('❌ Stream error:', error);
+          logger.error('❌ Stream error:', error);
           const encoder = new TextEncoder();
           const errorData = encoder.encode(
             `data: ${JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' })}\n\n`
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('❌ AI Chat: Chat failed', error);
+    logger.error('❌ AI Chat: Chat failed', error);
     return Response.json(
       { 
         success: false,

@@ -34,7 +34,7 @@ const articleSchema = {
     name: 'Renderiq',
     logo: {
       '@type': 'ImageObject',
-      url: 'https://Renderiq.com/logo.png'
+      url: 'https://renderiq.io/logo.png'
     }
   }
 };

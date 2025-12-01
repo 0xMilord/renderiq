@@ -13,15 +13,15 @@ export function StructuredData({ type, data }: StructuredDataProps) {
           "@context": "https://schema.org",
           "@type": "Organization",
           "name": "Renderiq",
-          "url": "https://Renderiq.com",
-          "logo": "https://Renderiq.com/logo.png",
+          "url": "https://renderiq.io",
+          "logo": "https://renderiq.io/logo.png",
           "description": "AI-powered architectural visualization platform that transforms sketches into hyperrealistic renders and videos",
           "foundingDate": "2024",
           "contactPoint": {
             "@type": "ContactPoint",
             "telephone": "+1-555-Renderiq",
             "contactType": "customer service",
-            "email": "support@Renderiq.com"
+            "email": "support@renderiq.io"
           },
           "sameAs": [
             "https://twitter.com/Renderiq",
@@ -41,7 +41,7 @@ export function StructuredData({ type, data }: StructuredDataProps) {
           "name": "Renderiq",
           "applicationCategory": "DesignApplication",
           "operatingSystem": "Web Browser",
-          "url": "https://Renderiq.com",
+          "url": "https://renderiq.io",
           "description": "Transform architectural sketches into hyperrealistic AI renders and videos using advanced AI technology",
           "offers": {
             "@type": "Offer",
@@ -61,7 +61,7 @@ export function StructuredData({ type, data }: StructuredDataProps) {
             "API access for enterprise",
             "Secure and private processing"
           ],
-          "screenshot": "https://Renderiq.com/screenshot.png",
+          "screenshot": "https://renderiq.io/screenshot.png",
           "author": {
             "@type": "Organization",
             "name": "Renderiq"
@@ -193,16 +193,16 @@ export function StructuredData({ type, data }: StructuredDataProps) {
             "name": "Renderiq",
             "logo": {
               "@type": "ImageObject",
-              "url": "https://Renderiq.com/logo.png"
+              "url": "https://renderiq.io/logo.png"
             }
           },
           "datePublished": data.datePublished || new Date().toISOString(),
           "dateModified": data.dateModified || new Date().toISOString(),
           "mainEntityOfPage": {
             "@type": "WebPage",
-            "@id": data.url || "https://Renderiq.com"
+            "@id": data.url || "https://renderiq.io"
           },
-          "image": data.image || "https://Renderiq.com/article-image.png"
+          "image": data.image || "https://renderiq.io/article-image.png"
         };
 
       default:

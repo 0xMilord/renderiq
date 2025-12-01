@@ -160,7 +160,7 @@ const additionalSections = [
     content: [
       "These Terms are governed by the laws of [Your Jurisdiction], without regard to conflict of law provisions.",
       "Any disputes will be resolved through binding arbitration in accordance with [Arbitration Rules], except where prohibited by law.",
-      "You may opt out of arbitration within 30 days of account creation by contacting legal@Renderiq.com."
+      "You may opt out of arbitration within 30 days of account creation by contacting legal@renderiq.io."
     ]
   }
 ];
@@ -265,8 +265,8 @@ export default function TermsPage() {
                 For questions about these Terms of Service, please contact us:
               </p>
               <div className="space-y-2 text-sm">
-                <p><strong>Email:</strong> legal@Renderiq.com</p>
-                <p><strong>Support:</strong> support@Renderiq.com</p>
+                <p><strong>Email:</strong> legal@renderiq.io</p>
+                <p><strong>Support:</strong> support@renderiq.io</p>
                 <p><strong>Address:</strong> [Your Business Address]</p>
               </div>
             </CardContent>

@@ -56,7 +56,7 @@ export function getAuthRedirectUrl(request?: Request, origin?: string): string {
   }
   
   // Production: use configured site URL or fallback
-  const prodUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://Renderiq.com';
+  const prodUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
   console.log('🔧 Auth Redirect: Using production URL:', prodUrl);
   return prodUrl;
 }

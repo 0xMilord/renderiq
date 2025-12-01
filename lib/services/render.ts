@@ -8,6 +8,7 @@ import { db } from '@/lib/db';
 import { renderVersions } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import type { CreateRenderData } from '@/lib/types';
+import { logger } from '@/lib/utils/logger';
 
 export class RenderService {
   private aiService: AISDKService;
@@ -23,10 +24,10 @@ export class RenderService {
     description?: string
   ) {
     try {
-      console.log('🚀 Starting project creation:', { userId, projectName, description });
+      logger.log('🚀 Starting project creation:', { userId, projectName, description });
       
       // Upload original image first
-      console.log('📤 Uploading original image...');
+      logger.log('📤 Uploading original image...');
       const uploadResult = await StorageService.uploadFile(
         file,
         'uploads',
@@ -34,10 +35,10 @@ export class RenderService {
         undefined, // fileName
         undefined  // projectSlug - will be generated after project creation
       );
-      console.log('✅ Image uploaded successfully:', { id: uploadResult.id, url: uploadResult.url });
+      logger.log('✅ Image uploaded successfully:', { id: uploadResult.id, url: uploadResult.url });
 
       // Create project in database
-      console.log('💾 Creating project in database...');
+      logger.log('💾 Creating project in database...');
       const project = await ProjectsDAL.create({
         userId,
         name: projectName,
@@ -45,21 +46,21 @@ export class RenderService {
         originalImageId: uploadResult.id, // Use the file ID from storage
         status: 'processing',
       });
-      console.log('✅ Project created successfully:', { id: project.id, slug: project.slug });
+      logger.log('✅ Project created successfully:', { id: project.id, slug: project.slug });
 
       // Update the file storage record with the project slug for better organization
-      console.log('🔄 Updating file storage with project slug...');
+      logger.log('🔄 Updating file storage with project slug...');
       try {
         await StorageService.updateFileProjectSlug(uploadResult.id, project.slug);
-        console.log('✅ File storage updated with project slug');
+        logger.log('✅ File storage updated with project slug');
       } catch (updateError) {
-        console.warn('⚠️ Failed to update file storage with project slug:', updateError);
+        logger.warn('⚠️ Failed to update file storage with project slug:', updateError);
         // Don't fail the entire operation for this
       }
 
       return { success: true, data: project };
     } catch (error) {
-      console.error('❌ Project creation failed:', error);
+      logger.error('❌ Project creation failed:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to create project',
@@ -79,7 +80,7 @@ export class RenderService {
       let chainId = renderData.chainId;
       
       if (!chainId) {
-        console.log('🔗 [createRender] No chain specified, finding or creating default chain');
+        logger.log('🔗 [createRender] No chain specified, finding or creating default chain');
         
         // Check if project already has a default chain
         const existingChains = await RenderChainsDAL.getByProjectId(renderData.projectId);
@@ -87,7 +88,7 @@ export class RenderService {
         if (existingChains.length > 0) {
           // Use the most recent chain
           chainId = existingChains[0].id;
-          console.log('✅ [createRender] Using existing chain:', chainId);
+          logger.log('✅ [createRender] Using existing chain:', chainId);
         } else {
           // Create a new default chain
           const chainName = `${project.name} - Iterations`;
@@ -97,7 +98,7 @@ export class RenderService {
             description: 'Automatic chain for render iterations',
           });
           chainId = newChain.id;
-          console.log('✅ [createRender] Created new chain:', chainId);
+          logger.log('✅ [createRender] Created new chain:', chainId);
         }
       }
 
@@ -111,7 +112,7 @@ export class RenderService {
       let uploadedImageId: string | undefined = undefined;
 
       if (renderData.uploadedImageData && renderData.uploadedImageType) {
-        console.log('📤 [createRender] Uploading original image to storage');
+        logger.log('📤 [createRender] Uploading original image to storage');
         try {
           const buffer = Buffer.from(renderData.uploadedImageData, 'base64');
           const uploadedImageFile = new File([buffer], `upload_${Date.now()}.${renderData.uploadedImageType.split('/')[1] || 'png'}`, { type: renderData.uploadedImageType });
@@ -128,9 +129,9 @@ export class RenderService {
           uploadedImageKey = uploadResult.key;
           uploadedImageId = uploadResult.id;
           
-          console.log('✅ [createRender] Original image uploaded:', uploadResult.url);
+          logger.log('✅ [createRender] Original image uploaded:', uploadResult.url);
         } catch (error) {
-          console.error('❌ [createRender] Failed to upload original image:', error);
+          logger.error('❌ [createRender] Failed to upload original image:', error);
           // Continue without uploaded image rather than failing the entire request
         }
       }
@@ -151,7 +152,7 @@ export class RenderService {
         uploadedImageId,
       });
 
-      console.log('✅ [createRender] Render created with chain:', { 
+      logger.log('✅ [createRender] Render created with chain:', { 
         renderId: render.id, 
         chainId,
         chainPosition 
@@ -179,7 +180,7 @@ export class RenderService {
     uploadedImageData?: { uploadedImageData?: string; uploadedImageType?: string }
   ) {
     try {
-      console.log('🎨 [processRender] Starting render processing:', { renderId, type: renderData.type });
+      logger.log('🎨 [processRender] Starting render processing:', { renderId, type: renderData.type });
       
       // Update status to processing
       await RendersDALNew.updateStatus(renderId, 'processing');
@@ -200,7 +201,7 @@ export class RenderService {
 
       let result;
       if (renderData.type === 'image') {
-        console.log('🖼️ [processRender] Generating image with Google Generative AI...');
+        logger.log('🖼️ [processRender] Generating image with Google Generative AI...');
         result = await this.aiService.generateImage({
           prompt: renderData.prompt,
           aspectRatio: renderData.settings.aspectRatio || '16:9',
@@ -208,7 +209,7 @@ export class RenderService {
           uploadedImageType: uploadedImageData?.uploadedImageType || 'image/jpeg',
         });
       } else {
-        console.log('🎬 [processRender] Generating video with Google Generative AI...');
+        logger.log('🎬 [processRender] Generating video with Google Generative AI...');
         result = await this.aiService.generateVideo({
           prompt: renderData.prompt,
           duration: renderData.settings.duration || 5,
@@ -219,7 +220,7 @@ export class RenderService {
       const processingTime = Math.round((Date.now() - startTime) / 1000);
 
       if (result.success && result.data) {
-        console.log('✅ [processRender] Generation successful, uploading result...');
+        logger.log('✅ [processRender] Generation successful, uploading result...');
         // Handle the result based on type
         let fileUrl: string;
         let fileKey: string;
@@ -274,7 +275,7 @@ export class RenderService {
           }
         }
 
-        console.log('✅ [processRender] Upload successful, updating render status...');
+        logger.log('✅ [processRender] Upload successful, updating render status...');
         await RendersDALNew.updateStatus(
           renderId,
           'completed',
@@ -297,13 +298,13 @@ export class RenderService {
             }
           });
         } catch (versionError) {
-          console.warn('⚠️ Failed to create render version:', versionError);
+          logger.warn('⚠️ Failed to create render version:', versionError);
           // Don't fail the entire operation for version creation
         }
         
-        console.log('🎉 [processRender] Render completed successfully');
+        logger.log('🎉 [processRender] Render completed successfully');
       } else {
-        console.error('❌ [processRender] Generation failed:', result.error);
+        logger.error('❌ [processRender] Generation failed:', result.error);
         await RendersDALNew.updateStatus(
           renderId,
           'failed',
@@ -314,7 +315,7 @@ export class RenderService {
         );
       }
     } catch (error) {
-      console.error('❌ [processRender] Processing failed:', error);
+      logger.error('❌ [processRender] Processing failed:', error);
       await RendersDALNew.updateStatus(
         renderId,
         'failed',
@@ -393,10 +394,10 @@ export class RenderService {
         })
         .returning();
 
-      console.log('✅ Render version created:', version.id);
+      logger.log('✅ Render version created:', version.id);
       return { success: true, data: version };
     } catch (error) {
-      console.error('❌ Failed to create render version:', error);
+      logger.error('❌ Failed to create render version:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to create render version',

@@ -58,6 +58,7 @@ import { VideoPlayer } from '@/components/video/video-player';
 import { UploadModal } from './upload-modal';
 import { GalleryModal } from './gallery-modal';
 import { MentionTagger } from './mention-tagger';
+import { createRenderAction } from '@/lib/actions/render.actions';
 import type { Render } from '@/lib/types/render';
 import type { RenderChainWithRenders } from '@/lib/types/render-chain';
 import Image from 'next/image';
@@ -723,20 +724,8 @@ export function UnifiedChatInterface({
         // Add temperature (0.0-1.0, default 0.5)
         formData.append('temperature', temperature);
         
-        // Call the API directly
-        const response = await fetch('/api/renders', {
-          method: 'POST',
-          body: formData,
-        });
-        
-        const apiResult = await response.json();
-        
-        console.log('🎯 Chat: API response received', {
-          success: apiResult.success,
-          hasData: !!apiResult.data,
-          hasOutputUrl: !!apiResult.data?.outputUrl,
-          error: apiResult.error
-        });
+        // Call the server action
+        const apiResult = await createRenderAction(formData);
         
         if (apiResult.success && apiResult.data) {
           result = {
@@ -748,11 +737,6 @@ export function UnifiedChatInterface({
             }
           };
         } else {
-          console.error('❌ Chat: API returned error', {
-            success: apiResult.success,
-            error: apiResult.error,
-            data: apiResult.data
-          });
           result = {
             success: false,
             error: apiResult.error || 'Image generation failed'

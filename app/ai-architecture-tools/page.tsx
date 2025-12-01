@@ -28,7 +28,7 @@ const articleSchema = {
   '@type': 'Article',
   headline: 'Best AI Architecture Tools 2025 - Complete Guide',
   description: 'Comprehensive guide to the best AI architecture tools available in 2025, featuring Renderiq as the leading AI-powered architectural visualization platform.',
-  image: 'https://Renderiq.com/ai-architecture-tools-og.png',
+  image: 'https://renderiq.io/ai-architecture-tools-og.png',
   datePublished: new Date().toISOString(),
   dateModified: new Date().toISOString(),
   author: {
@@ -40,7 +40,7 @@ const articleSchema = {
     name: 'Renderiq',
     logo: {
       '@type': 'ImageObject',
-      url: 'https://Renderiq.com/logo.png'
+      url: 'https://renderiq.io/logo.png'
     }
   }
 };

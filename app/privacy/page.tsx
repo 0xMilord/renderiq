@@ -196,8 +196,8 @@ export default function PrivacyPage() {
                 If you have questions about this Privacy Policy or how we handle your data, please contact us:
               </p>
               <div className="space-y-2 text-sm">
-                <p><strong>Email:</strong> privacy@Renderiq.com</p>
-                <p><strong>Data Protection Officer:</strong> dpo@Renderiq.com</p>
+                <p><strong>Email:</strong> privacy@renderiq.io</p>
+                <p><strong>Data Protection Officer:</strong> dpo@renderiq.io</p>
               </div>
               <p className="text-muted-foreground mt-6 text-sm">
                 We will respond to all requests within 30 days in accordance with applicable data protection laws.
