@@ -185,11 +185,11 @@ export function UserDropdown() {
           </Link>
         </DropdownMenuItem>
         
-        {/* Quick Access to AI Chat */}
+        {/* Quick Access to Render */}
         <DropdownMenuItem asChild>
-          <Link href="/chat" className="flex items-center">
+          <Link href="/render" className="flex items-center">
             <Palette className="mr-2 h-4 w-4" />
-            <span>AI Chat</span>
+            <span>Render</span>
           </Link>
         </DropdownMenuItem>
         

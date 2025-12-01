@@ -6,8 +6,8 @@ import { Footer } from '@/components/footer';
 export function ConditionalFooter() {
   const pathname = usePathname();
   
-  // Hide footer on chat routes
-  if (pathname.includes('/chat')) {
+  // Hide footer on render routes
+  if (pathname.includes('/render')) {
     return null;
   }
   

@@ -83,7 +83,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   // Engine pages
   const enginePages = [
-    '/chat',
+    '/render',
   ].map((route) => ({
     url: `${baseUrl}${route}`,
     lastModified: currentDate,

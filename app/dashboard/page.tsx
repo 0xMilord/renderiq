@@ -130,7 +130,7 @@ export default async function DashboardPage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <Button asChild className="h-auto p-4 flex flex-col items-center space-y-2">
-                  <Link href="/chat">
+                  <Link href="/render">
                     <div className="text-2xl">💬</div>
                     <span className="text-sm">AI Chat</span>
                   </Link>

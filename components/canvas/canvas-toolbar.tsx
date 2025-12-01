@@ -210,7 +210,7 @@ export function CanvasToolbar({
 
       <span className="text-xs text-[#8c8c8c]">/</span>
 
-      {/* Chain/Chat Dropdown */}
+      {/* Chain/Render Dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -233,20 +233,20 @@ export function CanvasToolbar({
                 className="hover:bg-[#094771] cursor-pointer"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Create New Chat
+                Create New Render
               </DropdownMenuItem>
             </DialogTrigger>
             <DialogContent className="bg-[#252526] border-[#3d3d3d] text-white">
               <DialogHeader>
-                <DialogTitle>Create New Chat</DialogTitle>
+                <DialogTitle>Create New Render</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label className="text-white">Chat Name</Label>
+                  <Label className="text-white">Render Name</Label>
                   <Input
                     value={newChainName}
                     onChange={(e) => setNewChainName(e.target.value)}
-                    placeholder="Enter chat name"
+                    placeholder="Enter render name"
                     className="bg-[#1e1e1e] border-[#3d3d3d] text-white"
                   />
                 </div>
@@ -254,7 +254,7 @@ export function CanvasToolbar({
                   onClick={handleCreateChain}
                   className="w-full bg-[#0e639c] hover:bg-[#1177bb] text-white"
                 >
-                  Create Chat
+                  Create Render
                 </Button>
               </div>
             </DialogContent>
@@ -271,7 +271,7 @@ export function CanvasToolbar({
                   chain.id === chainId ? 'bg-[#094771]' : ''
                 }`}
               >
-                {chain.name || `Chat ${chain.id.slice(0, 8)}`}
+                {chain.name || `Render ${chain.id.slice(0, 8)}`}
               </DropdownMenuItem>
             ))
           )}

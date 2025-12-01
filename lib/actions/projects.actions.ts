@@ -76,8 +76,7 @@ export async function createProject(formData: FormData) {
       console.log('✅ [createProject] Project created successfully:', project.id);
 
       revalidatePath('/dashboard/projects');
-      revalidatePath('/projects');
-      revalidatePath('/chat');
+      revalidatePath('/render');
       
       return { success: true, data: project };
     }
@@ -107,7 +106,6 @@ export async function createProject(formData: FormData) {
     if (result.success) {
       console.log('✅ [createProject] Project created successfully, revalidating paths...');
       revalidatePath('/dashboard/projects');
-      revalidatePath('/projects');
       console.log('🎉 [createProject] Project creation completed successfully');
       return { success: true, data: result.data };
     }
@@ -173,7 +171,6 @@ export async function createRender(formData: FormData) {
     const result = await renderService.createRender(validatedData);
 
     if (result.success) {
-      revalidatePath(`/projects/${projectId}`);
       return { success: true, data: result.data };
     }
 

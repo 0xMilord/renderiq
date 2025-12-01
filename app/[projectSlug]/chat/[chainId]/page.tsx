@@ -50,9 +50,9 @@ export default function ProjectChatPage() {
         <Card className="w-96">
           <CardContent className="p-8 text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-            <h2 className="text-lg font-semibold mb-2">Loading Chat</h2>
+            <h2 className="text-lg font-semibold mb-2">Loading Render</h2>
             <p className="text-muted-foreground">
-              Setting up your AI assistant...
+              Setting up your render interface...
             </p>
           </CardContent>
         </Card>
@@ -81,7 +81,7 @@ export default function ProjectChatPage() {
 
   return (
     <div className="h-[calc(100vh-2.75rem)] bg-background overflow-hidden">
-      {/* Chat Interface */}
+      {/* Render Interface */}
       <div className="h-full">
         <UnifiedChatInterface
           projectId={project.id}
@@ -92,7 +92,7 @@ export default function ProjectChatPage() {
           onRefreshChain={fetchChain}
           projectName={project.name}
           chainName={chain?.name}
-          onBackToProjects={() => router.push('/chat')}
+          onBackToProjects={() => router.push('/render')}
         />
       </div>
     </div>

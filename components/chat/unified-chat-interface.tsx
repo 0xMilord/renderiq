@@ -800,7 +800,7 @@ export function UnifiedChatInterface({
               className="h-7 px-3 flex-1 text-xs"
             >
               <MessageSquare className="h-3 w-3 mr-1" />
-              Chat
+              Render
             </Button>
             <Button
               variant={mobileView === 'render' ? 'default' : 'ghost'}
@@ -815,7 +815,7 @@ export function UnifiedChatInterface({
         </div>
       </div>
 
-      {/* Chat Area - Responsive width */}
+      {/* Render Area - Responsive width */}
       <div className={cn(
         "border-r border-border flex flex-col overflow-hidden",
         "w-full lg:w-1/4 h-full",
@@ -1427,7 +1427,7 @@ export function UnifiedChatInterface({
                   </div>
                   <h3 className="text-sm sm:text-base lg:text-lg font-semibold mb-2">Ready to Generate</h3>
                   <p className="text-xs sm:text-sm text-muted-foreground">
-                    Describe your vision in the chat to create amazing renders
+                    Describe your vision to create amazing renders
                   </p>
                 </div>
               )}
@@ -1578,13 +1578,13 @@ export function UnifiedChatInterface({
                         </div>
                         <h3 className="text-sm sm:text-base lg:text-lg font-semibold mb-2">Ready to Generate Video</h3>
                         <p className="text-xs sm:text-sm text-muted-foreground">
-                          Describe your vision in the chat to create amazing videos
+                          Describe your vision to create amazing videos
                         </p>
                       </div>
                     </div>
                   )}
 
-                  {/* Chat Interface */}
+                  {/* Render Interface */}
                   <div className="border-t p-2">
                     <div className="flex items-center gap-2">
                       <div className="flex-1">
@@ -1646,7 +1646,7 @@ export function UnifiedChatInterface({
               <div className="lg:hidden w-full h-full flex flex-col">
                 {mobileView === 'chat' ? (
                   <div className="flex-1 flex flex-col">
-                    {/* Chat Messages */}
+                    {/* Render Messages */}
                     <div className="flex-1 overflow-y-auto p-2 space-y-4">
                       {messages.map((message, index) => (
                         <div
@@ -1679,7 +1679,7 @@ export function UnifiedChatInterface({
                       ))}
                     </div>
 
-                    {/* Chat Input */}
+                    {/* Render Input */}
                     <div className="border-t p-2">
                       <div className="flex items-center gap-2">
                         <div className="flex-1">

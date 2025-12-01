@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/', icon: Home, label: 'Home' },
-  { href: '/chat', icon: MessageSquare, label: 'AI Chat' },
+  { href: '/render', icon: MessageSquare, label: 'Render' },
   { href: '/gallery', icon: GalleryVertical, label: 'Gallery' },
   { href: '/profile', icon: User, label: 'Profile' },
   { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
@@ -16,8 +16,8 @@ const navItems = [
 export function BottomNav() {
   const pathname = usePathname();
 
-  // Hide bottom nav on chat routes
-  if (pathname.includes('/chat')) {
+  // Hide bottom nav on render routes
+  if (pathname.includes('/render')) {
     return null;
   }
 

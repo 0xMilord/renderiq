@@ -43,11 +43,11 @@ export function Navbar() {
               <span>Home</span>
             </Link>
             <Link
-              href="/chat"
+              href="/render"
               className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
             >
               <MessageSquare className="h-4 w-4" />
-              <span>AI Chat</span>
+              <span>Render</span>
             </Link>
             <Link
               href="/use-cases"
@@ -110,12 +110,12 @@ export function Navbar() {
                 <span>Home</span>
               </Link>
               <Link
-                href="/chat"
+                href="/render"
                 className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium"
                 onClick={() => setIsOpen(false)}
               >
                 <MessageSquare className="h-4 w-4" />
-                <span>AI Chat</span>
+                <span>Render</span>
               </Link>
               <Link
                 href="/use-cases"

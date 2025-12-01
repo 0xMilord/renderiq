@@ -110,7 +110,7 @@ export function ChainList({ chains, projectId, onCreateChain }: ChainListProps) 
                 
                 {/* Action Buttons - Moved below images */}
                 <div className="grid grid-cols-2 gap-2">
-                  <Link href={`/chat?chain=${chain.id}`}>
+                  <Link href={`/render?chain=${chain.id}`}>
                     <Button variant="outline" size="sm" className="w-full text-xs sm:text-sm">
                       <ImageIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                       Continue

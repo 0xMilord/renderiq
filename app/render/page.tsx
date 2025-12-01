@@ -2,28 +2,27 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { ProjectsDAL } from '@/lib/dal/projects';
 import { RenderChainsDAL } from '@/lib/dal/render-chains';
-import { ChatPageClient } from '@/app/chat/chat-client';
+import { ChatPageClient } from '@/app/render/chat-client';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function ChatPage() {
-  // Check authentication first - redirects must happen outside try-catch
-  const supabase = await createClient();
-  
-  if (!supabase) {
-    console.error('❌ [ChatPage SSR] Failed to create Supabase client');
-    redirect('/login');
-  }
-
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    console.error('❌ [ChatPage SSR] Auth error:', authError);
-    redirect('/login');
-  }
-
   try {
+    const supabase = await createClient();
+    
+    if (!supabase) {
+      console.error('❌ [ChatPage SSR] Failed to create Supabase client');
+      redirect('/login');
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      console.error('❌ [ChatPage SSR] Auth error:', authError);
+      redirect('/login');
+    }
+
     console.log('🚀 [ChatPage SSR] Fetching data for user:', user.id);
     const startTime = Date.now();
 
@@ -47,11 +46,6 @@ export default async function ChatPage() {
       />
     );
   } catch (error) {
-    // Check if this is a Next.js redirect error - if so, re-throw it
-    if (error && typeof error === 'object' && 'digest' in error && typeof error.digest === 'string' && error.digest.includes('NEXT_REDIRECT')) {
-      throw error;
-    }
-
     console.error('❌ [ChatPage SSR] Fatal error:', error);
     // Return error state instead of throwing
     return (

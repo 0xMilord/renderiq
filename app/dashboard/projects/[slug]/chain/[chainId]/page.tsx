@@ -100,7 +100,7 @@ export default function ChainDetailPage({
               </p>
             </div>
           </div>
-          <Link href={`/chat?chain=${chain.id}`}>
+          <Link href={`/render?chain=${chain.id}`}>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
               Continue Chain
@@ -193,7 +193,7 @@ export default function ChainDetailPage({
                 )}
 
                 <div className="flex gap-2">
-                  <Link href={`/chat?chain=${chain.id}&referenceId=${selectedRender.id}`}>
+                  <Link href={`/render?chain=${chain.id}&referenceId=${selectedRender.id}`}>
                     <Button>
                       <ExternalLink className="h-4 w-4 mr-2" />
                       Use as Reference

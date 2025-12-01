@@ -17,7 +17,7 @@ export default function robots(): MetadataRoute.Robots {
           '/use-cases/*',
           '/privacy',
           '/terms',
-          '/chat/*',
+          '/render/*',
         ],
         disallow: [
           '/api/*',

@@ -153,12 +153,6 @@ renderiq/
 - `POST /api/auth/signup` - Create new user
 - `POST /api/auth/signout` - Sign out user
 
-### Projects
-- `GET /api/projects` - Get user projects
-- `POST /api/projects` - Create new project
-- `GET /api/projects/[id]` - Get project details
-- `DELETE /api/projects/[id]` - Delete project
-
 ### Renders
 - `POST /api/renders` - Create new render
 - `GET /api/renders/[id]` - Get render status
