@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
 
 // Enhanced prompt schema for structured output
@@ -71,6 +72,7 @@ export interface VideoGenerationResult {
 export class AISDKService {
   private static instance: AISDKService;
   private genAI: GoogleGenerativeAI;
+  private genAIImage: GoogleGenAI;
 
   private constructor() {
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GOOGLE_AI_API_KEY;
@@ -78,6 +80,7 @@ export class AISDKService {
       throw new Error('GOOGLE_GENERATIVE_AI_API_KEY or GOOGLE_AI_API_KEY environment variable is required');
     }
     this.genAI = new GoogleGenerativeAI(apiKey);
+    this.genAIImage = new GoogleGenAI({ apiKey });
     console.log('✅ AISDKService initialized with Google Generative AI SDK');
   }
 
@@ -170,7 +173,7 @@ Original prompt: "${originalPrompt}"`;
   }
 
   /**
-   * Generate images using Google Generative AI (Imagen)
+   * Generate images using Google Gemini Native Image Generation (Nano Banana)
    */
   async generateImage(request: {
     prompt: string;
@@ -185,67 +188,129 @@ Original prompt: "${originalPrompt}"`;
     styleTransferImageType?: string;
     temperature?: number;
   }): Promise<{ success: boolean; data?: ImageGenerationResult; error?: string }> {
-    console.log('🎨 AISDKService: Starting image generation', {
-      prompt: request.prompt,
+    console.log('🎨 AISDKService: Starting image generation with Gemini Native Image', {
+      prompt: request.prompt.substring(0, 100),
       aspectRatio: request.aspectRatio,
-      hasUploadedImage: !!request.uploadedImageData
+      hasUploadedImage: !!request.uploadedImageData,
+      hasStyleTransfer: !!request.styleTransferImageData,
+      environment: request.environment,
+      effect: request.effect
     });
 
     const startTime = Date.now();
 
     try {
-      // Use user prompt directly, only add minimal context if needed
+      // Build the prompt with all context
       let enhancedPrompt = request.prompt;
       
-      // Add environment if provided
-      if (request.environment) {
+      // Add environment if provided (weather/time conditions)
+      if (request.environment && request.environment !== 'none') {
         enhancedPrompt += `, ${request.environment} environment`;
       }
       
       // Add effect/style if provided
-      if (request.effect) {
+      if (request.effect && request.effect !== 'none') {
         enhancedPrompt += `, ${request.effect} style`;
       }
       
-      // Only add aspect ratio context if not already mentioned
-      if (request.aspectRatio && !enhancedPrompt.toLowerCase().includes('aspect ratio') && !enhancedPrompt.toLowerCase().includes(request.aspectRatio)) {
-        enhancedPrompt += `, ${request.aspectRatio} aspect ratio`;
+      // Build contents array with text and images
+      const contents: any[] = [];
+      
+      // Add text prompt
+      contents.push({ text: enhancedPrompt });
+      
+      // Add uploaded image (main image being edited) if provided
+      if (request.uploadedImageData && request.uploadedImageType) {
+        contents.push({
+          inlineData: {
+            mimeType: request.uploadedImageType,
+            data: request.uploadedImageData
+          }
+        });
       }
       
-      // Add negative prompt if provided
-      if (request.negativePrompt) {
-        enhancedPrompt += `\nNegative: ${request.negativePrompt}`;
+      // Add style transfer image if provided
+      if (request.styleTransferImageData && request.styleTransferImageType) {
+        contents.push({
+          inlineData: {
+            mimeType: request.styleTransferImageType,
+            data: request.styleTransferImageData
+          }
+        });
       }
-      
-      // Note: Style transfer and style ref images are handled separately by the AI model
-      // They should be passed as image inputs to the generation API, not in the prompt
 
-      console.log('🎨 AISDKService: Calling Google Imagen...', {
-        promptLength: enhancedPrompt.length,
-        aspectRatio: request.aspectRatio
+      // Determine model based on quality/complexity
+      // Use gemini-3-pro-image-preview for better quality, gemini-2.5-flash-image for speed
+      const modelName = 'gemini-2.5-flash-image'; // Fast and efficient
+      
+      // Map aspect ratio to valid format
+      const validAspectRatios = ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'];
+      const aspectRatio = validAspectRatios.includes(request.aspectRatio) 
+        ? request.aspectRatio 
+        : '16:9';
+
+      console.log('🎨 AISDKService: Calling Gemini Native Image Generation...', {
+        model: modelName,
+        aspectRatio,
+        contentsCount: contents.length
       });
 
-      // Use Gemini model for image generation (imagen models may need different approach)
-      // Note: Google Generative AI SDK v0.21.0 may have different image generation methods
-      // This is a placeholder that should work with available models
-      // Temperature: 0.0 = strict/deterministic, 1.0 = creative/random
-      const model = this.genAI.getGenerativeModel({ 
-        model: 'gemini-2.0-flash-exp',
-        generationConfig: {
-          temperature: request.temperature ?? 0.7,
-        },
+      // Generate image using Gemini Native Image Generation
+      const response = await this.genAIImage.models.generateContent({
+        model: modelName,
+        contents: contents,
+        config: {
+          responseModalities: ['IMAGE'], // Only return image, no text
+          imageConfig: {
+            aspectRatio: aspectRatio
+          }
+        }
       });
 
-      // For image generation, we might need to use a different approach
-      // Since direct imagen access might not be available in @google/generative-ai,
-      // we'll use a text-based approach or check if imagen models are available
-      
-      // For now, return an error indicating image generation needs to be configured
-      // The actual implementation will depend on available Google AI image generation APIs
-      
+      // Extract image from response
+      const parts = response.candidates?.[0]?.content?.parts || [];
+      let imageData: string | null = null;
+
+      for (const part of parts) {
+        if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
+          imageData = part.inlineData.data;
+          break;
+        }
+      }
+
+      if (!imageData) {
+        console.error('❌ AISDKService: No image data in response');
+        return {
+          success: false,
+          error: 'No image data returned from generation service'
+        };
+      }
+
+      // Convert base64 to data URL for storage/display
+      const mimeType = parts.find(p => p.inlineData?.mimeType)?.inlineData?.mimeType || 'image/png';
+      const imageUrl = `data:${mimeType};base64,${imageData}`;
+
+      const processingTime = Math.round((Date.now() - startTime) / 1000);
+
+      console.log('✅ AISDKService: Image generation successful', {
+        processingTime,
+        aspectRatio
+      });
+
       return {
-        success: false,
-        error: 'Image generation via Imagen is not yet implemented. Please use Google Cloud Vertex AI or configure Imagen API access separately.'
+        success: true,
+        data: {
+          imageUrl: imageUrl,
+          processingTime,
+          provider: 'google-gemini-native-image',
+          metadata: {
+            prompt: enhancedPrompt,
+            style: request.effect || 'realistic',
+            quality: 'standard',
+            aspectRatio: aspectRatio,
+            seed: request.seed
+          }
+        }
       };
 
     } catch (error) {

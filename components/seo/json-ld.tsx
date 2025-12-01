@@ -17,18 +17,18 @@ export function JsonLd({ data }: JsonLdProps) {
 export const organizationSchema = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
-  name: 'renderiq',
-  url: 'https://renderiq.com',
-  logo: 'https://renderiq.com/logo.png',
+  name: 'Renderiq',
+  url: 'https://Renderiq.com',
+  logo: 'https://Renderiq.com/logo.png',
   description: 'AI-powered architectural visualization and rendering platform for architects and designers',
   sameAs: [
-    'https://twitter.com/renderiq',
-    'https://linkedin.com/company/renderiq',
-    'https://github.com/renderiq'
+    'https://twitter.com/Renderiq',
+    'https://linkedin.com/company/Renderiq',
+    'https://github.com/Renderiq'
   ],
   contactPoint: {
     '@type': 'ContactPoint',
-    email: 'support@renderiq.com',
+    email: 'support@Renderiq.com',
     contactType: 'Customer Support',
     availableLanguage: ['English']
   }
@@ -38,10 +38,10 @@ export const organizationSchema = {
 export const softwareSchema = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
-  name: 'renderiq',
+  name: 'Renderiq',
   applicationCategory: 'DesignApplication',
   operatingSystem: 'Web Browser',
-  url: 'https://renderiq.com',
+  url: 'https://Renderiq.com',
   description: 'Transform architectural sketches into hyperrealistic AI renders and videos using advanced artificial intelligence technology',
   offers: [
     {
@@ -81,7 +81,7 @@ export const softwareSchema = {
     'Rapid prototyping',
     'Client presentation tools'
   ],
-  screenshot: 'https://renderiq.com/screenshot.png',
+  screenshot: 'https://Renderiq.com/screenshot.png',
   aggregateRating: {
     '@type': 'AggregateRating',
     ratingValue: '4.8',
@@ -101,7 +101,7 @@ export const softwareSchema = {
         '@type': 'Person',
         name: 'Sarah Chen'
       },
-      reviewBody: 'renderiq has revolutionized our architectural visualization workflow. The AI quality is exceptional and saves us hours of work.'
+      reviewBody: 'Renderiq has revolutionized our architectural visualization workflow. The AI quality is exceptional and saves us hours of work.'
     }
   ],
   audience: {
@@ -110,7 +110,7 @@ export const softwareSchema = {
   },
   author: {
     '@type': 'Organization',
-    name: 'renderiq'
+    name: 'Renderiq'
   }
 };
 
@@ -118,12 +118,12 @@ export const softwareSchema = {
 export const websiteSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
-  name: 'renderiq',
-  url: 'https://renderiq.com',
+  name: 'Renderiq',
+  url: 'https://Renderiq.com',
   description: 'Transform architectural designs into photorealistic renders with AI',
   potentialAction: {
     '@type': 'SearchAction',
-    target: 'https://renderiq.com/search?q={search_term_string}',
+    target: 'https://Renderiq.com/search?q={search_term_string}',
     'query-input': 'required name=search_term_string'
   }
 };
@@ -148,7 +148,7 @@ export function generateArticleSchema({
   description,
   datePublished,
   dateModified,
-  author = 'renderiq',
+  author = 'Renderiq',
   image
 }: {
   title: string;
@@ -163,7 +163,7 @@ export function generateArticleSchema({
     '@type': 'Article',
     headline: title,
     description: description,
-    image: image || 'https://renderiq.com/og-image.jpg',
+    image: image || 'https://Renderiq.com/og-image.jpg',
     datePublished: datePublished,
     dateModified: dateModified || datePublished,
     author: {
@@ -172,10 +172,10 @@ export function generateArticleSchema({
     },
     publisher: {
       '@type': 'Organization',
-      name: 'renderiq',
+      name: 'Renderiq',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://renderiq.com/logo.png'
+        url: 'https://Renderiq.com/logo.png'
       }
     }
   };
@@ -204,10 +204,10 @@ export const comprehensiveFAQSchema = {
   mainEntity: [
     {
       '@type': 'Question',
-      name: 'What is renderiq?',
+      name: 'What is Renderiq?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'renderiq is an AI-powered architectural visualization platform that transforms sketches into hyperrealistic renders and videos using advanced artificial intelligence technology. It helps architects, designers, and developers create stunning visualizations in minutes instead of hours.'
+        text: 'Renderiq is an AI-powered architectural visualization platform that transforms sketches into hyperrealistic renders and videos using advanced artificial intelligence technology. It helps architects, designers, and developers create stunning visualizations in minutes instead of hours.'
       }
     },
     {
@@ -236,7 +236,7 @@ export const comprehensiveFAQSchema = {
     },
     {
       '@type': 'Question',
-      name: 'Can I integrate renderiq with my existing design workflow?',
+      name: 'Can I integrate Renderiq with my existing design workflow?',
       acceptedAnswer: {
         '@type': 'Answer',
         text: 'Yes, we offer API access, CAD software compatibility, cloud storage sync, and various export formats to integrate seamlessly with your design workflow. We support integration with popular architecture and design software.'
@@ -276,7 +276,7 @@ export const comprehensiveFAQSchema = {
     },
     {
       '@type': 'Question',
-      name: 'Can I use renderiq for client presentations?',
+      name: 'Can I use Renderiq for client presentations?',
       acceptedAnswer: {
         '@type': 'Answer',
         text: 'Absolutely! Our AI-generated renders are perfect for client presentations, proposals, and marketing materials. The photorealistic quality helps clients visualize projects before construction begins.'

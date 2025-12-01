@@ -62,7 +62,7 @@ function imageDataToBase64(imageData: ImageData): string {
 
 export class WatermarkService {
   private static readonly DEFAULT_OPTIONS: Required<WatermarkOptions> = {
-    text: 'renderiq',
+    text: 'Renderiq',
     opacity: 0.7,
     position: 'bottom-right',
     fontSize: 24,

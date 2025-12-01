@@ -77,7 +77,7 @@ export default function VerifyEmailPage() {
                   <strong>Check your inbox</strong>
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Look for an email from renderiq with a verification link
+                  Look for an email from Renderiq with a verification link
                 </p>
               </div>
             </div>

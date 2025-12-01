@@ -25,12 +25,12 @@ export function Navbar() {
             <Link href="/" className="flex items-center space-x-2">
               <Image
                 src="/logo.svg"
-                alt="renderiq"
+                alt="Renderiq"
                 width={24}
                 height={24}
                 className="w-6 h-6"
               />
-              <span className="text-lg font-bold text-foreground">renderiq</span>
+              <span className="text-lg font-bold text-foreground">Renderiq</span>
             </Link>
             
             {/* Project and Chain Selectors - Only for authenticated users */}
@@ -101,8 +101,8 @@ export function Navbar() {
             )}
           </div>
 
-          {/* Right Section: User Dropdown */}
-          <div className="flex items-center flex-shrink-0">
+          {/* Right Section: User Dropdown - Desktop only */}
+          <div className="hidden md:flex items-center flex-shrink-0">
             {loading ? (
               <Skeleton className="w-8 h-8 rounded-full" />
             ) : (

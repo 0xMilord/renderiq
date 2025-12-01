@@ -163,7 +163,7 @@ export default function SignupPage() {
             <div className="mx-auto flex items-center justify-center mb-6">
               <Image
                 src="/logo.svg"
-                alt="renderiq"
+                alt="Renderiq"
                 width={128}
                 height={128}
                 className="w-32 h-32"

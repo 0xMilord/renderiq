@@ -42,7 +42,7 @@ export function AlphaBanner() {
       <div className="flex items-center justify-center gap-2 text-sm">
         <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0" />
         <span className="text-destructive">
-          renderiq is in early development and may experience issues.
+          Renderiq is in early development and may experience issues.
         </span>
         {isMobile && (
           <div className="flex items-center space-x-1 text-destructive/80 text-xs ml-2">

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -38,7 +39,8 @@ import {
   ChevronRight,
   MoreVertical,
   PanelLeft,
-  PanelRight
+  PanelRight,
+  Plus
 } from 'lucide-react';
 import { 
   FaSquare,
@@ -168,6 +170,7 @@ export function UnifiedChatInterface({
   projectName,
   onBackToProjects
 }: UnifiedChatInterfaceProps) {
+  const router = useRouter();
   // Chat state
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -214,6 +217,7 @@ export function UnifiedChatInterface({
   const [carouselScrollPosition, setCarouselScrollPosition] = useState(0);
   const [mobileCarouselScrollPosition, setMobileCarouselScrollPosition] = useState(0);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isCreatingChain, setIsCreatingChain] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
   const mobileCarouselRef = useRef<HTMLDivElement>(null);
   
@@ -625,78 +629,14 @@ export function UnifiedChatInterface({
        // Log generation parameters before sending
        console.log('🎯 Chat: Sending generation request with parameters:', {
          aspectRatio,
-         videoDuration: userMessage.uploadedImage?.file ? videoDuration : undefined,
-         type: userMessage.uploadedImage?.file ? 'video' : 'image'
+         type: 'image', // Always generate image for now
+         hasUploadedImage: !!userMessage.uploadedImage?.file
        });
 
-       // Branch between image and video generation
+       // Always generate image (image-to-image when image is uploaded, text-to-image otherwise)
        let result;
        
-       // If user uploaded an image, generate video; otherwise generate image
-       if (userMessage.uploadedImage?.file) {
-         // Video generation
-         console.log('🎬 Initiating video generation:', {
-           hasUploadedImage: !!userMessage.uploadedImage?.file,
-           duration: videoDuration
-         });
-         
-         // Prepare form data for video generation
-         const videoFormData = new FormData();
-         videoFormData.append('prompt', enhancedPrompt);
-         videoFormData.append('style', 'realistic');
-         videoFormData.append('quality', 'standard');
-         videoFormData.append('aspectRatio', aspectRatio);
-         videoFormData.append('type', 'video');
-         videoFormData.append('duration', videoDuration.toString());
-         videoFormData.append('projectId', projectId || '');
-         
-         if (chainId) {
-           videoFormData.append('chainId', chainId);
-         }
-         
-         if (referenceRenderId) {
-           videoFormData.append('referenceRenderId', referenceRenderId);
-         }
-         
-         videoFormData.append('isPublic', 'true');
-         
-         // Add uploaded image if provided
-         if (userMessage.uploadedImage?.file) {
-           const reader = new FileReader();
-           const base64 = await new Promise<string>((resolve) => {
-             reader.onload = (e) => {
-               const result = e.target?.result as string;
-               resolve(result.split(',')[1]);
-             };
-             reader.readAsDataURL(userMessage.uploadedImage!.file!);
-           });
-           videoFormData.append('uploadedImageData', base64);
-           videoFormData.append('uploadedImageType', userMessage.uploadedImage.file.type);
-         }
-         
-         // Call the API directly
-         const videoResponse = await fetch('/api/renders', {
-           method: 'POST',
-           body: videoFormData,
-         });
-         
-         const videoApiResult = await videoResponse.json();
-         
-         if (videoApiResult.success && videoApiResult.data) {
-           result = {
-             success: true,
-             videoUrl: videoApiResult.data.outputUrl || '',
-             processingTime: videoApiResult.data.processingTime || 0,
-             provider: videoApiResult.data.provider || 'google-generative-ai'
-           };
-         } else {
-           result = {
-             success: false,
-             error: videoApiResult.error || 'Video generation failed'
-           };
-         }
-       } else {
-         // Prepare form data for image generation
+       // Prepare form data for image generation
         const formData = new FormData();
         formData.append('prompt', enhancedPrompt);
         formData.append('style', 'realistic'); // Default style
@@ -783,7 +723,8 @@ export function UnifiedChatInterface({
             error: apiResult.error || 'Image generation failed'
           };
         }
-       }
+      
+      // Check if generation was successful
       
       // Check if generation was successful
       if (result && (result.imageUrl || result.videoUrl || (result.success && result.data))) {
@@ -1113,8 +1054,55 @@ export function UnifiedChatInterface({
           {messages.length === 0 ? (
             <div className="text-center text-muted-foreground mt-8">
               <MessageSquare className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-4 text-muted-foreground/50" />
-              <p className="text-xs sm:text-sm">Start a conversation to generate renders</p>
-              <p className="text-[10px] sm:text-xs text-muted-foreground/70 mt-1">Each message creates a new version</p>
+              <p className="text-xs sm:text-sm mb-2">No chats yet</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground/70 mb-4">Start a conversation to generate renders</p>
+              <Button
+                onClick={async () => {
+                  if (isCreatingChain) return;
+                  setIsCreatingChain(true);
+                  try {
+                    const { createRenderChain } = await import('@/lib/actions/projects.actions');
+                    const chainName = projectName ? `${projectName} - Render 1` : 'New Render Chain';
+                    
+                    const result = await createRenderChain(
+                      projectId,
+                      chainName,
+                      'Render chain'
+                    );
+
+                    if (result.success && result.data) {
+                      // Get project slug from the current URL or use a fallback
+                      const currentPath = window.location.pathname;
+                      const projectSlugMatch = currentPath.match(/\/project\/([^/]+)/);
+                      const projectSlug = projectSlugMatch ? projectSlugMatch[1] : 'project';
+                      
+                      router.push(`/project/${projectSlug}/chain/${result.data.id}`);
+                      router.refresh();
+                    } else {
+                      toast.error(result.error || 'Failed to create chat');
+                    }
+                  } catch (error) {
+                    console.error('Failed to create chain:', error);
+                    toast.error('Failed to create chat');
+                  } finally {
+                    setIsCreatingChain(false);
+                  }
+                }}
+                disabled={isCreatingChain}
+                className="mt-2"
+              >
+                {isCreatingChain ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Make a new chat
+                  </>
+                )}
+              </Button>
             </div>
           ) : (
             messages.map((message, index) => (

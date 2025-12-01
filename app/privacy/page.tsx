@@ -4,8 +4,8 @@ import { ArrowLeft, Shield, Lock, Eye, Database, UserCheck, Mail } from "lucide-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | renderiq - AI Architectural Visualization",
-  description: "Learn how renderiq protects your data and privacy. Our commitment to security and transparency in AI architectural design and rendering.",
+  title: "Privacy Policy | Renderiq - AI Architectural Visualization",
+  description: "Learn how Renderiq protects your data and privacy. Our commitment to security and transparency in AI architectural design and rendering.",
   robots: "index, follow"
 };
 
@@ -149,7 +149,7 @@ export default function PrivacyPage() {
             Last updated: October 3, 2025
           </p>
           <p className="text-base text-muted-foreground max-w-2xl mx-auto">
-            At renderiq, we take your privacy seriously. This policy explains how we collect, 
+            At Renderiq, we take your privacy seriously. This policy explains how we collect, 
             use, and protect your information when you use our AI architectural visualization platform.
           </p>
         </div>
@@ -196,8 +196,8 @@ export default function PrivacyPage() {
                 If you have questions about this Privacy Policy or how we handle your data, please contact us:
               </p>
               <div className="space-y-2 text-sm">
-                <p><strong>Email:</strong> privacy@renderiq.com</p>
-                <p><strong>Data Protection Officer:</strong> dpo@renderiq.com</p>
+                <p><strong>Email:</strong> privacy@Renderiq.com</p>
+                <p><strong>Data Protection Officer:</strong> dpo@Renderiq.com</p>
               </div>
               <p className="text-muted-foreground mt-6 text-sm">
                 We will respond to all requests within 30 days in accordance with applicable data protection laws.

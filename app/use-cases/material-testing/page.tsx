@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  title: "AI Material Testing for Architecture | Rapid Material Exploration | renderiq",
+  title: "AI Material Testing for Architecture | Rapid Material Exploration | Renderiq",
   description: "Test thousands of architectural material combinations instantly with AI. Visualize different finishes, textures, and colors in realistic lighting. Cost-effective material exploration for architects and designers.",
   keywords: [
     "material testing AI",
