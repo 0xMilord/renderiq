@@ -18,7 +18,6 @@ import {
   Send, 
   Image as ImageIcon, 
   Video,
-  Wand2, 
   Download, 
   Share2,
   Loader2,
@@ -41,7 +40,9 @@ import {
   PanelLeft,
   PanelRight,
   Plus,
-  Pencil
+  Pencil,
+  Wand2,
+  FileText
 } from 'lucide-react';
 import { 
   FaSquare,
@@ -51,12 +52,17 @@ import {
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useCredits } from '@/lib/hooks/use-credits';
+import { useIsPro } from '@/lib/hooks/use-subscription';
+import { useUserProfile } from '@/lib/hooks/use-user-profile';
+import { useProjectRules } from '@/lib/hooks/use-project-rules';
 import { useUpscaling } from '@/lib/hooks/use-upscaling';
-import { usePromptEnhancement, useImageGeneration, useVideoGeneration } from '@/lib/hooks/use-ai-sdk';
+import { useImageGeneration, useVideoGeneration } from '@/lib/hooks/use-ai-sdk';
 import { useVersionContext } from '@/lib/hooks/use-version-context';
 import { VideoPlayer } from '@/components/video/video-player';
 import { UploadModal } from './upload-modal';
 import { GalleryModal } from './gallery-modal';
+import { ProjectRulesModal } from './project-rules-modal';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { logger } from '@/lib/utils/logger';
 import { MentionTagger } from './mention-tagger';
 import type { Render } from '@/lib/types/render';
@@ -169,6 +175,7 @@ export function UnifiedChatInterface({
   chain,
   onRenderComplete, 
   onRenderStart,
+  onRefreshChain,
   projectName,
   onBackToProjects
 }: UnifiedChatInterfaceProps) {
@@ -199,11 +206,16 @@ export function UnifiedChatInterface({
   const [quality, setQuality] = useState<string>('standard'); // Default quality: standard, high, ultra
   
   // Video controls
-  const [videoDuration, setVideoDuration] = useState(5);
+  const [videoDuration, setVideoDuration] = useState(8); // Veo 3.1 supports 4, 6, or 8 seconds
+  const [isVideoMode, setIsVideoMode] = useState(false);
+  const [videoKeyframes, setVideoKeyframes] = useState<Array<{ id: string; imageData: string; imageType: string; timestamp?: number }>>([]);
+  const [videoLastFrame, setVideoLastFrame] = useState<{ imageData: string; imageType: string } | null>(null);
   
   // Modal states
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isLowBalanceModalOpen, setIsLowBalanceModalOpen] = useState(false);
   const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false);
+  const [isProjectRulesModalOpen, setIsProjectRulesModalOpen] = useState(false);
   const [isMentionTaggerOpen, setIsMentionTaggerOpen] = useState(false);
   const [mentionSearchTerm, setMentionSearchTerm] = useState('');
   
@@ -231,12 +243,14 @@ export function UnifiedChatInterface({
   
   // Hooks
   const { credits } = useCredits();
+  const { rules: projectRules } = useProjectRules(chainId);
+  const { profile } = useUserProfile();
+  const { data: isPro, loading: proLoading } = useIsPro(profile?.id);
   const { upscaleImage, isUpscaling, upscalingResult, error: upscalingError } = useUpscaling();
   
   // Google Generative AI hooks
   const { isGenerating: isImageGenerating } = useImageGeneration();
   const { isGenerating: isVideoGenerating } = useVideoGeneration();
-  const { enhancePrompt, isEnhancing, error: enhancementError, isEnhanced, restoreOriginal } = usePromptEnhancement();
   
   // Version context hook
   const { parsePrompt } = useVersionContext();
@@ -253,7 +267,20 @@ export function UnifiedChatInterface({
           if (prev >= 90) return 90;
           // More realistic progress: slower at start, faster in middle
           const increment = prev < 30 ? 2 : prev < 70 ? 5 : 3;
-          return Math.min(prev + increment, 90);
+          const newProgress = Math.min(prev + increment, 90);
+          
+          // Update Dominique's message based on progress
+          setMessages(prevMessages => prevMessages.map(msg => {
+            if (msg.isGenerating) {
+              return {
+                ...msg,
+                content: getRenderIQMessage(newProgress, isVideoMode)
+              };
+            }
+            return msg;
+          }));
+          
+          return newProgress;
         });
       }, 500); // Update every 500ms for smoother progress
       
@@ -265,24 +292,42 @@ export function UnifiedChatInterface({
         setTimeout(() => setProgress(0), 300);
       };
     }
-  }, [isGenerating, isImageGenerating, isVideoGenerating]);
+  }, [isGenerating, isImageGenerating, isVideoGenerating, isVideoMode]);
 
   // Load chain data when component mounts or chain changes
   useEffect(() => {
     logger.log('🔍 UnifiedChatInterface: Loading chain data', {
       hasChain: !!chain,
       rendersCount: chain?.renders?.length || 0,
-      chainId: chain?.id,
-      chainName: chain?.name
+      chainId: chainId || chain?.id,
+      chainName: chain?.name,
+      projectId
     });
 
-    if (chain && chain.renders) {
-      logger.log('✅ UnifiedChatInterface: Chain has renders, converting to messages');
+    // Try to load from localStorage first as backup
+    const storageKey = `chat-messages-${projectId}-${chainId || 'default'}`;
+    const storedMessages = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
+    
+    if (chain && chain.renders && chain.renders.length > 0) {
+      logger.log('✅ UnifiedChatInterface: Chain has renders, converting to messages', {
+        rendersCount: chain.renders.length,
+        renderIds: chain.renders.map(r => r.id),
+        renderStatuses: chain.renders.map(r => ({ id: r.id, status: r.status, chainPosition: r.chainPosition })),
+        renderPrompts: chain.renders.map(r => ({ id: r.id, prompt: r.prompt?.substring(0, 50) + '...' }))
+      });
       
       // Convert renders to messages
       const chainMessages: Message[] = chain.renders
         .sort((a, b) => (a.chainPosition || 0) - (b.chainPosition || 0))
-        .map((render) => {
+        .map((render, index) => {
+          logger.log(`📦 UnifiedChatInterface: Processing render ${index + 1}/${chain.renders.length}`, {
+            renderId: render.id,
+            prompt: render.prompt?.substring(0, 50) + '...',
+            status: render.status,
+            chainPosition: render.chainPosition,
+            hasOutputUrl: !!render.outputUrl
+          });
+
           // Create user message for the prompt
           const userMessage: Message = {
             id: `user-${render.id}`,
@@ -296,6 +341,12 @@ export function UnifiedChatInterface({
               persistedUrl: render.uploadedImageUrl
             } : undefined
           };
+
+          logger.log(`👤 UnifiedChatInterface: Created user message for render ${render.id}`, {
+            messageId: userMessage.id,
+            content: userMessage.content?.substring(0, 50) + '...',
+            hasUploadedImage: !!userMessage.uploadedImage
+          });
 
           // Create assistant message with the render (no constant text)
           const contextMessage = render.status === 'failed'
@@ -313,18 +364,63 @@ export function UnifiedChatInterface({
             isGenerating: render.status === 'processing' || render.status === 'pending'
           };
 
+          logger.log(`🤖 UnifiedChatInterface: Created assistant message for render ${render.id}`, {
+            messageId: assistantMessage.id,
+            hasRender: !!assistantMessage.render,
+            renderId: assistantMessage.render?.id,
+            renderStatus: assistantMessage.render?.status,
+            isGenerating: assistantMessage.isGenerating
+          });
+
           return [userMessage, assistantMessage];
         })
         .flat();
 
-      logger.log('📝 UnifiedChatInterface: Created messages:', {
+      logger.log('📝 UnifiedChatInterface: Created messages summary:', {
         totalMessages: chainMessages.length,
         userMessages: chainMessages.filter(m => m.type === 'user').length,
         assistantMessages: chainMessages.filter(m => m.type === 'assistant').length,
-        withRenders: chainMessages.filter(m => m.render).length
+        withRenders: chainMessages.filter(m => m.render).length,
+        messageIds: chainMessages.map(m => ({ id: m.id, type: m.type, hasRender: !!m.render })),
+        messageContents: chainMessages.map(m => ({ id: m.id, type: m.type, content: m.content?.substring(0, 30) + '...' }))
       });
 
+      logger.log('💾 UnifiedChatInterface: Setting messages state', {
+        messagesCount: chainMessages.length,
+        willSetMessages: true
+      });
+      
       setMessages(chainMessages);
+      
+      // Verify messages were set
+      setTimeout(() => {
+        logger.log('✅ UnifiedChatInterface: Messages state after set', {
+          // Note: This will log the previous state, but helps verify the flow
+          message: 'Messages should be set in state now'
+        });
+      }, 100);
+      
+      // Save to localStorage as backup
+      if (typeof window !== 'undefined') {
+        try {
+          const messagesToStore = chainMessages.map(msg => ({
+            ...msg,
+            timestamp: msg.timestamp.toISOString(),
+            // Don't store File objects, only URLs
+            uploadedImage: msg.uploadedImage ? {
+              previewUrl: msg.uploadedImage.previewUrl,
+              persistedUrl: msg.uploadedImage.persistedUrl
+            } : undefined
+          }));
+          localStorage.setItem(storageKey, JSON.stringify(messagesToStore));
+          logger.log('💾 UnifiedChatInterface: Saved messages to localStorage', {
+            storageKey,
+            messagesCount: messagesToStore.length
+          });
+        } catch (error) {
+          logger.error('❌ UnifiedChatInterface: Failed to save messages to localStorage:', error);
+        }
+      }
 
       // Set the latest completed render as current
       const latestCompletedRender = chain.renders
@@ -337,13 +433,88 @@ export function UnifiedChatInterface({
       } else {
         logger.log('⚠️ UnifiedChatInterface: No completed renders found');
       }
+    } else if (storedMessages) {
+      // Fallback to localStorage if chain data not available yet
+      logger.log('📦 UnifiedChatInterface: Loading messages from localStorage');
+      try {
+        const parsed = JSON.parse(storedMessages);
+        const restoredMessages: Message[] = parsed.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp),
+          // Restore uploaded image URLs
+          uploadedImage: msg.uploadedImage ? {
+            previewUrl: msg.uploadedImage.previewUrl,
+            persistedUrl: msg.uploadedImage.persistedUrl
+          } : undefined
+        }));
+        setMessages(restoredMessages);
+        logger.log('✅ UnifiedChatInterface: Restored messages from localStorage:', restoredMessages.length);
+      } catch (error) {
+        logger.error('Failed to restore messages from localStorage:', error);
+        setMessages([]);
+        setCurrentRender(null);
+      }
     } else {
-      logger.log('⚠️ UnifiedChatInterface: No chain data, resetting messages');
-      // Reset messages if no chain data
+      logger.log('⚠️ UnifiedChatInterface: No chain data and no stored messages, starting fresh');
       setMessages([]);
       setCurrentRender(null);
     }
-  }, [chain]);
+  }, [chain, projectId, chainId]);
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    logger.log('💾 UnifiedChatInterface: Messages changed, saving to localStorage', {
+      messagesCount: messages.length,
+      userMessages: messages.filter(m => m.type === 'user').length,
+      assistantMessages: messages.filter(m => m.type === 'assistant').length,
+      withRenders: messages.filter(m => m.render).length,
+      projectId,
+      chainId
+    });
+    
+    if (messages.length > 0 && typeof window !== 'undefined') {
+      const storageKey = `chat-messages-${projectId}-${chainId || 'default'}`;
+      try {
+        const messagesToStore = messages.map(msg => ({
+          ...msg,
+          timestamp: msg.timestamp.toISOString(),
+          // Don't store File objects, only URLs
+          uploadedImage: msg.uploadedImage ? {
+            previewUrl: msg.uploadedImage.previewUrl,
+            persistedUrl: msg.uploadedImage.persistedUrl
+          } : undefined
+        }));
+        localStorage.setItem(storageKey, JSON.stringify(messagesToStore));
+        logger.log('✅ UnifiedChatInterface: Saved messages to localStorage', {
+          storageKey,
+          messagesCount: messagesToStore.length
+        });
+      } catch (error) {
+        logger.error('❌ UnifiedChatInterface: Failed to save messages to localStorage:', error);
+      }
+    } else if (messages.length === 0) {
+      logger.log('⚠️ UnifiedChatInterface: Messages array is empty, not saving to localStorage');
+    }
+  }, [messages, projectId, chainId]);
+
+  // Log messages state for debugging
+  useEffect(() => {
+    logger.log('📊 UnifiedChatInterface: Current messages state', {
+      totalMessages: messages.length,
+      userMessages: messages.filter(m => m.type === 'user').length,
+      assistantMessages: messages.filter(m => m.type === 'assistant').length,
+      withRenders: messages.filter(m => m.render).length,
+      messageDetails: messages.map(m => ({
+        id: m.id,
+        type: m.type,
+        hasContent: !!m.content,
+        contentPreview: m.content?.substring(0, 30) + '...',
+        hasRender: !!m.render,
+        renderId: m.render?.id,
+        renderStatus: m.render?.status
+      }))
+    });
+  }, [messages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -402,28 +573,84 @@ export function UnifiedChatInterface({
   };
 
   const getCreditsCost = () => {
-    // Image generation costs
-    return 1;
+    // Calculate credits cost based on type and quality
+    if (isVideoMode) {
+      // Video: 25 credits per second (2x markup)
+      const creditsPerSecond = 25;
+      return creditsPerSecond * videoDuration;
+    } else {
+      // Image: 5 credits base, multiplied by quality (2x markup)
+      const baseCreditsPerImage = 5;
+      const qualityMultiplier = quality === 'high' ? 2 : quality === 'ultra' ? 3 : 1;
+      return baseCreditsPerImage * qualityMultiplier;
+    }
+  };
+  
+  const getCreditsCostText = () => {
+    const cost = getCreditsCost();
+    return `${cost} credit${cost !== 1 ? 's' : ''}`;
   };
 
-  const handleEnhancePrompt = async () => {
-    if (!inputValue.trim() || isEnhancing) return;
+  // Whimsical messages from RenderIQ (our mascot)
+  const getRenderIQMessage = (progress: number, isVideo: boolean = false, failed: boolean = false): string => {
+    if (failed) {
+      const failedMessages = [
+        "Oops! I tripped :P Retrying...",
+        "My bad! Dropped it. One sec!",
+        "Whoops! Got distracted. Again!",
+        "Sorry I fell! Trying now :D",
+        "Fumbled it! Let me fix that :/"
+      ];
+      return failedMessages[Math.floor(Math.random() * failedMessages.length)];
+    }
 
-    logger.log('🔍 Enhancing prompt:', inputValue);
-    const result = await enhancePrompt(inputValue);
-    
-    if (result) {
-      setInputValue(result.enhancedPrompt);
-      logger.log('✅ Prompt enhanced successfully');
+    if (progress < 20) {
+      const startMessages = [
+        "Asking viz lords... :>",
+        "Running to AI... :3",
+        "Delivering prompt... :]",
+        "Summoning magic... :D",
+        "Knocking on AI door... :O",
+        "Waking up the AI... zzz",
+        "Bribing the algorithm... :$"
+      ];
+      return startMessages[Math.floor(Math.random() * startMessages.length)];
+    } else if (progress < 50) {
+      const midMessages = [
+        "Viz lords working... :>",
+        "Cooking render... :P",
+        "AI thinking... :/",
+        "Making it pretty... :3",
+        "Adding sparkles... :D",
+        "Pixels assembling... :]",
+        "Magic happening... :O"
+      ];
+      return midMessages[Math.floor(Math.random() * midMessages.length)];
+    } else if (progress < 80) {
+      const lateMessages = [
+        "Almost done! :>",
+        "Final touches... :D",
+        "On my way back... :]",
+        "Polishing... :3",
+        "Just a sec... :/",
+        "Almost there! :O",
+        "Wrapping up... :P"
+      ];
+      return lateMessages[Math.floor(Math.random() * lateMessages.length)];
+    } else {
+      const finalMessages = [
+        "Almost there! :D",
+        "One last check... :]",
+        "Wrapping it up... :P",
+        "Final polish... :3",
+        "Almost ready! :>",
+        "Just finishing... :O",
+        "Last touches... :D"
+      ];
+      return finalMessages[Math.floor(Math.random() * finalMessages.length)];
     }
   };
 
-  const handleRestorePrompt = () => {
-    const original = restoreOriginal();
-    if (original) {
-      setInputValue(original);
-    }
-  };
 
   // Upload modal handlers
   const handleUploadModalOpen = () => {
@@ -523,7 +750,14 @@ export function UnifiedChatInterface({
 
 
   const handleSendMessage = async () => {
-    if (!inputValue.trim() || isGenerating || isImageGenerating) return;
+    if (!inputValue.trim() || isGenerating || isImageGenerating || isVideoGenerating) return;
+
+    // Check credits BEFORE proceeding
+    const requiredCredits = getCreditsCost();
+    if (credits && credits.balance < requiredCredits) {
+      setIsLowBalanceModalOpen(true);
+      return;
+    }
 
     logger.log('🔍 Processing message with potential mentions:', inputValue);
 
@@ -635,16 +869,19 @@ export function UnifiedChatInterface({
     setProgress(0); // Reset progress when starting new generation
     onRenderStart?.();
 
-    // Add assistant message with generating state
+    // Add assistant message with generating state and Dominique's message
     const assistantMessage: Message = {
       id: `assistant-${crypto.randomUUID()}`,
       type: 'assistant',
-      content: 'Generating your render...',
+      content: getRenderIQMessage(0, isVideoMode),
       timestamp: new Date(),
       isGenerating: true
     };
 
     setMessages(prev => [...prev, assistantMessage]);
+
+    // Define generationType outside try block so it's accessible in catch
+    const generationType = isVideoMode ? 'video' : 'image';
 
     try {
       // Use the final prompt directly - Google Generative AI handles optimization
@@ -653,20 +890,43 @@ export function UnifiedChatInterface({
        // Log generation parameters before sending
        logger.log('🎯 Chat: Sending generation request with parameters:', {
          aspectRatio,
-         type: 'image', // Always generate image for now
-         hasUploadedImage: !!userMessage.uploadedImage?.file
+         type: generationType,
+         hasUploadedImage: !!userMessage.uploadedImage?.file,
+         isVideoMode
        });
 
-       // Always generate image (image-to-image when image is uploaded, text-to-image otherwise)
+       // Generate image or video based on mode
        let result;
        
-       // Prepare form data for image generation
+       // Prepare form data for generation
         const formData = new FormData();
         formData.append('prompt', enhancedPrompt);
         formData.append('style', 'realistic'); // Default style
         formData.append('quality', quality);
         formData.append('aspectRatio', aspectRatio);
-        formData.append('type', 'image');
+        formData.append('type', generationType);
+        
+        // Add video-specific parameters if in video mode
+        if (isVideoMode) {
+          formData.append('duration', videoDuration.toString());
+          formData.append('resolution', videoDuration === 8 ? '1080p' : '720p'); // 1080p only for 8s
+          
+          // Add keyframes if provided (up to 3 for Veo 3.1)
+          if (videoKeyframes.length > 0) {
+            formData.append('keyframes', JSON.stringify(videoKeyframes.map(kf => ({
+              imageData: kf.imageData,
+              imageType: kf.imageType
+            }))));
+          }
+          
+          // Add last frame if provided (for interpolation)
+          if (videoLastFrame) {
+            formData.append('lastFrame', JSON.stringify({
+              imageData: videoLastFrame.imageData,
+              imageType: videoLastFrame.imageType
+            }));
+          }
+        }
         formData.append('projectId', projectId || '');
         
         if (chainId) {
@@ -770,9 +1030,10 @@ export function UnifiedChatInterface({
       
       if (result && (resultWithUrls.imageUrl || resultWithUrls.videoUrl || (result.success && result.data && result.data.outputUrl))) {
          // Create a new render version for this chat message
-         // Note: The actual render will be created by the API with a proper database ID
+         // Use the actual render ID from the API response if available
+         const renderId = apiResult.data?.id || apiResult.data?.renderId || `temp-${Date.now()}`;
          const newRender: Render = {
-           id: 'temp-' + Date.now(), // Temporary ID for frontend display
+           id: renderId, // Use actual render ID from API
            projectId,
            userId: '',
            type: result.videoUrl ? 'video' : 'image',
@@ -799,9 +1060,6 @@ export function UnifiedChatInterface({
         setCurrentRender(newRender);
         onRenderComplete?.(newRender);
         
-        // Don't refresh chain data - this causes full page reload
-        // onRefreshChain?.(); // Removed to prevent page reload
-
         // Update the assistant message with the result and render (no constant text)
         setMessages(prev => prev.map(msg => 
           msg.id === assistantMessage.id 
@@ -813,22 +1071,37 @@ export function UnifiedChatInterface({
               }
             : msg
         ));
+        
+        // Refresh chain data in the background to ensure persistence (without causing page reload)
+        // This ensures messages are persisted to the database
+        if (onRefreshChain) {
+          setTimeout(() => {
+            onRefreshChain();
+          }, 1000); // Small delay to avoid blocking UI
+        }
 
-        // Clear uploaded file after successful generation
-        if (uploadedFile) {
+        // Clear uploaded file after successful generation (but keep video mode)
+        if (uploadedFile && !isVideoMode) {
           setUploadedFile(null);
+          setPreviewUrl(null);
+        }
+        // Clear keyframes after successful generation
+        if (isVideoMode) {
+          setVideoKeyframes([]);
+          setVideoLastFrame(null);
         }
       } else {
-        throw new Error('Failed to generate image - no result returned');
+        throw new Error(`Failed to generate ${generationType} - no result returned`);
       }
 
     } catch (error) {
-      console.error('Failed to generate render:', error);
+      logger.error(`Failed to generate ${generationType}:`, error);
       setMessages(prev => prev.map(msg => 
         msg.id === assistantMessage.id 
-          ? { ...msg, content: 'Sorry, I couldn\'t generate your render. Please try again.', isGenerating: false }
+          ? { ...msg, content: getRenderIQMessage(0, isVideoMode, true), isGenerating: false }
           : msg
       ));
+      // Don't reset video mode on error - let user try again
     } finally {
       setIsGenerating(false);
       setProgress(0); // Reset progress when generation completes or fails
@@ -1258,17 +1531,54 @@ export function UnifiedChatInterface({
                     Make a new chat
                   </>
                 )}
-              </Button>
-            </div>
-          ) : (
-            messages.map((message, index) => (
-              <div
-                key={`${message.id}-${message.timestamp.getTime()}`}
-                className={cn(
-                  'flex flex-col',
-                  message.type === 'user' ? 'items-end' : 'items-start'
-                )}
-              >
+                </Button>
+              </div>
+            ) : (
+              (() => {
+                logger.log('🎨 UnifiedChatInterface: Rendering messages list', {
+                  totalMessages: messages.length,
+                  userMessages: messages.filter(m => m.type === 'user').length,
+                  assistantMessages: messages.filter(m => m.type === 'assistant').length,
+                  messageIds: messages.map(m => ({ id: m.id, type: m.type, hasRender: !!m.render })),
+                  allMessageDetails: messages.map(m => ({
+                    id: m.id,
+                    type: m.type,
+                    content: m.content?.substring(0, 30) + '...',
+                    hasContent: !!m.content && m.content.length > 0,
+                    hasRender: !!m.render,
+                    renderId: m.render?.id,
+                    renderStatus: m.render?.status,
+                    timestamp: m.timestamp
+                  }))
+                });
+                
+                if (messages.length === 0) {
+                  logger.warn('⚠️ UnifiedChatInterface: Messages array is EMPTY - nothing to render!');
+                  return <div className="text-center text-muted-foreground mt-8">No messages to display</div>;
+                }
+                
+                return messages.map((message, index) => {
+                // Log each message being rendered
+                logger.log(`🎨 UnifiedChatInterface: Rendering message ${index + 1}/${messages.length}`, {
+                  messageId: message.id,
+                  type: message.type,
+                  hasContent: !!message.content,
+                  content: message.content?.substring(0, 50) + '...',
+                  contentLength: message.content?.length || 0,
+                  hasRender: !!message.render,
+                  renderId: message.render?.id,
+                  renderStatus: message.render?.status,
+                  timestamp: message.timestamp
+                });
+              
+                return (
+                <div
+                  key={`${message.id}-${message.timestamp.getTime()}`}
+                  className={cn(
+                    'flex flex-col',
+                    message.type === 'user' ? 'items-end' : 'items-start'
+                  )}
+                >
                 {/* Sender name above message */}
                 <div className={cn(
                   'text-[10px] sm:text-xs text-muted-foreground mb-1 px-1',
@@ -1365,15 +1675,38 @@ export function UnifiedChatInterface({
                   )}
                   
                   {message.isGenerating && (
-                    <div className="flex items-center mt-2">
-                      <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin mr-2" />
-                      <span className="text-[10px] sm:text-xs">Generating...</span>
+                    <div className="mt-3 space-y-3">
+                      {/* Image skeleton with proper aspect ratio */}
+                      <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-muted via-muted/80 to-muted animate-pulse">
+                        {/* Gleaming shimmer effect */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" 
+                          style={{
+                            backgroundSize: '200% 100%',
+                            animation: 'shimmer 2s infinite'
+                          }}
+                        />
+                        {/* Progress indicator overlay */}
+                        <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/40 backdrop-blur-sm">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin text-primary" />
+                            <span className="text-[10px] sm:text-xs text-white/90 font-medium">
+                              {message.content || getRenderIQMessage(Math.min(progress, 99), message.render?.type === 'video')}
+                            </span>
+                          </div>
+                          <Progress value={progress} className="h-1.5" />
+                        </div>
+                      </div>
                     </div>
                   )}
                   {message.render && (
                     <div className="mt-2 w-full max-w-full overflow-hidden">
-                      <div className="mb-1">
+                      <div className="mb-1 flex items-center justify-between">
                         <span className="text-[10px] sm:text-xs text-muted-foreground">Version {message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}</span>
+                        {message.render.status === 'completed' && message.render.creditsCost && (
+                          <span className="text-[9px] sm:text-[10px] text-muted-foreground">
+                            Used {message.render.creditsCost} credit{message.render.creditsCost !== 1 ? 's' : ''}
+                          </span>
+                        )}
                       </div>
                       <div className="relative w-full max-w-full aspect-video rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity bg-muted animate-in fade-in-0 zoom-in-95 duration-500"
                         onClick={() => {
@@ -1404,9 +1737,11 @@ export function UnifiedChatInterface({
                     </div>
                   )}
                 </div>
-              </div>
-            ))
-          )}
+                </div>
+                );
+              });
+              })()
+            )}
           <div ref={messagesEndRef} />
         </div>
 
@@ -1461,18 +1796,32 @@ export function UnifiedChatInterface({
               
               <div className="flex gap-1 sm:gap-2">
                 <div className="relative flex-1">
-                  <Textarea
-                    ref={textareaRef}
-                    value={inputValue}
-                    onChange={handleInputChange}
-                    onKeyPress={handleKeyPress}
-                     placeholder={isEnhancing ? "Enhancing your prompt..." : "Describe your vision..."}
-                    className={cn(
-                      "h-[104px] sm:h-[116px] resize-none w-full text-xs sm:text-sm",
-                      isEnhancing && "animate-pulse bg-muted/50"
+                  <div className="relative">
+                    {isVideoMode && (
+                      <div className="absolute top-2 left-2 z-10">
+                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5 flex items-center gap-1">
+                          <Video className="h-3 w-3" />
+                          Video Mode
+                        </Badge>
+                      </div>
                     )}
-                    disabled={isGenerating || isEnhancing}
-                  />
+                    <Textarea
+                      ref={textareaRef}
+                      value={inputValue}
+                      onChange={handleInputChange}
+                      onKeyPress={handleKeyPress}
+                      placeholder={
+                        isVideoMode 
+                          ? "Describe how you want to animate this image..." 
+                          : "Describe your vision..."
+                      }
+                      className={cn(
+                        "h-[60px] sm:h-[70px] resize-none w-full text-xs sm:text-sm",
+                        isVideoMode && "border-primary/50 bg-primary/5"
+                      )}
+                      disabled={isGenerating}
+                    />
+                  </div>
                   <MentionTagger
                     isOpen={isMentionTaggerOpen}
                     onClose={handleMentionTaggerClose}
@@ -1501,21 +1850,6 @@ export function UnifiedChatInterface({
                   )}
                 </Button>
                 <Button
-                  onClick={isEnhanced ? handleRestorePrompt : handleEnhancePrompt}
-                  disabled={!inputValue.trim() || isEnhancing || isGenerating}
-                  variant="outline"
-                  size="sm"
-                  className="h-8 sm:h-9 w-8 sm:w-9 shrink-0"
-                >
-                  {isEnhancing ? (
-                    <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-                  ) : isEnhanced ? (
-                    <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  ) : (
-                    <Wand2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  )}
-                </Button>
-                <Button
                   variant="outline"
                   size="sm"
                   onClick={handleUploadModalOpen}
@@ -1530,11 +1864,51 @@ export function UnifiedChatInterface({
             
              {/* Style Settings - 2 columns: Environment/Temperature (3/4) and Style Transfer (1/4) */}
              <div>
-               <div className="flex gap-2 sm:gap-3 items-start">
+               <div className="flex gap-1.5 sm:gap-2 items-stretch">
                  {/* Left Column: Environment/Effect and Temperature (3/4 width, 2 rows) */}
-                 <div className="flex-[3] flex flex-col gap-2 sm:gap-3">
-                  {/* Row 1: Environment and Effect dropdowns */}
-                  <div className="flex gap-2 sm:gap-3">
+                 <div className="flex-[3] flex flex-col gap-1.5 sm:gap-2">
+                  {/* Row 1: Video Mode Toggle, Environment and Effect dropdowns */}
+                  <div className="flex gap-1.5 sm:gap-2 items-start">
+                    {/* Video Mode Toggle - Icon only, compact */}
+                    <div className="space-y-0.5 flex flex-col">
+                      <div className="flex items-center gap-0.5">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Label className="text-[10px] sm:text-xs font-medium cursor-help">Mode</Label>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Switch between image and video generation modes</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <div className="flex gap-0.5 border rounded p-0.5">
+                        <Button
+                          variant={!isVideoMode ? "default" : "ghost"}
+                          size="sm"
+                          onClick={() => setIsVideoMode(false)}
+                          className={cn(
+                            "h-6 sm:h-7 w-6 sm:w-7 p-0",
+                            !isVideoMode && "bg-primary text-primary-foreground"
+                          )}
+                          title="Image Mode"
+                        >
+                          <ImageIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        </Button>
+                        <Button
+                          variant={isVideoMode ? "default" : "ghost"}
+                          size="sm"
+                          onClick={() => setIsVideoMode(true)}
+                          className={cn(
+                            "h-6 sm:h-7 w-6 sm:w-7 p-0",
+                            isVideoMode && "bg-primary text-primary-foreground"
+                          )}
+                          title="Video Mode"
+                        >
+                          <Video className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
                     {/* Environment Dropdown */}
                     <div className="space-y-1 flex flex-col flex-1">
                       <div className="flex items-center gap-1">
@@ -1549,7 +1923,7 @@ export function UnifiedChatInterface({
                         </Tooltip>
                       </div>
                       <Select value={environment} onValueChange={setEnvironment}>
-                        <SelectTrigger className="h-7 sm:h-8 text-[10px] sm:text-xs w-full">
+                        <SelectTrigger className="h-6 sm:h-7 text-[10px] sm:text-xs w-full">
                           <SelectValue placeholder="Select environment" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1580,7 +1954,7 @@ export function UnifiedChatInterface({
                         </Tooltip>
                       </div>
                       <Select value={effect} onValueChange={setEffect}>
-                        <SelectTrigger className="h-7 sm:h-8 text-[10px] sm:text-xs w-full">
+                        <SelectTrigger className="h-6 sm:h-7 text-[10px] sm:text-xs w-full">
                           <SelectValue placeholder="Select effect" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1599,92 +1973,160 @@ export function UnifiedChatInterface({
                     </div>
                   </div>
 
-                  {/* Temperature and Quality Row */}
+                  {/* Temperature/Quality or Video Duration/Quality Row */}
                   <div className="space-y-1 flex flex-col">
-                    <div className="flex items-center gap-2 w-full">
-                      {/* Temperature - 3/4 width */}
-                      <div className="flex-[3] space-y-1 flex flex-col">
-                        <div className="flex items-center gap-1">
-                          <Label className="text-[10px] sm:text-xs font-medium">Temperature</Label>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Control creativity: 0 = strict/deterministic, 1 = creative/random</p>
-                            </TooltipContent>
-                          </Tooltip>
+                    {isVideoMode ? (
+                      <div className="flex items-center gap-1.5 sm:gap-2 w-full">
+                        {/* Video Duration - 1/2 width */}
+                        <div className="flex-1 space-y-0.5 flex flex-col">
+                          <div className="flex items-center gap-0.5">
+                            <Label className="text-[10px] sm:text-xs font-medium">Duration</Label>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Duration of the generated video (4, 6, or 8 seconds)</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                          <Select value={videoDuration.toString()} onValueChange={(value) => setVideoDuration(parseInt(value) as 4 | 6 | 8)}>
+                            <SelectTrigger className="h-6 sm:h-7 text-[10px] sm:text-xs w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="4" className="text-[10px] sm:text-xs">4s</SelectItem>
+                              <SelectItem value="6" className="text-[10px] sm:text-xs">6s</SelectItem>
+                              <SelectItem value="8" className="text-[10px] sm:text-xs">8s</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
-                        <ToggleGroup
-                          type="single"
-                          value={temperature}
-                          onValueChange={(value) => {
-                            if (value) setTemperature(value);
-                          }}
-                          className="h-7 sm:h-8 w-full"
-                          variant="outline"
-                          size="sm"
-                        >
-                          <ToggleGroupItem value="0" aria-label="0" className="flex-1 text-[10px] sm:text-xs">
-                            0
-                          </ToggleGroupItem>
-                          <ToggleGroupItem value="0.25" aria-label="0.25" className="flex-1 text-[10px] sm:text-xs">
-                            0.25
-                          </ToggleGroupItem>
-                          <ToggleGroupItem value="0.5" aria-label="0.5" className="flex-1 text-[10px] sm:text-xs">
-                            0.5
-                          </ToggleGroupItem>
-                          <ToggleGroupItem value="0.75" aria-label="0.75" className="flex-1 text-[10px] sm:text-xs">
-                            0.75
-                          </ToggleGroupItem>
-                          <ToggleGroupItem value="1" aria-label="1" className="flex-1 text-[10px] sm:text-xs">
-                            1
-                          </ToggleGroupItem>
-                        </ToggleGroup>
-                      </div>
-                      
-                      {/* Quality - 1/4 width */}
-                      <div className="flex-[1] space-y-1 flex flex-col">
-                        <div className="flex items-center gap-1">
-                          <Label className="text-[10px] sm:text-xs font-medium">Quality</Label>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Image generation quality: Standard (fast), High (balanced), Ultra (best quality)</p>
-                            </TooltipContent>
-                          </Tooltip>
+                        
+                        {/* Quality - 1/2 width */}
+                        <div className="flex-1 space-y-0.5 flex flex-col">
+                          <div className="flex items-center gap-0.5">
+                            <Label className="text-[10px] sm:text-xs font-medium">Quality</Label>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                <div className="space-y-1">
+                                  <p className="font-medium">Video Quality</p>
+                                  <p className="text-xs">25 credits/second</p>
+                                  <p className="text-xs">4s: 100 | 6s: 150 | 8s: 200 credits</p>
+                                  <p className="text-xs mt-2 pt-2 border-t">
+                                    Current cost: {getCreditsCostText()} ({videoDuration}s)
+                                  </p>
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                          <Select value={quality} onValueChange={setQuality}>
+                            <SelectTrigger className="h-6 sm:h-7 text-[10px] sm:text-xs w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="standard" className="text-[10px] sm:text-xs">Standard</SelectItem>
+                              <SelectItem value="high" className="text-[10px] sm:text-xs">High</SelectItem>
+                              <SelectItem value="ultra" className="text-[10px] sm:text-xs">Ultra</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
-                        <Select value={quality} onValueChange={setQuality}>
-                          <SelectTrigger className="h-7 sm:h-8 text-[10px] sm:text-xs w-full">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="standard" className="text-[10px] sm:text-xs">Standard</SelectItem>
-                            <SelectItem value="high" className="text-[10px] sm:text-xs">High</SelectItem>
-                            <SelectItem value="ultra" className="text-[10px] sm:text-xs">Ultra</SelectItem>
-                          </SelectContent>
-                        </Select>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 sm:gap-2 w-full">
+                        {/* Temperature - 3/4 width */}
+                        <div className="flex-[3] space-y-0.5 flex flex-col">
+                          <div className="flex items-center gap-0.5">
+                            <Label className="text-[10px] sm:text-xs font-medium">Temperature</Label>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Control creativity: 0 = strict/deterministic, 1 = creative/random</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                          <ToggleGroup
+                            type="single"
+                            value={temperature}
+                            onValueChange={(value) => {
+                              if (value) setTemperature(value);
+                            }}
+                            className="h-6 sm:h-7 w-full"
+                            variant="outline"
+                            size="sm"
+                          >
+                            <ToggleGroupItem value="0" aria-label="0" className="flex-1 text-[10px] sm:text-xs">
+                              0
+                            </ToggleGroupItem>
+                            <ToggleGroupItem value="0.25" aria-label="0.25" className="flex-1 text-[10px] sm:text-xs">
+                              0.25
+                            </ToggleGroupItem>
+                            <ToggleGroupItem value="0.5" aria-label="0.5" className="flex-1 text-[10px] sm:text-xs">
+                              0.5
+                            </ToggleGroupItem>
+                            <ToggleGroupItem value="0.75" aria-label="0.75" className="flex-1 text-[10px] sm:text-xs">
+                              0.75
+                            </ToggleGroupItem>
+                            <ToggleGroupItem value="1" aria-label="1" className="flex-1 text-[10px] sm:text-xs">
+                              1
+                            </ToggleGroupItem>
+                          </ToggleGroup>
+                        </div>
+                        
+                        {/* Quality - 1/4 width */}
+                        <div className="flex-[1] space-y-0.5 flex flex-col">
+                          <div className="flex items-center gap-0.5">
+                            <Label className="text-[10px] sm:text-xs font-medium">Quality</Label>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                <div className="space-y-1">
+                                  <p className="font-medium">Image Quality</p>
+                                  <p className="text-xs">Standard: 5 credits (fast)</p>
+                                  <p className="text-xs">High: 10 credits (balanced)</p>
+                                  <p className="text-xs">Ultra: 15 credits (best quality)</p>
+                                  <p className="text-xs mt-2 pt-2 border-t">
+                                    Current cost: {getCreditsCostText()}
+                                  </p>
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                          <Select value={quality} onValueChange={setQuality}>
+                            <SelectTrigger className="h-6 sm:h-7 text-[10px] sm:text-xs w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="standard" className="text-[10px] sm:text-xs">Standard</SelectItem>
+                              <SelectItem value="high" className="text-[10px] sm:text-xs">High</SelectItem>
+                              <SelectItem value="ultra" className="text-[10px] sm:text-xs">Ultra</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                  {/* Right Column: Style Transfer (1/4 width, matches combined height) */}
-                 <div className="flex-[1] space-y-1 flex flex-col">
-                   <div className="flex items-center gap-1">
-                     <Label className="text-[10px] sm:text-xs font-medium whitespace-nowrap">Style Transfer</Label>
+                 <div className="flex-[1] flex flex-col">
+                   <div className="flex items-center gap-0.5 mb-0.5">
                      <Tooltip>
                        <TooltipTrigger asChild>
-                         <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help shrink-0" />
+                         <Label className="text-[10px] sm:text-xs font-medium whitespace-nowrap cursor-help">Style Ref</Label>
                        </TooltipTrigger>
                        <TooltipContent>
                          <p>Upload an image to transfer its style to your generated image</p>
                        </TooltipContent>
                      </Tooltip>
                    </div>
-                   <div className="relative w-full h-[5.75rem] sm:h-[6.25rem]">
+                   <div className="relative w-full flex-1 min-h-0">
                     {styleTransferImage ? (
                       <>
                         <div className="h-full w-full rounded border overflow-hidden cursor-pointer relative" onClick={() => {
@@ -1752,60 +2194,242 @@ export function UnifiedChatInterface({
                           };
                           input.click();
                         }}
+                        title="Upload style reference image"
                       >
-                        <ImageIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <ImageIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       </Button>
                     )}
-                  </div>
+                     </div>
                  </div>
                </div>
              </div>
+
+             {/* Video Keyframe Timeline - Only show in video mode */}
+             {isVideoMode && (
+               <div className="mt-2 border-t pt-2">
+                 <div className="flex items-center gap-1.5 sm:gap-2 w-full">
+                   {/* Start Frame (First Frame) */}
+                   <div className="flex-1 space-y-0.5 flex flex-col">
+                     <div className="flex items-center gap-0.5">
+                       <Label className="text-[10px] sm:text-xs font-medium">Start</Label>
+                       <Tooltip>
+                         <TooltipTrigger asChild>
+                           <HelpCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-muted-foreground cursor-help" />
+                         </TooltipTrigger>
+                         <TooltipContent>
+                           <p>First frame of the video (from uploaded image)</p>
+                         </TooltipContent>
+                       </Tooltip>
+                     </div>
+                     <div className="relative w-full aspect-square rounded border overflow-hidden bg-muted max-w-[75%] mx-auto">
+                       {previewUrl ? (
+                         <Image
+                           src={previewUrl}
+                           alt="Start frame"
+                           fill
+                           className="object-cover"
+                         />
+                       ) : (
+                         <div className="h-full w-full flex items-center justify-center">
+                           <ImageIcon className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                         </div>
+                       )}
+                     </div>
+                   </div>
+
+                   {/* Keyframes (up to 3) */}
+                   {[0, 1, 2].map((index) => {
+                     const keyframe = videoKeyframes[index];
+                     return (
+                       <div key={index} className="flex-1 space-y-0.5 flex flex-col">
+                         <div className="flex items-center gap-0.5">
+                           <Label className="text-[10px] sm:text-xs font-medium">K{index + 1}</Label>
+                           {keyframe && (
+                             <Tooltip>
+                               <TooltipTrigger asChild>
+                                 <Button
+                                   variant="ghost"
+                                   size="sm"
+                                   onClick={() => {
+                                     setVideoKeyframes(prev => prev.filter(kf => kf.id !== keyframe.id));
+                                   }}
+                                   className="h-3 w-3 p-0 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                 >
+                                   <X className="h-2 w-2" />
+                                 </Button>
+                               </TooltipTrigger>
+                               <TooltipContent>
+                                 <p>Remove keyframe {index + 1}</p>
+                               </TooltipContent>
+                             </Tooltip>
+                           )}
+                         </div>
+                         <div
+                           className="relative w-full aspect-square rounded border overflow-hidden bg-muted cursor-pointer hover:opacity-80 transition-opacity max-w-[75%] mx-auto"
+                           onClick={() => {
+                             if (!keyframe && videoKeyframes.length < 3) {
+                               const input = document.createElement('input');
+                               input.type = 'file';
+                               input.accept = 'image/*';
+                               input.onchange = async (e) => {
+                                 const file = (e.target as HTMLInputElement).files?.[0];
+                                 if (file) {
+                                   const reader = new FileReader();
+                                   reader.onload = async (e) => {
+                                     const result = e.target?.result as string;
+                                     const base64 = result.split(',')[1];
+                                     setVideoKeyframes(prev => [...prev, {
+                                       id: `keyframe-${Date.now()}-${index}`,
+                                       imageData: base64,
+                                       imageType: file.type,
+                                       timestamp: index
+                                     }]);
+                                   };
+                                   reader.readAsDataURL(file);
+                                 }
+                               };
+                               input.click();
+                             }
+                           }}
+                         >
+                           {keyframe ? (
+                             <Image
+                               src={`data:${keyframe.imageType};base64,${keyframe.imageData}`}
+                               alt={`Keyframe ${index + 1}`}
+                               fill
+                               className="object-cover"
+                             />
+                           ) : (
+                             <div className="h-full w-full flex items-center justify-center">
+                               <Plus className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                             </div>
+                           )}
+                         </div>
+                       </div>
+                     );
+                   })}
+
+                   {/* Last Frame */}
+                   <div className="flex-1 space-y-0.5 flex flex-col">
+                     <div className="flex items-center gap-0.5">
+                       <Label className="text-[10px] sm:text-xs font-medium">End</Label>
+                       {videoLastFrame && (
+                         <Tooltip>
+                           <TooltipTrigger asChild>
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               onClick={() => setVideoLastFrame(null)}
+                               className="h-3 w-3 p-0 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                             >
+                               <X className="h-2 w-2" />
+                             </Button>
+                           </TooltipTrigger>
+                           <TooltipContent>
+                             <p>Remove last frame</p>
+                           </TooltipContent>
+                         </Tooltip>
+                       )}
+                     </div>
+                     <div
+                       className="relative w-full aspect-square rounded border overflow-hidden bg-muted cursor-pointer hover:opacity-80 transition-opacity max-w-[75%] mx-auto"
+                       onClick={() => {
+                         if (!videoLastFrame) {
+                           const input = document.createElement('input');
+                           input.type = 'file';
+                           input.accept = 'image/*';
+                           input.onchange = async (e) => {
+                             const file = (e.target as HTMLInputElement).files?.[0];
+                             if (file) {
+                               const reader = new FileReader();
+                               reader.onload = async (e) => {
+                                 const result = e.target?.result as string;
+                                 const base64 = result.split(',')[1];
+                                 setVideoLastFrame({
+                                   imageData: base64,
+                                   imageType: file.type
+                                 });
+                               };
+                               reader.readAsDataURL(file);
+                             }
+                           };
+                           input.click();
+                         }
+                       }}
+                     >
+                       {videoLastFrame ? (
+                         <Image
+                           src={`data:${videoLastFrame.imageType};base64,${videoLastFrame.imageData}`}
+                           alt="Last frame"
+                           fill
+                           className="object-cover"
+                         />
+                       ) : (
+                         <div className="h-full w-full flex items-center justify-center">
+                           <Plus className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                         </div>
+                       )}
+                     </div>
+                   </div>
+                 </div>
+               </div>
+             )}
             
-            {/* Enhancement Error */}
-            {enhancementError && (
-              <Alert variant="destructive" className="py-1">
+            {/* File Upload - Hidden, triggered by + button */}
+            <div className="hidden">
+              <div {...getRootProps()}>
+                <input {...getInputProps()} ref={fileInputRef} />
+              </div>
+            </div>
+
+            {/* Insufficient Credits Alert */}
+            {credits && credits.balance < getCreditsCost() && inputValue.trim() && (
+              <Alert variant="destructive" className="py-1 mt-2">
                 <AlertCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                 <AlertDescription className="text-[10px] sm:text-xs">
-                  {enhancementError}
+                  Insufficient credits. Need {getCreditsCost()}, have {credits.balance}
                 </AlertDescription>
               </Alert>
             )}
-            
-              {/* Simplified Controls */}
-              <div>
-                {/* Aspect Ratio - Only essential setting */}
-                {/* Aspect ratio is now fixed at 16:9 for better quality */}
 
-
-              {/* File Upload - Hidden, triggered by + button */}
-              <div className="hidden">
-                <div {...getRootProps()}>
-                  <input {...getInputProps()} ref={fileInputRef} />
+            {!isPro && (
+              <>
+                <div className="grid grid-cols-3 gap-1.5 mt-2">
+                  {/* Credit Usage - Column 1 */}
+                  <div className="flex items-center justify-center px-1.5 py-1.5 rounded-md bg-muted/50 border border-border">
+                    <div className="text-[9px] sm:text-[10px] text-muted-foreground text-center">
+                      {getCreditsCost()} credit{getCreditsCost() !== 1 ? 's' : ''}
+                    </div>
+                  </div>
+                  {/* Get Pro - Column 2 */}
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="h-6 sm:h-7 text-[10px] sm:text-xs"
+                    onClick={() => window.open('/pricing', '_blank')}
+                  >
+                    Get Pro
+                  </Button>
+                  {/* Project Rules - Column 3 */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 sm:h-7 text-[10px] sm:text-xs"
+                    onClick={() => setIsProjectRulesModalOpen(true)}
+                    title="Project Rules"
+                  >
+                    <FileText className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-0.5 sm:mr-1" />
+                    <span className="hidden sm:inline">Rules</span>
+                    {projectRules && projectRules.length > 0 && (
+                      <span className="ml-0.5 sm:ml-1 px-1 py-0.5 bg-primary/10 text-primary rounded text-[9px] sm:text-[10px] font-medium">
+                        {projectRules.length}
+                      </span>
+                    )}
+                  </Button>
                 </div>
-              </div>
-
-
-              {/* Insufficient Credits Alert */}
-              {credits && credits.balance < getCreditsCost() && inputValue.trim() && (
-                <Alert variant="destructive" className="py-1">
-                  <AlertCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                  <AlertDescription className="text-[10px] sm:text-xs">
-                    Insufficient credits. Need {getCreditsCost()}, have {credits.balance}
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {credits && credits.balance < getCreditsCost() && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full h-5 sm:h-6 text-[10px] sm:text-xs"
-                  onClick={() => window.open('/pricing', '_blank')}
-                >
-                  Upgrade to Pro
-                </Button>
-              )}
-            </div>
+                <div className="border-t border-border my-2" />
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -1844,10 +2468,36 @@ export function UnifiedChatInterface({
                   {/* Separator */}
                   <div className="h-4 w-px bg-border shrink-0"></div>
                   
-                  {/* Version Number */}
-                  <div className="text-xs font-medium text-muted-foreground shrink-0">
-                    Version {versionNumber}
-                  </div>
+                  {/* Version Control Dropdown */}
+                  {messages.some(m => m.render) && (
+                    <Select 
+                      value={currentRender?.id} 
+                      onValueChange={(value) => {
+                        const render = messages.find(m => m.render?.id === value)?.render;
+                        if (render) setCurrentRender(render);
+                      }}
+                    >
+                      <SelectTrigger className="h-7 px-2 text-[10px] sm:text-xs w-auto min-w-[80px] sm:min-w-[100px] shrink-0">
+                        <SelectValue>
+                          Version {versionNumber}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {messages
+                          .filter(m => m.render)
+                          .map((message, index) => {
+                            const msgVersionNumber = message.render?.chainPosition !== undefined 
+                              ? message.render.chainPosition + 1 
+                              : index + 1;
+                            return (
+                              <SelectItem key={message.id} value={message.render!.id} className="text-xs">
+                                Version {msgVersionNumber} - {message.content.substring(0, 30)}...
+                              </SelectItem>
+                            );
+                          })}
+                      </SelectContent>
+                    </Select>
+                  )}
                   
                   {/* Separator */}
                   <div className="h-4 w-px bg-border shrink-0"></div>
@@ -1892,9 +2542,40 @@ export function UnifiedChatInterface({
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      onClick={() => {}} 
+                      onClick={async () => {
+                        if (!currentRender?.outputUrl) return;
+                        
+                        try {
+                          // Fetch the image and convert to File
+                          const response = await fetch(currentRender.outputUrl);
+                          const blob = await response.blob();
+                          const file = new File([blob], `image-to-video-${Date.now()}.png`, { type: 'image/png' });
+                          
+                          // Set as uploaded file
+                          setUploadedFile(file);
+                          setPreviewUrl(currentRender.outputUrl);
+                          
+                          // Enable video mode
+                          setIsVideoMode(true);
+                          
+                          // Set a default prompt if input is empty
+                          if (!inputValue.trim()) {
+                            setInputValue('Animate this image with smooth, cinematic motion');
+                          }
+                          
+                          // Focus the input
+                          setTimeout(() => {
+                            textareaRef.current?.focus();
+                          }, 100);
+                          
+                          toast.success('Image loaded for video generation! Add your animation prompt and click send.');
+                        } catch (error) {
+                          logger.error('Failed to load image for video conversion:', error);
+                          toast.error('Failed to load image. Please try again.');
+                        }
+                      }} 
                       className="h-7 px-2 text-[10px] flex-1 flex items-center justify-center gap-1.5" 
-                      disabled
+                      disabled={!currentRender || currentRender.type === 'video' || isGenerating}
                     >
                       <Video className="h-3 w-3 shrink-0" />
                       <span>Video</span>
@@ -1904,20 +2585,22 @@ export function UnifiedChatInterface({
                       variant="outline" 
                       size="sm" 
                       onClick={handleDownload} 
-                      className="h-7 px-2 text-[10px] flex-1 flex items-center justify-center gap-1.5"
+                      className="h-7 px-1.5 sm:px-2 text-[10px] flex-1 flex items-center justify-center gap-1 sm:gap-1.5"
+                      title="Download"
                     >
                       <Download className="h-3 w-3 shrink-0" />
-                      <span>Download</span>
+                      <span className="hidden sm:inline">Download</span>
                     </Button>
                     {/* Share */}
                     <Button 
                       variant="outline" 
                       size="sm" 
                       onClick={handleShare} 
-                      className="h-7 px-2 text-[10px] flex-1 flex items-center justify-center gap-1.5"
+                      className="h-7 px-1.5 sm:px-2 text-[10px] flex-1 flex items-center justify-center gap-1 sm:gap-1.5"
+                      title="Share"
                     >
                       <Share2 className="h-3 w-3 shrink-0" />
-                      <span>Share</span>
+                      <span className="hidden sm:inline">Share</span>
                     </Button>
                     {/* More Tools - Placeholder */}
                     <Button 
@@ -1939,32 +2622,6 @@ export function UnifiedChatInterface({
         {/* Render Content */}
         <div className="flex-1 p-1 sm:p-2 overflow-hidden min-h-0">
             <div className="h-full w-full flex flex-col lg:flex-row items-center justify-center overflow-hidden">
-              {/* Mobile Version Selector */}
-              {messages.some(m => m.render) && (
-                <div className="lg:hidden w-full mb-2">
-                  <Select 
-                    value={currentRender?.id} 
-                    onValueChange={(value) => {
-                      const render = messages.find(m => m.render?.id === value)?.render;
-                      if (render) setCurrentRender(render);
-                    }}
-                  >
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Select version" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {messages
-                        .filter(m => m.render)
-                        .map((message, index) => (
-                          <SelectItem key={message.id} value={message.render!.id} className="text-xs">
-                            Version {message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1} - {message.content.substring(0, 30)}...
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              
               <div className="flex-1 overflow-hidden w-full h-full min-w-0 min-h-0">
               {isGenerating || isImageGenerating || isVideoGenerating ? (
                 <Card className="w-full h-full py-0 gap-0 overflow-hidden">
@@ -1999,26 +2656,24 @@ export function UnifiedChatInterface({
                     <div className="h-full w-full flex flex-col overflow-hidden">
                       {/* Image/Video Display */}
                       <div className="flex-1 bg-muted rounded-t-lg overflow-hidden relative min-h-[200px] sm:min-h-[300px] min-w-0">
-                        <div className="w-full h-full flex items-center justify-center relative p-0.5 sm:p-1 overflow-hidden min-w-0">
+                        <div className="w-full h-full flex items-center justify-center relative p-0 overflow-hidden min-w-0">
                         {currentRender.type === 'video' ? (
                           <video
                             src={currentRender.outputUrl}
-                            className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg cursor-pointer"
+                            className="w-full h-full object-contain cursor-pointer"
                             controls
                             loop
                             muted
                             playsInline
-                            style={{ maxWidth: '100%', maxHeight: '100%' }}
                             onClick={() => setIsFullscreen(true)}
                           />
                         ) : (
                           <Image
                             src={currentRender.outputUrl}
                             alt={currentRender.prompt}
-                            width={800}
-                            height={600}
-                            className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg cursor-pointer"
-                            style={{ maxWidth: '100%', maxHeight: '100%' }}
+                            fill
+                            className="object-contain cursor-pointer"
+                            sizes="100vw"
                             onClick={() => setIsFullscreen(true)}
                           />
                         )}
@@ -2103,6 +2758,45 @@ export function UnifiedChatInterface({
         onClose={handleGalleryModalClose}
         onImageSelect={handleGalleryImageSelect}
       />
+      <ProjectRulesModal
+        isOpen={isProjectRulesModalOpen}
+        onClose={() => setIsProjectRulesModalOpen(false)}
+        chainId={chainId}
+      />
+      <Dialog open={isLowBalanceModalOpen} onOpenChange={setIsLowBalanceModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Insufficient Credits</DialogTitle>
+            <DialogDescription>
+              You need {getCreditsCost()} credits to generate this {isVideoMode ? 'video' : 'image'}, but you only have {credits?.balance || 0} credits.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            {!isPro && (
+              <Button
+                variant="default"
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  setIsLowBalanceModalOpen(false);
+                  window.open('/pricing', '_blank');
+                }}
+              >
+                Get Pro
+              </Button>
+            )}
+            <Button
+              variant={isPro ? "default" : "outline"}
+              className="w-full sm:w-auto"
+              onClick={() => {
+                setIsLowBalanceModalOpen(false);
+                window.open('/pricing', '_blank');
+              }}
+            >
+              Top up Credits
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Fullscreen Image Dialog */}
       {isFullscreen && currentRender && (

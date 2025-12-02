@@ -37,13 +37,29 @@ export class RenderChainService {
    * Get chain with all its renders
    */
   static async getChain(chainId: string): Promise<RenderChainWithRenders | null> {
+    logger.log('🔍 RenderChainService.getChain: Fetching chain with renders:', chainId);
+    
     const chain = await RenderChainsDAL.getById(chainId);
     
     if (!chain) {
+      logger.log('❌ RenderChainService.getChain: Chain not found:', chainId);
       return null;
     }
 
+    logger.log('✅ RenderChainService.getChain: Chain found, fetching renders', {
+      chainId: chain.id,
+      chainName: chain.name,
+      projectId: chain.projectId
+    });
+
     const renders = await RendersDAL.getByChainId(chainId);
+
+    logger.log('✅ RenderChainService.getChain: Returning chain with renders', {
+      chainId: chain.id,
+      rendersCount: renders.length,
+      renderIds: renders.map(r => r.id),
+      renderStatuses: renders.map(r => ({ id: r.id, status: r.status, chainPosition: r.chainPosition }))
+    });
 
     return {
       ...chain,

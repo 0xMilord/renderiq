@@ -605,7 +605,16 @@ export async function getRenderChain(chainId: string) {
       chainId: chain.id,
       chainName: chain.name,
       projectId: chain.projectId,
-      rendersCount: chain.renders?.length || 0
+      rendersCount: chain.renders?.length || 0,
+      renderDetails: chain.renders?.map(r => ({
+        id: r.id,
+        prompt: r.prompt?.substring(0, 50) + '...',
+        status: r.status,
+        chainPosition: r.chainPosition,
+        type: r.type,
+        hasOutputUrl: !!r.outputUrl,
+        createdAt: r.createdAt
+      })) || []
     });
 
     // Verify project ownership

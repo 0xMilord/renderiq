@@ -178,6 +178,17 @@ export const renderChains = pgTable('render_chains', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// Project rules table - rules that apply to each chain
+export const projectRules = pgTable('project_rules', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  chainId: uuid('chain_id').references(() => renderChains.id, { onDelete: 'cascade' }).notNull(),
+  rule: text('rule').notNull(), // The rule text, e.g., "always use xyz material", "always make 4 floor high"
+  isActive: boolean('is_active').default(true).notNull(), // Whether to automatically attach to prompts
+  order: integer('order').default(0).notNull(), // Order for displaying rules
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 // Renders table with enhanced tracking and version control
 export const renders = pgTable('renders', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -371,6 +382,9 @@ export const selectProjectVersionSchema = createSelectSchema(projectVersions);
 export const insertRenderChainSchema = createInsertSchema(renderChains);
 export const selectRenderChainSchema = createSelectSchema(renderChains);
 
+export const insertProjectRuleSchema = createInsertSchema(projectRules);
+export const selectProjectRuleSchema = createSelectSchema(projectRules);
+
 export const insertRenderSchema = createInsertSchema(renders);
 export const selectRenderSchema = createSelectSchema(renders);
 
@@ -428,6 +442,9 @@ export type NewProjectVersion = typeof projectVersions.$inferInsert;
 
 export type RenderChain = typeof renderChains.$inferSelect;
 export type NewRenderChain = typeof renderChains.$inferInsert;
+
+export type ProjectRule = typeof projectRules.$inferSelect;
+export type NewProjectRule = typeof projectRules.$inferInsert;
 
 export type Render = typeof renders.$inferSelect;
 export type NewRender = typeof renders.$inferInsert;

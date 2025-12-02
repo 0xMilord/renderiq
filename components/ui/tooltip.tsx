@@ -13,6 +13,8 @@ function TooltipProvider({
     <TooltipPrimitive.Provider
       data-slot="tooltip-provider"
       delayDuration={delayDuration}
+      // Enable tooltips on mobile devices
+      skipDelayDuration={0}
       {...props}
     />
   )

@@ -5,6 +5,7 @@ import { addCredits, deductCredits } from '@/lib/actions/billing.actions';
 import { ProjectsDAL } from '@/lib/dal/projects';
 import { RendersDAL } from '@/lib/dal/renders';
 import { RenderChainsDAL } from '@/lib/dal/render-chains';
+import { ProjectRulesDAL } from '@/lib/dal/project-rules';
 import { StorageService } from '@/lib/services/storage';
 import { logger } from '@/lib/utils/logger';
 
@@ -56,21 +57,29 @@ export async function POST(request: NextRequest) {
     // Default temperature: 0.7 (balanced creativity/determinism)
     // Note: For Gemini 3, default is 1.0, but we use 0.7 for Gemini 2.5 compatibility
     const temperature = temperatureParam ? parseFloat(temperatureParam) : 0.7;
+    
+    // Parse duration for video (needed for credit calculation)
+    const durationParam = formData.get('duration') as string | null;
+    const duration = durationParam ? parseInt(durationParam) : (type === 'video' ? 8 : undefined);
+    // Calculate videoDuration once for use in both credit calculation and generation
+    const videoDuration = type === 'video' ? (duration || 8) : undefined;
 
+    // Log parameters but redact sensitive info
     logger.log('📝 Render parameters:', { 
-      prompt, 
+      prompt: prompt.substring(0, 50) + '...', // Truncate prompt
       style, 
       quality, 
       aspectRatio, 
       type, 
       imageType,
-      negativePrompt: negativePrompt?.substring(0, 50) || 'none',
+      negativePrompt: negativePrompt ? 'provided' : 'none', // Don't log full negative prompt
       hasImage: !!uploadedImageData, 
-      projectId, 
-      chainId,
-      referenceRenderId,
+      projectId: projectId.substring(0, 8) + '...', // Redact full project ID
+      hasChainId: !!chainId,
+      hasReferenceRenderId: !!referenceRenderId,
       isPublic,
-      seed
+      hasSeed: !!seed,
+      duration: duration || 'N/A'
     });
 
     if (!prompt || !style || !quality || !aspectRatio || !type || !projectId) {
@@ -78,14 +87,57 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Missing required parameters (prompt, style, quality, aspectRatio, type, projectId)' }, { status: 400 });
     }
 
-    // Calculate credits cost
-    const baseCost = type === 'video' ? 5 : 1;
-    const qualityMultiplier = quality === 'high' ? 2 : quality === 'ultra' ? 3 : 1;
-    const creditsCost = baseCost * qualityMultiplier;
+    // Calculate credits cost FIRST
+    // For videos: Based on Google Veo 3.1 pricing ($0.75/second) with 2x markup
+    // 1 credit = 5 INR, 1 USD ≈ 83 INR
+    // Cost per second: $0.75 × 2 (markup) × 83 (INR/USD) / 5 (INR/credit) = 24.9 credits/second (round to 25)
+    let creditsCost: number;
+    if (type === 'video') {
+      // Veo 3.1 pricing: $0.75/second, with 2x markup = $1.50/second
+      // In INR: $1.50 × 83 = 124.5 INR/second
+      // At 5 INR/credit: 124.5 / 5 = 24.9 credits/second (round to 25)
+      const creditsPerSecond = 25;
+      creditsCost = creditsPerSecond * videoDuration;
+      logger.log('💰 Video credits cost calculation:', {
+        duration: videoDuration,
+        creditsPerSecond,
+        totalCredits: creditsCost
+      });
+    } else {
+      // Image generation: Based on Google Gemini 3 Pro Image Preview pricing ($0.134/image) with 2x markup
+      // 1 credit = 5 INR, 1 USD ≈ 83 INR
+      // Base cost: $0.134 × 2 (markup) × 83 (INR/USD) / 5 (INR/credit) = 4.45 credits/image (round to 5)
+      const baseCreditsPerImage = 5;
+      const qualityMultiplier = quality === 'high' ? 2 : quality === 'ultra' ? 3 : 1;
+      creditsCost = baseCreditsPerImage * qualityMultiplier;
+      logger.log('💰 Image credits cost calculation:', {
+        quality,
+        baseCreditsPerImage,
+        qualityMultiplier,
+        totalCredits: creditsCost
+      });
+    }
 
-    logger.log('💰 Credits cost:', creditsCost);
+    // CRITICAL: Check balance BEFORE attempting deduction to prevent any leakage
+    const { BillingDAL } = await import('@/lib/dal/billing');
+    const userCredits = await BillingDAL.getUserCreditsWithReset(user.id);
+    
+    if (!userCredits || userCredits.balance < creditsCost) {
+      logger.warn('❌ Insufficient credits - balance check failed:', {
+        required: creditsCost,
+        available: userCredits?.balance || 0,
+        userId: user.id.substring(0, 8) + '...' // Redact full user ID
+      });
+      // Return minimal info - don't expose exact balance in error response
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Insufficient credits',
+        required: creditsCost
+        // Don't expose available balance in response
+      }, { status: 402 });
+    }
 
-    // Check if user has enough credits
+    // Only proceed with deduction if balance check passes
     const deductResult = await deductCredits(
       creditsCost,
       `Generated ${type} - ${style} style`,
@@ -94,8 +146,8 @@ export async function POST(request: NextRequest) {
     );
 
     if (!deductResult.success) {
-      logger.warn('❌ Insufficient credits:', deductResult.error);
-      return NextResponse.json({ success: false, error: deductResult.error || 'Insufficient credits' }, { status: 402 });
+      logger.warn('❌ Credit deduction failed after balance check:', deductResult.error);
+      return NextResponse.json({ success: false, error: deductResult.error || 'Failed to deduct credits' }, { status: 402 });
     }
 
     // Verify project exists and belongs to user
@@ -210,6 +262,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Fetch and append project rules to prompt if chainId is provided
+    let finalPrompt = prompt;
+    if (chainId) {
+      try {
+        const activeRules = await ProjectRulesDAL.getActiveRulesByChainId(chainId);
+        if (activeRules.length > 0) {
+          const rulesText = activeRules.map(r => r.rule).join('. ');
+          finalPrompt = `${prompt}. Project rules: ${rulesText}`;
+          logger.log('📋 Project rules appended to prompt:', {
+            rulesCount: activeRules.length,
+            promptLength: finalPrompt.length
+          });
+        }
+      } catch (error) {
+        logger.warn('⚠️ Failed to fetch project rules, continuing without them:', error);
+        // Continue without rules rather than failing the request
+      }
+    }
+
     // Upload original image if provided
     let uploadedImageUrl: string | undefined = undefined;
     let uploadedImageKey: string | undefined = undefined;
@@ -241,7 +312,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Create render record in database
-    logger.log('💾 Creating render record in database');
+    logger.log('💾 Creating render record in database', {
+      projectId,
+      userId: user.id,
+      type,
+      prompt: prompt.substring(0, 50) + '...',
+      chainId: finalChainId,
+      chainPosition
+    });
     const render = await RendersDAL.create({
       projectId,
       userId: user.id,
@@ -265,7 +343,15 @@ export async function POST(request: NextRequest) {
       uploadedImageId,
     });
 
-    logger.log('✅ Render record created:', render.id, 'in chain:', finalChainId, 'at position:', chainPosition);
+    logger.log('✅ Render record created in database', {
+      renderId: render.id,
+      chainId: finalChainId,
+      chainPosition,
+      prompt: render.prompt?.substring(0, 50) + '...',
+      status: render.status,
+      type: render.type,
+      createdAt: render.createdAt
+    });
 
     // Update render status to processing
     await RendersDAL.updateStatus(render.id, 'processing');
@@ -278,21 +364,63 @@ export async function POST(request: NextRequest) {
       
       // Branch based on type
       if (type === 'video') {
-        logger.log('🎬 Using AISDKService for video generation');
+        logger.log('🎬 Using Veo 3.1 for video generation');
         
-        // Get video-specific parameters
-        const model = (formData.get('model') as 'veo3' | 'veo3_fast') || 'veo3';
-        const duration = parseInt(formData.get('duration') as string) || 5;
-        const generationType = (formData.get('generationType') as 'text-to-video' | 'image-to-video' | 'keyframe-sequence') || 'text-to-video';
+        // Get video-specific parameters (duration already parsed above for credit calculation)
+        const resolution = (formData.get('resolution') as '720p' | '1080p') || '720p';
         
-        logger.log('🎬 Video parameters:', { model, duration, generationType, aspectRatio });
+        // Parse keyframes/reference images (up to 3)
+        const keyframesData = formData.get('keyframes') as string | null;
+        let referenceImages: Array<{ imageData: string; imageType: string }> | undefined;
+        if (keyframesData) {
+          try {
+            const keyframes = JSON.parse(keyframesData);
+            referenceImages = keyframes.slice(0, 3); // Max 3 for Veo 3.1
+            logger.log('🎬 Video keyframes:', { count: referenceImages.length });
+          } catch (error) {
+            logger.warn('⚠️ Failed to parse keyframes:', error);
+          }
+        }
         
-        // Use Google Generative AI for video generation
+        // Parse last frame for interpolation
+        const lastFrameData = formData.get('lastFrame') as string | null;
+        let lastFrame: { imageData: string; imageType: string } | undefined;
+        if (lastFrameData) {
+          try {
+            lastFrame = JSON.parse(lastFrameData);
+            logger.log('🎬 Video last frame provided for interpolation');
+          } catch (error) {
+            logger.warn('⚠️ Failed to parse last frame:', error);
+          }
+        }
+        
+        // Use Veo 3.1 for video generation
+        // videoDuration is guaranteed to be a number here since we're in the video type block
+        const finalVideoDuration = videoDuration || 8;
+        logger.log('🎬 Veo 3.1 parameters:', { 
+          duration: finalVideoDuration, 
+          aspectRatio, 
+          resolution,
+          hasFirstFrame: !!uploadedImageData,
+          referenceImagesCount: referenceImages?.length || 0,
+          hasLastFrame: !!lastFrame
+        });
         const videoResult = await aiService.generateVideo({
-          prompt,
-          duration: duration,
+          prompt: finalPrompt,
+          duration: finalVideoDuration as 4 | 6 | 8, // Veo 3.1 supports 4, 6, or 8 seconds
           aspectRatio: aspectRatio as '16:9' | '9:16',
           uploadedImageData: uploadedImageData || undefined,
+          uploadedImageType: uploadedImageType || undefined,
+          referenceImages: referenceImages?.map(kf => ({
+            imageData: kf.imageData,
+            imageType: kf.imageType
+          })),
+          lastFrame: lastFrame ? {
+            imageData: lastFrame.imageData,
+            imageType: lastFrame.imageType
+          } : undefined,
+          negativePrompt: negativePrompt || undefined,
+          resolution: resolution === '1080p' && duration === 8 ? '1080p' : '720p',
         });
         
         if (!videoResult.success || !videoResult.data) {
@@ -302,13 +430,15 @@ export async function POST(request: NextRequest) {
             error: videoResult.error || 'Video generation failed'
           };
         } else {
-          const videoBase64 = videoResult.data.toString('base64');
+          // Use videoData (base64) if available, otherwise use videoUrl
+          const videoData = videoResult.data.videoData || videoResult.data.videoUrl;
           result = {
             success: true,
             data: {
-              imageData: videoBase64,
-              processingTime: videoResult.processingTime || 60,
-              provider: 'google-veo3'
+              imageData: videoData, // Store as imageData for compatibility
+              imageUrl: videoResult.data.videoUrl, // Also store URL
+              processingTime: videoResult.data.processingTime || 60,
+              provider: videoResult.data.provider || 'veo-3.1'
             }
           };
         }
@@ -334,10 +464,10 @@ export async function POST(request: NextRequest) {
         const imageTypeToUse = uploadedImageType || referenceRenderImageType;
         
         // Enhance prompt with context from previous render if available
-        let contextualPrompt = prompt;
+        let contextualPrompt = finalPrompt;
         if (referenceRenderPrompt && referenceRenderImageData) {
           // Add context about what we're editing
-          contextualPrompt = `Based on the previous render (${referenceRenderPrompt}), ${prompt}`;
+          contextualPrompt = `Based on the previous render (${referenceRenderPrompt}), ${finalPrompt}`;
           logger.log('🔗 Using contextual prompt with reference render:', contextualPrompt.substring(0, 100));
         }
         

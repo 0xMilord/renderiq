@@ -57,6 +57,7 @@ export interface ImageGenerationResult {
 
 export interface VideoGenerationResult {
   videoUrl: string;
+  videoData?: string; // Base64 string for video file
   processingTime: number;
   provider: string;
   metadata: {
@@ -65,6 +66,12 @@ export interface VideoGenerationResult {
     style?: string;
     aspectRatio?: string;
   };
+}
+
+export interface VideoKeyframe {
+  imageData: string; // Base64
+  imageType: string; // MIME type
+  timestamp?: number; // Optional timestamp for timeline positioning
 }
 
 /**
@@ -423,13 +430,23 @@ Original prompt: "${originalPrompt}"`;
   }
 
   /**
-   * Generate videos using Google Veo 3.1 API
+   * Generate videos using Google Generative AI
+   * 
+   * NOTE: Gemini API can understand videos but doesn't generate them.
+   * For actual video generation, you need Veo API (Google Cloud Vertex AI).
+   * This implementation uses Gemini's multimodal API as a placeholder.
+   * 
+   * To use Veo:
+   * 1. Set up Google Cloud Vertex AI
+   * 2. Enable Veo API
+   * 3. Replace this implementation with Veo API calls
    */
   async generateVideo(request: {
     prompt: string;
     duration: number;
     aspectRatio: '16:9' | '9:16' | '1:1';
     uploadedImageData?: string;
+    uploadedImageType?: string;
   }): Promise<{ success: boolean; data?: VideoGenerationResult; error?: string }> {
     logger.log('🎬 AISDKService: Starting video generation', {
       prompt: request.prompt,
@@ -442,30 +459,38 @@ Original prompt: "${originalPrompt}"`;
 
     try {
       // Build clean, structured prompt following best practices
-      // Start with user's original prompt - it's the primary input
       let enhancedPrompt = request.prompt.trim();
       const promptLower = enhancedPrompt.toLowerCase();
       
-      // Only add aspect ratio if not already mentioned (avoid redundancy)
+      // Add aspect ratio if not already mentioned
       if (request.aspectRatio && !promptLower.includes('aspect ratio') && !promptLower.includes(request.aspectRatio.replace(':', ':'))) {
         enhancedPrompt += `, ${request.aspectRatio} aspect ratio`;
       }
       
-      // Only add duration if not already mentioned
+      // Add duration if not already mentioned
       if (request.duration && !promptLower.includes('duration') && !promptLower.includes(`${request.duration} second`)) {
         enhancedPrompt += `, ${request.duration} seconds`;
       }
-      
-      // Don't add redundant reference note - the uploaded image in contents is sufficient
-      // The model understands image-to-video from the multimodal input
 
-      // Video generation with Veo requires Google Cloud Vertex AI or GenAI SDK
-      // For now, return an error indicating video generation needs to be configured
+      // IMPORTANT: Gemini API does not generate videos - it only understands them
+      // This is a placeholder implementation that will need to be replaced with Veo API
+      // For now, we'll return an informative error
+      
+      logger.warn('⚠️ AISDKService: Video generation requested but Gemini API does not support video generation');
+      logger.warn('⚠️ To enable video generation, integrate with Veo API (Google Cloud Vertex AI)');
       
       return {
         success: false,
-        error: 'Video generation via Veo 3.1 is not yet implemented. Please use Google Cloud Vertex AI or configure Veo API access separately.'
+        error: 'Video generation requires Veo API (Google Cloud Vertex AI). Gemini API can understand videos but does not generate them. Please configure Veo API access or use an alternative video generation service.'
       };
+
+      // TODO: Implement Veo API integration
+      // Example structure for Veo integration:
+      // 1. Upload image to Google Cloud Storage (if using image-to-video)
+      // 2. Call Veo API with prompt and image reference
+      // 3. Poll for completion
+      // 4. Download generated video
+      // 5. Return video URL or base64 data
 
     } catch (error) {
       logger.error('❌ AISDKService: Video generation failed', error);

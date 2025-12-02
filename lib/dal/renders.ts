@@ -168,7 +168,7 @@ export class RendersDAL {
 
   // Version control methods
   static async getByChainId(chainId: string) {
-    logger.log('🔍 Fetching renders by chain ID:', chainId);
+    logger.log('🔍 RendersDAL.getByChainId: Fetching renders for chain:', chainId);
     
     const chainRenders = await db
       .select()
@@ -176,7 +176,20 @@ export class RendersDAL {
       .where(eq(renders.chainId, chainId))
       .orderBy(renders.chainPosition);
 
-    logger.log(`✅ Found ${chainRenders.length} renders in chain`);
+    logger.log(`✅ RendersDAL.getByChainId: Found ${chainRenders.length} renders in chain`, {
+      chainId,
+      rendersCount: chainRenders.length,
+      renderDetails: chainRenders.map(r => ({
+        id: r.id,
+        prompt: r.prompt?.substring(0, 50) + '...',
+        status: r.status,
+        chainPosition: r.chainPosition,
+        type: r.type,
+        hasOutputUrl: !!r.outputUrl,
+        outputUrl: r.outputUrl?.substring(0, 50) + '...',
+        createdAt: r.createdAt
+      }))
+    });
     return chainRenders;
   }
 
