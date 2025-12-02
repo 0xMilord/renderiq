@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Type, Image as ImageIcon, Layers, Camera, Palette, Save, ChevronDown, FolderPlus } from 'lucide-react';
+import { Plus, Type, Image as ImageIcon, Layers, Camera, Palette, Save, ChevronDown, FolderPlus, FileText, Sparkles, Undo2, Redo2, Download, Upload, Search, Layout, Play, Square } from 'lucide-react';
+import { NodeFactory, NODE_TEMPLATES, NODE_REGISTRY } from '@/lib/canvas/node-factory';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -27,7 +28,17 @@ interface CanvasToolbarProps {
   chainId: string;
   chainName: string;
   onAddNode: (type: 'text' | 'image' | 'variants' | 'style' | 'material') => void;
+  onAddTemplate?: (templateName: keyof typeof NODE_TEMPLATES) => void;
   onSave: () => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onExport?: () => void;
+  onImport?: (file: File) => void;
+  onAutoLayout?: () => void;
+  onExecute?: () => void;
+  onSearch?: (query: string) => void;
 }
 
 export function CanvasToolbar({ 
@@ -37,7 +48,17 @@ export function CanvasToolbar({
   chainId, 
   chainName, 
   onAddNode,
-  onSave 
+  onAddTemplate,
+  onSave,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
+  onExport,
+  onImport,
+  onAutoLayout,
+  onExecute,
+  onSearch,
 }: CanvasToolbarProps) {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -134,20 +155,20 @@ export function CanvasToolbar({
   };
 
   return (
-    <div className="h-12 bg-[#2d2d2d] border-b border-[#3d3d3d] flex items-center px-4 gap-4">
+    <div className="h-12 bg-card border-b border-border text-card-foreground flex items-center px-4 gap-4">
       {/* Project Dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 bg-[#1e1e1e] hover:bg-[#3d3d3d] text-white border border-[#3d3d3d] gap-1"
+            className="h-8 gap-1"
           >
             <span className="text-sm font-medium">{projectName}</span>
             <ChevronDown className="h-3 w-3" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="bg-[#252526] border-[#3d3d3d] text-white max-h-[400px] overflow-y-auto">
+        <DropdownMenuContent className="max-h-[400px] overflow-y-auto">
           <Dialog open={showNewProjectDialog} onOpenChange={setShowNewProjectDialog}>
             <DialogTrigger asChild>
               <DropdownMenuItem
@@ -155,51 +176,49 @@ export function CanvasToolbar({
                   e.preventDefault();
                   setShowNewProjectDialog(true);
                 }}
-                className="hover:bg-[#094771] cursor-pointer"
+                className="cursor-pointer"
               >
                 <FolderPlus className="h-4 w-4 mr-2" />
                 Create New Project
               </DropdownMenuItem>
             </DialogTrigger>
-            <DialogContent className="bg-[#252526] border-[#3d3d3d] text-white">
+            <DialogContent>
               <DialogHeader>
                 <DialogTitle>Create New Project</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label className="text-white">Project Name</Label>
+                  <Label>Project Name</Label>
                   <Input
                     value={newProjectName}
                     onChange={(e) => setNewProjectName(e.target.value)}
                     placeholder="Enter project name"
-                    className="bg-[#1e1e1e] border-[#3d3d3d] text-white"
                   />
                 </div>
                 <div>
-                  <Label className="text-white">Description (Optional)</Label>
+                  <Label>Description (Optional)</Label>
                   <Textarea
                     value={newProjectDescription}
                     onChange={(e) => setNewProjectDescription(e.target.value)}
                     placeholder="Enter project description"
-                    className="bg-[#1e1e1e] border-[#3d3d3d] text-white"
                   />
                 </div>
                 <Button
                   onClick={handleCreateProject}
-                  className="w-full bg-[#0e639c] hover:bg-[#1177bb] text-white"
+                  className="w-full"
                 >
                   Create Project
                 </Button>
               </div>
             </DialogContent>
           </Dialog>
-          <DropdownMenuSeparator className="bg-[#3d3d3d]" />
+          <DropdownMenuSeparator />
           {projects.map((project) => (
             <DropdownMenuItem
               key={project.id}
               onClick={() => handleProjectSelect(project)}
-              className={`hover:bg-[#094771] cursor-pointer ${
-                project.id === projectId ? 'bg-[#094771]' : ''
+              className={`cursor-pointer ${
+                project.id === projectId ? 'bg-accent' : ''
               }`}
             >
               {project.name}
@@ -208,7 +227,7 @@ export function CanvasToolbar({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <span className="text-xs text-[#8c8c8c]">/</span>
+      <span className="text-xs text-muted-foreground">/</span>
 
       {/* Chain/Render Dropdown */}
       <DropdownMenu>
@@ -216,13 +235,13 @@ export function CanvasToolbar({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 bg-[#1e1e1e] hover:bg-[#3d3d3d] text-white border border-[#3d3d3d] gap-1"
+            className="h-8 gap-1"
           >
-            <span className="text-sm text-[#8c8c8c]">{chainName}</span>
+            <span className="text-sm text-muted-foreground">{chainName}</span>
             <ChevronDown className="h-3 w-3" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="bg-[#252526] border-[#3d3d3d] text-white max-h-[400px] overflow-y-auto">
+        <DropdownMenuContent className="max-h-[400px] overflow-y-auto">
           <Dialog open={showNewChainDialog} onOpenChange={setShowNewChainDialog}>
             <DialogTrigger asChild>
               <DropdownMenuItem
@@ -230,36 +249,35 @@ export function CanvasToolbar({
                   e.preventDefault();
                   setShowNewChainDialog(true);
                 }}
-                className="hover:bg-[#094771] cursor-pointer"
+                className="cursor-pointer"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Create New Render
               </DropdownMenuItem>
             </DialogTrigger>
-            <DialogContent className="bg-[#252526] border-[#3d3d3d] text-white">
+            <DialogContent>
               <DialogHeader>
                 <DialogTitle>Create New Render</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label className="text-white">Render Name</Label>
+                  <Label>Render Name</Label>
                   <Input
                     value={newChainName}
                     onChange={(e) => setNewChainName(e.target.value)}
                     placeholder="Enter render name"
-                    className="bg-[#1e1e1e] border-[#3d3d3d] text-white"
                   />
                 </div>
                 <Button
                   onClick={handleCreateChain}
-                  className="w-full bg-[#0e639c] hover:bg-[#1177bb] text-white"
+                  className="w-full"
                 >
                   Create Render
                 </Button>
               </div>
             </DialogContent>
           </Dialog>
-          <DropdownMenuSeparator className="bg-[#3d3d3d]" />
+          <DropdownMenuSeparator />
           {loadingChains ? (
             <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
           ) : (
@@ -267,8 +285,8 @@ export function CanvasToolbar({
               <DropdownMenuItem
                 key={chain.id}
                 onClick={() => handleChainSelect(chain)}
-                className={`hover:bg-[#094771] cursor-pointer ${
-                  chain.id === chainId ? 'bg-[#094771]' : ''
+                className={`cursor-pointer ${
+                  chain.id === chainId ? 'bg-accent' : ''
                 }`}
               >
                 {chain.name || `Render ${chain.id.slice(0, 8)}`}
@@ -278,20 +296,146 @@ export function CanvasToolbar({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Separator orientation="vertical" className="h-6 bg-[#3d3d3d]" />
+      <Separator orientation="vertical" className="h-6" />
+
+      {/* Undo/Redo Buttons */}
+      {onUndo && onRedo && (
+        <>
+          <Button
+            onClick={onUndo}
+            variant="ghost"
+            size="sm"
+            disabled={!canUndo}
+            className="h-8 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Undo (Ctrl+Z)"
+          >
+            <Undo2 className="h-4 w-4" />
+          </Button>
+          <Button
+            onClick={onRedo}
+            variant="ghost"
+            size="sm"
+            disabled={!canRedo}
+            className="h-8 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Redo (Ctrl+Y)"
+          >
+            <Redo2 className="h-4 w-4" />
+          </Button>
+          <Separator orientation="vertical" className="h-6" />
+        </>
+      )}
 
       {/* Save Button */}
       <Button
         onClick={onSave}
         variant="ghost"
         size="sm"
-        className="h-8 bg-[#0e639c] hover:bg-[#1177bb] text-white border border-[#0e639c]"
+        className="h-8 bg-primary hover:bg-primary/90 text-primary-foreground"
+        title="Save (Ctrl+S)"
       >
         <Save className="h-4 w-4 mr-2" />
         Save
       </Button>
 
-      <Separator orientation="vertical" className="h-6 bg-[#3d3d3d]" />
+      <Separator orientation="vertical" className="h-6" />
+
+      {/* Search */}
+      {onSearch && (
+        <>
+          <div className="flex items-center gap-2">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search nodes..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                onSearch(e.target.value);
+              }}
+              className="h-8 w-48 bg-background border-border text-foreground placeholder:text-muted-foreground"
+            />
+          </div>
+          <Separator orientation="vertical" className="h-6" />
+        </>
+      )}
+
+      {/* Auto Layout */}
+      {onAutoLayout && (
+        <>
+          <Button
+            onClick={onAutoLayout}
+            variant="ghost"
+            size="sm"
+            className="h-8"
+            title="Auto Layout (Ctrl+L)"
+          >
+            <Layout className="h-4 w-4 mr-2" />
+            Layout
+          </Button>
+          <Separator orientation="vertical" className="h-6" />
+        </>
+      )}
+
+      {/* Execute */}
+      {onExecute && (
+        <>
+          <Button
+            onClick={onExecute}
+            variant="ghost"
+            size="sm"
+            className="h-8 bg-primary/10 hover:bg-primary/20 text-primary"
+            title="Execute Workflow (Ctrl+E)"
+          >
+            <Play className="h-4 w-4 mr-2" />
+            Execute
+          </Button>
+          <Separator orientation="vertical" className="h-6" />
+        </>
+      )}
+
+      {/* Export/Import */}
+      {(onExport || onImport) && (
+        <>
+          {onExport && (
+            <Button
+              onClick={onExport}
+              variant="ghost"
+              size="sm"
+              className="h-8"
+              title="Export Workflow"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+          )}
+          {onImport && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file && onImport) {
+                    onImport(file);
+                  }
+                }}
+              />
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                variant="ghost"
+                size="sm"
+                className="h-8"
+                title="Import Workflow"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Import
+              </Button>
+            </>
+          )}
+          <Separator orientation="vertical" className="h-6" />
+        </>
+      )}
 
       {/* Add Node Dropdown */}
       <DropdownMenu>
@@ -299,48 +443,64 @@ export function CanvasToolbar({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 bg-[#1e1e1e] hover:bg-[#3d3d3d] text-white border border-[#3d3d3d]"
+            className="h-8"
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Node
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="bg-[#252526] border-[#3d3d3d] text-white">
-          <DropdownMenuItem
-            onClick={() => onAddNode('text')}
-            className="hover:bg-[#094771] cursor-pointer"
-          >
-            <Type className="h-4 w-4 mr-2" />
-            Text Node
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => onAddNode('image')}
-            className="hover:bg-[#094771] cursor-pointer"
-          >
-            <ImageIcon className="h-4 w-4 mr-2" />
-            Image Node
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => onAddNode('variants')}
-            className="hover:bg-[#094771] cursor-pointer"
-          >
-            <Layers className="h-4 w-4 mr-2" />
-            Variants Node
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => onAddNode('style')}
-            className="hover:bg-[#094771] cursor-pointer"
-          >
-            <Camera className="h-4 w-4 mr-2" />
-            Style Node
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => onAddNode('material')}
-            className="hover:bg-[#094771] cursor-pointer"
-          >
-            <Palette className="h-4 w-4 mr-2" />
-            Material Node
-          </DropdownMenuItem>
+        <DropdownMenuContent className="w-64">
+          {/* Templates Section */}
+          {onAddTemplate && (
+            <>
+              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                Templates
+              </div>
+              {Object.entries(NODE_TEMPLATES).map(([key, template]) => (
+                <DropdownMenuItem
+                  key={key}
+                  onClick={() => onAddTemplate(key as keyof typeof NODE_TEMPLATES)}
+                  className="cursor-pointer"
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  <div className="flex flex-col">
+                    <span>{template.name}</span>
+                    <span className="text-xs text-muted-foreground">{template.description}</span>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+            </>
+          )}
+          
+          {/* Individual Nodes Section */}
+          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+            Nodes
+          </div>
+          {Object.values(NODE_REGISTRY).map((nodeDef) => {
+            const icons: Record<string, any> = {
+              text: Type,
+              image: ImageIcon,
+              variants: Layers,
+              style: Camera,
+              material: Palette,
+            };
+            const Icon = icons[nodeDef.type] || Plus;
+            
+            return (
+              <DropdownMenuItem
+                key={nodeDef.type}
+                onClick={() => onAddNode(nodeDef.type)}
+                className="cursor-pointer"
+              >
+                <Icon className="h-4 w-4 mr-2" />
+                <div className="flex flex-col">
+                  <span>{nodeDef.label}</span>
+                  <span className="text-xs text-muted-foreground">{nodeDef.description}</span>
+                </div>
+              </DropdownMenuItem>
+            );
+          })}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

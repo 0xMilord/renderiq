@@ -15,6 +15,7 @@ import { Image as ImageIcon, Sparkles, Loader2, Download, ImageOff } from 'lucid
 import { ImageNodeData } from '@/lib/types/canvas';
 import { useNodeExecution } from '@/lib/hooks/use-node-execution';
 import { BaseNode } from './base-node';
+import { NodeExecutionStatus } from '@/lib/canvas/workflow-executor';
 import { logger } from '@/lib/utils/logger';
 
 export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
@@ -165,6 +166,15 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
     }
   }, [localData.outputUrl]);
 
+  // Get status from node data or local status
+  const nodeStatus = localData.status === 'generating' 
+    ? NodeExecutionStatus.RUNNING 
+    : localData.status === 'completed' 
+    ? NodeExecutionStatus.COMPLETED 
+    : localData.status === 'error'
+    ? NodeExecutionStatus.ERROR
+    : NodeExecutionStatus.IDLE;
+
   return (
     <BaseNode
       title="Image Node"
@@ -172,29 +182,30 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
       nodeType="image"
       nodeId={id}
       className="w-96"
+      status={nodeStatus}
       inputs={[
         { id: 'prompt', position: Position.Left, label: 'Text', type: 'text' },
         { id: 'style', position: Position.Left, label: 'Style', type: 'style' },
         { id: 'material', position: Position.Left, label: 'Material', type: 'material' },
       ]}
-      outputs={[{ id: 'image', position: Position.Right, type: 'image' }]}
+      outputs={[{ id: 'image', position: Position.Right, type: 'image', label: 'Image' }]}
     >
       {/* Show connection status */}
-      <div className="flex gap-2 text-xs text-[#8c8c8c] mb-2">
-        {hasTextInput && <span className="px-2 py-0.5 bg-[#094771] rounded">Text</span>}
-        {hasStyleInput && <span className="px-2 py-0.5 bg-[#094771] rounded">Style</span>}
-        {hasMaterialInput && <span className="px-2 py-0.5 bg-[#094771] rounded">Material</span>}
+      <div className="flex gap-2 text-xs text-muted-foreground mb-2">
+        {hasTextInput && <span className="px-2 py-0.5 bg-primary/20 text-primary rounded">Text</span>}
+        {hasStyleInput && <span className="px-2 py-0.5 bg-primary/20 text-primary rounded">Style</span>}
+        {hasMaterialInput && <span className="px-2 py-0.5 bg-primary/20 text-primary rounded">Material</span>}
       </div>
 
       {/* Show placeholder image when connected, textarea when not */}
       {hasTextInput && hasPrompt ? (
         <div className="space-y-3">
-          <div className="relative aspect-video bg-[#1e1e1e] rounded border border-[#3d3d3d] overflow-hidden flex items-center justify-center">
+          <div className="relative aspect-video bg-muted rounded border border-border overflow-hidden flex items-center justify-center">
             {localData.status === 'generating' ? (
               <div className="text-center p-4 w-full h-full flex flex-col items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-[#0e639c] mb-3" />
-                <p className="text-xs text-[#8c8c8c]">Generating image...</p>
-                <p className="text-xs text-[#8c8c8c] font-mono truncate max-w-full px-2 mt-1">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
+                <p className="text-xs text-muted-foreground">Generating image...</p>
+                <p className="text-xs text-muted-foreground font-mono truncate max-w-full px-2 mt-1">
                   "{localData.prompt.substring(0, 50)}..."
                 </p>
               </div>
@@ -206,9 +217,9 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
               />
             ) : (
               <div className="text-center p-4">
-                <ImageOff className="h-12 w-12 text-[#3d3d3d] mx-auto mb-2" />
-                <p className="text-xs text-[#8c8c8c] mb-1">Connected to Text Node</p>
-                <p className="text-xs text-[#8c8c8c] font-mono truncate max-w-full px-2">
+                <ImageOff className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                <p className="text-xs text-muted-foreground mb-1">Connected to Text Node</p>
+                <p className="text-xs text-muted-foreground font-mono truncate max-w-full px-2">
                   "{localData.prompt.substring(0, 50)}..."
                 </p>
               </div>
@@ -218,7 +229,7 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
           <Button
             onClick={handleGenerate}
             disabled={!localData.prompt || loading}
-            className="w-full bg-[#0e639c] hover:bg-[#1177bb] text-white h-8 text-xs nodrag nopan"
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-8 text-xs nodrag nopan"
           >
               Generate Image
             </Button>
@@ -226,12 +237,12 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
         </div>
       ) : (
         <div className="space-y-3">
-          <div className="relative aspect-video bg-[#1e1e1e] rounded border border-[#3d3d3d] overflow-hidden flex items-center justify-center">
+          <div className="relative aspect-video bg-muted rounded border border-border overflow-hidden flex items-center justify-center">
             {localData.status === 'generating' ? (
               <div className="text-center p-4 w-full h-full flex flex-col items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-[#0e639c] mb-3" />
-                <p className="text-xs text-[#8c8c8c]">Generating image...</p>
-                <p className="text-xs text-[#8c8c8c] font-mono truncate max-w-full px-2 mt-1">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
+                <p className="text-xs text-muted-foreground">Generating image...</p>
+                <p className="text-xs text-muted-foreground font-mono truncate max-w-full px-2 mt-1">
                   "{localData.prompt.substring(0, 50)}..."
                 </p>
               </div>
@@ -250,7 +261,7 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
                 setLocalData((prev) => ({ ...prev, prompt: e.target.value }))
               }
               placeholder="Enter prompt for image generation or connect Text Node..."
-              className="min-h-[80px] bg-[#1e1e1e] border-[#3d3d3d] text-white placeholder:text-[#8c8c8c] resize-none nodrag nopan"
+              className="min-h-[80px] bg-background border-border text-foreground placeholder:text-muted-foreground resize-none nodrag nopan"
             />
           )}
         </div>
@@ -258,7 +269,7 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
 
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-xs text-[#8c8c8c] mb-1 block">Style</label>
+            <label className="text-xs text-muted-foreground mb-1 block">Style</label>
             <Select
               value={localData.settings.style}
               onValueChange={(value) =>
@@ -268,10 +279,10 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
                 }))
               }
             >
-              <SelectTrigger className="bg-[#1e1e1e] border-[#3d3d3d] text-white h-8 text-xs nodrag nopan">
+              <SelectTrigger className="bg-background border-border text-foreground h-8 text-xs nodrag nopan">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-[#252526] border-[#3d3d3d]">
+              <SelectContent>
                 <SelectItem value="architectural">Architectural</SelectItem>
                 <SelectItem value="modern">Modern</SelectItem>
                 <SelectItem value="photorealistic">Photorealistic</SelectItem>
@@ -280,7 +291,7 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
             </Select>
           </div>
           <div>
-            <label className="text-xs text-[#8c8c8c] mb-1 block">Quality</label>
+            <label className="text-xs text-muted-foreground mb-1 block">Quality</label>
             <Select
               value={localData.settings.quality}
               onValueChange={(value: 'standard' | 'high' | 'ultra') =>
@@ -290,10 +301,10 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
                 }))
               }
             >
-              <SelectTrigger className="bg-[#1e1e1e] border-[#3d3d3d] text-white h-8 text-xs nodrag nopan">
+              <SelectTrigger className="bg-background border-border text-foreground h-8 text-xs nodrag nopan">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-[#252526] border-[#3d3d3d]">
+              <SelectContent>
                 <SelectItem value="standard">Standard</SelectItem>
                 <SelectItem value="high">High</SelectItem>
                 <SelectItem value="ultra">Ultra</SelectItem>
@@ -303,7 +314,7 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
         </div>
 
         <div>
-          <label className="text-xs text-[#8c8c8c] mb-1 block">Aspect Ratio</label>
+          <label className="text-xs text-muted-foreground mb-1 block">Aspect Ratio</label>
           <Select
             value={localData.settings.aspectRatio}
             onValueChange={(value) =>
@@ -313,10 +324,10 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
               }))
             }
           >
-            <SelectTrigger className="bg-[#1e1e1e] border-[#3d3d3d] text-white h-8 text-xs">
+            <SelectTrigger className="bg-background border-border text-foreground h-8 text-xs">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-[#252526] border-[#3d3d3d]">
+            <SelectContent>
               <SelectItem value="16:9">16:9</SelectItem>
               <SelectItem value="1:1">1:1</SelectItem>
               <SelectItem value="4:3">4:3</SelectItem>
@@ -332,7 +343,7 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
             variant="outline"
             size="sm"
             disabled={loading || localData.status === 'generating'}
-            className="flex-1 bg-[#1e1e1e] border-[#3d3d3d] text-white hover:bg-[#3d3d3d] h-8 text-xs nodrag nopan"
+            className="flex-1 h-8 text-xs nodrag nopan"
           >
             <Sparkles className="h-3 w-3 mr-1" />
             Enhance
@@ -340,7 +351,7 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
           <Button
             onClick={handleGenerate}
             disabled={loading || localData.status === 'generating' || !localData.prompt}
-            className="flex-1 bg-[#0e639c] hover:bg-[#1177bb] text-white h-8 text-xs nodrag nopan"
+            className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground h-8 text-xs nodrag nopan"
           >
             {loading || localData.status === 'generating' ? (
               <>
@@ -359,7 +370,7 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
           onClick={handleDownload}
           variant="outline"
           size="sm"
-          className="w-full bg-[#1e1e1e] border-[#3d3d3d] text-white hover:bg-[#3d3d3d] h-8 text-xs nodrag nopan"
+          className="w-full h-8 text-xs nodrag nopan"
         >
           <Download className="h-3 w-3 mr-1" />
           Download
@@ -367,7 +378,7 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
       )}
 
       {localData.status === 'error' && (
-        <div className="text-xs text-red-400 bg-red-900/20 p-2 rounded">
+        <div className="text-xs text-destructive bg-destructive/10 p-2 rounded">
           {localData.errorMessage}
         </div>
       )}

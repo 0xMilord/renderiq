@@ -28,10 +28,40 @@ export async function GET(
       );
     }
 
+    // First verify the chain exists and user has access
+    const { RenderChainsDAL } = await import('@/lib/dal/render-chains');
+    const chain = await RenderChainsDAL.getById(chainId);
+    
+    if (!chain) {
+      return NextResponse.json(
+        { success: false, error: 'Canvas workflow not found. The render chain does not exist.' },
+        { status: 404 }
+      );
+    }
+
+    // Verify user owns the project that contains this chain
+    const { ProjectsDAL } = await import('@/lib/dal/projects');
+    const project = await ProjectsDAL.getById(chain.projectId);
+    
+    if (!project) {
+      return NextResponse.json(
+        { success: false, error: 'Project not found' },
+        { status: 404 }
+      );
+    }
+
+    if (project.userId !== user.id) {
+      return NextResponse.json(
+        { success: false, error: 'Access denied' },
+        { status: 403 }
+      );
+    }
+
+    // Now check if a graph exists
     const graph = await CanvasDAL.getByChainId(chainId);
 
     if (!graph) {
-      // Return empty graph if none exists
+      // Return empty graph if none exists - canvas will create it on first save
       return NextResponse.json({
         success: true,
         data: {

@@ -14,6 +14,7 @@ import {
 import { Camera, Sun, Palette } from 'lucide-react';
 import { StyleNodeData } from '@/lib/types/canvas';
 import { BaseNode } from './base-node';
+import { NodeExecutionStatus } from '@/lib/canvas/workflow-executor';
 
 export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
   const [localData, setLocalData] = useState<StyleNodeData>(data || {
@@ -60,6 +61,8 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
     window.dispatchEvent(event);
   }, [localData, id]);
 
+  const status = (data as any)?.status || NodeExecutionStatus.IDLE;
+
   return (
     <BaseNode
       title="Style Node"
@@ -67,18 +70,19 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
       nodeType="style"
       nodeId={id}
       className="w-96"
-      outputs={[{ id: 'style', position: Position.Right, type: 'style' }]}
+      status={status}
+      outputs={[{ id: 'style', position: Position.Right, type: 'style', label: 'Style' }]}
     >
       <div className="space-y-4">
         {/* Camera Settings */}
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-xs font-semibold text-white">
+          <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
             <Camera className="h-3 w-3" />
             Camera
           </div>
           
           <div>
-            <Label className="text-xs text-[#8c8c8c] mb-1 block">
+            <Label className="text-xs text-muted-foreground mb-1 block">
               Focal Length: {localData.camera.focalLength}mm
             </Label>
             <Slider
@@ -96,7 +100,7 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
           </div>
 
           <div>
-            <Label className="text-xs text-[#8c8c8c] mb-1 block">
+            <Label className="text-xs text-muted-foreground mb-1 block">
               f-Stop: f/{localData.camera.fStop}
             </Label>
             <Slider
@@ -115,7 +119,7 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <Label className="text-xs text-[#8c8c8c] mb-1 block">Position</Label>
+              <Label className="text-xs text-muted-foreground mb-1 block">Position</Label>
               <Select
                 value={localData.camera.position}
                 onValueChange={(value: any) =>
@@ -124,10 +128,10 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
                   })
                 }
               >
-                <SelectTrigger className="bg-[#1e1e1e] border-[#3d3d3d] text-white h-8 text-xs nodrag nopan">
+                <SelectTrigger className="bg-background border-border text-foreground h-8 text-xs nodrag nopan">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-[#252526] border-[#3d3d3d]">
+                <SelectContent>
                   <SelectItem value="eye-level">Eye Level</SelectItem>
                   <SelectItem value="low-angle">Low Angle</SelectItem>
                   <SelectItem value="high-angle">High Angle</SelectItem>
@@ -138,7 +142,7 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
             </div>
 
             <div>
-              <Label className="text-xs text-[#8c8c8c] mb-1 block">Angle</Label>
+              <Label className="text-xs text-muted-foreground mb-1 block">Angle</Label>
               <Select
                 value={localData.camera.angle}
                 onValueChange={(value: any) =>
@@ -147,10 +151,10 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
                   })
                 }
               >
-                <SelectTrigger className="bg-[#1e1e1e] border-[#3d3d3d] text-white h-8 text-xs nodrag nopan">
+                <SelectTrigger className="bg-background border-border text-foreground h-8 text-xs nodrag nopan">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-[#252526] border-[#3d3d3d]">
+                <SelectContent>
                   <SelectItem value="front">Front</SelectItem>
                   <SelectItem value="side">Side</SelectItem>
                   <SelectItem value="three-quarter">Three-Quarter</SelectItem>
@@ -163,14 +167,14 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
 
         {/* Environment Settings */}
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-xs font-semibold text-white">
+          <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
             <Sun className="h-3 w-3" />
             Environment
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <Label className="text-xs text-[#8c8c8c] mb-1 block">Scene</Label>
+              <Label className="text-xs text-muted-foreground mb-1 block">Scene</Label>
               <Select
                 value={localData.environment.scene}
                 onValueChange={(value: any) =>
@@ -179,10 +183,10 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
                   })
                 }
               >
-                <SelectTrigger className="bg-[#1e1e1e] border-[#3d3d3d] text-white h-8 text-xs nodrag nopan">
+                <SelectTrigger className="bg-background border-border text-foreground h-8 text-xs nodrag nopan">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-[#252526] border-[#3d3d3d]">
+                <SelectContent>
                   <SelectItem value="interior">Interior</SelectItem>
                   <SelectItem value="exterior">Exterior</SelectItem>
                   <SelectItem value="mixed">Mixed</SelectItem>
@@ -191,7 +195,7 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
             </div>
 
             <div>
-              <Label className="text-xs text-[#8c8c8c] mb-1 block">Weather</Label>
+              <Label className="text-xs text-muted-foreground mb-1 block">Weather</Label>
               <Select
                 value={localData.environment.weather}
                 onValueChange={(value: any) =>
@@ -200,10 +204,10 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
                   })
                 }
               >
-                <SelectTrigger className="bg-[#1e1e1e] border-[#3d3d3d] text-white h-8 text-xs nodrag nopan">
+                <SelectTrigger className="bg-background border-border text-foreground h-8 text-xs nodrag nopan">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-[#252526] border-[#3d3d3d]">
+                <SelectContent>
                   <SelectItem value="sunny">Sunny</SelectItem>
                   <SelectItem value="cloudy">Cloudy</SelectItem>
                   <SelectItem value="rainy">Rainy</SelectItem>
@@ -218,7 +222,7 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <Label className="text-xs text-[#8c8c8c] mb-1 block">Time of Day</Label>
+              <Label className="text-xs text-muted-foreground mb-1 block">Time of Day</Label>
               <Select
                 value={localData.environment.timeOfDay}
                 onValueChange={(value: any) =>
@@ -227,10 +231,10 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
                   })
                 }
               >
-                <SelectTrigger className="bg-[#1e1e1e] border-[#3d3d3d] text-white h-8 text-xs nodrag nopan">
+                <SelectTrigger className="bg-background border-border text-foreground h-8 text-xs nodrag nopan">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-[#252526] border-[#3d3d3d]">
+                <SelectContent>
                   <SelectItem value="dawn">Dawn</SelectItem>
                   <SelectItem value="morning">Morning</SelectItem>
                   <SelectItem value="noon">Noon</SelectItem>
@@ -242,7 +246,7 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
             </div>
 
             <div>
-              <Label className="text-xs text-[#8c8c8c] mb-1 block">Season</Label>
+              <Label className="text-xs text-muted-foreground mb-1 block">Season</Label>
               <Select
                 value={localData.environment.season}
                 onValueChange={(value: any) =>
@@ -251,10 +255,10 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
                   })
                 }
               >
-                <SelectTrigger className="bg-[#1e1e1e] border-[#3d3d3d] text-white h-8 text-xs nodrag nopan">
+                <SelectTrigger className="bg-background border-border text-foreground h-8 text-xs nodrag nopan">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-[#252526] border-[#3d3d3d]">
+                <SelectContent>
                   <SelectItem value="spring">Spring</SelectItem>
                   <SelectItem value="summer">Summer</SelectItem>
                   <SelectItem value="autumn">Autumn</SelectItem>
@@ -267,13 +271,13 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
 
         {/* Lighting Settings */}
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-xs font-semibold text-white">
+          <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
             <Sun className="h-3 w-3" />
             Lighting
           </div>
 
           <div>
-            <Label className="text-xs text-[#8c8c8c] mb-1 block">
+            <Label className="text-xs text-muted-foreground mb-1 block">
               Intensity: {localData.lighting.intensity}%
             </Label>
             <Slider
@@ -292,7 +296,7 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <Label className="text-xs text-[#8c8c8c] mb-1 block">Direction</Label>
+              <Label className="text-xs text-muted-foreground mb-1 block">Direction</Label>
               <Select
                 value={localData.lighting.direction}
                 onValueChange={(value: any) =>
@@ -301,10 +305,10 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
                   })
                 }
               >
-                <SelectTrigger className="bg-[#1e1e1e] border-[#3d3d3d] text-white h-8 text-xs nodrag nopan">
+                <SelectTrigger className="bg-background border-border text-foreground h-8 text-xs nodrag nopan">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-[#252526] border-[#3d3d3d]">
+                <SelectContent>
                   <SelectItem value="front">Front</SelectItem>
                   <SelectItem value="side">Side</SelectItem>
                   <SelectItem value="back">Back</SelectItem>
@@ -315,7 +319,7 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
             </div>
 
             <div>
-              <Label className="text-xs text-[#8c8c8c] mb-1 block">Color</Label>
+              <Label className="text-xs text-muted-foreground mb-1 block">Color</Label>
               <Select
                 value={localData.lighting.color}
                 onValueChange={(value: any) =>
@@ -324,10 +328,10 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
                   })
                 }
               >
-                <SelectTrigger className="bg-[#1e1e1e] border-[#3d3d3d] text-white h-8 text-xs nodrag nopan">
+                <SelectTrigger className="bg-background border-border text-foreground h-8 text-xs nodrag nopan">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-[#252526] border-[#3d3d3d]">
+                <SelectContent>
                   <SelectItem value="warm">Warm</SelectItem>
                   <SelectItem value="cool">Cool</SelectItem>
                   <SelectItem value="neutral">Neutral</SelectItem>
@@ -339,7 +343,7 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
           </div>
 
           <div>
-            <Label className="text-xs text-[#8c8c8c] mb-1 block">Shadows</Label>
+            <Label className="text-xs text-muted-foreground mb-1 block">Shadows</Label>
             <Select
               value={localData.lighting.shadows}
               onValueChange={(value: any) =>
@@ -348,10 +352,10 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
                 })
               }
             >
-              <SelectTrigger className="bg-[#1e1e1e] border-[#3d3d3d] text-white h-8 text-xs">
+              <SelectTrigger className="bg-background border-border text-foreground h-8 text-xs">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-[#252526] border-[#3d3d3d]">
+              <SelectContent>
                 <SelectItem value="soft">Soft</SelectItem>
                 <SelectItem value="hard">Hard</SelectItem>
                 <SelectItem value="none">None</SelectItem>
@@ -362,13 +366,13 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
 
         {/* Atmosphere Settings */}
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-xs font-semibold text-white">
+          <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
             <Palette className="h-3 w-3" />
             Atmosphere
           </div>
 
           <div>
-            <Label className="text-xs text-[#8c8c8c] mb-1 block">Mood</Label>
+            <Label className="text-xs text-muted-foreground mb-1 block">Mood</Label>
             <Select
               value={localData.atmosphere.mood}
               onValueChange={(value: any) =>
@@ -377,10 +381,10 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
                 })
               }
             >
-              <SelectTrigger className="bg-[#1e1e1e] border-[#3d3d3d] text-white h-8 text-xs">
+              <SelectTrigger className="bg-background border-border text-foreground h-8 text-xs">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-[#252526] border-[#3d3d3d]">
+              <SelectContent>
                 <SelectItem value="bright">Bright</SelectItem>
                 <SelectItem value="dramatic">Dramatic</SelectItem>
                 <SelectItem value="peaceful">Peaceful</SelectItem>
@@ -391,7 +395,7 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
           </div>
 
           <div>
-            <Label className="text-xs text-[#8c8c8c] mb-1 block">
+            <Label className="text-xs text-muted-foreground mb-1 block">
               Contrast: {localData.atmosphere.contrast}%
             </Label>
             <Slider
@@ -409,7 +413,7 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
           </div>
 
           <div>
-            <Label className="text-xs text-[#8c8c8c] mb-1 block">
+            <Label className="text-xs text-muted-foreground mb-1 block">
               Saturation: {localData.atmosphere.saturation}%
             </Label>
             <Slider

@@ -8,6 +8,7 @@ import { Layers, Loader2, Check } from 'lucide-react';
 import { VariantsNodeData } from '@/lib/types/canvas';
 import { useNodeExecution } from '@/lib/hooks/use-node-execution';
 import { BaseNode } from './base-node';
+import { NodeExecutionStatus } from '@/lib/canvas/workflow-executor';
 
 export function VariantsNode({ data, id }: NodeProps<{ data: VariantsNodeData }>) {
   const [localData, setLocalData] = useState<VariantsNodeData>(data || {
@@ -76,6 +77,14 @@ export function VariantsNode({ data, id }: NodeProps<{ data: VariantsNodeData }>
     []
   );
 
+  const nodeStatus = localData.status === 'generating' 
+    ? NodeExecutionStatus.RUNNING 
+    : localData.status === 'completed' 
+    ? NodeExecutionStatus.COMPLETED 
+    : localData.status === 'error'
+    ? NodeExecutionStatus.ERROR
+    : NodeExecutionStatus.IDLE;
+
   return (
     <BaseNode
       title="Variants Node"
@@ -83,12 +92,13 @@ export function VariantsNode({ data, id }: NodeProps<{ data: VariantsNodeData }>
       nodeType="variants"
       nodeId={id}
       className="w-[500px]"
-      inputs={[{ id: 'sourceImage', position: Position.Left, type: 'image' }]}
-      outputs={[{ id: 'variants', position: Position.Right, type: 'variants' }]}
+      status={nodeStatus}
+      inputs={[{ id: 'sourceImage', position: Position.Left, type: 'image', label: 'Source Image' }]}
+      outputs={[{ id: 'variants', position: Position.Right, type: 'variants', label: 'Variants' }]}
     >
 
         {localData.sourceImageUrl && (
-          <div className="relative aspect-video bg-[#1e1e1e] rounded border border-[#3d3d3d] overflow-hidden">
+          <div className="relative aspect-video bg-muted rounded border border-border overflow-hidden">
             <img
               src={localData.sourceImageUrl}
               alt="Source"
@@ -98,7 +108,7 @@ export function VariantsNode({ data, id }: NodeProps<{ data: VariantsNodeData }>
         )}
 
         <div>
-          <label className="text-xs text-[#8c8c8c] mb-2 block">
+          <label className="text-xs text-muted-foreground mb-2 block">
             Variant Count: {localData.count}
           </label>
           <Slider
@@ -114,7 +124,7 @@ export function VariantsNode({ data, id }: NodeProps<{ data: VariantsNodeData }>
         </div>
 
         <div>
-          <label className="text-xs text-[#8c8c8c] mb-2 block">
+          <label className="text-xs text-muted-foreground mb-2 block">
             Variation Strength: {localData.settings.variationStrength.toFixed(2)}
           </label>
           <Slider
@@ -135,7 +145,7 @@ export function VariantsNode({ data, id }: NodeProps<{ data: VariantsNodeData }>
         <Button
           onClick={handleGenerate}
           disabled={loading || localData.status === 'generating' || !localData.sourceImageUrl}
-          className="w-full bg-[#0e639c] hover:bg-[#1177bb] text-white h-8 text-xs nodrag nopan"
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-8 text-xs nodrag nopan"
         >
           {loading || localData.status === 'generating' ? (
             <>
@@ -149,15 +159,15 @@ export function VariantsNode({ data, id }: NodeProps<{ data: VariantsNodeData }>
 
         {localData.status === 'completed' && localData.variants.length > 0 && (
           <div className="space-y-2">
-            <div className="text-xs text-[#8c8c8c]">Select a variant:</div>
+            <div className="text-xs text-muted-foreground">Select a variant:</div>
             <div className="grid grid-cols-2 gap-2">
               {localData.variants.map((variant) => (
                 <div
                   key={variant.id}
-                  className={`relative aspect-square bg-[#1e1e1e] rounded border-2 overflow-hidden cursor-pointer transition-all ${
+                  className={`relative aspect-square bg-muted rounded border-2 overflow-hidden cursor-pointer transition-all ${
                     localData.selectedVariantId === variant.id
-                      ? 'border-[#0e639c]'
-                      : 'border-[#3d3d3d] hover:border-[#5d5d5d]'
+                      ? 'border-primary'
+                      : 'border-border hover:border-primary/50'
                   }`}
                   onClick={() => handleSelectVariant(variant.id)}
                 >
@@ -167,8 +177,8 @@ export function VariantsNode({ data, id }: NodeProps<{ data: VariantsNodeData }>
                     className="w-full h-full object-cover"
                   />
                   {localData.selectedVariantId === variant.id && (
-                    <div className="absolute top-2 right-2 bg-[#0e639c] rounded-full p-1">
-                      <Check className="h-3 w-3 text-white" />
+                    <div className="absolute top-2 right-2 bg-primary rounded-full p-1">
+                      <Check className="h-3 w-3 text-primary-foreground" />
                     </div>
                   )}
                 </div>

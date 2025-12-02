@@ -74,17 +74,25 @@ export default function CanvasEditorPage() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="w-96 bg-card border-border">
           <CardContent className="p-8 text-center">
-            <h2 className="text-lg font-semibold mb-2 text-card-foreground">Chat Not Found</h2>
+            <h2 className="text-lg font-semibold mb-2 text-card-foreground">Canvas Not Found</h2>
             <p className="text-muted-foreground mb-4">
-              The chat you're looking for doesn't exist.
+              The canvas workflow you're looking for doesn't exist. A render chain is required to create a canvas.
             </p>
-            <Button 
-              onClick={() => router.push(`/canvas/${projectSlug}`)}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Project
-            </Button>
+            <div className="flex flex-col gap-2">
+              <Button 
+                onClick={() => router.push(`/canvas`)}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Canvas
+              </Button>
+              <Button 
+                onClick={() => router.push(`/canvas/${projectSlug}`)}
+                variant="outline"
+              >
+                View Project
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

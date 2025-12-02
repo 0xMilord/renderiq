@@ -158,6 +158,16 @@
   cursor: crosshair !important;
   transition: none !important;
   pointer-events: all !important;
+  z-index: 50 !important;
+}
+
+.react-flow__node {
+  overflow: visible !important;
+}
+
+.react-flow__node .react-flow__handle {
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .react-flow__handle-connecting {

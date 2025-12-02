@@ -34,10 +34,13 @@ import {
   Coins,
   Info,
   Crown,
-  Zap
+  Zap,
+  Workflow,
+  Plus
 } from 'lucide-react';
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { CreateProjectModal } from '@/components/projects/create-project-modal';
 
 export function UserDropdown() {
   const { user, signOut } = useAuth();
@@ -190,6 +193,22 @@ export function UserDropdown() {
             <span>Render</span>
           </Link>
         </DropdownMenuItem>
+        
+        {/* Canvas Access */}
+        <DropdownMenuItem asChild>
+          <Link href="/canvas" className="flex items-center">
+            <Workflow className="mr-2 h-4 w-4" />
+            <span>Canvas</span>
+          </Link>
+        </DropdownMenuItem>
+        
+        {/* Create Project */}
+        <CreateProjectModal onProjectCreated={() => setIsOpen(false)}>
+          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+            <Plus className="mr-2 h-4 w-4" />
+            <span>Create Project</span>
+          </DropdownMenuItem>
+        </CreateProjectModal>
         
         {/* Dashboard Link */}
         <DropdownMenuItem asChild>

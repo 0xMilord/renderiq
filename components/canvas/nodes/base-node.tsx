@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
+import { NodeStatusIndicator } from '../node-status-indicator';
+import { NodeExecutionStatus } from '@/lib/canvas/workflow-executor';
 
 interface BaseNodeProps {
   title: string;
@@ -26,6 +28,8 @@ interface BaseNodeProps {
   className?: string;
   nodeType?: 'text' | 'image' | 'variants' | 'style' | 'material';
   nodeId?: string;
+  status?: NodeExecutionStatus;
+  progress?: number;
 }
 
 // Color scheme for different node types
@@ -75,6 +79,8 @@ export function BaseNode({
   className = '',
   nodeType = 'text',
   nodeId,
+  status = NodeExecutionStatus.IDLE,
+  progress,
 }: BaseNodeProps) {
   const colors = nodeColors[nodeType] || nodeColors.text;
   const accentColor = colors.accent;
@@ -88,12 +94,20 @@ export function BaseNode({
   };
 
   return (
-    <Card className={`w-80 bg-card border-border shadow-lg overflow-hidden py-0 ${className}`}>
+    <Card className={`w-80 bg-card border-border shadow-lg overflow-visible py-0 ${className}`}>
       <CardHeader className={`p-0 border-b ${colors.header} border-border`}>
-        <CardTitle className="text-xs font-semibold text-card-foreground flex items-center justify-between h-6 px-3">
+        <CardTitle className="text-xs font-semibold text-white flex items-center justify-between h-6 px-3">
           <div className="flex items-center gap-1.5 flex-1 min-w-0 h-full">
             <Icon className={`h-3 w-3 ${colors.icon} flex-shrink-0`} style={{ lineHeight: 1 }} />
             <span className="truncate leading-none">{title}</span>
+            {nodeId && status !== NodeExecutionStatus.IDLE && (
+              <NodeStatusIndicator
+                nodeId={nodeId}
+                status={status}
+                progress={progress}
+                className="ml-1"
+              />
+            )}
           </div>
           {nodeId && (
             <Button
@@ -107,7 +121,7 @@ export function BaseNode({
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-3 space-y-2 relative pt-3">
+      <CardContent className="p-3 space-y-2 relative pt-3 overflow-visible">
         {/* Input Handles */}
         {inputs.map((input, index) => {
           const handleColor = handleColors[input.type || 'text'] || accentColor;
@@ -121,7 +135,7 @@ export function BaseNode({
               type="target"
               position={input.position}
               id={input.id}
-              className="!w-4 !h-4 !border-2 !border-background !rounded-full !z-10"
+              className="!w-4 !h-4 !border-2 !border-background !rounded-full !z-50"
               style={{
                 backgroundColor: handleColor,
                 borderColor: 'hsl(var(--background))',
@@ -138,7 +152,9 @@ export function BaseNode({
                 transform: input.position === Position.Left && totalLeft > 1
                   ? `translateY(${(leftIndex - (totalLeft - 1) / 2) * 24}px)`
                   : undefined,
+                pointerEvents: 'all',
               }}
+              title={input.label || `${input.type} input`}
             />
           );
         })}
@@ -158,7 +174,7 @@ export function BaseNode({
               type="source"
               position={output.position}
               id={output.id}
-              className="!w-4 !h-4 !border-2 !border-background !rounded-full !z-10"
+              className="!w-4 !h-4 !border-2 !border-background !rounded-full !z-50"
               style={{
                 backgroundColor: handleColor,
                 borderColor: 'hsl(var(--background))',
@@ -171,7 +187,9 @@ export function BaseNode({
                 transform: output.position === Position.Right && totalRight > 1
                   ? `translateY(${(rightIndex - (totalRight - 1) / 2) * 24}px)`
                   : undefined,
+                pointerEvents: 'all',
               }}
+              title={output.label || `${output.type} output`}
             />
           );
         })}

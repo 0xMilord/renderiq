@@ -15,6 +15,7 @@ import {
 import { Layers, Plus, X } from 'lucide-react';
 import { MaterialNodeData } from '@/lib/types/canvas';
 import { BaseNode } from './base-node';
+import { NodeExecutionStatus } from '@/lib/canvas/workflow-executor';
 
 export function MaterialNode({ data, id }: NodeProps<{ data: MaterialNodeData }>) {
   const [localData, setLocalData] = useState<MaterialNodeData>(data || {
@@ -64,6 +65,8 @@ export function MaterialNode({ data, id }: NodeProps<{ data: MaterialNodeData }>
     });
   }, [localData.materials, handleChange]);
 
+  const status = (data as any)?.status || NodeExecutionStatus.IDLE;
+
   return (
     <BaseNode
       title="Material Reference"
@@ -71,16 +74,17 @@ export function MaterialNode({ data, id }: NodeProps<{ data: MaterialNodeData }>
       nodeType="material"
       nodeId={id}
       className="w-96"
-      outputs={[{ id: 'materials', position: Position.Right, type: 'material' }]}
+      status={status}
+      outputs={[{ id: 'materials', position: Position.Right, type: 'material', label: 'Materials' }]}
     >
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <Label className="text-xs text-[#8c8c8c]">Materials</Label>
+          <Label className="text-xs text-muted-foreground">Materials</Label>
           <Button
             onClick={addMaterial}
             variant="outline"
             size="sm"
-            className="h-7 bg-[#1e1e1e] border-[#3d3d3d] text-white hover:bg-[#3d3d3d] text-xs nodrag nopan"
+            className="h-7 text-xs nodrag nopan"
           >
             <Plus className="h-3 w-3 mr-1" />
             Add
@@ -89,14 +93,14 @@ export function MaterialNode({ data, id }: NodeProps<{ data: MaterialNodeData }>
 
         <div className="space-y-2 max-h-[400px] overflow-y-auto">
           {localData.materials.length === 0 ? (
-            <div className="text-center py-4 text-xs text-[#8c8c8c]">
+            <div className="text-center py-4 text-xs text-muted-foreground">
               No materials added. Click "Add" to create one.
             </div>
           ) : (
             localData.materials.map((material) => (
               <div
                 key={material.id}
-                className="p-3 bg-[#1e1e1e] rounded border border-[#3d3d3d] space-y-2"
+                className="p-3 bg-muted rounded border border-border space-y-2"
               >
                 <div className="flex items-center justify-between">
                   <Input
@@ -105,13 +109,13 @@ export function MaterialNode({ data, id }: NodeProps<{ data: MaterialNodeData }>
                       updateMaterial(material.id, { name: e.target.value })
                     }
                     placeholder="Material name"
-                    className="bg-[#252526] border-[#3d3d3d] text-white text-xs h-7 flex-1 mr-2 nodrag nopan"
+                    className="bg-background border-border text-foreground text-xs h-7 flex-1 mr-2 nodrag nopan"
                   />
                   <Button
                     onClick={() => removeMaterial(material.id)}
                     variant="ghost"
                     size="sm"
-                    className="h-7 w-7 p-0 text-[#8c8c8c] hover:text-white nodrag nopan"
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground nodrag nopan"
                   >
                     <X className="h-3 w-3" />
                   </Button>
@@ -119,17 +123,17 @@ export function MaterialNode({ data, id }: NodeProps<{ data: MaterialNodeData }>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <Label className="text-xs text-[#8c8c8c] mb-1 block">Type</Label>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Type</Label>
                     <Select
                       value={material.type}
                       onValueChange={(value: any) =>
                         updateMaterial(material.id, { type: value })
                       }
                     >
-                      <SelectTrigger className="bg-[#252526] border-[#3d3d3d] text-white h-7 text-xs nodrag nopan">
+                      <SelectTrigger className="bg-background border-border text-foreground h-7 text-xs nodrag nopan">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-[#252526] border-[#3d3d3d]">
+                      <SelectContent>
                         <SelectItem value="wall">Wall</SelectItem>
                         <SelectItem value="floor">Floor</SelectItem>
                         <SelectItem value="ceiling">Ceiling</SelectItem>
@@ -141,17 +145,17 @@ export function MaterialNode({ data, id }: NodeProps<{ data: MaterialNodeData }>
                   </div>
 
                   <div>
-                    <Label className="text-xs text-[#8c8c8c] mb-1 block">Material</Label>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Material</Label>
                     <Select
                       value={material.material}
                       onValueChange={(value) =>
                         updateMaterial(material.id, { material: value })
                       }
                     >
-                      <SelectTrigger className="bg-[#252526] border-[#3d3d3d] text-white h-7 text-xs nodrag nopan">
+                      <SelectTrigger className="bg-background border-border text-foreground h-7 text-xs nodrag nopan">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-[#252526] border-[#3d3d3d]">
+                      <SelectContent>
                         <SelectItem value="concrete">Concrete</SelectItem>
                         <SelectItem value="wood">Wood</SelectItem>
                         <SelectItem value="glass">Glass</SelectItem>
@@ -171,17 +175,17 @@ export function MaterialNode({ data, id }: NodeProps<{ data: MaterialNodeData }>
 
                 {material.finish && (
                   <div>
-                    <Label className="text-xs text-[#8c8c8c] mb-1 block">Finish</Label>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Finish</Label>
                     <Select
                       value={material.finish}
                       onValueChange={(value: any) =>
                         updateMaterial(material.id, { finish: value })
                       }
                     >
-                      <SelectTrigger className="bg-[#252526] border-[#3d3d3d] text-white h-7 text-xs nodrag nopan">
+                      <SelectTrigger className="bg-background border-border text-foreground h-7 text-xs nodrag nopan">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-[#252526] border-[#3d3d3d]">
+                      <SelectContent>
                         <SelectItem value="matte">Matte</SelectItem>
                         <SelectItem value="glossy">Glossy</SelectItem>
                         <SelectItem value="semi-gloss">Semi-Gloss</SelectItem>
@@ -193,14 +197,14 @@ export function MaterialNode({ data, id }: NodeProps<{ data: MaterialNodeData }>
 
                 {material.color && (
                   <div>
-                    <Label className="text-xs text-[#8c8c8c] mb-1 block">Color</Label>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Color</Label>
                     <Input
                       value={material.color}
                       onChange={(e) =>
                         updateMaterial(material.id, { color: e.target.value })
                       }
                       placeholder="e.g., #FFFFFF or 'white'"
-                      className="bg-[#252526] border-[#3d3d3d] text-white text-xs h-7 nodrag nopan"
+                      className="bg-background border-border text-foreground text-xs h-7 nodrag nopan"
                     />
                   </div>
                 )}
