@@ -9,7 +9,7 @@ import { UserOnboardingProvider } from "@/components/user-onboarding-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { JsonLd, organizationSchema, softwareSchema, websiteSchema, comprehensiveFAQSchema } from "@/components/seo/json-ld";
 import { SEOMonitor, SEOAnalytics } from "@/components/seo/seo-monitor";
-// PWA components removed
+import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -117,11 +117,16 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* PWA manifest and meta tags removed */}
+        <link rel="manifest" href="/manifest.json" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32x32.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16x16.png" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <meta name="theme-color" content="#22c55e" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="RenderIQ" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-y-auto`}
@@ -132,6 +137,7 @@ export default function RootLayout({
         <JsonLd data={comprehensiveFAQSchema} />
         <SEOMonitor />
         <SEOAnalytics />
+        <ServiceWorkerRegister />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

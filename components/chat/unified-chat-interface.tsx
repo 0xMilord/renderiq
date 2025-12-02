@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
@@ -183,6 +183,10 @@ export function UnifiedChatInterface({
   onBackToProjects
 }: UnifiedChatInterfaceProps) {
   const router = useRouter();
+  
+  // React 19: Track initialization per chainId to prevent re-initialization
+  const initializedChainIdRef = useRef<string | undefined>(undefined);
+  
   // Chat state
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -300,62 +304,42 @@ export function UnifiedChatInterface({
     }
   }, [isGenerating, isImageGenerating, isVideoGenerating, isVideoMode]);
 
-  // Load chain data when component mounts or chain changes
-  // Only reload if chain has new renders that aren't already in messages
-  // CRITICAL: Skip reload if we just updated from a local render completion
+  // React 19 Best Practice: Initialize chain data only once per chainId
+  // Don't sync props to state in useEffect - only initialize on mount or chainId change
   useEffect(() => {
-    // Use ref to get current messages without causing dependency issues
-    const currentMessages = messagesRef.current;
+    const currentChainId = chainId || chain?.id;
     
-    logger.log('🔍 UnifiedChatInterface: Loading chain data', {
-      hasChain: !!chain,
-      rendersCount: chain?.renders?.length || 0,
-      chainId: chainId || chain?.id,
-      chainName: chain?.name,
-      projectId,
-      currentMessagesCount: currentMessages.length,
-      isLocalUpdate: isLocalRenderUpdateRef.current,
-      lastChainRenderCount: lastChainRenderCountRef.current
-    });
-
+    // React 19: Only initialize once per chainId (don't re-sync on every chain prop change)
+    if (initializedChainIdRef.current === currentChainId && messages.length > 0) {
+      // Already initialized for this chainId and have messages - skip
+      return;
+    }
+    
     // If this is a local render update, skip the reload
     if (isLocalRenderUpdateRef.current) {
       logger.log('⏭️ UnifiedChatInterface: Skipping reload - local render update in progress');
-      isLocalRenderUpdateRef.current = false; // Reset flag
-      // Update ref to track chain render count
+      isLocalRenderUpdateRef.current = false;
       if (chain?.renders) {
         lastChainRenderCountRef.current = chain.renders.length;
       }
       return;
     }
 
-    // Check if chain render count changed (external update)
-    const currentChainRenderCount = chain?.renders?.length || 0;
-    const isExternalUpdate = currentChainRenderCount !== lastChainRenderCountRef.current;
+    logger.log('🔍 UnifiedChatInterface: Initializing chain data', {
+      hasChain: !!chain,
+      rendersCount: chain?.renders?.length || 0,
+      chainId: currentChainId,
+      chainName: chain?.name,
+      projectId,
+      isInitialization: initializedChainIdRef.current !== currentChainId
+    });
     
     // Try to load from localStorage first as backup
-    const storageKey = `chat-messages-${projectId}-${chainId || 'default'}`;
+    const storageKey = `chat-messages-${projectId}-${currentChainId || 'default'}`;
     const storedMessages = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
     
-    // If we already have messages, check if chain has new renders
-    // Only reload if:
-    // 1. We have no messages yet (initial load)
-    // 2. Chain has renders that aren't in our current messages AND it's an external update
-    const currentRenderIds = new Set(currentMessages.filter(m => m.render?.id).map(m => m.render!.id));
-    const chainRenderIds = chain?.renders?.map(r => r.id) || [];
-    const hasNewRenders = currentMessages.length === 0 || 
-      (isExternalUpdate && chainRenderIds.some(id => !currentRenderIds.has(id)));
-    
-    if (chain && chain.renders && chain.renders.length > 0 && (currentMessages.length === 0 || hasNewRenders)) {
-      logger.log('✅ UnifiedChatInterface: Chain has renders, converting to messages', {
-        rendersCount: chain.renders.length,
-        renderIds: chain.renders.map(r => r.id),
-        renderStatuses: chain.renders.map(r => ({ id: r.id, status: r.status, chainPosition: r.chainPosition })),
-        renderPrompts: chain.renders.map(r => ({ id: r.id, prompt: r.prompt?.substring(0, 50) + '...' })),
-        hasNewRenders,
-        currentRenderIds: Array.from(currentRenderIds),
-        chainRenderIds
-      });
+    // React 19: Only set state if chain has renders and we haven't initialized yet
+    if (chain && chain.renders && chain.renders.length > 0) {
       logger.log('✅ UnifiedChatInterface: Chain has renders, converting to messages', {
         rendersCount: chain.renders.length,
         renderIds: chain.renders.map(r => r.id),
@@ -507,11 +491,14 @@ export function UnifiedChatInterface({
       setCurrentRender(null);
     }
     
+    // Mark as initialized for this chainId
+    initializedChainIdRef.current = currentChainId;
+    
     // Update ref to track chain render count after processing
     if (chain?.renders) {
       lastChainRenderCountRef.current = chain.renders.length;
     }
-  }, [chain, projectId, chainId]); // Removed messages.length to prevent infinite loop
+  }, [chainId, projectId, chain]); // React 19: Only re-run when chainId changes, not on every chain prop update
 
   // Save messages to localStorage whenever they change
   useEffect(() => {

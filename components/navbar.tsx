@@ -10,6 +10,7 @@ import { AlphaBanner } from '@/components/alpha-banner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Menu, X, Home, MessageSquare, GalleryVertical, BookOpen, Lightbulb, CreditCard, Info, FileText, Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PWAInstallButton } from '@/components/pwa/install-button';
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -102,12 +103,15 @@ export function Navbar() {
             </div>
           )}
 
-          {/* Right Section: User Dropdown and Hamburger Menu */}
+          {/* Right Section: User Dropdown, Install Button, and Hamburger Menu */}
           <div className="flex items-center flex-shrink-0 gap-2">
             {loading ? (
               <Skeleton className="w-8 h-8 rounded-full" />
             ) : (
               <>
+                {/* PWA Install Button */}
+                <PWAInstallButton />
+                
                 {/* User Dropdown - Always show on desktop, and on mobile when authenticated */}
                 <div className={cn(
                   "flex items-center",

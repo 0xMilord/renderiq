@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useAppShortcuts } from '@/lib/hooks/use-app-shortcuts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CommonImageCard } from '@/components/common/image-card';
