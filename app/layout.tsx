@@ -10,6 +10,7 @@ import { AuthProvider } from "@/components/providers/auth-provider";
 import { JsonLd, organizationSchema, softwareSchema, websiteSchema, comprehensiveFAQSchema } from "@/components/seo/json-ld";
 import { SEOMonitor, SEOAnalytics } from "@/components/seo/seo-monitor";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
+import { ConsoleSecurityWarning } from "@/components/security/console-warning";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -138,6 +139,7 @@ export default function RootLayout({
         <SEOMonitor />
         <SEOAnalytics />
         <ServiceWorkerRegister />
+        <ConsoleSecurityWarning />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

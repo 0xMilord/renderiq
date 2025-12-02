@@ -84,19 +84,8 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
             const verifyResult = await verifyResponse.json();
 
             if (verifyResult.success) {
-              const totalCredits = packageData.credits + (packageData.bonusCredits || 0);
-              toast.success(
-                `Payment successful! ${totalCredits} credits added to your account.`
-              );
-              
-              if (onPurchaseComplete) {
-                onPurchaseComplete();
-              }
-              
-              // Refresh page to update credit balance
-              setTimeout(() => {
-                window.location.reload();
-              }, 1500);
+              // Redirect to success page
+              window.location.href = `/payment/success?payment_order_id=${verifyResult.data.paymentOrderId}&razorpay_order_id=${response.razorpay_order_id}&razorpay_payment_id=${response.razorpay_payment_id}`;
             } else {
               throw new Error(verifyResult.error || 'Payment verification failed');
             }
@@ -125,7 +114,8 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
       
       razorpay.on('payment.failed', (response: any) => {
         console.error('Payment failed:', response);
-        toast.error(`Payment failed: ${response.error.description || 'Unknown error'}`);
+        const errorDescription = response.error?.description || 'Unknown error';
+        window.location.href = `/payment/failure?razorpay_order_id=${orderId}&error_description=${encodeURIComponent(errorDescription)}`;
         setLoading(null);
       });
     } catch (error: any) {

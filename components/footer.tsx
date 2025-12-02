@@ -105,17 +105,54 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="border-t mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
-          <p className="text-muted-foreground text-sm">
-            © 2024 Renderiq. All rights reserved.
-          </p>
-          <div className="flex space-x-6 mt-4 md:mt-0">
-            <Link href="/terms" className="text-muted-foreground hover:text-primary transition-colors text-sm">
-              Terms of Service
-            </Link>
-            <Link href="/privacy" className="text-muted-foreground hover:text-primary transition-colors text-sm">
-              Privacy Policy
-            </Link>
+        <div className="border-t mt-8 pt-8">
+          {/* Legal Links */}
+          <div className="mb-6">
+            <h3 className="font-semibold text-foreground mb-4">Legal</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <Link href="/terms" className="text-muted-foreground hover:text-primary transition-colors">
+                Terms of Service
+              </Link>
+              <Link href="/privacy" className="text-muted-foreground hover:text-primary transition-colors">
+                Privacy Policy
+              </Link>
+              <Link href="/refund" className="text-muted-foreground hover:text-primary transition-colors">
+                Refund Policy
+              </Link>
+              <Link href="/support" className="text-muted-foreground hover:text-primary transition-colors">
+                Support Policy
+              </Link>
+              <Link href="/cookies" className="text-muted-foreground hover:text-primary transition-colors">
+                Cookie Policy
+              </Link>
+              <Link href="/dpa" className="text-muted-foreground hover:text-primary transition-colors">
+                Data Processing Agreement
+              </Link>
+            </div>
+          </div>
+          
+          {/* Copyright */}
+          <div className="flex flex-col md:flex-row justify-between items-center pt-4 border-t">
+            <p className="text-muted-foreground text-sm">
+              © 2025 Renderiq. All rights reserved.
+            </p>
+            <div className="flex flex-wrap gap-4 mt-4 md:mt-0 text-xs text-muted-foreground">
+              <Link href="/terms" className="hover:text-primary transition-colors">
+                Terms
+              </Link>
+              <Link href="/privacy" className="hover:text-primary transition-colors">
+                Privacy
+              </Link>
+              <Link href="/refund" className="hover:text-primary transition-colors">
+                Refunds
+              </Link>
+              <Link href="/cookies" className="hover:text-primary transition-colors">
+                Cookies
+              </Link>
+              <Link href="/dpa" className="hover:text-primary transition-colors">
+                DPA
+              </Link>
+            </div>
           </div>
         </div>
       </div>

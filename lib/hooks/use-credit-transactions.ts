@@ -18,52 +18,16 @@ export function useCreditTransactions() {
     const fetchTransactions = async () => {
       try {
         setLoading(true);
-        // This would typically be a server action or API call
-        // For now, we'll simulate some mock data
-        const mockTransactions = [
-          {
-            id: '1',
-            amount: 10,
-            type: 'earned',
-            description: 'Welcome bonus credits',
-            referenceType: 'bonus',
-            createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-          },
-          {
-            id: '2',
-            amount: -1,
-            type: 'spent',
-            description: 'Image render - Modern house design',
-            referenceType: 'render',
-            createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-          },
-          {
-            id: '3',
-            amount: -1,
-            type: 'spent',
-            description: 'Image render - Office building concept',
-            referenceType: 'render',
-            createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-          },
-          {
-            id: '4',
-            amount: 100,
-            type: 'earned',
-            description: 'Pro Plan monthly credits',
-            referenceType: 'subscription',
-            createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-          },
-          {
-            id: '5',
-            amount: -5,
-            type: 'spent',
-            description: 'Video render - Architectural walkthrough',
-            referenceType: 'render',
-            createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-          },
-        ];
-        
-        setTransactions(mockTransactions);
+        setError(null);
+
+        const response = await fetch('/api/credits/transactions?limit=50');
+        const data = await response.json();
+
+        if (data.success && data.data) {
+          setTransactions(data.data);
+        } else {
+          setError(data.error || 'Failed to fetch transactions');
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch transactions');
       } finally {
@@ -78,13 +42,18 @@ export function useCreditTransactions() {
     if (!user) return;
     
     try {
-      // This would call the actual API
-      // For now, we'll just refresh the mock data
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      setLoading(false);
+      const response = await fetch('/api/credits/transactions?limit=50');
+      const data = await response.json();
+
+      if (data.success && data.data) {
+        setTransactions(data.data);
+      }
     } catch (err) {
       console.error('Failed to refresh transactions:', err);
+      setError(err instanceof Error ? err.message : 'Failed to refresh transactions');
+    } finally {
+      setLoading(false);
     }
   };
 

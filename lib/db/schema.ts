@@ -64,6 +64,29 @@ export const paymentOrders = pgTable('payment_orders', {
   amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
   currency: text('currency').default('INR').notNull(),
   status: text('status', { enum: ['pending', 'processing', 'completed', 'failed', 'cancelled'] }).default('pending').notNull(),
+  invoiceNumber: text('invoice_number').unique(),
+  receiptPdfUrl: text('receipt_pdf_url'),
+  receiptSentAt: timestamp('receipt_sent_at'),
+  taxAmount: decimal('tax_amount', { precision: 10, scale: 2 }).default('0'),
+  discountAmount: decimal('discount_amount', { precision: 10, scale: 2 }).default('0'),
+  metadata: jsonb('metadata').$type<Record<string, any>>(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Invoices table for invoice management
+export const invoices = pgTable('invoices', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  invoiceNumber: text('invoice_number').unique().notNull(),
+  paymentOrderId: uuid('payment_order_id').references(() => paymentOrders.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
+  taxAmount: decimal('tax_amount', { precision: 10, scale: 2 }).default('0'),
+  discountAmount: decimal('discount_amount', { precision: 10, scale: 2 }).default('0'),
+  totalAmount: decimal('total_amount', { precision: 10, scale: 2 }).notNull(),
+  currency: text('currency').default('INR').notNull(),
+  pdfUrl: text('pdf_url'),
+  status: text('status').default('pending').notNull(),
   metadata: jsonb('metadata').$type<Record<string, any>>(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -367,6 +390,12 @@ export const selectUserCreditsSchema = createSelectSchema(userCredits);
 export const insertCreditTransactionSchema = createInsertSchema(creditTransactions);
 export const selectCreditTransactionSchema = createSelectSchema(creditTransactions);
 
+export const insertPaymentOrderSchema = createInsertSchema(paymentOrders);
+export const selectPaymentOrderSchema = createSelectSchema(paymentOrders);
+
+export const insertInvoiceSchema = createInsertSchema(invoices);
+export const selectInvoiceSchema = createSelectSchema(invoices);
+
 export const insertFileStorageSchema = createInsertSchema(fileStorage);
 export const selectFileStorageSchema = createSelectSchema(fileStorage);
 
@@ -478,3 +507,6 @@ export type NewCreditPackage = typeof creditPackages.$inferInsert;
 
 export type PaymentOrder = typeof paymentOrders.$inferSelect;
 export type NewPaymentOrder = typeof paymentOrders.$inferInsert;
+
+export type Invoice = typeof invoices.$inferSelect;
+export type NewInvoice = typeof invoices.$inferInsert;

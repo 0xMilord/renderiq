@@ -113,13 +113,13 @@ export function CreditsCard() {
         {/* Actions */}
         <div className="space-y-2">
           <Button asChild className="w-full">
-            <Link href="/billing/credits">
+            <Link href="/pricing">
               <Plus className="h-4 w-4 mr-2" />
               Buy More Credits
             </Link>
           </Button>
           <Button variant="outline" asChild className="w-full">
-            <Link href="/billing/credits/history">
+            <Link href="/dashboard/billing/history">
               <History className="h-4 w-4 mr-2" />
               View History
             </Link>

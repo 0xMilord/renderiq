@@ -8,6 +8,8 @@ import { useAuth } from '@/lib/hooks/use-auth';
 import { useCredits } from '@/lib/hooks/use-credits';
 import { useSubscription } from '@/lib/hooks/use-subscription';
 import { CreditCard, Calendar, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 export function BillingOverview() {
   const { user } = useAuth();
@@ -98,8 +100,15 @@ export function BillingOverview() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </div>
           <p className="text-sm text-muted-foreground">
-            {subscription ? '•••• 4242' : 'No payment method'}
+            {subscription ? 'Managed by Razorpay' : 'No payment method'}
           </p>
+          {!subscription && (
+            <Button asChild variant="outline" size="sm" className="w-full mt-2">
+              <Link href="/pricing">
+                Add Payment Method
+              </Link>
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

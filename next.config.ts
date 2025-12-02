@@ -8,7 +8,21 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Webpack config to handle contentlayer2 imports
+  // Experimental features
+  experimental: {
+    optimizeCss: true,
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+    serverActions: {
+      bodySizeLimit: '20mb',
+    },
+  },
+  // Turbopack config for dev mode (--turbopack flag)
+  turbopack: {
+    resolveAlias: {
+      'contentlayer2/generated': './.contentlayer/generated/index.mjs',
+    },
+  },
+  // Webpack config for production builds (Turbopack not used in production)
   webpack: (config, { isServer }) => {
     if (isServer) {
       const path = require('path');
@@ -29,13 +43,6 @@ const nextConfig: NextConfig = {
   // Performance optimizations for SEO
   compress: true,
   poweredByHeader: false,
-  experimental: {
-    optimizeCss: true,
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
-    serverActions: {
-      bodySizeLimit: '20mb',
-    },
-  },
   
   // Headers for better SEO and security
   async headers() {
@@ -58,6 +65,31 @@ const nextConfig: NextConfig = {
           {
             key: 'Referrer-Policy',
             value: 'strict-origin-when-cross-origin',
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=31536000; includeSubDomains; preload',
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live", // unsafe-eval needed for MDX
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: https: blob:",
+              "font-src 'self' data:",
+              "connect-src 'self' https://*.supabase.co https://*.googleapis.com https://vercel.live wss://*.supabase.co",
+              "frame-src 'none'",
+              "object-src 'none'",
+              "base-uri 'self'",
+              "form-action 'self'",
+              "frame-ancestors 'none'",
+              "upgrade-insecure-requests",
+            ].join('; '),
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
           },
         ],
       },

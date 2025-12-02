@@ -3,6 +3,12 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getPublicGallery } from '@/lib/actions/gallery.actions';
+import { TwitterTestimonial } from '@/components/home/twitter-testimonial';
+import { UseCasesSection } from '@/components/home/use-cases-section';
+import { HowItWorksSection } from '@/components/home/how-it-works';
+import { FAQSection } from '@/components/home/faq-section';
+import { ComparisonSection } from '@/components/home/comparison-section';
+import { TrustBadges } from '@/components/home/trust-badges';
 import { 
   Wand2, 
   Upload, 
@@ -20,34 +26,111 @@ import {
   Quote,
   Star as StarIcon,
   Heart,
-  Eye
+  Eye,
+  Code,
+  Users,
+  TrendingUp,
+  Award,
+  Clock,
+  FileCheck,
+  Store
 } from 'lucide-react';
+import type { Metadata } from 'next';
+
+// SEO-optimized metadata for homepage
+export const metadata: Metadata = {
+  title: 'AI Architecture Render Software | AEC Visualization Platform | RenderIQ',
+  description: 'Professional AI-powered architecture render software for AEC and retail industries. Transform sketches into photorealistic renders and videos. Best AI rendering tool for architects, engineers, and designers.',
+  keywords: [
+    'architecture render software',
+    'AEC software',
+    'architectural visualization',
+    'AI rendering software',
+    'architecture visualization tool',
+    'AEC visualization platform',
+    'retail design software',
+    'commercial architecture software',
+    'industrial design visualization',
+    'architectural rendering AI',
+    'sketch to render AI',
+    '3D architecture visualization',
+    'building design software',
+    'construction visualization',
+    'architectural presentation software',
+    'real estate visualization',
+    'interior design rendering',
+    'exterior rendering software',
+    'architectural visualization platform',
+    'AEC technology',
+    'construction visualization tool',
+    'architectural design software',
+    'building visualization',
+    'commercial rendering',
+    'retail store design software',
+  ],
+  openGraph: {
+    title: 'AI Architecture Render Software | AEC & Retail Visualization | RenderIQ',
+    description: 'Transform architectural sketches into photorealistic renders with AI. Professional visualization software for AEC and retail industries.',
+    type: 'website',
+  },
+  alternates: {
+    canonical: '/',
+  },
+};
 
 export default async function Home() {
   // Fetch actual gallery items for the homepage
   const galleryResult = await getPublicGallery(1, 6);
   const galleryItems = galleryResult.success ? galleryResult.data || [] : [];
 
+  // Twitter testimonial URLs (replace with actual tweet URLs)
+  const twitterTestimonials = [
+    {
+      url: 'https://twitter.com/user/status/1234567890',
+      fallback: {
+        text: 'RenderIQ has completely transformed how we present designs to clients. The AI renders are incredibly realistic and save us hours of work.',
+        author: 'Sarah Mitchell',
+        username: 'sarah_arch',
+      },
+    },
+    {
+      url: 'https://twitter.com/user/status/1234567891',
+      fallback: {
+        text: 'As an AEC professional, RenderIQ is exactly what we needed. It handles complex commercial projects beautifully.',
+        author: 'James Chen',
+        username: 'james_aec',
+      },
+    },
+    {
+      url: 'https://twitter.com/user/status/1234567892',
+      fallback: {
+        text: 'The retail visualization features are amazing. We use it for all our store design presentations now.',
+        author: 'Anna Rodriguez',
+        username: 'anna_retail',
+      },
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section */}
+      {/* Hero Section - SEO Optimized */}
       <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
         <div className="absolute inset-0 bg-muted/30"></div>
         <div className="max-w-7xl mx-auto relative">
           <div className="text-center">
             <Badge className="mb-6 bg-primary text-primary-foreground border-0 px-4 py-2 text-sm font-medium">
               <Sparkles className="h-4 w-4 mr-2" />
-              AI-Powered Architectural Visualization
+              AI-Powered Architecture Render Software
             </Badge>
             <h1 className="text-5xl md:text-7xl font-bold text-foreground mb-6 leading-tight">
-              Transform Sketches into
+              Professional Architecture Render Software
               <span className="block bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-                Hyperrealistic Renders
+                for AEC & Retail Industries
               </span>
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-4xl mx-auto leading-relaxed">
-              Upload your architectural sketches or 3D model snapshots and watch them transform 
-              into stunning, photorealistic AI-generated images and videos in minutes.
+              Transform architectural sketches and 3D models into photorealistic renders and videos with AI. 
+              The leading <strong>architecture render software</strong> trusted by architects, engineers, and retail designers worldwide.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
               <Link href="/render">
@@ -60,9 +143,25 @@ export default async function Home() {
               <Link href="/gallery">
                 <Button size="lg" variant="outline" className="px-8 py-4 text-lg font-semibold">
                   <Play className="h-6 w-6 mr-2" />
-                  Watch Demo
+                  View Examples
                 </Button>
               </Link>
+            </div>
+            
+            {/* Trust Indicators */}
+            <div className="flex flex-wrap items-center justify-center gap-8 mb-12 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Award className="h-5 w-5 text-primary" />
+                <span>Trusted by 10K+ Professionals</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-primary" />
+                <span>Enterprise-Grade Security</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-primary" />
+                <span>2-5 Minute Renders</span>
+              </div>
             </div>
             
             {/* Stats */}
@@ -77,7 +176,7 @@ export default async function Home() {
               </div>
               <div className="text-center">
                 <div className="text-3xl md:text-4xl font-bold text-foreground mb-2">10K+</div>
-                <div className="text-muted-foreground">Happy Users</div>
+                <div className="text-muted-foreground">AEC & Retail Users</div>
               </div>
               <div className="text-center">
                 <div className="text-3xl md:text-4xl font-bold text-foreground mb-2">99.9%</div>
@@ -88,7 +187,13 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* How It Works Section */}
+      <HowItWorksSection />
+
+      {/* Use Cases Section - AEC & Retail */}
+      <UseCasesSection />
+
+      {/* Features Section - Enhanced */}
       <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 bg-card">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
@@ -96,11 +201,11 @@ export default async function Home() {
               Features
             </Badge>
             <h2 className="text-4xl md:text-5xl font-bold text-card-foreground mb-6">
-              Everything you need to create
-              <span className="block text-muted-foreground">stunning visualizations</span>
+              Everything you need for professional
+              <span className="block text-muted-foreground">architecture visualization</span>
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Our comprehensive platform combines cutting-edge AI technology with intuitive design tools
+              Comprehensive <strong>architecture render software</strong> combining cutting-edge AI with intuitive design tools for AEC and retail professionals
             </p>
           </div>
 
@@ -112,12 +217,13 @@ export default async function Home() {
               </div>
               <h3 className="text-xl font-semibold text-card-foreground mb-3">AI-Powered Rendering</h3>
               <p className="text-muted-foreground mb-4">
-                Transform basic sketches into photorealistic architectural visualizations using cutting-edge AI technology.
+                Transform basic sketches into photorealistic architectural visualizations using Google Gemini 3 Pro and Veo 3.1 AI technology.
               </p>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Multiple AI models</li>
                 <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Style presets</li>
                 <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Custom prompts</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Material library</li>
               </ul>
             </div>
 
@@ -126,14 +232,15 @@ export default async function Home() {
               <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                 <Zap className="h-6 w-6 text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-card-foreground mb-3">Lightning Fast</h3>
+              <h3 className="text-xl font-semibold text-card-foreground mb-3">Lightning Fast Processing</h3>
               <p className="text-muted-foreground mb-4">
-                Get your renders in minutes, not hours. Our optimized pipeline delivers results quickly.
+                Get your renders in minutes, not hours. Our optimized pipeline delivers results quickly for time-sensitive AEC projects.
               </p>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />2-5 minute renders</li>
                 <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Queue management</li>
                 <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Real-time updates</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Batch processing</li>
               </ul>
             </div>
 
@@ -144,28 +251,47 @@ export default async function Home() {
               </div>
               <h3 className="text-xl font-semibold text-card-foreground mb-3">Video Generation</h3>
               <p className="text-muted-foreground mb-4">
-                Create both images and videos from your sketches with cinematic quality and smooth animations.
+                Create both images and videos from your sketches with cinematic quality. Perfect for AEC presentations and retail walkthroughs.
               </p>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />4K video output</li>
                 <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Camera movements</li>
                 <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Multiple formats</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Keyframe animation</li>
               </ul>
             </div>
 
-            {/* Responsive Design */}
+            {/* AEC-Specific Features */}
             <div className="group p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
               <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <Smartphone className="h-6 w-6 text-white" />
+                <Building2 className="h-6 w-6 text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-card-foreground mb-3">Responsive Design</h3>
+              <h3 className="text-xl font-semibold text-card-foreground mb-3">AEC-Optimized</h3>
               <p className="text-muted-foreground mb-4">
-                Works seamlessly on desktop, tablet, and mobile devices with optimized interfaces for each platform.
+                Built specifically for Architecture, Engineering, and Construction professionals with industry-standard features.
               </p>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Mobile-first design</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Touch gestures</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Offline support</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Technical accuracy</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Scale precision</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Material specifications</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Construction documentation</li>
+              </ul>
+            </div>
+
+            {/* Retail Features */}
+            <div className="group p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
+              <div className="w-12 h-12 bg-yellow-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <Store className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-card-foreground mb-3">Retail Design Tools</h3>
+              <p className="text-muted-foreground mb-4">
+                Specialized features for retail store design, product visualization, and e-commerce content creation.
+              </p>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Store layouts</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Product displays</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Lifestyle scenes</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Marketing materials</li>
               </ul>
             </div>
 
@@ -176,28 +302,64 @@ export default async function Home() {
               </div>
               <h3 className="text-xl font-semibold text-card-foreground mb-3">Secure & Private</h3>
               <p className="text-muted-foreground mb-4">
-                Enterprise-grade security and privacy protection for your sensitive architectural projects.
+                Enterprise-grade security and privacy protection for sensitive architectural and commercial projects.
               </p>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />End-to-end encryption</li>
                 <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />GDPR compliant</li>
                 <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Private projects</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />SOC 2 compliant</li>
               </ul>
             </div>
 
-            {/* Public Gallery */}
+            {/* API & Integrations */}
             <div className="group p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
-              <div className="w-12 h-12 bg-yellow-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <GalleryVertical className="h-6 w-6 text-white" />
+              <div className="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <Code className="h-6 w-6 text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-card-foreground mb-3">Public Gallery</h3>
+              <h3 className="text-xl font-semibold text-card-foreground mb-3">API & Integrations</h3>
               <p className="text-muted-foreground mb-4">
-                Share and discover amazing renders from the community. Get inspired by other architects&apos; work.
+                Integrate RenderIQ into your existing AEC workflow with our comprehensive API and third-party integrations.
               </p>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Community showcase</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Like &amp; share</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Inspiration feed</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />RESTful API</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Webhook support</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />CAD integrations</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />BIM compatibility</li>
+              </ul>
+            </div>
+
+            {/* Collaboration */}
+            <div className="group p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
+              <div className="w-12 h-12 bg-pink-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <Users className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-card-foreground mb-3">Team Collaboration</h3>
+              <p className="text-muted-foreground mb-4">
+                Work seamlessly with your AEC team or retail design partners. Share projects, collaborate in real-time.
+              </p>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Team projects</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Version control</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Comments & feedback</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Client sharing</li>
+              </ul>
+            </div>
+
+            {/* Analytics & Insights */}
+            <div className="group p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
+              <div className="w-12 h-12 bg-teal-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <TrendingUp className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-card-foreground mb-3">Analytics & Insights</h3>
+              <p className="text-muted-foreground mb-4">
+                Track your rendering usage, optimize workflows, and gain insights into your AEC or retail design process.
+              </p>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Usage analytics</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Performance metrics</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Cost tracking</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Export reports</li>
               </ul>
             </div>
           </div>
@@ -212,10 +374,10 @@ export default async function Home() {
               Gallery
             </Badge>
             <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
-              See what&apos;s possible
+              See what&apos;s possible with RenderIQ
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
-              Explore stunning renders created by our community of architects and designers
+              Explore stunning renders created by architects, engineers, and retail designers using our <strong>architecture render software</strong>
             </p>
             <Link href="/gallery">
               <Button size="lg" variant="outline" className="px-8 py-4 text-lg font-semibold">
@@ -302,7 +464,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Testimonials Section */}
+      {/* Testimonials Section - With Twitter */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-card">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
@@ -310,14 +472,26 @@ export default async function Home() {
               Testimonials
             </Badge>
             <h2 className="text-4xl md:text-5xl font-bold text-card-foreground mb-6">
-              What our users say
+              Trusted by AEC & Retail Professionals
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Join thousands of architects and designers who trust Renderiq for their visualization needs
+              Join thousands of architects, engineers, and designers who trust RenderIQ for their visualization needs
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {/* Twitter Testimonials */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            {twitterTestimonials.map((testimonial, index) => (
+              <TwitterTestimonial
+                key={index}
+                tweetUrl={testimonial.url}
+                fallback={testimonial.fallback}
+              />
+            ))}
+          </div>
+
+          {/* Traditional Testimonials */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="bg-background border border-border rounded-2xl p-8 hover:shadow-lg transition-shadow duration-300">
               <div className="flex items-center mb-4">
                 <div className="flex text-yellow-400">
@@ -328,7 +502,7 @@ export default async function Home() {
               </div>
               <Quote className="h-8 w-8 text-primary mb-4" />
               <p className="text-muted-foreground mb-6">
-                &ldquo;Renderiq has revolutionized how we present our designs to clients. The AI renders are so realistic that clients can immediately visualize the final result. It&apos;s saved us countless hours of manual rendering work.&rdquo;
+                &ldquo;RenderIQ has revolutionized how we present our designs to clients. The AI renders are so realistic that clients can immediately visualize the final result. It&apos;s saved us countless hours of manual rendering work.&rdquo;
               </p>
               <div className="flex items-center">
                 <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mr-4">
@@ -351,7 +525,7 @@ export default async function Home() {
               </div>
               <Quote className="h-8 w-8 text-primary mb-4" />
               <p className="text-muted-foreground mb-6">
-                &ldquo;The video generation feature is incredible. We can now create stunning walkthroughs of our projects in minutes instead of days. Our clients are absolutely amazed by the quality.&rdquo;
+                &ldquo;The video generation feature is incredible. We can now create stunning walkthroughs of our AEC projects in minutes instead of days. Our clients are absolutely amazed by the quality.&rdquo;
               </p>
               <div className="flex items-center">
                 <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mr-4">
@@ -374,7 +548,7 @@ export default async function Home() {
               </div>
               <Quote className="h-8 w-8 text-primary mb-4" />
               <p className="text-muted-foreground mb-6">
-                &ldquo;As a freelance architect, Renderiq has given me the tools to compete with larger firms. The quality of renders I can produce now is professional-grade, and it&apos;s helped me win more projects.&rdquo;
+                &ldquo;As a retail designer, RenderIQ has given me the tools to compete with larger firms. The quality of renders I can produce now is professional-grade, and it&apos;s helped me win more projects.&rdquo;
               </p>
               <div className="flex items-center">
                 <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mr-4">
@@ -382,7 +556,7 @@ export default async function Home() {
                 </div>
                 <div>
                   <h4 className="font-semibold text-card-foreground">Anna Rodriguez</h4>
-                  <p className="text-sm text-muted-foreground">Freelance Architect</p>
+                  <p className="text-sm text-muted-foreground">Retail Design Consultant</p>
                 </div>
               </div>
             </div>
@@ -401,7 +575,7 @@ export default async function Home() {
               Simple, transparent pricing
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Choose the plan that fits your needs. No hidden fees, cancel anytime.
+              Choose the plan that fits your needs. No hidden fees, cancel anytime. Perfect for AEC firms and retail businesses.
             </p>
           </div>
 
@@ -484,17 +658,26 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* CTA Section */}
+      {/* Comparison Section */}
+      <ComparisonSection />
+
+      {/* Trust Badges */}
+      <TrustBadges />
+
+      {/* FAQ Section */}
+      <FAQSection />
+
+      {/* CTA Section - Conversion Optimized */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-primary relative overflow-hidden">
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="max-w-7xl mx-auto text-center relative">
           <h2 className="text-4xl md:text-6xl font-bold text-primary-foreground mb-6">
-            Ready to transform your ideas?
+            Ready to transform your architectural designs?
           </h2>
-          <p className="text-xl md:text-2xl text-primary-foreground/80 mb-12 max-w-4xl mx-auto">
-            Join thousands of architects and designers creating stunning visualizations with Renderiq
+          <p className="text-xl md:text-2xl text-primary-foreground/80 mb-8 max-w-4xl mx-auto">
+            Join thousands of AEC professionals and retail designers creating stunning visualizations with RenderIQ
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
             <Link href="/signup">
               <Button size="lg" variant="secondary" className="px-8 py-4 text-lg font-semibold">
                 <Globe className="h-6 w-6 mr-2" />
@@ -508,6 +691,20 @@ export default async function Home() {
                 View Gallery
               </Button>
             </Link>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-primary-foreground/80">
+            <div className="flex items-center gap-2">
+              <FileCheck className="h-4 w-4" />
+              <span>No credit card required</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              <span>Setup in 2 minutes</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Award className="h-4 w-4" />
+              <span>10 free credits to start</span>
+            </div>
           </div>
         </div>
       </section>

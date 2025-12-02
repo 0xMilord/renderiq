@@ -128,7 +128,7 @@ export function RecentTransactions() {
         
         <div className="mt-4 pt-4 border-t">
           <Button asChild variant="outline" className="w-full">
-            <Link href="/billing/credits/history">
+            <Link href="/dashboard/billing/history">
               View All Transactions
             </Link>
           </Button>

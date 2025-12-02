@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { RazorpayService } from '@/lib/services/razorpay.service';
 import { logger } from '@/lib/utils/logger';
+import { checkDuplicatePayment, validatePaymentAmount } from '@/lib/utils/payment-security';
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,6 +24,20 @@ export async function POST(request: NextRequest) {
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return NextResponse.json(
         { success: false, error: 'Missing payment verification data' },
+        { status: 400 }
+      );
+    }
+
+    // Check for duplicate payment
+    const duplicateCheck = await checkDuplicatePayment(razorpay_order_id, razorpay_payment_id);
+    if (duplicateCheck.isDuplicate) {
+      logger.warn('⚠️ API: Duplicate payment attempt detected:', {
+        razorpayOrderId: razorpay_order_id,
+        razorpayPaymentId: razorpay_payment_id,
+        existingOrderId: duplicateCheck.existingOrderId,
+      });
+      return NextResponse.json(
+        { success: false, error: 'This payment has already been processed' },
         { status: 400 }
       );
     }
@@ -61,6 +76,9 @@ export async function POST(request: NextRequest) {
         // Payment is verified, but credits failed - this should be handled by webhook
       }
     }
+
+    // Invoice and receipt generation is handled in RazorpayService.verifyPayment
+    // They are generated asynchronously and won't block the response
 
     logger.log('✅ API: Payment verified successfully');
 

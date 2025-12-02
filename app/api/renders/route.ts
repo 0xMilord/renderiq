@@ -8,6 +8,18 @@ import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { ProjectRulesDAL } from '@/lib/dal/project-rules';
 import { StorageService } from '@/lib/services/storage';
 import { logger } from '@/lib/utils/logger';
+import { 
+  validatePrompt, 
+  sanitizeInput, 
+  isAllowedOrigin, 
+  getSafeErrorMessage, 
+  securityLog,
+  isValidUUID,
+  isValidImageType,
+  isValidFileSize,
+  redactSensitive
+} from '@/lib/utils/security';
+import { rateLimitMiddleware } from '@/lib/utils/rate-limit';
 
 const aiService = AISDKService.getInstance();
 
@@ -16,82 +28,142 @@ export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes for video generation
 
 export async function POST(request: NextRequest) {
+  let creditsCost: number | undefined;
+  let user: { id: string } | null = null;
+  
   try {
+    // Rate limiting
+    const rateLimit = rateLimitMiddleware(request, { maxRequests: 30, windowMs: 60000 });
+    if (!rateLimit.allowed) {
+      return rateLimit.response!;
+    }
+
+    // Check origin (if provided)
+    const origin = request.headers.get('origin');
+    if (origin && !isAllowedOrigin(origin)) {
+      securityLog('unauthorized_origin', { origin }, 'warn');
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
+    }
+
     logger.log('🚀 Starting render generation API call');
     
     const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
     
-    if (authError || !user) {
-      logger.error('❌ Authentication failed:', authError?.message);
+    if (authError || !authUser) {
+      securityLog('auth_failed', { error: 'Authentication required' }, 'warn');
       return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
     }
     
-    logger.log('✅ User authenticated:', user.id);
+    user = authUser;
+    
+    // Redact user ID in logs
+    logger.log('✅ User authenticated');
 
     const formData = await request.formData();
-    const prompt = formData.get('prompt') as string;
-    const style = formData.get('style') as string;
-    const quality = formData.get('quality') as 'standard' | 'high' | 'ultra';
-    const aspectRatio = formData.get('aspectRatio') as string;
-    // Ensure type is explicitly set - default to 'image' if not provided or invalid
-    // Video generation should ONLY happen when explicitly requested via video button
-    const typeParam = formData.get('type') as string;
+    
+    // Validate and sanitize all inputs
+    const promptRaw = formData.get('prompt') as string;
+    const promptValidation = validatePrompt(promptRaw);
+    if (!promptValidation.valid) {
+      securityLog('invalid_prompt', { error: promptValidation.error }, 'warn');
+      return NextResponse.json({ success: false, error: promptValidation.error || 'Invalid prompt' }, { status: 400 });
+    }
+    const prompt = promptValidation.sanitized!;
+    
+    const style = sanitizeInput(formData.get('style') as string);
+    const quality = sanitizeInput(formData.get('quality') as string) as 'standard' | 'high' | 'ultra';
+    const aspectRatio = sanitizeInput(formData.get('aspectRatio') as string);
+    
+    // Validate type
+    const typeParam = sanitizeInput(formData.get('type') as string);
     const type = (typeParam === 'video' ? 'video' : 'image') as 'image' | 'video';
+    
     const uploadedImageData = formData.get('uploadedImageData') as string | null;
     const uploadedImageType = formData.get('uploadedImageType') as string | null;
-    const projectId = formData.get('projectId') as string;
-    const chainId = formData.get('chainId') as string | null;
-    const referenceRenderId = formData.get('referenceRenderId') as string | null;
-    const negativePrompt = formData.get('negativePrompt') as string | null;
-    const imageType = formData.get('imageType') as string | null;
+    
+    // Validate image type if provided
+    if (uploadedImageType && !isValidImageType(uploadedImageType)) {
+      securityLog('invalid_image_type', { type: uploadedImageType }, 'warn');
+      return NextResponse.json({ success: false, error: 'Invalid image type' }, { status: 400 });
+    }
+    
+    const projectIdRaw = formData.get('projectId') as string;
+    if (!projectIdRaw || !isValidUUID(projectIdRaw)) {
+      securityLog('invalid_project_id', {}, 'warn');
+      return NextResponse.json({ success: false, error: 'Invalid project ID' }, { status: 400 });
+    }
+    const projectId = projectIdRaw;
+    
+    const chainIdRaw = formData.get('chainId') as string | null;
+    const chainId = chainIdRaw && isValidUUID(chainIdRaw) ? chainIdRaw : null;
+    
+    const referenceRenderIdRaw = formData.get('referenceRenderId') as string | null;
+    const referenceRenderId = referenceRenderIdRaw && isValidUUID(referenceRenderIdRaw) ? referenceRenderIdRaw : null;
+    
+    const negativePromptRaw = formData.get('negativePrompt') as string | null;
+    const negativePrompt = negativePromptRaw ? sanitizeInput(negativePromptRaw) : null;
+    
+    const imageType = sanitizeInput(formData.get('imageType') as string | null);
     const isPublic = formData.get('isPublic') === 'true';
+    
     const seedParam = formData.get('seed') as string | null;
     const seed = seedParam ? parseInt(seedParam) : undefined;
+    if (seed && (isNaN(seed) || seed < 0 || seed > 2147483647)) {
+      return NextResponse.json({ success: false, error: 'Invalid seed value' }, { status: 400 });
+    }
+    
     const versionContextData = formData.get('versionContext') as string | null;
-    const environment = formData.get('environment') as string | null;
-    const effect = formData.get('effect') as string | null;
+    const environment = sanitizeInput(formData.get('environment') as string | null);
+    const effect = sanitizeInput(formData.get('effect') as string | null);
     const styleTransferImageData = formData.get('styleTransferImageData') as string | null;
     const styleTransferImageType = formData.get('styleTransferImageType') as string | null;
-    const temperatureParam = formData.get('temperature') as string | null;
-    // Default temperature: 0.7 (balanced creativity/determinism)
-    // Note: For Gemini 3, default is 1.0, but we use 0.7 for Gemini 2.5 compatibility
-    const temperature = temperatureParam ? parseFloat(temperatureParam) : 0.7;
     
-    // Parse duration for video (needed for credit calculation)
+    if (styleTransferImageType && !isValidImageType(styleTransferImageType)) {
+      securityLog('invalid_style_image_type', { type: styleTransferImageType }, 'warn');
+      return NextResponse.json({ success: false, error: 'Invalid style image type' }, { status: 400 });
+    }
+    
+    const temperatureParam = formData.get('temperature') as string | null;
+    const temperature = temperatureParam ? parseFloat(temperatureParam) : 0.7;
+    if (isNaN(temperature) || temperature < 0 || temperature > 2) {
+      return NextResponse.json({ success: false, error: 'Invalid temperature value' }, { status: 400 });
+    }
+    
     const durationParam = formData.get('duration') as string | null;
     const duration = durationParam ? parseInt(durationParam) : (type === 'video' ? 8 : undefined);
-    // Calculate videoDuration once for use in both credit calculation and generation
+    if (duration && (isNaN(duration) || duration < 1 || duration > 60)) {
+      return NextResponse.json({ success: false, error: 'Invalid duration value' }, { status: 400 });
+    }
     const videoDuration = type === 'video' ? (duration || 8) : undefined;
 
-    // Log parameters but redact sensitive info
-    logger.log('📝 Render parameters:', { 
-      prompt: prompt.substring(0, 50) + '...', // Truncate prompt
+    // Log parameters with redacted sensitive info
+    logger.log('📝 Render parameters:', redactSensitive({ 
+      prompt: prompt.substring(0, 50) + '...',
       style, 
       quality, 
       aspectRatio, 
       type, 
       imageType,
-      negativePrompt: negativePrompt ? 'provided' : 'none', // Don't log full negative prompt
+      negativePrompt: negativePrompt ? 'provided' : 'none',
       hasImage: !!uploadedImageData, 
-      projectId: projectId.substring(0, 8) + '...', // Redact full project ID
+      projectId: projectId.substring(0, 8) + '...',
       hasChainId: !!chainId,
       hasReferenceRenderId: !!referenceRenderId,
       isPublic,
       hasSeed: !!seed,
       duration: duration || 'N/A'
-    });
+    }));
 
     if (!prompt || !style || !quality || !aspectRatio || !type || !projectId) {
       logger.warn('❌ Missing required parameters');
-      return NextResponse.json({ success: false, error: 'Missing required parameters (prompt, style, quality, aspectRatio, type, projectId)' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Missing required parameters' }, { status: 400 });
     }
 
     // Calculate credits cost FIRST
     // For videos: Based on Google Veo 3.1 pricing ($0.75/second) with 2x markup
     // 1 credit = 5 INR, 1 USD ≈ 83 INR
     // Cost per second: $0.75 × 2 (markup) × 83 (INR/USD) / 5 (INR/credit) = 24.9 credits/second (round to 25)
-    let creditsCost: number;
     if (type === 'video') {
       // Veo 3.1 pricing: $0.75/second, with 2x markup = $1.50/second
       // In INR: $1.50 × 83 = 124.5 INR/second
@@ -618,6 +690,7 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
+    securityLog('render_api_error', { error: getSafeErrorMessage(error) }, 'error');
     logger.error('❌ API error:', error);
     
     // For top-level errors, try to refund if we have the necessary data

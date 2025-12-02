@@ -4,6 +4,8 @@ import { db } from '@/lib/db';
 import { paymentOrders, creditPackages, subscriptionPlans, userSubscriptions, userCredits, creditTransactions } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
+import { InvoiceService } from './invoice.service';
+import { ReceiptService } from './receipt.service';
 
 // Lazy initialization of Razorpay instance to avoid build-time errors
 let razorpayInstance: Razorpay | null = null;
@@ -148,14 +150,31 @@ export class RazorpayService {
       }
 
       // Update payment order status
+      const isCompleted = payment.status === 'captured';
       await db
         .update(paymentOrders)
         .set({
           razorpayPaymentId: razorpayPaymentId,
-          status: payment.status === 'captured' ? 'completed' : 'processing',
+          status: isCompleted ? 'completed' : 'processing',
           updatedAt: new Date(),
         })
         .where(eq(paymentOrders.id, paymentOrder.id));
+
+      // Generate invoice and receipt for completed payments
+      if (isCompleted) {
+        try {
+          // Create invoice
+          await InvoiceService.createInvoice(paymentOrder.id);
+          
+          // Generate receipt PDF (async, don't block)
+          ReceiptService.generateReceiptPdf(paymentOrder.id).catch((error) => {
+            logger.error('❌ RazorpayService: Error generating receipt:', error);
+          });
+        } catch (error) {
+          logger.error('❌ RazorpayService: Error creating invoice/receipt:', error);
+          // Don't fail the payment verification if invoice/receipt generation fails
+        }
+      }
 
       logger.log('✅ RazorpayService: Payment verified successfully');
 
@@ -538,6 +557,16 @@ export class RazorpayService {
     // Add credits to user account
     if (paymentOrder.referenceId) {
       await this.addCreditsToAccount(paymentOrder.userId, paymentOrder.referenceId);
+    }
+
+    // Generate invoice and receipt
+    try {
+      await InvoiceService.createInvoice(paymentOrder.id);
+      ReceiptService.generateReceiptPdf(paymentOrder.id).catch((error) => {
+        logger.error('❌ RazorpayService: Error generating receipt in webhook:', error);
+      });
+    } catch (error) {
+      logger.error('❌ RazorpayService: Error creating invoice/receipt in webhook:', error);
     }
   }
 
