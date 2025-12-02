@@ -278,16 +278,16 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                       {/* Project Row - Click to open modal */}
                       <div
                         className={cn(
-                          "flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-accent hover:text-accent-foreground cursor-pointer group transition-colors",
+                          "flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-accent cursor-pointer group transition-colors",
                           selectedProjectId === project.id && "bg-accent text-accent-foreground"
                         )}
                         onClick={() => handleProjectClick(project.id)}
                       >
                         <Folder className={cn(
-                          "h-4 w-4 flex-shrink-0",
+                          "h-4 w-4 flex-shrink-0 transition-colors",
                           selectedProjectId === project.id 
                             ? "text-foreground" 
-                            : "text-primary"
+                            : "text-primary group-hover:text-foreground"
                         )} />
                         <span className="text-sm font-medium truncate flex-1">
                           {project.name}
@@ -311,7 +311,7 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                             <div
                               key={chain.id}
                               className={cn(
-                                "flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors",
+                                "flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent cursor-pointer transition-colors group",
                                 selectedChainId === chain.id && "bg-accent text-accent-foreground"
                               )}
                               onClick={(e) => {
@@ -320,10 +320,10 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                               }}
                             >
                               <MessageSquare className={cn(
-                                "h-3.5 w-3.5 flex-shrink-0",
+                                "h-3.5 w-3.5 flex-shrink-0 transition-colors",
                                 selectedChainId === chain.id 
                                   ? "text-foreground" 
-                                  : "text-muted-foreground"
+                                  : "text-muted-foreground group-hover:text-foreground"
                               )} />
                               <span className="text-sm truncate">{chain.name}</span>
                             </div>
@@ -345,18 +345,15 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                     <button
                       onClick={() => toggleProject(project.id)}
                       className={cn(
-                        "w-8 h-8 flex items-center justify-center rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors",
+                        "w-8 h-8 flex items-center justify-center rounded-lg hover:bg-accent transition-colors group",
                         expandedProjects.has(project.id) && "bg-accent text-accent-foreground"
                       )}
                       title={project.name}
                     >
                       {expandedProjects.has(project.id) ? (
-                        <FolderOpenIcon className={cn(
-                          "h-4 w-4",
-                          expandedProjects.has(project.id) ? "text-foreground" : "text-primary"
-                        )} />
+                        <FolderOpenIcon className="h-4 w-4 text-foreground transition-colors" />
                       ) : (
-                        <Folder className="h-4 w-4 text-primary" />
+                        <Folder className="h-4 w-4 text-primary group-hover:text-foreground transition-colors" />
                       )}
                     </button>
                     
@@ -367,14 +364,14 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                             key={chain.id}
                             onClick={() => handleSelectChain(chain.id)}
                             className={cn(
-                              "w-6 h-6 flex items-center justify-center rounded hover:bg-accent hover:text-accent-foreground transition-colors",
+                              "w-6 h-6 flex items-center justify-center rounded hover:bg-accent transition-colors group",
                               selectedChainId === chain.id && "bg-accent text-accent-foreground"
                             )}
                             title={chain.name}
                           >
                             <MessageSquare className={cn(
-                              "h-3 w-3",
-                              selectedChainId === chain.id ? "text-foreground" : "text-muted-foreground"
+                              "h-3 w-3 transition-colors",
+                              selectedChainId === chain.id ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
                             )} />
                           </button>
                         ))}

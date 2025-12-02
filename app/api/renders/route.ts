@@ -458,17 +458,28 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Use reference render image if no uploaded image is provided
-        // This allows iterative editing: "convert to photoreal" uses previous render as input
+        // Smart image selection logic:
+        // 1. If user uploaded a NEW image -> use it (fresh start, no reference context)
+        // 2. If NO uploaded image but reference render exists -> use reference render (iterative edit)
+        // 3. If neither -> generate from scratch
         const imageDataToUse = uploadedImageData || referenceRenderImageData;
         const imageTypeToUse = uploadedImageType || referenceRenderImageType;
         
-        // Enhance prompt with context from previous render if available
+        // Enhance prompt with context ONLY when using reference render (iterative edit)
+        // Don't add context when user uploaded a new image (fresh start)
         let contextualPrompt = finalPrompt;
-        if (referenceRenderPrompt && referenceRenderImageData) {
-          // Add context about what we're editing
+        const isUsingReferenceRender = !uploadedImageData && referenceRenderImageData && referenceRenderPrompt;
+        
+        if (isUsingReferenceRender) {
+          // Add context about what we're editing (iterative edit scenario)
           contextualPrompt = `Based on the previous render (${referenceRenderPrompt}), ${finalPrompt}`;
-          logger.log('🔗 Using contextual prompt with reference render:', contextualPrompt.substring(0, 100));
+          logger.log('🔗 Using contextual prompt with reference render for iterative edit:', contextualPrompt.substring(0, 100));
+        } else if (uploadedImageData) {
+          // User uploaded a new image - use fresh prompt without reference context
+          logger.log('🆕 Using fresh prompt with new uploaded image (no reference context)');
+        } else {
+          // No image at all - generate from scratch
+          logger.log('🎨 Generating from scratch (no image input)');
         }
         
         result = await aiService.generateImage({
@@ -488,10 +499,26 @@ export async function POST(request: NextRequest) {
 
       if (!result.success || !result.data) {
         logger.error('❌ Generation failed:', result.error);
-        await RendersDAL.updateStatus(render.id, 'failed', result.error);
-        // Refund credits
+        
+        // Determine if this is a Google API error (should always refund)
+        const isGoogleError = result.error?.includes('Google') || 
+                             result.error?.includes('Gemini') ||
+                             result.error?.includes('Veo') ||
+                             result.error?.includes('quota') ||
+                             result.error?.includes('rate limit') ||
+                             result.error?.includes('API');
+        
+        // Always refund on failure - user should never lose credits due to our errors
         await addCredits(creditsCost, 'refund', 'Refund for failed generation', user.id, 'refund');
-        return NextResponse.json({ success: false, error: result.error }, { status: 500 });
+        await RendersDAL.updateStatus(render.id, 'failed', result.error);
+        
+        // Return appropriate status code
+        const statusCode = isGoogleError ? 503 : 500; // 503 for service unavailable
+        return NextResponse.json({ 
+          success: false, 
+          error: result.error || 'Generation failed',
+          refunded: true // Inform client that credits were refunded
+        }, { status: statusCode });
       }
 
       logger.log('✅ Generation successful, uploading to storage');
@@ -563,15 +590,51 @@ export async function POST(request: NextRequest) {
 
     } catch (error) {
       logger.error('❌ Generation error:', error);
-      await RendersDAL.updateStatus(render.id, 'failed', error instanceof Error ? error.message : 'Unknown error');
-      // Refund credits
-      await addCredits(creditsCost, 'refund', 'Refund for failed generation', user.id, 'refund');
-      return NextResponse.json({ success: false, error: 'Generation failed' }, { status: 500 });
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const isGoogleError = errorMessage.includes('Google') || 
+                           errorMessage.includes('Gemini') ||
+                           errorMessage.includes('Veo') ||
+                           errorMessage.includes('quota') ||
+                           errorMessage.includes('API');
+      
+      // CRITICAL: Always refund credits on failure - user should never lose credits
+      try {
+        await addCredits(creditsCost, 'refund', 'Refund for failed generation', user.id, 'refund');
+        logger.log('✅ Credits refunded after generation failure');
+      } catch (refundError) {
+        logger.error('❌ CRITICAL: Failed to refund credits after generation failure:', refundError);
+        // This is critical - log but don't fail the response
+      }
+      
+      await RendersDAL.updateStatus(render.id, 'failed', errorMessage);
+      
+      const statusCode = isGoogleError ? 503 : 500;
+      return NextResponse.json({ 
+        success: false, 
+        error: isGoogleError ? 'AI service temporarily unavailable' : 'Generation failed',
+        refunded: true
+      }, { status: statusCode });
     }
 
   } catch (error) {
     logger.error('❌ API error:', error);
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
+    
+    // For top-level errors, try to refund if we have the necessary data
+    try {
+      if (typeof creditsCost !== 'undefined' && user?.id) {
+        await addCredits(creditsCost, 'refund', 'Refund for API error', user.id, 'refund');
+        logger.log('✅ Credits refunded after API error');
+      }
+    } catch (refundError) {
+      logger.error('❌ CRITICAL: Failed to refund credits after API error:', refundError);
+    }
+    
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Internal server error',
+      refunded: typeof creditsCost !== 'undefined' && user?.id
+    }, { status: 500 });
   }
 }
 

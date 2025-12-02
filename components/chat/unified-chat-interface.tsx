@@ -298,20 +298,40 @@ export function UnifiedChatInterface({
   }, [isGenerating, isImageGenerating, isVideoGenerating, isVideoMode]);
 
   // Load chain data when component mounts or chain changes
+  // Only reload if chain has new renders that aren't already in messages
   useEffect(() => {
     logger.log('🔍 UnifiedChatInterface: Loading chain data', {
       hasChain: !!chain,
       rendersCount: chain?.renders?.length || 0,
       chainId: chainId || chain?.id,
       chainName: chain?.name,
-      projectId
+      projectId,
+      currentMessagesCount: messages.length
     });
 
     // Try to load from localStorage first as backup
     const storageKey = `chat-messages-${projectId}-${chainId || 'default'}`;
     const storedMessages = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
     
-    if (chain && chain.renders && chain.renders.length > 0) {
+    // If we already have messages, check if chain has new renders
+    // Only reload if:
+    // 1. We have no messages yet (initial load)
+    // 2. Chain has renders that aren't in our current messages
+    const currentRenderIds = new Set(messages.filter(m => m.render?.id).map(m => m.render!.id));
+    const chainRenderIds = chain?.renders?.map(r => r.id) || [];
+    const hasNewRenders = messages.length === 0 || 
+      chainRenderIds.some(id => !currentRenderIds.has(id));
+    
+    if (chain && chain.renders && chain.renders.length > 0 && (messages.length === 0 || hasNewRenders)) {
+      logger.log('✅ UnifiedChatInterface: Chain has renders, converting to messages', {
+        rendersCount: chain.renders.length,
+        renderIds: chain.renders.map(r => r.id),
+        renderStatuses: chain.renders.map(r => ({ id: r.id, status: r.status, chainPosition: r.chainPosition })),
+        renderPrompts: chain.renders.map(r => ({ id: r.id, prompt: r.prompt?.substring(0, 50) + '...' })),
+        hasNewRenders,
+        currentRenderIds: Array.from(currentRenderIds),
+        chainRenderIds
+      });
       logger.log('✅ UnifiedChatInterface: Chain has renders, converting to messages', {
         rendersCount: chain.renders.length,
         renderIds: chain.renders.map(r => r.id),
@@ -778,6 +798,8 @@ export function UnifiedChatInterface({
     let referenceRenderId: string | undefined = undefined;
 
     // Check if the prompt contains mentions
+    const hasNewUploadedImage = uploadedFile && previewUrl;
+    
     if (inputValue.includes('@')) {
       logger.log('🔍 Prompt contains mentions, parsing version context...');
       
@@ -811,16 +833,23 @@ export function UnifiedChatInterface({
           const contextualPrompt = service.createContextualPrompt(parsedPrompt);
           finalPrompt = contextualPrompt;
 
-          // Use the most recent mentioned version as reference if available
-          const mentionedVersionWithRender = parsedPrompt.mentionedVersions
-            .find(v => v.renderId);
-          if (mentionedVersionWithRender?.renderId) {
-            referenceRenderId = mentionedVersionWithRender.renderId;
+          // Use the most recent mentioned version as reference ONLY if no new image is uploaded
+          // If user uploads a new image, mentions are for style/material reference, not image reference
+          if (!hasNewUploadedImage) {
+            const mentionedVersionWithRender = parsedPrompt.mentionedVersions
+              .find(v => v.renderId);
+            if (mentionedVersionWithRender?.renderId) {
+              referenceRenderId = mentionedVersionWithRender.renderId;
+              logger.log('🔗 Using mentioned version as reference render:', referenceRenderId);
+            }
+          } else {
+            logger.log('🆕 New image uploaded with mentions - mentions used for style/material reference only');
           }
 
           logger.log('🎯 Using version context:', {
             finalPrompt: finalPrompt.substring(0, 100) + '...',
             referenceRenderId,
+            hasNewImage: hasNewUploadedImage,
             mentionedVersionsCount: versionContext.mentionedVersions.length
           });
         }
@@ -828,27 +857,27 @@ export function UnifiedChatInterface({
         logger.log('⚠️ Failed to parse prompt, falling back to original');
       }
     } else {
-      // No mentions, use standard reference logic
-      if (chain && chain.renders && chain.renders.length > 0) {
-        const completedRenders = chain.renders.filter(render => render.status === 'completed');
-        const latestCompletedRender = completedRenders
-          .sort((a, b) => (b.chainPosition || 0) - (a.chainPosition || 0))[0];
-        
-        if (latestCompletedRender) {
-          referenceRenderId = latestCompletedRender.id;
-          logger.log('🔗 Using latest completed render from chain as reference:', referenceRenderId);
-        }
-      } else if (currentRender && currentRender.status === 'completed') {
-        referenceRenderId = currentRender.id;
-        logger.log('🔗 Using currentRender as fallback reference:', referenceRenderId);
-      } else if (chain && chain.renders && chain.renders.length > 0) {
-        // Fallback: use the most recent completed render from the chain
-        const completedRenders = chain.renders.filter(render => render.status === 'completed');
-        if (completedRenders.length > 0) {
-          const latestRender = completedRenders
+      // No mentions, use smart reference logic
+      // CRITICAL: If user uploads a NEW image, don't use reference render (fresh start)
+      // Only use reference render for iterative edits when NO new image is uploaded
+      if (hasNewUploadedImage) {
+        // User uploaded a new image - this is a fresh start, don't use reference render
+        logger.log('🆕 New image uploaded - using fresh context (no reference render)');
+        referenceRenderId = undefined;
+      } else {
+        // No new image uploaded - use reference render for iterative editing
+        if (chain && chain.renders && chain.renders.length > 0) {
+          const completedRenders = chain.renders.filter(render => render.status === 'completed');
+          const latestCompletedRender = completedRenders
             .sort((a, b) => (b.chainPosition || 0) - (a.chainPosition || 0))[0];
-          referenceRenderId = latestRender.id;
-          logger.log('🔗 Using most recent render from chain as reference:', referenceRenderId);
+          
+          if (latestCompletedRender) {
+            referenceRenderId = latestCompletedRender.id;
+            logger.log('🔗 Using latest completed render from chain as reference for iterative edit:', referenceRenderId);
+          }
+        } else if (currentRender && currentRender.status === 'completed') {
+          referenceRenderId = currentRender.id;
+          logger.log('🔗 Using currentRender as fallback reference:', referenceRenderId);
         }
       }
     }
@@ -910,104 +939,180 @@ export function UnifiedChatInterface({
        let result;
        
        // Prepare form data for generation
-        const formData = new FormData();
-        formData.append('prompt', enhancedPrompt);
-        formData.append('style', 'realistic'); // Default style
-        formData.append('quality', quality);
-        formData.append('aspectRatio', aspectRatio);
-        formData.append('type', generationType);
+       // Store base64 data separately for retry recreation
+       let uploadedImageBase64: string | null = null;
+       let styleTransferBase64: string | null = null;
+       
+       // Pre-process images to base64 (needed for retry logic)
+       if (userMessage.uploadedImage?.file) {
+         const reader = new FileReader();
+         uploadedImageBase64 = await new Promise<string>((resolve) => {
+           reader.onload = (e) => {
+             const result = e.target?.result as string;
+             resolve(result.split(',')[1]); // Remove data:image/...;base64, prefix
+           };
+           reader.readAsDataURL(userMessage.uploadedImage!.file!);
+         });
+       }
+       
+       if (styleTransferImage) {
+         const reader = new FileReader();
+         styleTransferBase64 = await new Promise<string>((resolve) => {
+           reader.onload = (e) => {
+             const result = e.target?.result as string;
+             resolve(result.split(',')[1]);
+           };
+           reader.readAsDataURL(styleTransferImage);
+         });
+       }
+       
+       // Helper to create FormData (used for initial request and retries)
+       const createFormData = () => {
+         const fd = new FormData();
+         fd.append('prompt', enhancedPrompt);
+         fd.append('style', 'realistic');
+         fd.append('quality', quality);
+         fd.append('aspectRatio', aspectRatio);
+         fd.append('type', generationType);
+         
+         if (isVideoMode) {
+           fd.append('duration', videoDuration.toString());
+           fd.append('resolution', videoDuration === 8 ? '1080p' : '720p');
+           if (videoKeyframes.length > 0) {
+             fd.append('keyframes', JSON.stringify(videoKeyframes.map(kf => ({
+               imageData: kf.imageData,
+               imageType: kf.imageType
+             }))));
+           }
+           if (videoLastFrame) {
+             fd.append('lastFrame', JSON.stringify({
+               imageData: videoLastFrame.imageData,
+               imageType: videoLastFrame.imageType
+             }));
+           }
+         }
+         
+         fd.append('projectId', projectId || '');
+         if (chainId) fd.append('chainId', chainId);
+         if (referenceRenderId) fd.append('referenceRenderId', referenceRenderId);
+         if (versionContext) fd.append('versionContext', JSON.stringify(versionContext));
+         fd.append('isPublic', 'true');
+         if (environment && environment !== 'none') fd.append('environment', environment);
+         if (effect && effect !== 'none') fd.append('effect', effect);
+         if (uploadedImageBase64) {
+           fd.append('uploadedImageData', uploadedImageBase64);
+           fd.append('uploadedImageType', userMessage.uploadedImage!.file!.type);
+         }
+         if (styleTransferBase64) {
+           fd.append('styleTransferImageData', styleTransferBase64);
+           fd.append('styleTransferImageType', styleTransferImage.type);
+         }
+         fd.append('temperature', temperature);
+         return fd;
+       };
+       
+       const formData = createFormData();
         
-        // Add video-specific parameters if in video mode
-        if (isVideoMode) {
-          formData.append('duration', videoDuration.toString());
-          formData.append('resolution', videoDuration === 8 ? '1080p' : '720p'); // 1080p only for 8s
-          
-          // Add keyframes if provided (up to 3 for Veo 3.1)
-          if (videoKeyframes.length > 0) {
-            formData.append('keyframes', JSON.stringify(videoKeyframes.map(kf => ({
-              imageData: kf.imageData,
-              imageType: kf.imageType
-            }))));
-          }
-          
-          // Add last frame if provided (for interpolation)
-          if (videoLastFrame) {
-            formData.append('lastFrame', JSON.stringify({
-              imageData: videoLastFrame.imageData,
-              imageType: videoLastFrame.imageType
-            }));
-          }
-        }
-        formData.append('projectId', projectId || '');
+        // Call the API with absolute URL for mobile compatibility and robust error handling
+        const apiUrl = typeof window !== 'undefined' 
+          ? `${window.location.origin}/api/renders`
+          : '/api/renders';
         
-        if (chainId) {
-          formData.append('chainId', chainId);
-        }
-        
-        if (referenceRenderId) {
-          formData.append('referenceRenderId', referenceRenderId);
-        }
-        
-        if (versionContext) {
-          formData.append('versionContext', JSON.stringify(versionContext));
-        }
-        
-        formData.append('isPublic', 'true');
-        
-        // Add environment if selected (not "none")
-        if (environment && environment !== 'none') {
-          formData.append('environment', environment);
-        }
-        
-        // Add effect if selected (not "none")
-        if (effect && effect !== 'none') {
-          formData.append('effect', effect);
-        }
-        
-        // Add uploaded image (main image being edited)
-        if (userMessage.uploadedImage?.file) {
-          const reader = new FileReader();
-          const base64 = await new Promise<string>((resolve) => {
-            reader.onload = (e) => {
-              const result = e.target?.result as string;
-              resolve(result.split(',')[1]); // Remove data:image/...;base64, prefix
-            };
-            reader.readAsDataURL(userMessage.uploadedImage!.file!);
-          });
-          formData.append('uploadedImageData', base64);
-          formData.append('uploadedImageType', userMessage.uploadedImage.file.type);
-        }
-        
-        // Add style transfer image
-        if (styleTransferImage) {
-          const reader = new FileReader();
-          const base64 = await new Promise<string>((resolve) => {
-            reader.onload = (e) => {
-              const result = e.target?.result as string;
-              resolve(result.split(',')[1]);
-            };
-            reader.readAsDataURL(styleTransferImage);
-          });
-          formData.append('styleTransferImageData', base64);
-          formData.append('styleTransferImageType', styleTransferImage.type);
-        }
-        
-        // Add temperature (0.0-1.0, default 0.5)
-        formData.append('temperature', temperature);
-        
-        // Call the API directly
-        const response = await fetch('/api/renders', {
-          method: 'POST',
-          body: formData,
+        logger.log('🚀 Chat: Sending render request', {
+          url: apiUrl,
+          type: generationType,
+          hasImage: !!userMessage.uploadedImage?.file,
+          hasKeyframes: videoKeyframes.length > 0
         });
         
-        const apiResult = await response.json();
+        // Retry logic for network failures (up to 3 attempts)
+        // Note: FormData can only be read once, so we recreate it for retries
+        let lastError: Error | null = null;
+        let response: Response | null = null;
+        let apiResult: any = null;
+        
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            logger.log(`🔄 Chat: Attempt ${attempt}/3 to fetch render API`);
+            
+            // Recreate FormData for each attempt (FormData can only be read once)
+            const requestFormData = createFormData();
+            
+            response = await fetch(apiUrl, {
+              method: 'POST',
+              body: requestFormData,
+              // Add timeout signal for mobile networks
+              signal: AbortSignal.timeout(300000), // 5 minutes timeout
+            });
+            
+            // Check response status before parsing
+            if (!response.ok) {
+              let errorText: string;
+              try {
+                errorText = await response.text();
+              } catch {
+                errorText = `HTTP ${response.status} ${response.statusText}`;
+              }
+              logger.error(`❌ Chat: API returned error status ${response.status}:`, errorText);
+              
+              // Try to parse error JSON if available
+              try {
+                const errorJson = JSON.parse(errorText);
+                if (errorJson.refunded) {
+                  logger.log('✅ Credits were refunded by server');
+                }
+              } catch {
+                // Not JSON, use text error
+              }
+              
+              throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+            }
+            
+            // Parse JSON response with error handling
+            try {
+              apiResult = await response.json();
+            } catch (jsonError) {
+              logger.error('❌ Chat: Failed to parse JSON response:', jsonError);
+              const textResponse = await response.text();
+              logger.error('❌ Chat: Response text:', textResponse.substring(0, 500));
+              throw new Error('Invalid JSON response from server');
+            }
+            
+            break; // Success, exit retry loop
+            
+          } catch (error) {
+            lastError = error instanceof Error ? error : new Error(String(error));
+            logger.error(`❌ Chat: Fetch attempt ${attempt} failed:`, lastError);
+            
+            // If it's an abort error (timeout) or network error, retry
+            if (attempt < 3 && (
+              lastError.message.includes('aborted') || 
+              lastError.message.includes('timeout') ||
+              lastError.message.includes('network') ||
+              lastError.message.includes('Failed to fetch') ||
+              lastError.message.includes('ERR_')
+            )) {
+              // Wait before retry (exponential backoff)
+              logger.log(`⏳ Waiting ${1000 * attempt}ms before retry...`);
+              await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+              continue;
+            } else {
+              // Don't retry on other errors or if max attempts reached
+              throw lastError;
+            }
+          }
+        }
+        
+        if (!response || !apiResult) {
+          throw lastError || new Error('Failed to get response from API');
+        }
         
         logger.log('🎯 Chat: API response received', {
           success: apiResult.success,
           hasData: !!apiResult.data,
           hasOutputUrl: !!apiResult.data?.outputUrl,
-          error: apiResult.error
+          error: apiResult.error,
+          status: response.status
         });
         
         if (apiResult.success && apiResult.data) {
@@ -1020,9 +1125,17 @@ export function UnifiedChatInterface({
             }
           };
         } else {
+          // Check if it's a Google API error (should refund)
+          const isGoogleError = apiResult.error?.includes('Google') || 
+                                apiResult.error?.includes('Gemini') ||
+                                apiResult.error?.includes('Veo') ||
+                                apiResult.error?.includes('quota') ||
+                                apiResult.error?.includes('rate limit');
+          
           result = {
             success: false,
-            error: apiResult.error || 'Image generation failed'
+            error: apiResult.error || 'Image generation failed',
+            isGoogleError // Flag for proper error handling
           };
         }
       
@@ -1085,10 +1198,15 @@ export function UnifiedChatInterface({
         
         // Refresh chain data in the background to ensure persistence (without causing page reload)
         // This ensures messages are persisted to the database
+        // Use a longer delay and only refresh if needed to avoid unnecessary reloads
         if (onRefreshChain) {
           setTimeout(() => {
-            onRefreshChain();
-          }, 1000); // Small delay to avoid blocking UI
+            // Only refresh if we don't already have this render in messages
+            const hasRenderInMessages = messages.some(m => m.render?.id === newRender.id);
+            if (!hasRenderInMessages) {
+              onRefreshChain();
+            }
+          }, 2000); // Longer delay to avoid blocking UI and prevent unnecessary reloads
         }
 
         // Clear uploaded file after successful generation (but keep video mode)
@@ -1107,11 +1225,42 @@ export function UnifiedChatInterface({
 
     } catch (error) {
       logger.error(`Failed to generate ${generationType}:`, error);
+      
+      // Determine error type for better user messaging
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const isNetworkError = errorMessage.includes('Failed to fetch') || 
+                            errorMessage.includes('network') ||
+                            errorMessage.includes('timeout') ||
+                            errorMessage.includes('aborted');
+      const isGoogleError = errorMessage.includes('Google') || 
+                            errorMessage.includes('Gemini') ||
+                            errorMessage.includes('Veo') ||
+                            errorMessage.includes('quota');
+      
+      // Update assistant message with error state
       setMessages(prev => prev.map(msg => 
         msg.id === assistantMessage.id 
-          ? { ...msg, content: getRenderIQMessage(0, isVideoMode, true), isGenerating: false }
+          ? { 
+              ...msg, 
+              content: isNetworkError 
+                ? 'Network error. Please check your connection and try again.' 
+                : isGoogleError
+                ? 'Google AI service temporarily unavailable. Please try again in a moment.'
+                : getRenderIQMessage(0, isVideoMode, true), 
+              isGenerating: false 
+            }
           : msg
       ));
+      
+      // Show user-friendly error toast
+      if (isNetworkError) {
+        toast.error('Network error. Please check your connection and try again.');
+      } else if (isGoogleError) {
+        toast.error('AI service temporarily unavailable. Please try again.');
+      } else {
+        toast.error(`Failed to generate ${generationType}. Please try again.`);
+      }
+      
       // Don't reset video mode on error - let user try again
     } finally {
       setIsGenerating(false);
@@ -1723,12 +1872,6 @@ export function UnifiedChatInterface({
                         />
                         {/* Progress indicator overlay */}
                         <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/40 backdrop-blur-sm">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin text-primary" />
-                            <span className="text-[10px] sm:text-xs text-white/90 font-medium">
-                              {message.content || getRenderIQMessage(Math.min(progress, 99), message.render?.type === 'video')}
-                            </span>
-                          </div>
                           <Progress value={progress} className="h-1.5" />
                         </div>
                       </div>
