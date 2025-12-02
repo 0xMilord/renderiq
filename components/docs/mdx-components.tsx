@@ -3,10 +3,13 @@
 import type { MDXComponents } from 'mdx/types';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useMDXComponents as useMDXComponentsBase } from '@mdx-js/react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CodeBlock } from '@/components/docs/code-block';
-import { useMDXComponent } from 'next-contentlayer2/hooks';
+import { useMemo } from 'react';
+import * as React from 'react';
+import * as runtime from 'react/jsx-runtime';
 
 export function useMDXComponents(components: MDXComponents): MDXComponents {
   return {
@@ -75,8 +78,30 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
 }
 
 // Client component for MDX content
+// contentlayer2 provides compiled MDX code as a string that can be evaluated
 export function Mdx({ code }: { code: string }) {
-  const Component = useMDXComponent(code);
-  return <Component components={useMDXComponents({})} />;
+  const components = useMDXComponentsBase(useMDXComponents({}));
+  
+  const Component = useMemo(() => {
+    try {
+      // contentlayer2 generates code that expects _jsx_runtime to be available
+      // The code is a self-executing function that returns a Component
+      // We need to provide the JSX runtime and evaluate the code
+      const _jsx_runtime = runtime;
+      const fn = new Function('_jsx_runtime', code);
+      const result = fn(_jsx_runtime);
+      // The code returns an object with a default export
+      return result?.default || result || (() => <div>Unable to render content</div>);
+    } catch (error) {
+      console.error('Error evaluating MDX code:', error);
+      return () => <div>Error rendering content</div>;
+    }
+  }, [code]);
+
+  if (!Component) {
+    return <div>Unable to render content</div>;
+  }
+
+  return <Component components={components} />;
 }
 
