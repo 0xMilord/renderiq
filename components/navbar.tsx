@@ -108,12 +108,15 @@ export function Navbar() {
               <Skeleton className="w-8 h-8 rounded-full" />
             ) : (
               <>
-                {/* User Dropdown - Always show on desktop */}
-                <div className="hidden md:flex items-center">
+                {/* User Dropdown - Always show on desktop, and on mobile when authenticated */}
+                <div className={cn(
+                  "flex items-center",
+                  user ? "" : "hidden md:flex" // Hide on mobile when not authenticated
+                )}>
                   <UserDropdown />
                 </div>
                 
-                {/* User Dropdown on mobile - Only when not authenticated */}
+                {/* User Dropdown on mobile - Only when not authenticated (shows Sign In/Sign Up) */}
                 {!user && (
                   <div className="md:hidden flex items-center">
                     <UserDropdown />

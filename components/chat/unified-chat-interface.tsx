@@ -243,6 +243,9 @@ export function UnifiedChatInterface({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isLocalRenderUpdateRef = useRef(false); // Track if we're updating from a local render completion
+  const lastChainRenderCountRef = useRef(0); // Track chain render count to detect external updates
+  const messagesRef = useRef<Message[]>([]); // Track messages via ref to avoid dependency issues
   
   // Hooks
   const { credits } = useCredits();
@@ -299,16 +302,37 @@ export function UnifiedChatInterface({
 
   // Load chain data when component mounts or chain changes
   // Only reload if chain has new renders that aren't already in messages
+  // CRITICAL: Skip reload if we just updated from a local render completion
   useEffect(() => {
+    // Use ref to get current messages without causing dependency issues
+    const currentMessages = messagesRef.current;
+    
     logger.log('🔍 UnifiedChatInterface: Loading chain data', {
       hasChain: !!chain,
       rendersCount: chain?.renders?.length || 0,
       chainId: chainId || chain?.id,
       chainName: chain?.name,
       projectId,
-      currentMessagesCount: messages.length
+      currentMessagesCount: currentMessages.length,
+      isLocalUpdate: isLocalRenderUpdateRef.current,
+      lastChainRenderCount: lastChainRenderCountRef.current
     });
 
+    // If this is a local render update, skip the reload
+    if (isLocalRenderUpdateRef.current) {
+      logger.log('⏭️ UnifiedChatInterface: Skipping reload - local render update in progress');
+      isLocalRenderUpdateRef.current = false; // Reset flag
+      // Update ref to track chain render count
+      if (chain?.renders) {
+        lastChainRenderCountRef.current = chain.renders.length;
+      }
+      return;
+    }
+
+    // Check if chain render count changed (external update)
+    const currentChainRenderCount = chain?.renders?.length || 0;
+    const isExternalUpdate = currentChainRenderCount !== lastChainRenderCountRef.current;
+    
     // Try to load from localStorage first as backup
     const storageKey = `chat-messages-${projectId}-${chainId || 'default'}`;
     const storedMessages = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
@@ -316,13 +340,13 @@ export function UnifiedChatInterface({
     // If we already have messages, check if chain has new renders
     // Only reload if:
     // 1. We have no messages yet (initial load)
-    // 2. Chain has renders that aren't in our current messages
-    const currentRenderIds = new Set(messages.filter(m => m.render?.id).map(m => m.render!.id));
+    // 2. Chain has renders that aren't in our current messages AND it's an external update
+    const currentRenderIds = new Set(currentMessages.filter(m => m.render?.id).map(m => m.render!.id));
     const chainRenderIds = chain?.renders?.map(r => r.id) || [];
-    const hasNewRenders = messages.length === 0 || 
-      chainRenderIds.some(id => !currentRenderIds.has(id));
+    const hasNewRenders = currentMessages.length === 0 || 
+      (isExternalUpdate && chainRenderIds.some(id => !currentRenderIds.has(id)));
     
-    if (chain && chain.renders && chain.renders.length > 0 && (messages.length === 0 || hasNewRenders)) {
+    if (chain && chain.renders && chain.renders.length > 0 && (currentMessages.length === 0 || hasNewRenders)) {
       logger.log('✅ UnifiedChatInterface: Chain has renders, converting to messages', {
         rendersCount: chain.renders.length,
         renderIds: chain.renders.map(r => r.id),
@@ -482,7 +506,12 @@ export function UnifiedChatInterface({
       setMessages([]);
       setCurrentRender(null);
     }
-  }, [chain, projectId, chainId]);
+    
+    // Update ref to track chain render count after processing
+    if (chain?.renders) {
+      lastChainRenderCountRef.current = chain.renders.length;
+    }
+  }, [chain, projectId, chainId]); // Removed messages.length to prevent infinite loop
 
   // Save messages to localStorage whenever they change
   useEffect(() => {
@@ -1198,13 +1227,22 @@ export function UnifiedChatInterface({
         
         // Refresh chain data in the background to ensure persistence (without causing page reload)
         // This ensures messages are persisted to the database
-        // Use a longer delay and only refresh if needed to avoid unnecessary reloads
+        // CRITICAL: Set flag to prevent useEffect from reloading all messages
         if (onRefreshChain) {
+          isLocalRenderUpdateRef.current = true; // Mark as local update
           setTimeout(() => {
             // Only refresh if we don't already have this render in messages
             const hasRenderInMessages = messages.some(m => m.render?.id === newRender.id);
             if (!hasRenderInMessages) {
+              logger.log('🔄 UnifiedChatInterface: Refreshing chain data (local render update)');
               onRefreshChain();
+              // Reset flag after a short delay to allow chain prop to update
+              setTimeout(() => {
+                isLocalRenderUpdateRef.current = false;
+              }, 100);
+            } else {
+              // Reset flag if we're not refreshing
+              isLocalRenderUpdateRef.current = false;
             }
           }, 2000); // Longer delay to avoid blocking UI and prevent unnecessary reloads
         }

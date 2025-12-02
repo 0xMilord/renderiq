@@ -9,7 +9,7 @@ const navItems = [
   { href: '/', icon: Home, label: 'Home' },
   { href: '/render', icon: MessageSquare, label: 'Render' },
   { href: '/gallery', icon: GalleryVertical, label: 'Gallery' },
-  { href: '/profile', icon: User, label: 'Profile' },
+  { href: '/dashboard/profile', icon: User, label: 'Profile' },
   { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
 ];
 
