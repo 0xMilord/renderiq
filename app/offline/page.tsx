@@ -49,7 +49,7 @@ export default function OfflinePage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="text-sm text-muted-foreground space-y-2">
-            <p>RenderIQ needs an internet connection to work properly.</p>
+            <p>Renderiq needs an internet connection to work properly.</p>
             <p>Some features may be available offline, but most functionality requires connectivity.</p>
           </div>
           <Button

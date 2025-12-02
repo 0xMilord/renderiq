@@ -25,7 +25,7 @@ const competitors = [
     },
   },
   {
-    name: 'RenderIQ',
+    name: 'Renderiq',
     features: {
       aiPowered: true,
       speed: true,
@@ -54,10 +54,10 @@ export function ComparisonSection() {
             Comparison
           </Badge>
           <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
-            Why Choose RenderIQ?
+            Why Choose Renderiq?
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Compare RenderIQ with traditional architecture render software and other AI tools
+            Compare Renderiq with traditional architecture render software and other AI tools
           </p>
         </div>
 

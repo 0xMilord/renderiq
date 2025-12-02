@@ -2,7 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Building2, Github, Twitter, Linkedin, Mail } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-// PWA install button removed
+import { PWAInstallButton } from '@/components/pwa/install-button';
 
 export function Footer() {
   return (
@@ -45,7 +45,10 @@ export function Footer() {
                   <span className="text-sm text-muted-foreground">Theme:</span>
                   <ThemeToggle />
                 </div>
-                {/* PWA install button removed */}
+                {/* PWA Install Button - Show only on mobile */}
+                <div className="md:hidden">
+                  <PWAInstallButton />
+                </div>
               </div>
             </div>
           </div>
@@ -67,6 +70,11 @@ export function Footer() {
               <li>
                 <Link href="/use-cases" className="text-muted-foreground hover:text-primary transition-colors">
                   Use Cases
+                </Link>
+              </li>
+              <li>
+                <Link href="/blog" className="text-muted-foreground hover:text-primary transition-colors">
+                  Blog
                 </Link>
               </li>
             </ul>

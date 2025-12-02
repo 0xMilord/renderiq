@@ -127,7 +127,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="RenderIQ" />
+        <meta name="apple-mobile-web-app-title" content="Renderiq" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-y-auto`}

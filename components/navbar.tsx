@@ -8,7 +8,7 @@ import { UserDropdown } from '@/components/user-dropdown';
 import { NavbarSelectors } from '@/components/navbar-selectors';
 import { AlphaBanner } from '@/components/alpha-banner';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Menu, X, Home, MessageSquare, GalleryVertical, BookOpen, Lightbulb, CreditCard, Info, FileText, Mail } from 'lucide-react';
+import { Menu, X, Home, MessageSquare, GalleryVertical, BookOpen, Lightbulb, CreditCard, Info, FileText, Mail, Newspaper } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PWAInstallButton } from '@/components/pwa/install-button';
 
@@ -86,6 +86,13 @@ export function Navbar() {
                   <span>About</span>
                 </Link>
                 <Link
+                  href="/blog"
+                  className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <Newspaper className="h-4 w-4" />
+                  <span>Blog</span>
+                </Link>
+                <Link
                   href="/docs"
                   className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
                 >
@@ -109,8 +116,10 @@ export function Navbar() {
               <Skeleton className="w-8 h-8 rounded-full" />
             ) : (
               <>
-                {/* PWA Install Button */}
-                <PWAInstallButton />
+                {/* PWA Install Button - Show only on desktop */}
+                <div className="hidden md:flex">
+                  <PWAInstallButton />
+                </div>
                 
                 {/* User Dropdown - Always show on desktop, and on mobile when authenticated */}
                 <div className={cn(
@@ -193,6 +202,14 @@ export function Navbar() {
               >
                 <Info className="h-4 w-4" />
                 <span>About</span>
+              </Link>
+              <Link
+                href="/blog"
+                className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium"
+                onClick={() => setIsOpen(false)}
+              >
+                <Newspaper className="h-4 w-4" />
+                <span>Blog</span>
               </Link>
               <Link
                 href="/docs"

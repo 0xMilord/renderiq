@@ -100,7 +100,7 @@ export default function SharePage() {
             Shared Content
           </CardTitle>
           <CardDescription>
-            Content shared to RenderIQ
+            Content shared to Renderiq
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

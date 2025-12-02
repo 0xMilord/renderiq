@@ -140,10 +140,10 @@ function InstallInstructionsDialog({ open, onClose, os }: InstallInstructionsDia
             {isIOSDevice && <Smartphone className="h-5 w-5" />}
             {isAndroidDevice && <Smartphone className="h-5 w-5" />}
             {isWindowsDevice && <Monitor className="h-5 w-5" />}
-            Install RenderIQ
+            Install Renderiq
           </DialogTitle>
           <DialogDescription>
-            Follow these steps to install RenderIQ on your device
+            Follow these steps to install Renderiq on your device
           </DialogDescription>
         </DialogHeader>
 
@@ -155,7 +155,7 @@ function InstallInstructionsDialog({ open, onClose, os }: InstallInstructionsDia
                 <li>Tap the Share button (□↑) at the bottom of your screen</li>
                 <li>Scroll down and tap "Add to Home Screen"</li>
                 <li>Tap "Add" in the top right corner</li>
-                <li>RenderIQ will appear on your home screen</li>
+                <li>Renderiq will appear on your home screen</li>
               </ol>
             </div>
           )}
@@ -167,7 +167,7 @@ function InstallInstructionsDialog({ open, onClose, os }: InstallInstructionsDia
                 <li>Tap the menu (⋮) in the top right corner</li>
                 <li>Select "Add to Home screen" or "Install app"</li>
                 <li>Tap "Install" or "Add"</li>
-                <li>RenderIQ will be installed on your device</li>
+                <li>Renderiq will be installed on your device</li>
               </ol>
             </div>
           )}
@@ -179,7 +179,7 @@ function InstallInstructionsDialog({ open, onClose, os }: InstallInstructionsDia
                 <li>Look for the install icon (⊕) in your browser's address bar</li>
                 <li>Click the install icon or use the browser menu</li>
                 <li>Select "Install" when prompted</li>
-                <li>RenderIQ will be added to your apps</li>
+                <li>Renderiq will be added to your apps</li>
               </ol>
             </div>
           )}

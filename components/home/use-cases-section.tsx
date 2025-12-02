@@ -69,7 +69,7 @@ export function UseCasesSection() {
             <span className="block text-muted-foreground mt-2">and Retail Industries</span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Whether you're designing buildings or retail spaces, RenderIQ adapts to your industry needs
+            Whether you're designing buildings or retail spaces, Renderiq adapts to your industry needs
           </p>
         </div>
 

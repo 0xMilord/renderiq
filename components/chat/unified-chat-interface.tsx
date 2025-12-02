@@ -284,7 +284,7 @@ export function UnifiedChatInterface({
             if (msg.isGenerating) {
               return {
                 ...msg,
-                content: getRenderIQMessage(newProgress, isVideoMode)
+                content: getRenderiqMessage(newProgress, isVideoMode)
               };
             }
             return msg;
@@ -630,9 +630,9 @@ export function UnifiedChatInterface({
     return `${cost} credit${cost !== 1 ? 's' : ''}`;
   };
 
-  // Whimsical messages from RenderIQ (our mascot) with Japanese kaomojis
+  // Whimsical messages from Renderiq (our mascot) with Japanese kaomojis
   // Messages change at specific stages: 0%, 25%, 50%, 90%
-  const getRenderIQMessage = (progress: number, isVideo: boolean = false, failed: boolean = false): string => {
+  const getRenderiqMessage = (progress: number, isVideo: boolean = false, failed: boolean = false): string => {
     if (failed) {
       const failedMessages = [
         "Oops! I tripped (´･ω･`) Retrying...",
@@ -929,7 +929,7 @@ export function UnifiedChatInterface({
     const assistantMessage: Message = {
       id: `assistant-${crypto.randomUUID()}`,
       type: 'assistant',
-      content: getRenderIQMessage(0, isVideoMode),
+      content: getRenderiqMessage(0, isVideoMode),
       timestamp: new Date(),
       isGenerating: true
     };
@@ -1271,7 +1271,7 @@ export function UnifiedChatInterface({
                 ? 'Network error. Please check your connection and try again.' 
                 : isGoogleError
                 ? 'Google AI service temporarily unavailable. Please try again in a moment.'
-                : getRenderIQMessage(0, isVideoMode, true), 
+                : getRenderiqMessage(0, isVideoMode, true), 
               isGenerating: false 
             }
           : msg
@@ -1799,12 +1799,12 @@ export function UnifiedChatInterface({
                       <div className="relative w-4 h-4 rounded-full overflow-hidden flex-shrink-0">
                         <Image
                           src="/logo.svg"
-                          alt="RenderIQ"
+                          alt="Renderiq"
                           fill
                           className="object-cover"
                         />
                       </div>
-                      <span>RenderIQ</span>
+                      <span>Renderiq</span>
                     </>
                   )}
                   {message.type === 'user' && 'You'}

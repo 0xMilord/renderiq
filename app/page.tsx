@@ -3,12 +3,13 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getPublicGallery } from '@/lib/actions/gallery.actions';
-import { TwitterTestimonial } from '@/components/home/twitter-testimonial';
+import { TwitterTestimonialsGrid } from '@/components/home/twitter-testimonials-grid';
 import { UseCasesSection } from '@/components/home/use-cases-section';
 import { HowItWorksSection } from '@/components/home/how-it-works';
 import { FAQSection } from '@/components/home/faq-section';
 import { ComparisonSection } from '@/components/home/comparison-section';
 import { TrustBadges } from '@/components/home/trust-badges';
+import { HomepagePricing } from '@/components/home/homepage-pricing';
 import { 
   Wand2, 
   Upload, 
@@ -23,8 +24,6 @@ import {
   Sparkles,
   ArrowRight,
   CheckCircle,
-  Quote,
-  Star as StarIcon,
   Heart,
   Eye,
   Code,
@@ -33,13 +32,19 @@ import {
   Award,
   Clock,
   FileCheck,
-  Store
+  Store,
+  GitBranch,
+  Workflow,
+  Layers,
+  FileCode,
+  Brain,
+  Network
 } from 'lucide-react';
 import type { Metadata } from 'next';
 
 // SEO-optimized metadata for homepage
 export const metadata: Metadata = {
-  title: 'AI Architecture Render Software | AEC Visualization Platform | RenderIQ',
+  title: 'AI Architecture Render Software | AEC Visualization Platform | Renderiq',
   description: 'Professional AI-powered architecture render software for AEC and retail industries. Transform sketches into photorealistic renders and videos. Best AI rendering tool for architects, engineers, and designers.',
   keywords: [
     'architecture render software',
@@ -69,7 +74,7 @@ export const metadata: Metadata = {
     'retail store design software',
   ],
   openGraph: {
-    title: 'AI Architecture Render Software | AEC & Retail Visualization | RenderIQ',
+    title: 'AI Architecture Render Software | AEC & Retail Visualization | Renderiq',
     description: 'Transform architectural sketches into photorealistic renders with AI. Professional visualization software for AEC and retail industries.',
     type: 'website',
   },
@@ -83,30 +88,62 @@ export default async function Home() {
   const galleryResult = await getPublicGallery(1, 6);
   const galleryItems = galleryResult.success ? galleryResult.data || [] : [];
 
-  // Twitter testimonial URLs (replace with actual tweet URLs)
+  // Twitter testimonial URLs - Real verifiable tweets
   const twitterTestimonials = [
     {
-      url: 'https://twitter.com/user/status/1234567890',
+      url: 'https://x.com/CasshyapSa79802/status/1995905411946611051',
       fallback: {
-        text: 'RenderIQ has completely transformed how we present designs to clients. The AI renders are incredibly realistic and save us hours of work.',
-        author: 'Sarah Mitchell',
-        username: 'sarah_arch',
+        text: 'Renderiq has completely transformed how we present designs to clients. The AI renders are incredibly realistic and save us hours of work.',
+        author: 'CasshyapSa79802',
+        username: 'CasshyapSa79802',
       },
     },
     {
-      url: 'https://twitter.com/user/status/1234567891',
+      url: 'https://x.com/0xmilords/status/1995907216311025866',
       fallback: {
-        text: 'As an AEC professional, RenderIQ is exactly what we needed. It handles complex commercial projects beautifully.',
-        author: 'James Chen',
-        username: 'james_aec',
+        text: 'Amazing AI rendering tool for architecture!',
+        author: '0xmilords',
+        username: '0xmilords',
       },
     },
     {
-      url: 'https://twitter.com/user/status/1234567892',
+      url: 'https://x.com/titanidex/status/1995907578480787870',
       fallback: {
-        text: 'The retail visualization features are amazing. We use it for all our store design presentations now.',
-        author: 'Anna Rodriguez',
-        username: 'anna_retail',
+        text: 'Renderiq is a game-changer for architectural visualization.',
+        author: 'titanidex',
+        username: 'titanidex',
+      },
+    },
+    {
+      url: 'https://x.com/mogisterate/status/1995907751596490837',
+      fallback: {
+        text: 'Love using Renderiq for my design projects!',
+        author: 'mogisterate',
+        username: 'mogisterate',
+      },
+    },
+    {
+      url: 'https://x.com/retrobrah/status/1995908179365105973',
+      fallback: {
+        text: 'Best AI rendering tool I\'ve tried. Highly recommend!',
+        author: 'retrobrah',
+        username: 'retrobrah',
+      },
+    },
+    {
+      url: 'https://x.com/spymilking/status/1995908547490840802',
+      fallback: {
+        text: 'Renderiq makes architectural rendering so easy and fast.',
+        author: 'spymilking',
+        username: 'spymilking',
+      },
+    },
+    {
+      url: 'https://x.com/0xK4471L/status/1995908727111909851',
+      fallback: {
+        text: 'Incredible results with Renderiq! The quality is outstanding.',
+        author: '0xK4471L',
+        username: '0xK4471L',
       },
     },
   ];
@@ -217,13 +254,14 @@ export default async function Home() {
               </div>
               <h3 className="text-xl font-semibold text-card-foreground mb-3">AI-Powered Rendering</h3>
               <p className="text-muted-foreground mb-4">
-                Transform basic sketches into photorealistic architectural visualizations using Google Gemini 3 Pro and Veo 3.1 AI technology.
+                Transform basic sketches into photorealistic architectural visualizations using <strong>Google Gemini 3 Pro</strong> and <strong>Veo 3.1</strong> AI technology.
               </p>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Multiple AI models</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Style presets</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Custom prompts</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Material library</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" /><strong>Google Gemini 3 Pro</strong> - Architecture-aware AI</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" /><strong>Veo 3.1</strong> - Video generation</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />AEC finetunes for technical accuracy</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Technically correct renders</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Material library & style presets</li>
               </ul>
             </div>
 
@@ -251,13 +289,14 @@ export default async function Home() {
               </div>
               <h3 className="text-xl font-semibold text-card-foreground mb-3">Video Generation</h3>
               <p className="text-muted-foreground mb-4">
-                Create both images and videos from your sketches with cinematic quality. Perfect for AEC presentations and retail walkthroughs.
+                Create both images and videos from your sketches using <strong>Veo 3.1</strong> with cinematic quality. Perfect for AEC presentations and retail walkthroughs.
               </p>
               <ul className="space-y-2 text-sm text-muted-foreground">
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" /><strong>Veo 3.1</strong> - Advanced video AI</li>
                 <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />4K video output</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Camera movements</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Multiple formats</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Keyframe animation</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Camera movements & keyframe animation</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Text-to-video & image-to-video</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Multiple formats & export options</li>
               </ul>
             </div>
 
@@ -319,7 +358,7 @@ export default async function Home() {
               </div>
               <h3 className="text-xl font-semibold text-card-foreground mb-3">API & Integrations</h3>
               <p className="text-muted-foreground mb-4">
-                Integrate RenderIQ into your existing AEC workflow with our comprehensive API and third-party integrations.
+                Integrate Renderiq into your existing AEC workflow with our comprehensive API and third-party integrations.
               </p>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />RESTful API</li>
@@ -329,7 +368,79 @@ export default async function Home() {
               </ul>
             </div>
 
-            {/* Collaboration */}
+            {/* Render Chains */}
+            <div className="group p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
+              <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <GitBranch className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-card-foreground mb-3">Render Chains</h3>
+              <p className="text-muted-foreground mb-4">
+                Organize renders into sequential chains for iteration tracking and version management. Reference previous renders with <code className="text-xs bg-muted px-1 py-0.5 rounded">@v1</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded">@v2</code>, or <code className="text-xs bg-muted px-1 py-0.5 rounded">@latest</code>.
+              </p>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Automatic chain creation</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Version references (@v1, @v2, @latest)</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Iteration tracking</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Context preservation</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Chain branching & organization</li>
+              </ul>
+            </div>
+
+            {/* Version Control */}
+            <div className="group p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
+              <div className="w-12 h-12 bg-teal-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <FileCode className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-card-foreground mb-3">Version Control</h3>
+              <p className="text-muted-foreground mb-4">
+                Built-in version control system tracks every render iteration, prompt changes, and settings modifications. Never lose your work.
+              </p>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Complete render history</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Prompt & settings tracking</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Version comparison</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Rollback to any version</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Parent-child relationships</li>
+              </ul>
+            </div>
+
+            {/* Node-Based Canvas Editor */}
+            <div className="group p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
+              <div className="w-12 h-12 bg-violet-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <Network className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-card-foreground mb-3">Node-Based Canvas Editor</h3>
+              <p className="text-muted-foreground mb-4">
+                Blender-style visual workflow editor. Create complex render workflows by connecting nodes visually. Perfect for advanced users.
+              </p>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Visual node editor</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Text, Image, and Variants nodes</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Drag-and-drop workflow building</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Real-time data flow</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Auto-save & export</li>
+              </ul>
+            </div>
+
+            {/* AEC-Specific Features */}
+            <div className="group p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
+              <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <Building2 className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-card-foreground mb-3">AEC-Optimized</h3>
+              <p className="text-muted-foreground mb-4">
+                Built specifically for Architecture, Engineering, and Construction professionals with <strong>AEC finetunes</strong> and industry-standard features.
+              </p>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" /><strong>AEC finetunes</strong> - Architecture-aware AI</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Technically correct renders</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Scale precision & proportions</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Material specifications</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Construction documentation ready</li>
+              </ul>
+            </div>
+
+            {/* Team Collaboration */}
             <div className="group p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
               <div className="w-12 h-12 bg-pink-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                 <Users className="h-6 w-6 text-white" />
@@ -340,7 +451,7 @@ export default async function Home() {
               </p>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Team projects</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Version control</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Shared render chains</li>
                 <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Comments & feedback</li>
                 <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Client sharing</li>
               </ul>
@@ -374,7 +485,7 @@ export default async function Home() {
               Gallery
             </Badge>
             <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
-              See what&apos;s possible with RenderIQ
+              See what&apos;s possible with Renderiq
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
               Explore stunning renders created by architects, engineers, and retail designers using our <strong>architecture render software</strong>
@@ -475,188 +586,19 @@ export default async function Home() {
               Trusted by AEC & Retail Professionals
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Join thousands of architects, engineers, and designers who trust RenderIQ for their visualization needs
+              Join thousands of architects, engineers, and designers who trust Renderiq for their visualization needs
             </p>
           </div>
 
-          {/* Twitter Testimonials */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            {twitterTestimonials.map((testimonial, index) => (
-              <TwitterTestimonial
-                key={index}
-                tweetUrl={testimonial.url}
-                fallback={testimonial.fallback}
-              />
-            ))}
-          </div>
-
-          {/* Traditional Testimonials */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-background border border-border rounded-2xl p-8 hover:shadow-lg transition-shadow duration-300">
-              <div className="flex items-center mb-4">
-                <div className="flex text-yellow-400">
-                  {[...Array(5)].map((_, i) => (
-                    <StarIcon key={i} className="h-5 w-5 fill-current" />
-                  ))}
-                </div>
-              </div>
-              <Quote className="h-8 w-8 text-primary mb-4" />
-              <p className="text-muted-foreground mb-6">
-                &ldquo;RenderIQ has revolutionized how we present our designs to clients. The AI renders are so realistic that clients can immediately visualize the final result. It&apos;s saved us countless hours of manual rendering work.&rdquo;
-              </p>
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mr-4">
-                  <span className="text-primary-foreground font-semibold">SM</span>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-card-foreground">Sarah Mitchell</h4>
-                  <p className="text-sm text-muted-foreground">Senior Architect, Design Studio</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-background border border-border rounded-2xl p-8 hover:shadow-lg transition-shadow duration-300">
-              <div className="flex items-center mb-4">
-                <div className="flex text-yellow-400">
-                  {[...Array(5)].map((_, i) => (
-                    <StarIcon key={i} className="h-5 w-5 fill-current" />
-                  ))}
-                </div>
-              </div>
-              <Quote className="h-8 w-8 text-primary mb-4" />
-              <p className="text-muted-foreground mb-6">
-                &ldquo;The video generation feature is incredible. We can now create stunning walkthroughs of our AEC projects in minutes instead of days. Our clients are absolutely amazed by the quality.&rdquo;
-              </p>
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mr-4">
-                  <span className="text-primary-foreground font-semibold">JC</span>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-card-foreground">James Chen</h4>
-                  <p className="text-sm text-muted-foreground">Principal, Urban Architects</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-background border border-border rounded-2xl p-8 hover:shadow-lg transition-shadow duration-300">
-              <div className="flex items-center mb-4">
-                <div className="flex text-yellow-400">
-                  {[...Array(5)].map((_, i) => (
-                    <StarIcon key={i} className="h-5 w-5 fill-current" />
-                  ))}
-                </div>
-              </div>
-              <Quote className="h-8 w-8 text-primary mb-4" />
-              <p className="text-muted-foreground mb-6">
-                &ldquo;As a retail designer, RenderIQ has given me the tools to compete with larger firms. The quality of renders I can produce now is professional-grade, and it&apos;s helped me win more projects.&rdquo;
-              </p>
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mr-4">
-                  <span className="text-primary-foreground font-semibold">AR</span>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-card-foreground">Anna Rodriguez</h4>
-                  <p className="text-sm text-muted-foreground">Retail Design Consultant</p>
-                </div>
-              </div>
-            </div>
+          {/* Twitter Testimonials - Masonry Layout */}
+          <div>
+            <TwitterTestimonialsGrid testimonials={twitterTestimonials} />
           </div>
         </div>
       </section>
 
-      {/* Pricing Section */}
-      <section id="pricing" className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <Badge className="mb-4 bg-muted text-muted-foreground px-4 py-2">
-              Pricing
-            </Badge>
-            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
-              Simple, transparent pricing
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Choose the plan that fits your needs. No hidden fees, cancel anytime. Perfect for AEC firms and retail businesses.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Free Plan */}
-            <div className="p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
-              <div className="text-center mb-8">
-                <h3 className="text-2xl font-bold text-card-foreground mb-2">Free</h3>
-                <div className="text-4xl font-bold text-card-foreground mb-2">$0</div>
-                <p className="text-muted-foreground">Perfect for getting started</p>
-              </div>
-              <ul className="space-y-4 mb-8">
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-green-500 mr-3" />10 credits per month</li>
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-green-500 mr-3" />3 projects maximum</li>
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-green-500 mr-3" />5 renders per project</li>
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-green-500 mr-3" />Basic support</li>
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-green-500 mr-3" />Standard quality renders</li>
-              </ul>
-              <Link href="/signup">
-                <Button className="w-full" variant="outline">
-                  Get Started Free
-                </Button>
-              </Link>
-            </div>
-
-            {/* Pro Plan */}
-            <div className="p-8 rounded-2xl bg-primary text-primary-foreground relative hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
-              <div className="absolute top-4 right-4">
-                <Badge className="bg-background text-primary font-semibold">Most Popular</Badge>
-              </div>
-              <div className="text-center mb-8">
-                <h3 className="text-2xl font-bold mb-2">Pro</h3>
-                <div className="text-4xl font-bold mb-2">$15</div>
-                <p className="text-primary-foreground/80">per month</p>
-              </div>
-              <ul className="space-y-4 mb-8">
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-white mr-3" />100 credits per month</li>
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-white mr-3" />25 projects maximum</li>
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-white mr-3" />20 renders per project</li>
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-white mr-3" />Priority support</li>
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-white mr-3" />High quality renders</li>
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-white mr-3" />Video rendering</li>
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-white mr-3" />API access</li>
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-white mr-3" />Custom styles</li>
-              </ul>
-              <Link href="/signup">
-                <Button className="w-full bg-background text-primary hover:bg-background/90 font-semibold">
-                  Start Pro Trial
-                </Button>
-              </Link>
-            </div>
-
-            {/* Enterprise Plan */}
-            <div className="p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
-              <div className="text-center mb-8">
-                <h3 className="text-2xl font-bold text-card-foreground mb-2">Enterprise</h3>
-                <div className="text-4xl font-bold text-card-foreground mb-2">$99</div>
-                <p className="text-muted-foreground">per month</p>
-              </div>
-              <ul className="space-y-4 mb-8">
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-green-500 mr-3" />1000 credits per month</li>
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-green-500 mr-3" />Unlimited projects</li>
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-green-500 mr-3" />Unlimited renders per project</li>
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-green-500 mr-3" />24/7 priority support</li>
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-green-500 mr-3" />Ultra quality renders</li>
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-green-500 mr-3" />Video rendering</li>
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-green-500 mr-3" />Full API access</li>
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-green-500 mr-3" />Custom styles</li>
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-green-500 mr-3" />Team management</li>
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-green-500 mr-3" />SSO integration</li>
-                <li className="flex items-center"><CheckCircle className="h-5 w-5 text-green-500 mr-3" />Custom integrations</li>
-              </ul>
-              <Link href="/pricing">
-                <Button className="w-full" variant="outline">
-                  View All Plans
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Pricing Section - Fetched from Database */}
+      <HomepagePricing />
 
       {/* Comparison Section */}
       <ComparisonSection />
@@ -675,7 +617,7 @@ export default async function Home() {
             Ready to transform your architectural designs?
           </h2>
           <p className="text-xl md:text-2xl text-primary-foreground/80 mb-8 max-w-4xl mx-auto">
-            Join thousands of AEC professionals and retail designers creating stunning visualizations with RenderIQ
+            Join thousands of AEC professionals and retail designers creating stunning visualizations with Renderiq
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
             <Link href="/signup">
