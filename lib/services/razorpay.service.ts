@@ -5,11 +5,26 @@ import { paymentOrders, creditPackages, subscriptionPlans, userSubscriptions, us
 import { eq } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
 
-// Initialize Razorpay instance
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
-});
+// Lazy initialization of Razorpay instance to avoid build-time errors
+let razorpayInstance: Razorpay | null = null;
+
+function getRazorpayInstance(): Razorpay {
+  if (!razorpayInstance) {
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    
+    if (!keyId || !keySecret) {
+      throw new Error('Razorpay credentials are not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
+    }
+    
+    razorpayInstance = new Razorpay({
+      key_id: keyId,
+      key_secret: keySecret,
+    });
+  }
+  
+  return razorpayInstance;
+}
 
 export class RazorpayService {
   /**
@@ -48,6 +63,7 @@ export class RazorpayService {
         },
       };
 
+      const razorpay = getRazorpayInstance();
       const razorpayOrder = await razorpay.orders.create(orderOptions);
 
       logger.log('✅ RazorpayService: Order created:', razorpayOrder.id);
@@ -124,6 +140,7 @@ export class RazorpayService {
       }
 
       // Fetch payment details from Razorpay
+      const razorpay = getRazorpayInstance();
       const payment = await razorpay.payments.fetch(razorpayPaymentId);
 
       if (payment.status !== 'captured' && payment.status !== 'authorized') {
@@ -274,6 +291,7 @@ export class RazorpayService {
       }
 
       // Create or get Razorpay customer
+      const razorpay = getRazorpayInstance();
       let razorpayCustomerId: string;
       try {
         const customers = await razorpay.customers.all({ email: customerDetails.email, count: 1 });
