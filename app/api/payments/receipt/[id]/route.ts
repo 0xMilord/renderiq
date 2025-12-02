@@ -6,6 +6,9 @@ import { paymentOrders } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
 
+// Force Node.js runtime for pdfkit (requires Node.js APIs)
+export const runtime = 'nodejs';
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -150,4 +153,5 @@ export async function POST(
     );
   }
 }
+
 

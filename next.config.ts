@@ -30,6 +30,19 @@ const nextConfig: NextConfig = {
         ...config.resolve.alias,
         'contentlayer2/generated': path.resolve(__dirname, '.contentlayer/generated/index.mjs'),
       };
+    } else {
+      // Exclude pdfkit from client-side bundle (server-only library)
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        crypto: false,
+      };
+    }
+    // Exclude pdfkit from client bundle
+    config.externals = config.externals || [];
+    if (!isServer) {
+      config.externals.push('pdfkit');
     }
     return config;
   },

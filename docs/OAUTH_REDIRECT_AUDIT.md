@@ -157,3 +157,4 @@ After applying fixes:
 - Environment variables must be set correctly in production
 - Supabase Dashboard must have correct redirect URLs whitelisted
 
+
