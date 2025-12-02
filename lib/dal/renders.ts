@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { renders, renderChains, galleryItems, users } from '@/lib/db/schema';
 import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import { ContextData, CreateRenderWithChainData } from '@/lib/types/render-chain';
+import { logger } from '@/lib/utils/logger';
 
 export interface CreateRenderData {
   projectId?: string | null;
@@ -33,7 +34,7 @@ export interface UpdateRenderData {
 
 export class RendersDAL {
   static async create(data: CreateRenderData) {
-    console.log('📝 Creating render record:', data);
+    logger.log('📝 Creating render record:', data);
     
     const [render] = await db
       .insert(renders)
@@ -53,12 +54,12 @@ export class RendersDAL {
       })
       .returning();
 
-    console.log('✅ Render record created:', render.id);
+    logger.log('✅ Render record created:', render.id);
     return render;
   }
 
   static async getById(id: string) {
-    console.log('🔍 Fetching render by ID:', id);
+    logger.log('🔍 Fetching render by ID:', id);
     
     const [render] = await db
       .select()
@@ -70,7 +71,7 @@ export class RendersDAL {
   }
 
   static async getByUser(userId: string, projectId?: string | null, limit?: number) {
-    console.log('🔍 Fetching renders for user:', userId, 'project:', projectId, 'limit:', limit);
+    logger.log('🔍 Fetching renders for user:', userId, 'project:', projectId, 'limit:', limit);
     
     const whereCondition = projectId 
       ? and(eq(renders.userId, userId), eq(renders.projectId, projectId))
@@ -83,12 +84,12 @@ export class RendersDAL {
       .orderBy(desc(renders.createdAt));
 
     const userRenders = limit ? await query.limit(limit) : await query;
-    console.log(`✅ Found ${userRenders.length} renders for user`);
+    logger.log(`✅ Found ${userRenders.length} renders for user`);
     return userRenders;
   }
 
   static async getByProjectId(projectId: string) {
-    console.log('🔍 Fetching renders for project:', projectId);
+    logger.log('🔍 Fetching renders for project:', projectId);
     
     const projectRenders = await db
       .select()
@@ -96,12 +97,12 @@ export class RendersDAL {
       .where(eq(renders.projectId, projectId))
       .orderBy(desc(renders.createdAt));
 
-    console.log(`✅ Found ${projectRenders.length} renders for project`);
+    logger.log(`✅ Found ${projectRenders.length} renders for project`);
     return projectRenders;
   }
 
   static async updateStatus(id: string, status: 'pending' | 'processing' | 'completed' | 'failed', errorMessage?: string) {
-    console.log('🔄 Updating render status:', { id, status, errorMessage });
+    logger.log('🔄 Updating render status:', { id, status, errorMessage });
     
     const [updatedRender] = await db
       .update(renders)
@@ -113,7 +114,7 @@ export class RendersDAL {
       .where(eq(renders.id, id))
       .returning();
 
-    console.log('✅ Render status updated:', updatedRender.id);
+    logger.log('✅ Render status updated:', updatedRender.id);
     return updatedRender;
   }
 
@@ -124,7 +125,7 @@ export class RendersDAL {
     status: 'completed' | 'failed',
     processingTime?: number
   ) {
-    console.log('🔄 Updating render output:', { id, outputUrl, status, processingTime });
+    logger.log('🔄 Updating render output:', { id, outputUrl, status, processingTime });
     
     const [updatedRender] = await db
       .update(renders)
@@ -138,22 +139,22 @@ export class RendersDAL {
       .where(eq(renders.id, id))
       .returning();
 
-    console.log('✅ Render output updated:', updatedRender.id);
+    logger.log('✅ Render output updated:', updatedRender.id);
     return updatedRender;
   }
 
   static async delete(id: string) {
-    console.log('🗑️ Deleting render:', id);
+    logger.log('🗑️ Deleting render:', id);
     
     await db
       .delete(renders)
       .where(eq(renders.id, id));
 
-    console.log('✅ Render deleted:', id);
+    logger.log('✅ Render deleted:', id);
   }
 
   static async getByStatus(status: 'pending' | 'processing' | 'completed' | 'failed') {
-    console.log('🔍 Fetching renders by status:', status);
+    logger.log('🔍 Fetching renders by status:', status);
     
     const rendersByStatus = await db
       .select()
@@ -161,13 +162,13 @@ export class RendersDAL {
       .where(eq(renders.status, status))
       .orderBy(desc(renders.createdAt));
 
-    console.log(`✅ Found ${rendersByStatus.length} renders with status: ${status}`);
+    logger.log(`✅ Found ${rendersByStatus.length} renders with status: ${status}`);
     return rendersByStatus;
   }
 
   // Version control methods
   static async getByChainId(chainId: string) {
-    console.log('🔍 Fetching renders by chain ID:', chainId);
+    logger.log('🔍 Fetching renders by chain ID:', chainId);
     
     const chainRenders = await db
       .select()
@@ -175,7 +176,7 @@ export class RendersDAL {
       .where(eq(renders.chainId, chainId))
       .orderBy(renders.chainPosition);
 
-    console.log(`✅ Found ${chainRenders.length} renders in chain`);
+    logger.log(`✅ Found ${chainRenders.length} renders in chain`);
     return chainRenders;
   }
 
@@ -185,7 +186,7 @@ export class RendersDAL {
    * Note: Could be further optimized with SQL JOINs if needed
    */
   static async getWithContext(renderId: string) {
-    console.log('🔍 Fetching render with context:', renderId);
+    logger.log('🔍 Fetching render with context:', renderId);
     
     const [render] = await db
       .select()
@@ -219,7 +220,7 @@ export class RendersDAL {
   }
 
   static async updateContext(renderId: string, context: ContextData) {
-    console.log('🔄 Updating render context:', { renderId, context });
+    logger.log('🔄 Updating render context:', { renderId, context });
     
     const [updatedRender] = await db
       .update(renders)
@@ -230,12 +231,12 @@ export class RendersDAL {
       .where(eq(renders.id, renderId))
       .returning();
 
-    console.log('✅ Render context updated:', updatedRender.id);
+    logger.log('✅ Render context updated:', updatedRender.id);
     return updatedRender;
   }
 
   static async getReferenceRenders(projectId: string) {
-    console.log('🔍 Fetching reference renders for project:', projectId);
+    logger.log('🔍 Fetching reference renders for project:', projectId);
     
     const referenceRenders = await db
       .select()
@@ -248,12 +249,12 @@ export class RendersDAL {
       )
       .orderBy(desc(renders.createdAt));
 
-    console.log(`✅ Found ${referenceRenders.length} reference renders`);
+    logger.log(`✅ Found ${referenceRenders.length} reference renders`);
     return referenceRenders;
   }
 
   static async createWithChain(data: CreateRenderWithChainData) {
-    console.log('📝 Creating render with chain context:', data);
+    logger.log('📝 Creating render with chain context:', data);
     
     const [render] = await db
       .insert(renders)
@@ -272,12 +273,12 @@ export class RendersDAL {
       })
       .returning();
 
-    console.log('✅ Render with chain created:', render.id);
+    logger.log('✅ Render with chain created:', render.id);
     return render;
   }
 
   static async getPublicGallery(limit = 20, offset = 0) {
-    console.log('🖼️ Fetching public gallery items:', { limit, offset });
+    logger.log('🖼️ Fetching public gallery items:', { limit, offset });
     
     const items = await db
       .select({
@@ -315,7 +316,7 @@ export class RendersDAL {
       .limit(limit)
       .offset(offset);
 
-    console.log(`✅ Found ${items.length} public gallery items`);
+    logger.log(`✅ Found ${items.length} public gallery items`);
     return items;
   }
 
@@ -326,7 +327,7 @@ export class RendersDAL {
   static async getByIds(ids: string[]) {
     if (ids.length === 0) return [];
     
-    console.log('🔍 Batch fetching', ids.length, 'renders by IDs');
+    logger.log('🔍 Batch fetching', ids.length, 'renders by IDs');
     
     const batchRenders = await db
       .select()
@@ -334,7 +335,7 @@ export class RendersDAL {
       .where(inArray(renders.id, ids))
       .orderBy(desc(renders.createdAt));
 
-    console.log(`✅ Found ${batchRenders.length} renders`);
+    logger.log(`✅ Found ${batchRenders.length} renders`);
     return batchRenders;
   }
 
@@ -349,7 +350,7 @@ export class RendersDAL {
   ) {
     if (renderIds.length === 0) return;
     
-    console.log('🔄 Batch updating', renderIds.length, 'render statuses to:', status);
+    logger.log('🔄 Batch updating', renderIds.length, 'render statuses to:', status);
     
     await db
       .update(renders)
@@ -360,11 +361,11 @@ export class RendersDAL {
       })
       .where(inArray(renders.id, renderIds));
 
-    console.log('✅ Batch status update completed');
+    logger.log('✅ Batch status update completed');
   }
 
   static async addToGallery(renderId: string, userId: string, isPublic: boolean) {
-    console.log('📸 Adding render to gallery:', { renderId, userId, isPublic });
+    logger.log('📸 Adding render to gallery:', { renderId, userId, isPublic });
     
     const [galleryItem] = await db
       .insert(galleryItems)
@@ -375,12 +376,12 @@ export class RendersDAL {
       })
       .returning();
 
-    console.log('✅ Render added to gallery:', galleryItem.id);
+    logger.log('✅ Render added to gallery:', galleryItem.id);
     return galleryItem;
   }
 
   static async incrementViews(itemId: string) {
-    console.log('👁️ Incrementing views for gallery item:', itemId);
+    logger.log('👁️ Incrementing views for gallery item:', itemId);
     
     await db
       .update(galleryItems)
@@ -389,11 +390,11 @@ export class RendersDAL {
       })
       .where(eq(galleryItems.id, itemId));
 
-    console.log('✅ Views incremented for gallery item:', itemId);
+    logger.log('✅ Views incremented for gallery item:', itemId);
   }
 
   static async toggleLike(itemId: string, userId: string) {
-    console.log('❤️ Toggling like for gallery item:', { itemId, userId });
+    logger.log('❤️ Toggling like for gallery item:', { itemId, userId });
     
     // For now, just increment likes - in a full implementation,
     // you'd want to track individual user likes to prevent double-liking
@@ -405,7 +406,7 @@ export class RendersDAL {
       .where(eq(galleryItems.id, itemId))
       .returning();
 
-    console.log('✅ Like toggled for gallery item:', itemId);
+    logger.log('✅ Like toggled for gallery item:', itemId);
     return {
       likes: updatedItem.likes,
       liked: true, // In a real implementation, check if user already liked

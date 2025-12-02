@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { toast } from 'sonner';
+import { logger } from '@/lib/utils/logger';
 
 interface CreateProjectModalProps {
   children: React.ReactNode;
@@ -26,7 +27,7 @@ export function CreateProjectModal({ children, open: controlledOpen, onOpenChang
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    console.log('🚀 [CreateProjectModal] Form submitted');
+    logger.log('🚀 [CreateProjectModal] Form submitted');
     
     const projectName = event.currentTarget.projectName.value;
     if (!projectName.trim()) {
@@ -40,7 +41,7 @@ export function CreateProjectModal({ children, open: controlledOpen, onOpenChang
       const shapes = ['square', 'circle', 'triangle', 'hexagon', 'pentagon', 'octagon'];
       const randomShape = shapes[Math.floor(Math.random() * shapes.length)];
       
-      console.log('📝 [CreateProjectModal] Creating project with random shape:', randomShape);
+      logger.log('📝 [CreateProjectModal] Creating project with random shape:', randomShape);
 
       // Generate DiceBear URL
       const dicebearUrl = `https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(projectName + randomShape)}&backgroundColor=transparent&shape1Color=4a90e2&shape2Color=7b68ee&shape3Color=ff6b6b`;
@@ -55,12 +56,12 @@ export function CreateProjectModal({ children, open: controlledOpen, onOpenChang
       formData.append('description', `AI-generated project with ${randomShape} shape`);
       formData.append('dicebearUrl', dicebearUrl); // Add DiceBear URL as metadata
 
-      console.log('🎨 [CreateProjectModal] Calling addProject...');
+      logger.log('🎨 [CreateProjectModal] Calling addProject...');
       const result = await addProject(formData);
-      console.log('📊 [CreateProjectModal] addProject result:', result);
+      logger.log('📊 [CreateProjectModal] addProject result:', result);
       
       if (result.success) {
-        console.log('✅ [CreateProjectModal] Project created successfully');
+        logger.log('✅ [CreateProjectModal] Project created successfully');
         toast.success('Project created successfully');
         setOpen(false);
         // Reset form safely

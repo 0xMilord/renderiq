@@ -1,5 +1,6 @@
 import { db } from './index';
 import { subscriptionPlans, creditPackages } from './schema';
+import { logger } from '@/lib/utils/logger';
 
 export async function seedSubscriptionPlans() {
   const plans = [
@@ -124,7 +125,7 @@ export async function seedSubscriptionPlans() {
     await db.insert(subscriptionPlans).values(plan).onConflictDoNothing();
   }
 
-  console.log('✅ Subscription plans seeded successfully');
+  logger.log('✅ Subscription plans seeded successfully');
 }
 
 export async function seedCreditPackages() {
@@ -179,14 +180,14 @@ export async function seedCreditPackages() {
     await db.insert(creditPackages).values(pkg).onConflictDoNothing();
   }
 
-  console.log('✅ Credit packages seeded successfully');
+  logger.log('✅ Credit packages seeded successfully');
 }
 
 export async function seedDatabase() {
   try {
     await seedSubscriptionPlans();
     await seedCreditPackages();
-    console.log('🎉 Database seeding completed successfully');
+    logger.log('🎉 Database seeding completed successfully');
   } catch (error) {
     console.error('❌ Database seeding failed:', error);
     throw error;

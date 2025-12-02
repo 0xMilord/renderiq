@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { useUserRenders } from '@/lib/hooks/use-user-renders';
 import type { Render } from '@/lib/types/render';
+import { logger } from '@/lib/utils/logger';
 
 interface MentionTaggerProps {
   isOpen: boolean;
@@ -40,7 +41,7 @@ export function MentionTagger({ isOpen, onClose, onMentionSelect, searchTerm, re
       .filter(render => render.outputUrl && render.status === 'completed')
       .sort((a, b) => (a.chainPosition || 0) - (b.chainPosition || 0));
 
-    console.log('🔍 MentionTagger: Renders debug', {
+    logger.log('🔍 MentionTagger: Renders debug', {
       allRenders: actualRenders.map(r => ({ id: r.id, chainPosition: r.chainPosition, status: r.status })),
       completedRenders: completedRenders.map(r => ({ id: r.id, chainPosition: r.chainPosition, status: r.status }))
     });
@@ -74,7 +75,7 @@ export function MentionTagger({ isOpen, onClose, onMentionSelect, searchTerm, re
         })
       : items;
 
-    console.log('🔍 MentionTagger: Debug info', {
+    logger.log('🔍 MentionTagger: Debug info', {
       totalRenders: actualRenders.length,
       completedRenders: actualRenders.filter(r => r.outputUrl && r.status === 'completed').length,
       itemsCount: items.length,

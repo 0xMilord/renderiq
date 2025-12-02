@@ -5,6 +5,8 @@
  * Ensures localhost:3000 is used in development mode, even if NEXT_PUBLIC_SITE_URL is set.
  */
 
+import { logger } from '@/lib/utils/logger';
+
 /**
  * Get the correct site URL for OAuth redirects
  * Prioritizes localhost detection in development mode
@@ -22,7 +24,7 @@ export function getAuthRedirectUrl(request?: Request, origin?: string): string {
       const url = new URL(request.url);
       detectedOrigin = url.origin;
     } catch (error) {
-      console.warn('Failed to parse request URL:', error);
+      logger.warn('Failed to parse request URL:', error);
     }
   }
   
@@ -38,7 +40,7 @@ export function getAuthRedirectUrl(request?: Request, origin?: string): string {
   
   // In development, always use localhost:3000 if origin is localhost
   if (isLocalEnv && isLocalhost) {
-    console.log('🔧 Auth Redirect: Using localhost:3000 for development');
+    logger.log('🔧 Auth Redirect: Using localhost:3000 for development');
     return 'http://localhost:3000';
   }
   
@@ -48,16 +50,16 @@ export function getAuthRedirectUrl(request?: Request, origin?: string): string {
     // But allow NEXT_PUBLIC_SITE_URL to override if it's also localhost
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
     if (siteUrl && (siteUrl.includes('localhost') || siteUrl.includes('127.0.0.1'))) {
-      console.log('🔧 Auth Redirect: Using NEXT_PUBLIC_SITE_URL (localhost):', siteUrl);
+      logger.log('🔧 Auth Redirect: Using NEXT_PUBLIC_SITE_URL (localhost):', siteUrl);
       return siteUrl;
     }
-    console.log('🔧 Auth Redirect: Using default localhost:3000 for development');
+    logger.log('🔧 Auth Redirect: Using default localhost:3000 for development');
     return 'http://localhost:3000';
   }
   
   // Production: use configured site URL or fallback
   const prodUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
-  console.log('🔧 Auth Redirect: Using production URL:', prodUrl);
+  logger.log('🔧 Auth Redirect: Using production URL:', prodUrl);
   return prodUrl;
 }
 
@@ -71,7 +73,7 @@ export function getAuthRedirectUrl(request?: Request, origin?: string): string {
 export function getOAuthCallbackUrl(request?: Request, next: string = '/', origin?: string): string {
   const baseUrl = getAuthRedirectUrl(request, origin);
   const callbackUrl = `${baseUrl}/auth/callback${next !== '/' ? `?next=${encodeURIComponent(next)}` : ''}`;
-  console.log('🔧 OAuth Callback URL:', callbackUrl);
+  logger.log('🔧 OAuth Callback URL:', callbackUrl);
   return callbackUrl;
 }
 

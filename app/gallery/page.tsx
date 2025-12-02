@@ -5,6 +5,7 @@ import { GalleryGrid } from '@/components/gallery-grid';
 import { useGallery } from '@/lib/hooks/use-gallery';
 import { Search, Filter } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { logger } from '@/lib/utils/logger';
 
 export default function GalleryPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -62,7 +63,7 @@ export default function GalleryPage() {
           onRemix={(prompt) => {
             // Navigate to the appropriate engine with the prompt
             // This would need to be implemented based on your routing
-            console.log('Remix with prompt:', prompt);
+            logger.log('Remix with prompt:', prompt);
           }}
         />
       </div>

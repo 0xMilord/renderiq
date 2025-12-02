@@ -1,9 +1,10 @@
 'use server';
 
 import { UserOnboardingService } from '@/lib/services/user-onboarding';
+import { logger } from '@/lib/utils/logger';
 
 export async function getUserProfileAction(userId: string) {
-  console.log('👤 UserOnboardingAction: Getting user profile for:', userId);
+  logger.log('👤 UserOnboardingAction: Getting user profile for:', userId);
   
   const result = await UserOnboardingService.getUserProfile(userId);
   
@@ -17,7 +18,7 @@ export async function createUserProfileAction(userProfile: {
   avatar?: string;
   provider?: string;
 }) {
-  console.log('👤 UserOnboardingAction: Creating user profile for:', userProfile.email);
+  logger.log('👤 UserOnboardingAction: Creating user profile for:', userProfile.email);
   
   const result = await UserOnboardingService.createUserProfile(userProfile);
   
@@ -31,7 +32,7 @@ export async function updateUserProfileAction(userId: string, updates: {
   website?: string;
   location?: string;
 }) {
-  console.log('👤 UserOnboardingAction: Updating user profile for:', userId);
+  logger.log('👤 UserOnboardingAction: Updating user profile for:', userId);
   
   const result = await UserOnboardingService.updateUserProfile(userId, updates);
   

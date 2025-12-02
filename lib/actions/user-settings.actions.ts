@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { UserSettingsService, type UserPreferences } from '@/lib/services/user-settings';
+import { logger } from '@/lib/utils/logger';
 
 export async function getUserSettings(): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
@@ -13,7 +14,7 @@ export async function getUserSettings(): Promise<{ success: boolean; data?: any;
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError) {
-      console.error('Auth error in getUserSettings:', authError);
+      logger.error('Auth error in getUserSettings:', authError);
       return { success: false, error: 'Authentication failed' };
     }
 
@@ -24,7 +25,7 @@ export async function getUserSettings(): Promise<{ success: boolean; data?: any;
     const settings = await UserSettingsService.getUserSettings(user.id);
     return { success: true, data: settings };
   } catch (error) {
-    console.error('Error in getUserSettings:', error);
+    logger.error('Error in getUserSettings:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get user settings',
@@ -42,7 +43,7 @@ export async function updateUserSettings(preferences: Partial<UserPreferences>):
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError) {
-      console.error('Auth error in updateUserSettings:', authError);
+      logger.error('Auth error in updateUserSettings:', authError);
       return { success: false, error: 'Authentication failed' };
     }
 
@@ -53,7 +54,7 @@ export async function updateUserSettings(preferences: Partial<UserPreferences>):
     const settings = await UserSettingsService.updateUserSettings(user.id, preferences);
     return { success: true, data: settings };
   } catch (error) {
-    console.error('Error in updateUserSettings:', error);
+    logger.error('Error in updateUserSettings:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to update user settings',
@@ -71,7 +72,7 @@ export async function updateNotificationSettings(notifications: Partial<UserPref
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError) {
-      console.error('Auth error in updateNotificationSettings:', authError);
+      logger.error('Auth error in updateNotificationSettings:', authError);
       return { success: false, error: 'Authentication failed' };
     }
 
@@ -82,7 +83,7 @@ export async function updateNotificationSettings(notifications: Partial<UserPref
     const settings = await UserSettingsService.updateNotificationSettings(user.id, notifications);
     return { success: true, data: settings };
   } catch (error) {
-    console.error('Error in updateNotificationSettings:', error);
+    logger.error('Error in updateNotificationSettings:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to update notification settings',
@@ -100,7 +101,7 @@ export async function updateRenderSettings(defaultRenderSettings: Partial<UserPr
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError) {
-      console.error('Auth error in updateRenderSettings:', authError);
+      logger.error('Auth error in updateRenderSettings:', authError);
       return { success: false, error: 'Authentication failed' };
     }
 
@@ -111,7 +112,7 @@ export async function updateRenderSettings(defaultRenderSettings: Partial<UserPr
     const settings = await UserSettingsService.updateRenderSettings(user.id, defaultRenderSettings);
     return { success: true, data: settings };
   } catch (error) {
-    console.error('Error in updateRenderSettings:', error);
+    logger.error('Error in updateRenderSettings:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to update render settings',

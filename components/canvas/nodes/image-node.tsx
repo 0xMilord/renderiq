@@ -15,6 +15,7 @@ import { Image as ImageIcon, Sparkles, Loader2, Download, ImageOff } from 'lucid
 import { ImageNodeData } from '@/lib/types/canvas';
 import { useNodeExecution } from '@/lib/hooks/use-node-execution';
 import { BaseNode } from './base-node';
+import { logger } from '@/lib/utils/logger';
 
 export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
   const { getEdges } = useReactFlow();
@@ -71,7 +72,7 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
       });
     }
 
-    console.log('🎨 ImageNode: Starting generation', {
+    logger.log('🎨 ImageNode: Starting generation', {
       prompt: enhancedPrompt.substring(0, 100),
       settings: localData.settings,
       hasStyle: !!localData.styleSettings,
@@ -87,7 +88,7 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
         nodeId: id,
       });
 
-      console.log('🎨 ImageNode: Generation result', {
+      logger.log('🎨 ImageNode: Generation result', {
         success: result.success,
         hasData: !!result.data,
         hasError: !!result.error
@@ -95,7 +96,7 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
 
       if (result.success && result.data) {
         const outputUrl = result.data.outputUrl;
-        console.log('✅ ImageNode: Image generated successfully', {
+        logger.log('✅ ImageNode: Image generated successfully', {
           urlLength: outputUrl?.length,
           urlType: outputUrl?.substring(0, 30)
         });

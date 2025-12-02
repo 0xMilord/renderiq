@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { createUserProfileAction } from '@/lib/actions/user-onboarding.actions';
+import { logger } from '@/lib/utils/logger';
 
 export function useUserOnboarding() {
   const { 
@@ -32,7 +33,7 @@ export function useUserOnboarding() {
         setOnboardingLoading(true);
         
         try {
-          console.log('👤 UserOnboarding Hook: Creating user profile for:', user.email);
+          logger.log('👤 UserOnboarding Hook: Creating user profile for:', user.email);
           
           // Create user profile and initialize credits using server action
           const onboardingResult = await createUserProfileAction({
@@ -44,7 +45,7 @@ export function useUserOnboarding() {
           });
 
           if (onboardingResult.success && onboardingResult.data) {
-            console.log('✅ UserOnboarding Hook: User onboarding completed successfully');
+            logger.log('✅ UserOnboarding Hook: User onboarding completed successfully');
             setUserProfile(onboardingResult.data);
             setOnboardingComplete(true);
           } else {

@@ -1,6 +1,7 @@
 import { AuthDAL } from '@/lib/dal/auth';
 import { ProjectsDAL } from '@/lib/dal/projects';
 import { RendersDAL } from '@/lib/dal/renders';
+import { logger } from '@/lib/utils/logger';
 
 export interface ProfileStats {
   totalProjects: number;
@@ -15,7 +16,7 @@ export interface ProfileStats {
 
 export class ProfileStatsService {
   static async getUserStats(userId: string): Promise<ProfileStats> {
-    console.log('📊 ProfileStatsService: Getting user stats for:', userId);
+    logger.log('📊 ProfileStatsService: Getting user stats for:', userId);
     
     try {
       // ✅ OPTIMIZED: Parallelize independent queries
@@ -77,10 +78,10 @@ export class ProfileStatsService {
         joinDate: user.createdAt,
       };
 
-      console.log('✅ ProfileStatsService: Stats calculated:', stats);
+      logger.log('✅ ProfileStatsService: Stats calculated:', stats);
       return stats;
     } catch (error) {
-      console.error('❌ ProfileStatsService: Error getting user stats:', error);
+      logger.error('❌ ProfileStatsService: Error getting user stats:', error);
       throw error;
     }
   }

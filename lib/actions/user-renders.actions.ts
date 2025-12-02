@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { RendersDAL } from '@/lib/dal/renders';
 import { createClient } from '@/lib/supabase/server';
 import type { Render } from '@/lib/types/render';
+import { logger } from '@/lib/utils/logger';
 
 export async function getUserRenders(projectId?: string, limit = 50) {
   try {
@@ -24,7 +25,7 @@ export async function getUserRenders(projectId?: string, limit = 50) {
       data: renders,
     };
   } catch (error) {
-    console.error('Failed to get user renders:', error);
+    logger.error('Failed to get user renders:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get user renders',
@@ -66,7 +67,7 @@ export async function getUserRenderById(renderId: string) {
       data: render,
     };
   } catch (error) {
-    console.error('Failed to get user render:', error);
+    logger.error('Failed to get user render:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get user render',

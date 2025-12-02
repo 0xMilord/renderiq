@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
+import { logger } from '@/lib/utils/logger';
 
 export interface UserProfile {
   id: string;
@@ -75,7 +76,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           async (event, session) => {
-            console.log('Auth state changed:', event, session?.user?.id);
+            logger.log('Auth state changed:', event, session?.user?.id);
             set({ 
               user: session?.user || null, 
               loading: false 
@@ -193,18 +194,18 @@ export const useAuthStore = create<AuthState>((set, get) => {
         // Import the action dynamically to avoid circular dependencies
         const { getUserProfileAction } = await import('@/lib/actions/user-onboarding.actions');
         
-        console.log('🔍 AuthStore: Fetching user profile for:', user.id);
+        logger.log('🔍 AuthStore: Fetching user profile for:', user.id);
         const result = await getUserProfileAction(user.id);
         
         if (result.success && result.data) {
-          console.log('✅ AuthStore: Profile loaded and cached:', result.data.id);
+          logger.log('✅ AuthStore: Profile loaded and cached:', result.data.id);
           set({ 
             userProfile: result.data, 
             profileLoading: false,
             onboardingComplete: true 
           });
         } else {
-          console.log('❌ AuthStore: Profile not found, onboarding needed');
+          logger.log('❌ AuthStore: Profile not found, onboarding needed');
           set({ 
             userProfile: null, 
             profileLoading: false,

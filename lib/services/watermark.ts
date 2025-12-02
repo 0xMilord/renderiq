@@ -4,6 +4,7 @@
  */
 
 import sharp from 'sharp';
+import { logger } from '@/lib/utils/logger';
 
 export interface WatermarkOptions {
   text?: string;
@@ -80,7 +81,7 @@ export class WatermarkService {
   ): Promise<string> {
     const config = { ...this.DEFAULT_OPTIONS, ...options };
     
-    console.log('🎨 Adding watermark:', {
+    logger.log('🎨 Adding watermark:', {
       text: config.text,
       position: config.position,
       opacity: config.opacity
@@ -89,7 +90,7 @@ export class WatermarkService {
     if (!isBrowser) {
       // Server-side: Use Sharp for watermark addition
       try {
-        console.log('🔧 Using Sharp for server-side watermark addition');
+        logger.log('🔧 Using Sharp for server-side watermark addition');
         
         // Convert base64 to buffer
         const imageBuffer = Buffer.from(base64Data, 'base64');
@@ -160,11 +161,11 @@ export class WatermarkService {
         
         // Convert back to base64
         const result = watermarkedImage.toString('base64');
-        console.log('✅ Custom watermark added using Sharp');
+        logger.log('✅ Custom watermark added using Sharp');
         
         return result;
       } catch (error) {
-        console.error('❌ Error adding watermark with Sharp:', error);
+        logger.error('❌ Error adding watermark with Sharp:', error);
         // Return original data if watermarking fails
         return base64Data;
       }
@@ -238,11 +239,11 @@ export class WatermarkService {
 
       // Convert back to base64
       const result = canvas.toDataURL('image/png').split(',')[1];
-      console.log('✅ Custom watermark added successfully');
+      logger.log('✅ Custom watermark added successfully');
       
       return result;
     } catch (error) {
-      console.error('❌ Error adding watermark:', error);
+      logger.error('❌ Error adding watermark:', error);
       // Return original data if watermarking fails
       return base64Data;
     }
@@ -254,12 +255,12 @@ export class WatermarkService {
    * For browser: Advanced pixel processing
    */
   static async removeGeminiWatermark(base64Data: string): Promise<string> {
-    console.log('🧹 Removing Gemini watermark');
+    logger.log('🧹 Removing Gemini watermark');
     
     if (!isBrowser) {
       // Server-side: Use Sharp for watermark removal
       try {
-        console.log('🔧 Using Sharp for server-side watermark removal');
+        logger.log('🔧 Using Sharp for server-side watermark removal');
         
         // Convert base64 to buffer
         const imageBuffer = Buffer.from(base64Data, 'base64');
@@ -290,11 +291,11 @@ export class WatermarkService {
         
         // Convert back to base64
         const result = croppedImage.toString('base64');
-        console.log('✅ Gemini watermark removed using Sharp');
+        logger.log('✅ Gemini watermark removed using Sharp');
         
         return result;
       } catch (error) {
-        console.error('❌ Error removing Gemini watermark with Sharp:', error);
+        logger.error('❌ Error removing Gemini watermark with Sharp:', error);
         // Return original data if processing fails
         return base64Data;
       }
@@ -342,11 +343,11 @@ export class WatermarkService {
       
       // Convert back to base64
       const result = imageDataToBase64(processedImageData);
-      console.log('✅ Gemini watermark removal completed');
+      logger.log('✅ Gemini watermark removal completed');
       
       return result;
     } catch (error) {
-      console.error('❌ Error removing Gemini watermark:', error);
+      logger.error('❌ Error removing Gemini watermark:', error);
       // Return original data if processing fails
       return base64Data;
     }
@@ -359,7 +360,7 @@ export class WatermarkService {
     base64Data: string,
     watermarkOptions: WatermarkOptions = {}
   ): Promise<string> {
-    console.log('🔄 Processing image: removing Gemini watermark and adding custom watermark');
+    logger.log('🔄 Processing image: removing Gemini watermark and adding custom watermark');
     
     // Step 1: Remove Gemini watermark
     let processedData = await this.removeGeminiWatermark(base64Data);

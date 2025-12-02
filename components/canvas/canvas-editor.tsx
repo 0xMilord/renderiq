@@ -24,6 +24,7 @@ import { MaterialNode } from './nodes/material-node';
 import { CanvasToolbar } from './canvas-toolbar';
 import { useCanvas } from '@/lib/hooks/use-canvas';
 import { CanvasNode, NodeConnection } from '@/lib/types/canvas';
+import { logger } from '@/lib/utils/logger';
 
 const nodeTypes: NodeTypes = {
   text: TextNode,
@@ -187,15 +188,15 @@ export function CanvasEditor({
 
   const onConnect = useCallback(
     (params: Connection) => {
-      console.log('🔌 Connection attempt:', params);
+      logger.log('🔌 Connection attempt:', params);
       if (!params.source || !params.target || !params.sourceHandle || !params.targetHandle) {
-        console.log('❌ Connection rejected: missing params');
+        logger.log('❌ Connection rejected: missing params');
         return;
       }
       
       // Prevent self-connections
       if (params.source === params.target) {
-        console.log('❌ Connection rejected: self-connection');
+        logger.log('❌ Connection rejected: self-connection');
         return;
       }
       
@@ -204,11 +205,11 @@ export function CanvasEditor({
       const targetNode = nodes.find(n => n.id === params.target);
       
       if (sourceNode && targetNode) {
-        console.log('✅ Connection accepted:', { source: sourceNode.type, target: targetNode.type });
+        logger.log('✅ Connection accepted:', { source: sourceNode.type, target: targetNode.type });
         // Allow connection - React Flow will handle validation
         setEdges((eds) => addEdge(params, eds));
       } else {
-        console.log('❌ Connection rejected: nodes not found');
+        logger.log('❌ Connection rejected: nodes not found');
       }
     },
     [setEdges, nodes]

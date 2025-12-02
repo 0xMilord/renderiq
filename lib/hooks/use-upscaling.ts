@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { createRenderAction } from '@/lib/actions/render.actions';
+import { logger } from '@/lib/utils/logger';
 
 export interface UpscalingRequest {
   imageUrl: string;
@@ -30,7 +30,7 @@ export function useUpscaling() {
 
   const upscaleImage = useCallback(async (request: UpscalingRequest) => {
     try {
-      console.log('🔍 useUpscaling: Starting upscaling via API', request);
+      logger.log('🔍 useUpscaling: Starting upscaling via API', request);
       setIsUpscaling(true);
       setError(null);
       setUpscalingResult(null);
@@ -72,7 +72,12 @@ export function useUpscaling() {
       formData.append('isPublic', 'true');
       formData.append('temperature', '0.5'); // Lower temperature for upscaling (more deterministic)
 
-      const apiResult = await createRenderAction(formData);
+      const apiResponse = await fetch('/api/renders', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const apiResult = await apiResponse.json();
 
       if (apiResult.success && apiResult.data) {
         const upscalingResult: UpscalingResult = {
@@ -86,7 +91,7 @@ export function useUpscaling() {
         };
         
         setUpscalingResult(upscalingResult);
-        console.log('✅ useUpscaling: Upscaling completed', upscalingResult);
+        logger.log('✅ useUpscaling: Upscaling completed', upscalingResult);
       } else {
         setError(apiResult.error || 'Upscaling failed');
         console.error('❌ useUpscaling: Upscaling failed', apiResult.error);

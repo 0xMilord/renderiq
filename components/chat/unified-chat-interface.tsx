@@ -57,8 +57,8 @@ import { useVersionContext } from '@/lib/hooks/use-version-context';
 import { VideoPlayer } from '@/components/video/video-player';
 import { UploadModal } from './upload-modal';
 import { GalleryModal } from './gallery-modal';
+import { logger } from '@/lib/utils/logger';
 import { MentionTagger } from './mention-tagger';
-import { createRenderAction } from '@/lib/actions/render.actions';
 import type { Render } from '@/lib/types/render';
 import type { RenderChainWithRenders } from '@/lib/types/render-chain';
 import Image from 'next/image';
@@ -269,7 +269,7 @@ export function UnifiedChatInterface({
 
   // Load chain data when component mounts or chain changes
   useEffect(() => {
-    console.log('🔍 UnifiedChatInterface: Loading chain data', {
+    logger.log('🔍 UnifiedChatInterface: Loading chain data', {
       hasChain: !!chain,
       rendersCount: chain?.renders?.length || 0,
       chainId: chain?.id,
@@ -277,7 +277,7 @@ export function UnifiedChatInterface({
     });
 
     if (chain && chain.renders) {
-      console.log('✅ UnifiedChatInterface: Chain has renders, converting to messages');
+      logger.log('✅ UnifiedChatInterface: Chain has renders, converting to messages');
       
       // Convert renders to messages
       const chainMessages: Message[] = chain.renders
@@ -317,7 +317,7 @@ export function UnifiedChatInterface({
         })
         .flat();
 
-      console.log('📝 UnifiedChatInterface: Created messages:', {
+      logger.log('📝 UnifiedChatInterface: Created messages:', {
         totalMessages: chainMessages.length,
         userMessages: chainMessages.filter(m => m.type === 'user').length,
         assistantMessages: chainMessages.filter(m => m.type === 'assistant').length,
@@ -332,13 +332,13 @@ export function UnifiedChatInterface({
         .sort((a, b) => (b.chainPosition || 0) - (a.chainPosition || 0))[0];
       
       if (latestCompletedRender) {
-        console.log('✅ UnifiedChatInterface: Set current render:', latestCompletedRender.id);
+        logger.log('✅ UnifiedChatInterface: Set current render:', latestCompletedRender.id);
         setCurrentRender(latestCompletedRender);
       } else {
-        console.log('⚠️ UnifiedChatInterface: No completed renders found');
+        logger.log('⚠️ UnifiedChatInterface: No completed renders found');
       }
     } else {
-      console.log('⚠️ UnifiedChatInterface: No chain data, resetting messages');
+      logger.log('⚠️ UnifiedChatInterface: No chain data, resetting messages');
       // Reset messages if no chain data
       setMessages([]);
       setCurrentRender(null);
@@ -409,12 +409,12 @@ export function UnifiedChatInterface({
   const handleEnhancePrompt = async () => {
     if (!inputValue.trim() || isEnhancing) return;
 
-    console.log('🔍 Enhancing prompt:', inputValue);
+    logger.log('🔍 Enhancing prompt:', inputValue);
     const result = await enhancePrompt(inputValue);
     
     if (result) {
       setInputValue(result.enhancedPrompt);
-      console.log('✅ Prompt enhanced successfully');
+      logger.log('✅ Prompt enhanced successfully');
     }
   };
 
@@ -525,7 +525,7 @@ export function UnifiedChatInterface({
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isGenerating || isImageGenerating) return;
 
-    console.log('🔍 Processing message with potential mentions:', inputValue);
+    logger.log('🔍 Processing message with potential mentions:', inputValue);
 
     // Parse the prompt for version mentions and extract context
     let versionContext = undefined;
@@ -534,12 +534,12 @@ export function UnifiedChatInterface({
 
     // Check if the prompt contains mentions
     if (inputValue.includes('@')) {
-      console.log('🔍 Prompt contains mentions, parsing version context...');
+      logger.log('🔍 Prompt contains mentions, parsing version context...');
       
       const parsedPrompt = await parsePrompt(inputValue, projectId, chainId);
       
       if (parsedPrompt) {
-        console.log('✅ Parsed prompt:', {
+        logger.log('✅ Parsed prompt:', {
           userIntent: parsedPrompt.userIntent,
           mentionsCount: parsedPrompt.mentionedVersions.length,
           hasMentions: parsedPrompt.hasMentions
@@ -573,14 +573,14 @@ export function UnifiedChatInterface({
             referenceRenderId = mentionedVersionWithRender.renderId;
           }
 
-          console.log('🎯 Using version context:', {
+          logger.log('🎯 Using version context:', {
             finalPrompt: finalPrompt.substring(0, 100) + '...',
             referenceRenderId,
             mentionedVersionsCount: versionContext.mentionedVersions.length
           });
         }
       } else {
-        console.log('⚠️ Failed to parse prompt, falling back to original');
+        logger.log('⚠️ Failed to parse prompt, falling back to original');
       }
     } else {
       // No mentions, use standard reference logic
@@ -591,11 +591,11 @@ export function UnifiedChatInterface({
         
         if (latestCompletedRender) {
           referenceRenderId = latestCompletedRender.id;
-          console.log('🔗 Using latest completed render from chain as reference:', referenceRenderId);
+          logger.log('🔗 Using latest completed render from chain as reference:', referenceRenderId);
         }
       } else if (currentRender && currentRender.status === 'completed') {
         referenceRenderId = currentRender.id;
-        console.log('🔗 Using currentRender as fallback reference:', referenceRenderId);
+        logger.log('🔗 Using currentRender as fallback reference:', referenceRenderId);
       } else if (chain && chain.renders && chain.renders.length > 0) {
         // Fallback: use the most recent completed render from the chain
         const completedRenders = chain.renders.filter(render => render.status === 'completed');
@@ -603,7 +603,7 @@ export function UnifiedChatInterface({
           const latestRender = completedRenders
             .sort((a, b) => (b.chainPosition || 0) - (a.chainPosition || 0))[0];
           referenceRenderId = latestRender.id;
-          console.log('🔗 Using most recent render from chain as reference:', referenceRenderId);
+          logger.log('🔗 Using most recent render from chain as reference:', referenceRenderId);
         }
       }
     }
@@ -651,7 +651,7 @@ export function UnifiedChatInterface({
       const enhancedPrompt = finalPrompt;
 
        // Log generation parameters before sending
-       console.log('🎯 Chat: Sending generation request with parameters:', {
+       logger.log('🎯 Chat: Sending generation request with parameters:', {
          aspectRatio,
          type: 'image', // Always generate image for now
          hasUploadedImage: !!userMessage.uploadedImage?.file
@@ -724,8 +724,20 @@ export function UnifiedChatInterface({
         // Add temperature (0.0-1.0, default 0.5)
         formData.append('temperature', temperature);
         
-        // Call the server action
-        const apiResult = await createRenderAction(formData);
+        // Call the API directly
+        const response = await fetch('/api/renders', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        const apiResult = await response.json();
+        
+        logger.log('🎯 Chat: API response received', {
+          success: apiResult.success,
+          hasData: !!apiResult.data,
+          hasOutputUrl: !!apiResult.data?.outputUrl,
+          error: apiResult.error
+        });
         
         if (apiResult.success && apiResult.data) {
           result = {
@@ -747,7 +759,7 @@ export function UnifiedChatInterface({
       
       // Check if generation was successful
       const resultWithUrls = result as { imageUrl?: string; videoUrl?: string; success?: boolean; data?: { outputUrl?: string } };
-      console.log('🎯 Chat: Checking result', {
+      logger.log('🎯 Chat: Checking result', {
         hasResult: !!result,
         hasImageUrl: !!resultWithUrls?.imageUrl,
         hasVideoUrl: !!resultWithUrls?.videoUrl,
@@ -884,14 +896,14 @@ export function UnifiedChatInterface({
     if (upscalingResult && upscalingResult.outputUrl) {
       // Check if we've already processed this upscaling result
       if (processedUpscaleResultsRef.current.has(upscalingResult.outputUrl)) {
-        console.log('🎯 Chat: Upscaling result already processed, skipping');
+        logger.log('🎯 Chat: Upscaling result already processed, skipping');
         return;
       }
       
       // Mark as processed
       processedUpscaleResultsRef.current.add(upscalingResult.outputUrl);
       
-      console.log('🎯 Chat: Upscaling completed, adding to chat as new version', upscalingResult);
+      logger.log('🎯 Chat: Upscaling completed, adding to chat as new version', upscalingResult);
       
       // Get aspect ratio from current render settings or default
       const renderAspectRatio = currentRender?.settings?.aspectRatio || aspectRatio;

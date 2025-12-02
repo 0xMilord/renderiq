@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { CanvasDAL } from '@/lib/dal/canvas';
 import { CanvasState } from '@/lib/types/canvas';
+import { logger } from '@/lib/utils/logger';
 
 export async function GET(
   request: NextRequest,
@@ -58,7 +59,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('Error fetching canvas graph:', error);
+    logger.error('Error fetching canvas graph:', error);
     return NextResponse.json(
       {
         success: false,
@@ -112,7 +113,7 @@ export async function POST(
       },
     });
   } catch (error) {
-    console.error('Error saving canvas graph:', error);
+    logger.error('Error saving canvas graph:', error);
     return NextResponse.json(
       {
         success: false,

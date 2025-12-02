@@ -9,6 +9,7 @@ import Image from 'next/image';
 import { cn } from '@/lib/utils/cn';
 import { deleteRenderChain } from '@/lib/actions/projects.actions';
 import { toast } from 'sonner';
+import { logger } from '@/lib/utils/logger';
 
 interface RenderChainVizProps {
   renders: Render[];
@@ -31,15 +32,15 @@ export const RenderChainViz: React.FC<RenderChainVizProps> = ({
   onNewChain,
   isMobile = false,
 }) => {
-  console.log('🔗 RenderChainViz: Received renders:', renders);
-  console.log('🔗 RenderChainViz: onSelectRender function:', typeof onSelectRender);
+  logger.log('🔗 RenderChainViz: Received renders:', renders);
+  logger.log('🔗 RenderChainViz: onSelectRender function:', typeof onSelectRender);
   
   // Sort renders by chain position
   const sortedRenders = [...renders]
     .filter(r => r.status === 'completed' && r.outputUrl)
     .sort((a, b) => (a.chainPosition || 0) - (b.chainPosition || 0));
     
-  console.log('🔗 RenderChainViz: Sorted renders:', sortedRenders);
+  logger.log('🔗 RenderChainViz: Sorted renders:', sortedRenders);
 
   const handleDeleteChain = async () => {
     if (!chainId) return;
@@ -107,8 +108,8 @@ export const RenderChainViz: React.FC<RenderChainVizProps> = ({
               <div key={render.id} className="flex items-center gap-3">
                 <button
                   onClick={() => {
-                    console.log('🔗 RenderChainViz: Render clicked:', render.id);
-                    console.log('🔗 RenderChainViz: Calling onSelectRender with:', render.id);
+                    logger.log('🔗 RenderChainViz: Render clicked:', render.id);
+                    logger.log('🔗 RenderChainViz: Calling onSelectRender with:', render.id);
                     onSelectRender(render.id);
                   }}
                   className={cn(

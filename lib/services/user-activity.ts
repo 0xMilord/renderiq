@@ -2,6 +2,7 @@ import { RendersDAL } from '@/lib/dal/renders';
 import { ProjectsDAL } from '@/lib/dal/projects';
 import { AuthDAL } from '@/lib/dal/auth';
 import type { Render } from '@/lib/db/schema';
+import { logger } from '@/lib/utils/logger';
 
 export interface ActivityItem {
   id: string;
@@ -17,7 +18,7 @@ export interface ActivityItem {
 
 export class UserActivityService {
   static async getUserActivity(userId: string, limit = 10): Promise<ActivityItem[]> {
-    console.log('📋 UserActivityService: Getting user activity for:', userId);
+    logger.log('📋 UserActivityService: Getting user activity for:', userId);
     
     try {
       // Get recent renders
@@ -55,10 +56,10 @@ export class UserActivityService {
         .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
         .slice(0, limit);
 
-      console.log(`✅ UserActivityService: Found ${allActivities.length} activities`);
+      logger.log(`✅ UserActivityService: Found ${allActivities.length} activities`);
       return allActivities;
     } catch (error) {
-      console.error('❌ UserActivityService: Error getting user activity:', error);
+      logger.error('❌ UserActivityService: Error getting user activity:', error);
       throw error;
     }
   }
@@ -81,7 +82,7 @@ export class UserActivityService {
   }
 
   static async getUserRecentProjects(userId: string, limit = 5) {
-    console.log('📁 UserActivityService: Getting recent projects for:', userId);
+    logger.log('📁 UserActivityService: Getting recent projects for:', userId);
     
     try {
       const projects = await ProjectsDAL.getByUserIdWithRenderCounts(userId, limit, 0);
@@ -109,10 +110,10 @@ export class UserActivityService {
         latestRenders: rendersByProject[project.id] || []
       }));
 
-      console.log(`✅ UserActivityService: Found ${projectsWithRenders.length} recent projects`);
+      logger.log(`✅ UserActivityService: Found ${projectsWithRenders.length} recent projects`);
       return projectsWithRenders;
     } catch (error) {
-      console.error('❌ UserActivityService: Error getting recent projects:', error);
+      logger.error('❌ UserActivityService: Error getting recent projects:', error);
       throw error;
     }
   }

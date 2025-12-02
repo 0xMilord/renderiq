@@ -1,6 +1,7 @@
 import { RendersDAL } from '@/lib/dal/renders';
 import { Render } from '@/lib/db/schema';
 import { ChainContext, EnhancedPrompt, PromptFeedback } from '@/lib/types/render-chain';
+import { logger } from '@/lib/utils/logger';
 
 export class ContextPromptService {
   /**
@@ -18,7 +19,7 @@ export class ContextPromptService {
     const isReferenceRequest = userPrompt.includes('@') || userPrompt.includes('version');
     const isNewImage = !referenceRender && !chainContext;
     
-    console.log('🧠 ContextPrompt: Analyzing prompt:', {
+    logger.log('🧠 ContextPrompt: Analyzing prompt:', {
       isIteration,
       isReferenceRequest,
       isNewImage,
@@ -58,7 +59,7 @@ export class ContextPromptService {
       enhancedPrompt = `${userPrompt}. ${contextText}`;
     }
 
-    console.log('🧠 ContextPrompt: Enhanced prompt created:', {
+    logger.log('🧠 ContextPrompt: Enhanced prompt created:', {
       originalLength: userPrompt.length,
       enhancedLength: enhancedPrompt.length,
       contextElementsCount: contextElements.length,
@@ -137,7 +138,7 @@ export class ContextPromptService {
     userId: string,
     feedback: PromptFeedback
   ): Promise<void> {
-    console.log('📝 Updating prompt preferences for user:', userId);
+    logger.log('📝 Updating prompt preferences for user:', userId);
     
     const render = await RendersDAL.getById(feedback.renderId);
     
@@ -154,7 +155,7 @@ export class ContextPromptService {
 
     await RendersDAL.updateContext(feedback.renderId, updatedContext);
 
-    console.log('✅ Prompt preferences updated');
+    logger.log('✅ Prompt preferences updated');
   }
 
   /**

@@ -8,6 +8,7 @@ import { useRenderChain } from '@/lib/hooks/use-render-chain';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { logger } from '@/lib/utils/logger';
 
 export default function ProjectChainPage() {
   const params = useParams();
@@ -20,7 +21,7 @@ export default function ProjectChainPage() {
 
   // Debug logging
   useEffect(() => {
-    console.log('🔍 ProjectChainPage: Component state', {
+    logger.log('🔍 ProjectChainPage: Component state', {
       projectSlug,
       chainId,
       hasProject: !!project,
@@ -33,14 +34,14 @@ export default function ProjectChainPage() {
   }, [projectSlug, chainId, project, chain, projectLoading, chainLoading]);
 
   const handleRenderComplete = (render: any) => {
-    console.log('Render completed:', render);
+    logger.log('Render completed:', render);
     // ✅ DO NOT refresh chain data - UnifiedChatInterface manages its own state
     // Calling fetchChain() causes a full page reload which is bad UX
     // The chat interface updates its messages state directly when a render completes
   };
 
   const handleRenderStart = () => {
-    console.log('Render started');
+    logger.log('Render started');
     // Render start is handled by UnifiedChatInterface
   };
 

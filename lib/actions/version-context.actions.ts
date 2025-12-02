@@ -4,6 +4,7 @@ import { VersionContextService, type ParsedPrompt, type VersionContext } from '@
 import { getUserRenders } from './user-renders.actions';
 import { getRenderChain } from './projects.actions';
 import { createClient } from '@/lib/supabase/server';
+import { logger } from '@/lib/utils/logger';
 
 export async function parsePromptWithMentions(
   prompt: string,
@@ -49,7 +50,7 @@ export async function parsePromptWithMentions(
     return result;
 
   } catch (error) {
-    console.error('Failed to parse prompt with mentions:', error);
+    logger.error('Failed to parse prompt with mentions:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to parse prompt',
@@ -89,7 +90,7 @@ export async function getVersionContext(renderId: string): Promise<{ success: bo
     };
 
   } catch (error) {
-    console.error('Failed to get version context:', error);
+    logger.error('Failed to get version context:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get version context',

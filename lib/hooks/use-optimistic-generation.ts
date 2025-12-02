@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { ImageGenerationResult } from '@/lib/services/image-generation';
+import { logger } from '@/lib/utils/logger';
 
 export interface OptimisticRender {
   id: string;
@@ -68,7 +69,7 @@ export function useOptimisticGeneration() {
     };
 
     try {
-      console.log('🚀 Starting optimistic image generation');
+      logger.log('🚀 Starting optimistic image generation');
       setIsGenerating(true);
       setError(null);
 
@@ -123,10 +124,17 @@ export function useOptimisticGeneration() {
         formData.append('seed', params.seed.toString());
       }
 
-      const { createRenderAction } = await import('@/lib/actions/render.actions');
-      const data = await createRenderAction(formData);
+      logger.log('📤 Sending optimistic request to API');
 
-      if (data.success) {
+      const response = await fetch('/api/renders', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+      logger.log('📥 API response:', data);
+
+      if (response.ok && data.success) {
         // Update optimistic render with success
         const successRender: OptimisticRender = {
           ...optimisticRender,
@@ -155,7 +163,7 @@ export function useOptimisticGeneration() {
         };
 
         onResult?.(imageResult);
-        console.log('✅ Optimistic generation successful');
+        logger.log('✅ Optimistic generation successful');
       } else {
         // Update optimistic render with failure
         const failedRender: OptimisticRender = {

@@ -1,5 +1,6 @@
 import { RendersDAL } from '@/lib/dal/renders';
 import type { Render } from '@/lib/types/render';
+import { logger } from '@/lib/utils/logger';
 
 export interface VersionContext {
   renderId: string;
@@ -52,7 +53,7 @@ export class VersionContextService {
     chainRenders?: Render[]
   ): Promise<{ success: boolean; data?: ParsedPrompt; error?: string }> {
     try {
-      console.log('🔍 VersionContext: Parsing prompt with mentions:', prompt);
+      logger.log('🔍 VersionContext: Parsing prompt with mentions:', prompt);
 
       const mentionedVersions: MentionedVersion[] = [];
       let userIntent = prompt;
@@ -90,13 +91,13 @@ export class VersionContextService {
             continue; // Skip invalid matches
           }
           
-          console.log('🔍 Found mention:', { fullMatch, mentionText, versionNumber });
+          logger.log('🔍 Found mention:', { fullMatch, mentionText, versionNumber });
 
           // Try to find the referenced render
           const referencedRender = this.findReferencedRender(mentionText, userRenders, chainRenders);
           
           if (referencedRender) {
-            console.log('✅ Found referenced render:', referencedRender.id);
+            logger.log('✅ Found referenced render:', referencedRender.id);
             
             // Get MINIMAL context for this render
             const context = await this.getMinimalVersionContext(referencedRender);
@@ -110,7 +111,7 @@ export class VersionContextService {
             // Remove the mention from user intent
             userIntent = userIntent.replace(fullMatch, '').trim();
           } else {
-            console.log('⚠️ Could not find render for mention:', mentionText);
+            logger.log('⚠️ Could not find render for mention:', mentionText);
             
             // Still add the mention but without context
             mentionedVersions.push({
@@ -129,7 +130,7 @@ export class VersionContextService {
         hasMentions: mentionedVersions.length > 0
       };
 
-      console.log('✅ VersionContext: Parsed prompt:', {
+      logger.log('✅ VersionContext: Parsed prompt:', {
         userIntent,
         mentionsCount: mentionedVersions.length,
         hasMentions: parsedPrompt.hasMentions
@@ -141,7 +142,7 @@ export class VersionContextService {
       };
 
     } catch (error) {
-      console.error('❌ VersionContext: Error parsing prompt:', error);
+      logger.error('❌ VersionContext: Error parsing prompt:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to parse prompt'
@@ -159,7 +160,7 @@ export class VersionContextService {
   ): Render | null {
     const text = mentionText.toLowerCase().trim();
     
-    console.log('🔍 findReferencedRender: Looking for mention:', {
+    logger.log('🔍 findReferencedRender: Looking for mention:', {
       mentionText,
       text,
       userRendersCount: userRenders.length,
@@ -170,7 +171,7 @@ export class VersionContextService {
     const versionMatch = text.match(/version\s+(\d+)/);
     if (versionMatch) {
       const versionNumber = parseInt(versionMatch[1]);
-      console.log('🔍 Found version number:', versionNumber);
+      logger.log('🔍 Found version number:', versionNumber);
       
       // First check chain renders (most recent context)
       if (chainRenders && chainRenders.length > 0) {
@@ -178,7 +179,7 @@ export class VersionContextService {
           .filter(r => r.status === 'completed')
           .sort((a, b) => (a.chainPosition || 0) - (b.chainPosition || 0));
         
-        console.log('🔍 Chain renders available:', sortedChainRenders.map((r, i) => ({
+        logger.log('🔍 Chain renders available:', sortedChainRenders.map((r, i) => ({
           index: i + 1,
           id: r.id,
           chainPosition: r.chainPosition,
@@ -187,10 +188,10 @@ export class VersionContextService {
         
         if (versionNumber <= sortedChainRenders.length) {
           const render = sortedChainRenders[versionNumber - 1];
-          console.log('🔍 Found render in chain:', { versionNumber, renderId: render.id });
+          logger.log('🔍 Found render in chain:', { versionNumber, renderId: render.id });
           return render;
         } else {
-          console.log('⚠️ Version number too high for chain renders:', { versionNumber, available: sortedChainRenders.length });
+          logger.log('⚠️ Version number too high for chain renders:', { versionNumber, available: sortedChainRenders.length });
         }
       }
 
@@ -201,7 +202,7 @@ export class VersionContextService {
       
       if (versionNumber <= sortedUserRenders.length) {
         const render = sortedUserRenders[versionNumber - 1];
-        console.log('🔍 Found render in user renders:', { versionNumber, renderId: render.id });
+        logger.log('🔍 Found render in user renders:', { versionNumber, renderId: render.id });
         return render;
       }
     }
@@ -216,7 +217,7 @@ export class VersionContextService {
       
       if (allRenders.length > 0) {
         const latest = allRenders.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
-        console.log('🔍 Found latest render:', { renderId: latest.id });
+        logger.log('🔍 Found latest render:', { renderId: latest.id });
         return latest;
       }
     }
@@ -230,7 +231,7 @@ export class VersionContextService {
       
       if (allRenders.length > 0) {
         const first = allRenders.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0];
-        console.log('🔍 Found first render:', { renderId: first.id });
+        logger.log('🔍 Found first render:', { renderId: first.id });
         return first;
       }
     }
@@ -245,7 +246,7 @@ export class VersionContextService {
       if (allRenders.length > 1) {
         const sorted = allRenders.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
         const previous = sorted[1];
-        console.log('🔍 Found previous render:', { renderId: previous.id });
+        logger.log('🔍 Found previous render:', { renderId: previous.id });
         return previous;
       }
     }
@@ -257,24 +258,24 @@ export class VersionContextService {
    * Get MINIMAL context for a render - only essential info
    */
   private async getMinimalVersionContext(render: Render): Promise<VersionContext> {
-    console.log('🔍 VersionContext: Getting minimal context for render:', render.id);
+    logger.log('🔍 VersionContext: Getting minimal context for render:', render.id);
 
     let imageData: string | undefined;
 
     // Only download image if absolutely necessary (for @ mentions)
     if (render.outputUrl) {
       try {
-        console.log('📸 Downloading reference image...');
+        logger.log('📸 Downloading reference image...');
         const response = await fetch(render.outputUrl);
         if (response.ok) {
           const arrayBuffer = await response.arrayBuffer();
           imageData = Buffer.from(arrayBuffer).toString('base64');
-          console.log('✅ Image downloaded and encoded');
+          logger.log('✅ Image downloaded and encoded');
         } else {
-          console.log('⚠️ Failed to download image');
+          logger.log('⚠️ Failed to download image');
         }
       } catch (error) {
-        console.log('❌ Error downloading image:', error);
+        logger.log('❌ Error downloading image:', error);
       }
     }
 
@@ -297,7 +298,7 @@ export class VersionContextService {
       }
     };
 
-    console.log('✅ VersionContext: Minimal context created:', {
+    logger.log('✅ VersionContext: Minimal context created:', {
       renderId: context.renderId,
       hasImageData: !!context.imageData,
       promptLength: context.prompt.length
@@ -352,7 +353,7 @@ export class VersionContextService {
       }
     }
 
-    console.log('🔍 VersionContext: Created clean contextual prompt:', {
+    logger.log('🔍 VersionContext: Created clean contextual prompt:', {
       originalLength: parsedPrompt.originalPrompt.length,
       contextualLength: contextualPrompt.length,
       mentionsCount: parsedPrompt.mentionedVersions.length

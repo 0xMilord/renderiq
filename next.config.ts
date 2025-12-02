@@ -8,10 +8,6 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Server Actions configuration - increase body size limit to 20 MB for image uploads
-  serverActions: {
-    bodySizeLimit: '20mb',
-  },
   // Webpack config to handle contentlayer2 imports
   webpack: (config, { isServer }) => {
     if (isServer) {
@@ -36,6 +32,12 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizeCss: true,
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+  },
+  
+  // Server Actions configuration - increase body size limit to 20 MB for image uploads
+  // In Next.js 15, serverActions is stable and should be at top level
+  serverActions: {
+    bodySizeLimit: '20mb',
   },
   
   // Headers for better SEO and security

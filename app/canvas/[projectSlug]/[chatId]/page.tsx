@@ -8,6 +8,7 @@ import { CanvasEditor } from '@/components/canvas/canvas-editor';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { logger } from '@/lib/utils/logger';
 
 export default function CanvasEditorPage() {
   const params = useParams();
@@ -19,7 +20,7 @@ export default function CanvasEditorPage() {
   const { chain, loading: chainLoading, fetchChain } = useRenderChain(chatId);
 
   useEffect(() => {
-    console.log('🔍 CanvasEditorPage: Component state', {
+    logger.log('🔍 CanvasEditorPage: Component state', {
       projectSlug,
       chatId,
       hasProject: !!project,

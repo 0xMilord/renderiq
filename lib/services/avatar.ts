@@ -1,5 +1,6 @@
 import { createAvatar } from '@dicebear/core';
 import { thumbs } from '@dicebear/collection';
+import { logger } from '@/lib/utils/logger';
 
 export interface AvatarOptions {
   seed?: string;
@@ -27,7 +28,7 @@ export class AvatarService {
    * @returns Avatar URL
    */
   static generateAvatarUrl(userId: string, options: AvatarOptions = {}): string {
-    console.log('🎨 AvatarService: Generating avatar for user:', userId);
+    logger.log('🎨 AvatarService: Generating avatar for user:', userId);
     
     try {
       // Create URL parameters for DiceBear API
@@ -55,10 +56,10 @@ export class AvatarService {
 
       const avatarUrl = `https://api.dicebear.com/9.x/thumbs/svg?${params.toString()}`;
       
-      console.log('✅ AvatarService: Avatar URL generated:', avatarUrl);
+      logger.log('✅ AvatarService: Avatar URL generated:', avatarUrl);
       return avatarUrl;
     } catch (error) {
-      console.error('❌ AvatarService: Failed to generate avatar:', error);
+      logger.error('❌ AvatarService: Failed to generate avatar:', error);
       // Return a fallback avatar
       return this.getFallbackAvatar();
     }
@@ -70,7 +71,7 @@ export class AvatarService {
    * @returns Avatar URL
    */
   static generateRandomAvatar(options: AvatarOptions = {}): string {
-    console.log('🎨 AvatarService: Generating random avatar');
+    logger.log('🎨 AvatarService: Generating random avatar');
     
     const randomSeed = Math.random().toString(36).substring(2, 15);
     return this.generateAvatarUrl(randomSeed, options);
@@ -83,7 +84,7 @@ export class AvatarService {
    * @returns Avatar URL
    */
   static generateAvatarFromEmail(email: string, options: AvatarOptions = {}): string {
-    console.log('🎨 AvatarService: Generating avatar from email:', email);
+    logger.log('🎨 AvatarService: Generating avatar from email:', email);
     
     // Use email as seed for consistent avatars
     const emailSeed = email.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -97,7 +98,7 @@ export class AvatarService {
    * @returns Avatar URL
    */
   static generateStyledAvatar(userId: string, style: 'professional' | 'casual' | 'colorful' | 'minimal' = 'professional'): string {
-    console.log('🎨 AvatarService: Generating styled avatar:', style);
+    logger.log('🎨 AvatarService: Generating styled avatar:', style);
     
     const styleOptions: Record<string, AvatarOptions> = {
       professional: {
@@ -155,7 +156,7 @@ export class AvatarService {
    * @returns Array of avatar URLs
    */
   static generateAvatarOptions(userId: string, count: number = 4): string[] {
-    console.log('🎨 AvatarService: Generating avatar options:', count);
+    logger.log('🎨 AvatarService: Generating avatar options:', count);
     
     const avatars: string[] = [];
     
@@ -174,7 +175,7 @@ export class AvatarService {
       avatars.push(this.generateAvatarUrl(seed, options));
     }
     
-    console.log('✅ AvatarService: Generated avatar options:', avatars.length);
+    logger.log('✅ AvatarService: Generated avatar options:', avatars.length);
     return avatars;
   }
 
@@ -199,7 +200,7 @@ export class AvatarService {
       
       return false;
     } catch (error) {
-      console.error('❌ AvatarService: Invalid avatar URL:', error);
+      logger.error('❌ AvatarService: Invalid avatar URL:', error);
       return false;
     }
   }

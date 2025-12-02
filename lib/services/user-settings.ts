@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { userSettings } from '@/lib/db/schema';
+import { logger } from '@/lib/utils/logger';
 
 export interface UserPreferences {
   theme: 'light' | 'dark' | 'system';
@@ -27,7 +28,7 @@ export interface UserSettings {
 
 export class UserSettingsService {
   static async getUserSettings(userId: string): Promise<UserSettings | null> {
-    console.log('⚙️ UserSettingsService: Getting user settings for:', userId);
+    logger.log('⚙️ UserSettingsService: Getting user settings for:', userId);
     
     try {
       const settings = await db
@@ -37,20 +38,20 @@ export class UserSettingsService {
         .limit(1);
 
       if (settings.length === 0) {
-        console.log('📝 UserSettingsService: No settings found, creating default settings');
+        logger.log('📝 UserSettingsService: No settings found, creating default settings');
         return await this.createDefaultSettings(userId);
       }
 
-      console.log('✅ UserSettingsService: Settings found');
+      logger.log('✅ UserSettingsService: Settings found');
       return settings[0];
     } catch (error) {
-      console.error('❌ UserSettingsService: Failed to get user settings:', error);
+      logger.error('❌ UserSettingsService: Failed to get user settings:', error);
       throw error;
     }
   }
 
   static async createDefaultSettings(userId: string): Promise<UserSettings> {
-    console.log('🆕 UserSettingsService: Creating default settings for:', userId);
+    logger.log('🆕 UserSettingsService: Creating default settings for:', userId);
     
     try {
       const defaultPreferences: UserPreferences = {
@@ -76,10 +77,10 @@ export class UserSettingsService {
         })
         .returning();
 
-      console.log('✅ UserSettingsService: Default settings created');
+      logger.log('✅ UserSettingsService: Default settings created');
       return newSettings[0];
     } catch (error) {
-      console.error('❌ UserSettingsService: Failed to create default settings:', error);
+      logger.error('❌ UserSettingsService: Failed to create default settings:', error);
       throw error;
     }
   }
@@ -88,7 +89,7 @@ export class UserSettingsService {
     userId: string, 
     preferences: Partial<UserPreferences>
   ): Promise<UserSettings> {
-    console.log('🔄 UserSettingsService: Updating user settings for:', userId);
+    logger.log('🔄 UserSettingsService: Updating user settings for:', userId);
     
     try {
       // Get existing settings
@@ -119,10 +120,10 @@ export class UserSettingsService {
         .where(eq(userSettings.userId, userId))
         .returning();
 
-      console.log('✅ UserSettingsService: Settings updated');
+      logger.log('✅ UserSettingsService: Settings updated');
       return updatedSettings[0];
     } catch (error) {
-      console.error('❌ UserSettingsService: Failed to update user settings:', error);
+      logger.error('❌ UserSettingsService: Failed to update user settings:', error);
       throw error;
     }
   }
@@ -131,7 +132,7 @@ export class UserSettingsService {
     userId: string,
     notifications: Partial<UserPreferences['notifications']>
   ): Promise<UserSettings> {
-    console.log('🔔 UserSettingsService: Updating notification settings for:', userId);
+    logger.log('🔔 UserSettingsService: Updating notification settings for:', userId);
     
     try {
       const existingSettings = await this.getUserSettings(userId);
@@ -151,7 +152,7 @@ export class UserSettingsService {
         notifications: updatedNotifications,
       });
     } catch (error) {
-      console.error('❌ UserSettingsService: Failed to update notification settings:', error);
+      logger.error('❌ UserSettingsService: Failed to update notification settings:', error);
       throw error;
     }
   }
@@ -160,7 +161,7 @@ export class UserSettingsService {
     userId: string,
     defaultRenderSettings: Partial<UserPreferences['defaultRenderSettings']>
   ): Promise<UserSettings> {
-    console.log('🎨 UserSettingsService: Updating render settings for:', userId);
+    logger.log('🎨 UserSettingsService: Updating render settings for:', userId);
     
     try {
       const existingSettings = await this.getUserSettings(userId);
@@ -179,7 +180,7 @@ export class UserSettingsService {
         defaultRenderSettings: updatedRenderSettings,
       });
     } catch (error) {
-      console.error('❌ UserSettingsService: Failed to update render settings:', error);
+      logger.error('❌ UserSettingsService: Failed to update render settings:', error);
       throw error;
     }
   }

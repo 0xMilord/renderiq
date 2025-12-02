@@ -2,6 +2,7 @@ import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { RendersDAL } from '@/lib/dal/renders';
 import { RenderChain } from '@/lib/db/schema';
 import { ChainContext, CreateChainData, RenderChainWithRenders } from '@/lib/types/render-chain';
+import { logger } from '@/lib/utils/logger';
 
 export class RenderChainService {
   /**
@@ -114,7 +115,7 @@ export class RenderChainService {
       const render = rendersToCopy[i];
       // Just update the chain reference, don't duplicate renders
       // In a real scenario, you might want to duplicate or just track the branch point
-      console.log(`Render ${render.id} is part of the new branch context`);
+      logger.log(`Render ${render.id} is part of the new branch context`);
     }
 
     return newChain;

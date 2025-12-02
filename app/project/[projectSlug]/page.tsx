@@ -37,6 +37,7 @@ import { ChainList } from '@/components/projects/chain-list';
 import type { Render } from '@/lib/db/schema';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createRenderChain } from '@/lib/actions/projects.actions';
+import { logger } from '@/lib/utils/logger';
 
 type ViewMode = 'default' | 'compact' | 'list';
 
@@ -109,11 +110,11 @@ export default function ProjectPage() {
   };
 
   const handleLike = (item: Render) => {
-    console.log('Like render:', item.id);
+    logger.log('Like render:', item.id);
   };
 
   const handleShare = (item: Render) => {
-    console.log('Share render:', item.id);
+    logger.log('Share render:', item.id);
   };
 
   const handleCreateChain = async () => {

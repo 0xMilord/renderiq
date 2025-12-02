@@ -3,6 +3,7 @@ import { nanoid } from 'nanoid';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { fileStorage } from '@/lib/db/schema';
+import { logger } from '@/lib/utils/logger';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -200,7 +201,7 @@ export class StorageService {
 
   static async updateFileProjectSlug(fileId: string, projectSlug: string): Promise<void> {
     try {
-      console.log('🔄 Updating file project slug:', { fileId, projectSlug });
+      logger.log('🔄 Updating file project slug:', { fileId, projectSlug });
       
       // Get the current file record
       const fileRecord = await db.select().from(fileStorage).where(eq(fileStorage.id, fileId)).limit(1);
@@ -224,9 +225,9 @@ export class StorageService {
         })
         .where(eq(fileStorage.id, fileId));
         
-      console.log('✅ File project slug updated successfully');
+      logger.log('✅ File project slug updated successfully');
     } catch (error) {
-      console.error('❌ Failed to update file project slug:', error);
+      logger.error('❌ Failed to update file project slug:', error);
       throw new Error(`Update file project slug failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

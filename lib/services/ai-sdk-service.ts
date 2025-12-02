@@ -545,11 +545,11 @@ Original prompt: "${originalPrompt}"`;
       // Validate with zod schema
       const validatedResult = schema.parse(parsedResult);
 
-      console.log('📊 AISDKService: Structured data generation successful');
+      logger.log('📊 AISDKService: Structured data generation successful');
       return validatedResult;
 
     } catch (error) {
-      console.error('❌ AISDKService: Structured data generation failed', error);
+      logger.error('❌ AISDKService: Structured data generation failed', error);
       throw new Error(`Structured data generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

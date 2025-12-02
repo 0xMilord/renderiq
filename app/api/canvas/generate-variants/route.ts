@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { BillingService } from '@/lib/services/billing';
 import { RendersDAL } from '@/lib/dal/renders';
+import { logger } from '@/lib/utils/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error generating variants:', error);
+    logger.error('Error generating variants:', error);
     return NextResponse.json(
       {
         success: false,

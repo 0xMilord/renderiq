@@ -80,8 +80,12 @@ export function useNodeExecution() {
             // In production, you'd upload to storage and get a URL
           }
 
-          const { createRenderAction } = await import('@/lib/actions/render.actions');
-          const renderResult = await createRenderAction(formData);
+          const renderResponse = await fetch('/api/renders', {
+            method: 'POST',
+            body: formData,
+          });
+
+          const renderResult = await renderResponse.json();
           
           return {
             success: true,

@@ -2,9 +2,10 @@
 
 import { AuthService } from '@/lib/services/auth';
 import { redirect } from 'next/navigation';
+import { logger } from '@/lib/utils/logger';
 
 export async function signInAction(email: string, password: string) {
-  console.log('🔐 AuthAction: Sign in action called for:', email);
+  logger.log('🔐 AuthAction: Sign in action called for:', email);
   
   const result = await AuthService.signIn(email, password);
   
@@ -20,7 +21,7 @@ export async function signInAction(email: string, password: string) {
 }
 
 export async function signUpAction(email: string, password: string, name?: string) {
-  console.log('🔐 AuthAction: Sign up action called for:', email);
+  logger.log('🔐 AuthAction: Sign up action called for:', email);
   
   const result = await AuthService.signUp(email, password, name);
   
@@ -36,7 +37,7 @@ export async function signUpAction(email: string, password: string, name?: strin
 }
 
 export async function signOutAction() {
-  console.log('🔐 AuthAction: Sign out action called');
+  logger.log('🔐 AuthAction: Sign out action called');
   
   const result = await AuthService.signOut();
   
@@ -52,7 +53,7 @@ export async function signOutAction() {
 }
 
 export async function signInWithGoogleAction() {
-  console.log('🔐 AuthAction: Google sign in action called');
+  logger.log('🔐 AuthAction: Google sign in action called');
   
   const result = await AuthService.signInWithOAuth('google');
   
@@ -68,7 +69,7 @@ export async function signInWithGoogleAction() {
 }
 
 export async function signInWithGithubAction() {
-  console.log('🔐 AuthAction: GitHub sign in action called');
+  logger.log('🔐 AuthAction: GitHub sign in action called');
   
   const result = await AuthService.signInWithOAuth('github');
   
@@ -84,7 +85,7 @@ export async function signInWithGithubAction() {
 }
 
 export async function getCurrentUserAction() {
-  console.log('🔐 AuthAction: Get current user action called');
+  logger.log('🔐 AuthAction: Get current user action called');
   
   const result = await AuthService.getCurrentUser();
   
@@ -92,7 +93,7 @@ export async function getCurrentUserAction() {
 }
 
 export async function refreshSessionAction() {
-  console.log('🔐 AuthAction: Refresh session action called');
+  logger.log('🔐 AuthAction: Refresh session action called');
   
   const result = await AuthService.refreshSession();
   

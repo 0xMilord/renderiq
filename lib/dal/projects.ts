@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { projects, renders, users, galleryItems } from '@/lib/db/schema';
 import { eq, desc, and, sql, inArray } from 'drizzle-orm';
 import type { NewProject, Project, NewRender, Render } from '@/lib/db/schema';
+import { logger } from '@/lib/utils/logger';
 
 // Helper function to generate URL-friendly slug
 function generateSlug(name: string): string {
@@ -72,7 +73,7 @@ export class ProjectsDAL {
   }
 
   static async getByUserIdWithRenderCounts(userId: string, limit = 20, offset = 0) {
-    console.log('📊 [ProjectsDAL] Fetching projects with render counts for user:', userId);
+    logger.log('📊 [ProjectsDAL] Fetching projects with render counts for user:', userId);
     
     const projectsWithCounts = await db
       .select({
@@ -98,7 +99,7 @@ export class ProjectsDAL {
       .limit(limit)
       .offset(offset);
 
-    console.log(`✅ [ProjectsDAL] Found ${projectsWithCounts.length} projects with render counts`);
+    logger.log(`✅ [ProjectsDAL] Found ${projectsWithCounts.length} projects with render counts`);
     return projectsWithCounts;
   }
 
@@ -110,7 +111,7 @@ export class ProjectsDAL {
   }
 
   static async getLatestRenders(projectId: string, limit = 4) {
-    console.log('🖼️ [ProjectsDAL] Fetching latest renders for project:', projectId);
+    logger.log('🖼️ [ProjectsDAL] Fetching latest renders for project:', projectId);
     
     const latestRenders = await db
       .select({
@@ -126,13 +127,13 @@ export class ProjectsDAL {
       .orderBy(desc(renders.createdAt))
       .limit(limit);
 
-    console.log(`✅ [ProjectsDAL] Found ${latestRenders.length} latest renders for project`);
+    logger.log(`✅ [ProjectsDAL] Found ${latestRenders.length} latest renders for project`);
     return latestRenders;
   }
 
   // Batch method: Get latest renders for multiple projects in ONE query
   static async getLatestRendersForProjects(projectIds: string[], limitPerProject = 4) {
-    console.log('🖼️ [ProjectsDAL] Batch fetching latest renders for', projectIds.length, 'projects');
+    logger.log('🖼️ [ProjectsDAL] Batch fetching latest renders for', projectIds.length, 'projects');
     
     if (projectIds.length === 0) {
       return [];
@@ -156,7 +157,7 @@ export class ProjectsDAL {
     // Filter to only include top N per project
     const filtered = latestRenders.filter(r => r.rowNum <= limitPerProject);
 
-    console.log(`✅ [ProjectsDAL] Found ${filtered.length} total renders for ${projectIds.length} projects`);
+    logger.log(`✅ [ProjectsDAL] Found ${filtered.length} total renders for ${projectIds.length} projects`);
     return filtered;
   }
 

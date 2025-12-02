@@ -42,6 +42,7 @@ import type { Render, Project } from '@/lib/db/schema';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createRenderChain } from '@/lib/actions/projects.actions';
 import { useRouter } from 'next/navigation';
+import { logger } from '@/lib/utils/logger';
 
 type ViewMode = 'default' | 'compact' | 'list';
 
@@ -70,13 +71,13 @@ export default function ProjectSlugPage() {
   }, [project?.id, fetchChains]);
 
   useEffect(() => {
-    console.log('🔍 [ProjectSlugPage] Finding project by slug:', slug);
+    logger.log('🔍 [ProjectSlugPage] Finding project by slug:', slug);
     const foundProject = projects.find(p => p.slug === slug);
     if (foundProject) {
-      console.log('✅ [ProjectSlugPage] Project found:', foundProject.name);
+      logger.log('✅ [ProjectSlugPage] Project found:', foundProject.name);
       setProject(foundProject);
     } else {
-      console.log('❌ [ProjectSlugPage] Project not found for slug:', slug);
+      logger.log('❌ [ProjectSlugPage] Project not found for slug:', slug);
     }
   }, [slug, projects]);
 
@@ -128,12 +129,12 @@ export default function ProjectSlugPage() {
 
   const handleLike = (item: Render) => {
     // Implement like functionality
-    console.log('Like render:', item.id);
+    logger.log('Like render:', item.id);
   };
 
   const handleShare = (item: Render) => {
     // Implement share functionality
-    console.log('Share render:', item.id);
+    logger.log('Share render:', item.id);
   };
 
   const handleCreateChain = async () => {

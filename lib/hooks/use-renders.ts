@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getRendersByProject, getProjectChains } from '@/lib/actions/projects.actions';
 import type { Render, RenderChain } from '@/lib/db/schema';
+import { logger } from '@/lib/utils/logger';
 
 export function useRenders(projectId: string | null) {
   const [renders, setRenders] = useState<Render[]>([]);
@@ -22,14 +23,14 @@ export function useRenders(projectId: string | null) {
     try {
       setLoading(true);
       setError(null);
-      console.log('🎨 [useRenders] Fetching renders for project:', projectId);
+      logger.log('🎨 [useRenders] Fetching renders for project:', projectId);
       
       const result = await getRendersByProject(projectId);
-      console.log('📊 [useRenders] getRendersByProject result:', result);
+      logger.log('📊 [useRenders] getRendersByProject result:', result);
       
       if (result.success) {
         setRenders(result.data || []);
-        console.log('✅ [useRenders] Renders fetched successfully:', result.data?.length || 0);
+        logger.log('✅ [useRenders] Renders fetched successfully:', result.data?.length || 0);
       } else {
         setError(result.error || 'Failed to fetch renders');
         console.error('❌ [useRenders] Failed to fetch renders:', result.error);
@@ -51,12 +52,12 @@ export function useRenders(projectId: string | null) {
     }
 
     try {
-      console.log('🔗 [useRenders] Fetching chains for project:', projectId);
+      logger.log('🔗 [useRenders] Fetching chains for project:', projectId);
       const result = await getProjectChains(projectId);
       
       if (result.success && result.data) {
         setChains(result.data);
-        console.log('✅ [useRenders] Chains fetched:', result.data.length);
+        logger.log('✅ [useRenders] Chains fetched:', result.data.length);
       }
     } catch (err) {
       console.error('❌ [useRenders] Failed to fetch chains:', err);
@@ -70,13 +71,13 @@ export function useRenders(projectId: string | null) {
     try {
       setLoading(true);
       setError(null);
-      console.log('🔗 [useRenders] Fetching renders for chain:', chainId);
+      logger.log('🔗 [useRenders] Fetching renders for chain:', chainId);
       
       // Filter renders by chainId
       const allRenders = renders.filter(r => r.chainId === chainId);
       setRenders(allRenders);
       
-      console.log('✅ [useRenders] Chain renders filtered:', allRenders.length);
+      logger.log('✅ [useRenders] Chain renders filtered:', allRenders.length);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred';
       setError(errorMessage);

@@ -6,21 +6,22 @@ import { RendersDAL } from '@/lib/dal/renders';
 import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { AISDKService } from '@/lib/services/ai-sdk-service';
 import { StorageService } from '@/lib/services/storage';
+import { logger } from '@/lib/utils/logger';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🎬 Video API: Starting video generation request');
+    logger.log('🎬 Video API: Starting video generation request');
 
     // Authenticate user
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
-      console.error('🎬 Video API: Authentication failed:', authError);
+      logger.error('🎬 Video API: Authentication failed:', authError);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    console.log('✅ Video API: User authenticated:', user.id);
+    logger.log('✅ Video API: User authenticated:', user.id);
 
     // Parse form data
     const formData = await request.formData();
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Duration cannot exceed 5 seconds' }, { status: 400 });
     }
 
-    console.log('🎬 Video API: Request parameters:', {
+    logger.log('🎬 Video API: Request parameters:', {
       prompt: prompt.substring(0, 100) + '...',
       model,
       duration,
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
     const modelMultiplier = model === 'veo3_fast' ? 1 : 2; // Higher quality costs more
     const creditsCost = Math.ceil(baseCost * durationMultiplier * modelMultiplier);
 
-    console.log('💰 Video API: Credits cost calculation:', {
+    logger.log('💰 Video API: Credits cost calculation:', {
       baseCost,
       durationMultiplier,
       modelMultiplier,
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
     const userCredits = await BillingDAL.getUserCreditsWithReset(user.id);
     
     if (!userCredits || userCredits.balance < creditsCost) {
-      console.log('❌ Video API: Insufficient credits:', {
+      logger.log('❌ Video API: Insufficient credits:', {
         required: creditsCost,
         available: userCredits?.balance || 0
       });
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Deduct credits
-    console.log('💰 Video API: Deducting credits:', { amount: creditsCost, description: `Generated video - ${model} model` });
+    logger.log('💰 Video API: Deducting credits:', { amount: creditsCost, description: `Generated video - ${model} model` });
     const deductResult = await BillingService.deductCredits(
       user.id,
       creditsCost,
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest) {
     );
 
     if (!deductResult.success) {
-      console.error('❌ Video API: Failed to deduct credits:', deductResult.error);
+      logger.error('❌ Video API: Failed to deduct credits:', deductResult.error);
       return NextResponse.json({ 
         error: deductResult.error || 'Failed to deduct credits'
       }, { status: 500 });
@@ -107,7 +108,7 @@ export async function POST(request: NextRequest) {
       const renderChainsDAL = new RenderChainsDAL();
       const chainRenders = await renderChainsDAL.getRendersByChainId(chainId);
       chainPosition = chainRenders.length + 1;
-      console.log('🔗 Video API: Using existing chain:', { chainId, chainPosition });
+      logger.log('🔗 Video API: Using existing chain:', { chainId, chainPosition });
     }
 
     // Create render record in database
@@ -134,7 +135,7 @@ export async function POST(request: NextRequest) {
       uploadedImageId: undefined,
     });
 
-    console.log('✅ Video API: Render record created:', render.id);
+    logger.log('✅ Video API: Render record created:', render.id);
 
     // Update render status to processing
     await rendersDAL.updateStatus(render.id, 'processing');
@@ -221,7 +222,7 @@ export async function POST(request: NextRequest) {
         throw new Error(result.error || 'Video generation failed');
       }
 
-      console.log('🎬 Video API: Video generation completed:', {
+      logger.log('🎬 Video API: Video generation completed:', {
         videoUrl: result.data.videoUrl,
         processingTime: result.data.processingTime
       });
@@ -244,7 +245,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      console.log('✅ Video API: Video generation completed successfully');
+      logger.log('✅ Video API: Video generation completed successfully');
 
       return NextResponse.json({
         success: true,
@@ -257,7 +258,7 @@ export async function POST(request: NextRequest) {
       });
 
     } catch (error) {
-      console.error('🎬 Video API: Video generation failed:', error);
+      logger.error('🎬 Video API: Video generation failed:', error);
       
       // Update render status to failed
       await rendersDAL.updateStatus(render.id, 'failed', error instanceof Error ? error.message : 'Unknown error');
@@ -279,7 +280,7 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
-    console.error('🎬 Video API: Unexpected error:', error);
+    logger.error('🎬 Video API: Unexpected error:', error);
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error'

@@ -1,13 +1,14 @@
 import { db } from '@/lib/db';
 import { userSubscriptions, subscriptionPlans, userCredits } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
+import { logger } from '@/lib/utils/logger';
 
 export class BillingDAL {
   /**
    * Get user's active subscription with plan details
    */
   static async getUserSubscription(userId: string) {
-    console.log('💳 BillingDAL: Getting user subscription:', userId);
+    logger.log('💳 BillingDAL: Getting user subscription:', userId);
     
     try {
       const result = await db
@@ -27,11 +28,11 @@ export class BillingDAL {
         .limit(1);
 
       if (!result || result.length === 0) {
-        console.log('❌ BillingDAL: No active subscription found');
+        logger.log('❌ BillingDAL: No active subscription found');
         return null;
       }
 
-      console.log('✅ BillingDAL: Subscription found:', result[0].plan?.name);
+      logger.log('✅ BillingDAL: Subscription found:', result[0].plan?.name);
       return {
         subscription: result[0].subscription,
         plan: result[0].plan,
@@ -46,13 +47,13 @@ export class BillingDAL {
    * Check if user has an active pro subscription
    */
   static async isUserPro(userId: string): Promise<boolean> {
-    console.log('🔍 BillingDAL: Checking if user is pro:', userId);
+    logger.log('🔍 BillingDAL: Checking if user is pro:', userId);
     
     try {
       const subscription = await this.getUserSubscription(userId);
       
       if (!subscription || !subscription.plan) {
-        console.log('❌ BillingDAL: User is not pro');
+        logger.log('❌ BillingDAL: User is not pro');
         return false;
       }
 
@@ -61,7 +62,7 @@ export class BillingDAL {
       const isPeriodValid = new Date(subscription.subscription.currentPeriodEnd) > new Date();
       
       const isPro = isActive && isPeriodValid;
-      console.log(`✅ BillingDAL: User pro status: ${isPro}`);
+      logger.log(`✅ BillingDAL: User pro status: ${isPro}`);
       
       return isPro;
     } catch (error) {
@@ -75,7 +76,7 @@ export class BillingDAL {
    * ✅ OPTIMIZED: Single query with JOINs instead of two separate queries
    */
   static async getUserCreditsWithReset(userId: string) {
-    console.log('💰 BillingDAL: Getting user credits with reset info:', userId);
+    logger.log('💰 BillingDAL: Getting user credits with reset info:', userId);
     
     try {
       const [result] = await db
@@ -98,7 +99,7 @@ export class BillingDAL {
         .limit(1);
 
       if (!result || !result.credits) {
-        console.log('❌ BillingDAL: User credits not found');
+        logger.log('❌ BillingDAL: User credits not found');
         return null;
       }
 
@@ -106,7 +107,7 @@ export class BillingDAL {
         ? new Date(result.subscription.currentPeriodEnd)
         : null;
 
-      console.log('✅ BillingDAL: Credits found:', result.credits.balance, 'Reset:', resetDate);
+      logger.log('✅ BillingDAL: Credits found:', result.credits.balance, 'Reset:', resetDate);
       
       return {
         ...result.credits,
@@ -124,7 +125,7 @@ export class BillingDAL {
    * Get all subscription plans
    */
   static async getSubscriptionPlans() {
-    console.log('📋 BillingDAL: Getting subscription plans');
+    logger.log('📋 BillingDAL: Getting subscription plans');
     
     try {
       const plans = await db
@@ -133,7 +134,7 @@ export class BillingDAL {
         .where(eq(subscriptionPlans.isActive, true))
         .orderBy(subscriptionPlans.price);
 
-      console.log(`✅ BillingDAL: Found ${plans.length} plans`);
+      logger.log(`✅ BillingDAL: Found ${plans.length} plans`);
       return plans;
     } catch (error) {
       console.error('❌ BillingDAL: Error getting plans:', error);

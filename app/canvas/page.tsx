@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { ProjectsDAL } from '@/lib/dal/projects';
 import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { CanvasPageClient } from './canvas-client';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -23,7 +24,7 @@ export default async function CanvasPage() {
       redirect('/login');
     }
 
-    console.log('🚀 [CanvasPage SSR] Fetching data for user:', user.id);
+    logger.log('🚀 [CanvasPage SSR] Fetching data for user:', user.id);
     const startTime = Date.now();
 
     // Batch fetch: Get all projects and chains
@@ -33,7 +34,7 @@ export default async function CanvasPage() {
     ]);
 
     const endTime = Date.now();
-    console.log(`✅ [CanvasPage SSR] Data fetched in ${endTime - startTime}ms`, {
+    logger.log(`✅ [CanvasPage SSR] Data fetched in ${endTime - startTime}ms`, {
       projects: projects.length,
       chains: chainsWithRenders.length,
     });

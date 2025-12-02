@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getUserProjects, createProject, deleteProject, duplicateProject, getProject, getProjectBySlug } from '@/lib/actions/projects.actions';
 import type { Project } from '@/lib/db/schema';
+import { logger } from '@/lib/utils/logger';
 
 export function useProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -29,15 +30,15 @@ export function useProjects() {
 
   const addProject = async (formData: FormData) => {
     try {
-      console.log('🚀 [useProjects] addProject called');
+      logger.log('🚀 [useProjects] addProject called');
       setError(null);
       
-      console.log('📞 [useProjects] Calling createProject action...');
+      logger.log('📞 [useProjects] Calling createProject action...');
       const result = await createProject(formData);
-      console.log('📊 [useProjects] createProject result:', result);
+      logger.log('📊 [useProjects] createProject result:', result);
       
       if (result.success && 'data' in result && result.data) {
-        console.log('✅ [useProjects] Project created, refetching projects...');
+        logger.log('✅ [useProjects] Project created, refetching projects...');
         // Refetch to get the latest projects list including the new one
         await fetchProjects();
         return { success: true, data: result.data };

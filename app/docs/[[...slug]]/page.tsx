@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ChevronRight, BookOpen } from 'lucide-react';
 import { TableOfContents } from '@/components/docs/table-of-contents';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { logger } from '@/lib/utils/logger';
 
 // Force dynamic rendering for docs
 export const dynamic = 'force-dynamic';
@@ -45,7 +46,7 @@ function getAllDocs(): any[] {
       return content;
     });
     
-    console.log(`✅ Loaded ${docs.length} docs from JSON files. Slugs:`, docs.map((d: any) => d.slug || d._raw?.flattenedPath || 'unknown'));
+    logger.log(`✅ Loaded ${docs.length} docs from JSON files. Slugs:`, docs.map((d: any) => d.slug || d._raw?.flattenedPath || 'unknown'));
     return docs;
   } catch (error: any) {
     console.error('❌ Error loading docs:', error?.message || error);
@@ -113,11 +114,11 @@ export default async function DocPage({ params }: DocPageProps) {
     const { slug } = await params;
     const docs = getAllDocs();
     
-    console.log('📄 DocPage - slug:', slug, 'docs count:', docs.length);
+    logger.log('📄 DocPage - slug:', slug, 'docs count:', docs.length);
     
     // If no slug, show docs home page
     if (!slug || slug.length === 0) {
-      console.log('📄 Showing docs home page');
+      logger.log('📄 Showing docs home page');
       return await DocsHomePage();
     }
 

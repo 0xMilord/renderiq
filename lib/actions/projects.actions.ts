@@ -8,40 +8,41 @@ import { RendersDAL } from '@/lib/dal/renders';
 import { RenderChainService } from '@/lib/services/render-chain';
 import { createClient } from '@/lib/supabase/server';
 import { uploadSchema, createRenderSchema } from '@/lib/types';
+import { logger } from '@/lib/utils/logger';
 
 const renderService = new RenderService();
 
 export async function createProject(formData: FormData) {
   try {
-    console.log('🚀 [createProject] Starting project creation action');
+    logger.log('🚀 [createProject] Starting project creation action');
     
     const supabase = await createClient();
     if (!supabase) {
-      console.error('❌ [createProject] Failed to initialize database connection');
+      logger.error('❌ [createProject] Failed to initialize database connection');
       return { success: false, error: 'Failed to initialize database connection' };
     }
 
-    console.log('🔐 [createProject] Getting user authentication...');
+    logger.log('🔐 [createProject] Getting user authentication...');
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError) {
-      console.error('❌ [createProject] Auth error:', authError);
+      logger.error('❌ [createProject] Auth error:', authError);
       return { success: false, error: 'Authentication failed' };
     }
 
     if (!user) {
-      console.error('❌ [createProject] No user found');
+      logger.error('❌ [createProject] No user found');
       return { success: false, error: 'Authentication required' };
     }
 
-    console.log('✅ [createProject] User authenticated:', { userId: user.id, email: user.email });
+    logger.log('✅ [createProject] User authenticated:', { userId: user.id, email: user.email });
 
     const file = formData.get('file') as File;
     const projectName = formData.get('projectName') as string;
     const description = formData.get('description') as string;
     const dicebearUrl = formData.get('dicebearUrl') as string;
 
-    console.log('📝 [createProject] Form data received:', { 
+    logger.log('📝 [createProject] Form data received:', { 
       fileName: file?.name, 
       fileSize: file?.size, 
       fileType: file?.type,
@@ -51,13 +52,13 @@ export async function createProject(formData: FormData) {
     });
 
     if (!projectName) {
-      console.error('❌ [createProject] No project name provided');
+      logger.error('❌ [createProject] No project name provided');
       return { success: false, error: 'Project name is required' };
     }
 
     // If DiceBear URL is provided, create project directly without file upload
     if (dicebearUrl) {
-      console.log('🎨 [createProject] Creating project with DiceBear URL:', dicebearUrl);
+      logger.log('🎨 [createProject] Creating project with DiceBear URL:', dicebearUrl);
       
       const projectData = {
         userId: user.id,
@@ -73,7 +74,7 @@ export async function createProject(formData: FormData) {
       };
 
       const project = await ProjectsDAL.create(projectData);
-      console.log('✅ [createProject] Project created successfully:', project.id);
+      logger.log('✅ [createProject] Project created successfully:', project.id);
 
       revalidatePath('/dashboard/projects');
       revalidatePath('/render');
@@ -83,19 +84,19 @@ export async function createProject(formData: FormData) {
 
     // Original file upload logic for regular projects
     if (!file) {
-      console.error('❌ [createProject] No file provided');
+      logger.error('❌ [createProject] No file provided');
       return { success: false, error: 'File is required' };
     }
 
-    console.log('✅ [createProject] Validating form data...');
+    logger.log('✅ [createProject] Validating form data...');
     const validatedData = uploadSchema.parse({
       file,
       projectName,
       description: description || undefined,
     });
-    console.log('✅ [createProject] Form data validated successfully');
+    logger.log('✅ [createProject] Form data validated successfully');
 
-    console.log('🎨 [createProject] Calling render service...');
+    logger.log('🎨 [createProject] Calling render service...');
     const result = await renderService.createProject(
       user.id,
       validatedData.file,
@@ -104,18 +105,18 @@ export async function createProject(formData: FormData) {
     );
 
     if (result.success) {
-      console.log('✅ [createProject] Project created successfully, revalidating paths...');
+      logger.log('✅ [createProject] Project created successfully, revalidating paths...');
       revalidatePath('/dashboard/projects');
-      console.log('🎉 [createProject] Project creation completed successfully');
+      logger.log('🎉 [createProject] Project creation completed successfully');
       return { success: true, data: result.data };
     }
 
-    console.error('❌ [createProject] Project creation failed:', result.error);
+    logger.error('❌ [createProject] Project creation failed:', result.error);
     return result;
   } catch (error) {
-    console.error('❌ [createProject] Unexpected error:', error);
+    logger.error('❌ [createProject] Unexpected error:', error);
     if (error instanceof z.ZodError) {
-      console.error('❌ [createProject] Validation error:', error.issues);
+      logger.error('❌ [createProject] Validation error:', error.issues);
       return { success: false, error: error.issues[0].message };
     }
     return {
@@ -136,7 +137,7 @@ export async function createRender(formData: FormData) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError) {
-      console.error('Auth error in createRender:', authError);
+      logger.error('Auth error in createRender:', authError);
       return { success: false, error: 'Authentication failed' };
     }
 
@@ -196,7 +197,7 @@ export async function getProject(projectId: string) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError) {
-      console.error('Auth error in getProject:', authError);
+      logger.error('Auth error in getProject:', authError);
       return { success: false, error: 'Authentication failed' };
     }
 
@@ -232,7 +233,7 @@ export async function getProjectBySlug(slug: string) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError) {
-      console.error('Auth error in getProjectBySlug:', authError);
+      logger.error('Auth error in getProjectBySlug:', authError);
       return { success: false, error: 'Authentication failed' };
     }
 
@@ -268,7 +269,7 @@ export async function getUserProjects() {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError) {
-      console.error('Auth error in getUserProjects:', authError);
+      logger.error('Auth error in getUserProjects:', authError);
       return { success: false, error: 'Authentication failed' };
     }
 
@@ -304,7 +305,7 @@ export async function getUserProjects() {
     
     return { success: true, data: projectsWithRenders };
   } catch (error) {
-    console.error('Error in getUserProjects:', error);
+    logger.error('Error in getUserProjects:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get projects',
@@ -322,7 +323,7 @@ export async function duplicateProject(projectId: string) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError) {
-      console.error('Auth error in duplicateProject:', authError);
+      logger.error('Auth error in duplicateProject:', authError);
       return { success: false, error: 'Authentication failed' };
     }
 
@@ -354,7 +355,7 @@ export async function duplicateProject(projectId: string) {
     revalidatePath('/dashboard/projects');
     return { success: true, data: newProject };
   } catch (error) {
-    console.error('Error in duplicateProject:', error);
+    logger.error('Error in duplicateProject:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to duplicate project',
@@ -372,7 +373,7 @@ export async function deleteProject(projectId: string) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError) {
-      console.error('Auth error in deleteProject:', authError);
+      logger.error('Auth error in deleteProject:', authError);
       return { success: false, error: 'Authentication failed' };
     }
 
@@ -393,7 +394,7 @@ export async function deleteProject(projectId: string) {
     revalidatePath('/dashboard/projects');
     return { success: true };
   } catch (error) {
-    console.error('Error in deleteProject:', error);
+    logger.error('Error in deleteProject:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to delete project',
@@ -403,35 +404,35 @@ export async function deleteProject(projectId: string) {
 
 export async function getRendersByProject(projectId: string) {
   try {
-    console.log('🎨 [getRendersByProject] Starting to fetch renders for project:', projectId);
+    logger.log('🎨 [getRendersByProject] Starting to fetch renders for project:', projectId);
     
     const supabase = await createClient();
     if (!supabase) {
-      console.error('❌ [getRendersByProject] Failed to initialize database connection');
+      logger.error('❌ [getRendersByProject] Failed to initialize database connection');
       return { success: false, error: 'Failed to initialize database connection' };
     }
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError) {
-      console.error('❌ [getRendersByProject] Auth error:', authError);
+      logger.error('❌ [getRendersByProject] Auth error:', authError);
       return { success: false, error: 'Authentication failed' };
     }
 
     if (!user) {
-      console.error('❌ [getRendersByProject] No user found');
+      logger.error('❌ [getRendersByProject] No user found');
       return { success: false, error: 'Authentication required' };
     }
 
-    console.log('✅ [getRendersByProject] User authenticated:', { userId: user.id });
+    logger.log('✅ [getRendersByProject] User authenticated:', { userId: user.id });
 
-    console.log('📞 [getRendersByProject] Calling RendersDAL.getByProjectId...');
+    logger.log('📞 [getRendersByProject] Calling RendersDAL.getByProjectId...');
     const renders = await RendersDAL.getByProjectId(projectId);
-    console.log('📊 [getRendersByProject] Renders fetched:', renders.length);
+    logger.log('📊 [getRendersByProject] Renders fetched:', renders.length);
 
     return { success: true, data: renders };
   } catch (error) {
-    console.error('❌ [getRendersByProject] Unexpected error:', error);
+    logger.error('❌ [getRendersByProject] Unexpected error:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get renders',
@@ -470,7 +471,7 @@ export async function createRenderChain(
     revalidatePath(`/engine`);
     return { success: true, data: chain };
   } catch (error) {
-    console.error('Error in createRenderChain:', error);
+    logger.error('Error in createRenderChain:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to create render chain',
@@ -500,7 +501,7 @@ export async function getProjectChains(projectId: string) {
     const chains = await RenderChainService.getProjectChains(projectId);
     return { success: true, data: chains };
   } catch (error) {
-    console.error('Error in getProjectChains:', error);
+    logger.error('Error in getProjectChains:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get render chains',
@@ -535,7 +536,7 @@ export async function addRenderToChain(
     revalidatePath(`/engine`);
     return { success: true };
   } catch (error) {
-    console.error('Error in addRenderToChain:', error);
+    logger.error('Error in addRenderToChain:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to add render to chain',
@@ -566,7 +567,7 @@ export async function selectRenderVersion(renderId: string) {
     const renderWithContext = await RendersDAL.getWithContext(renderId);
     return { success: true, data: renderWithContext };
   } catch (error) {
-    console.error('Error in selectRenderVersion:', error);
+    logger.error('Error in selectRenderVersion:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to select render version',
@@ -576,31 +577,31 @@ export async function selectRenderVersion(renderId: string) {
 
 export async function getRenderChain(chainId: string) {
   try {
-    console.log('🔍 getRenderChain: Fetching chain:', chainId);
+    logger.log('🔍 getRenderChain: Fetching chain:', chainId);
     
     const supabase = await createClient();
     if (!supabase) {
-      console.log('❌ getRenderChain: Failed to initialize database connection');
+      logger.log('❌ getRenderChain: Failed to initialize database connection');
       return { success: false, error: 'Failed to initialize database connection' };
     }
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
-      console.log('❌ getRenderChain: Authentication required');
+      logger.log('❌ getRenderChain: Authentication required');
       return { success: false, error: 'Authentication required' };
     }
 
-    console.log('✅ getRenderChain: User authenticated:', user.id);
+    logger.log('✅ getRenderChain: User authenticated:', user.id);
 
     const chain = await RenderChainService.getChain(chainId);
     
     if (!chain) {
-      console.log('❌ getRenderChain: Chain not found:', chainId);
+      logger.log('❌ getRenderChain: Chain not found:', chainId);
       return { success: false, error: 'Chain not found' };
     }
 
-    console.log('✅ getRenderChain: Chain found', {
+    logger.log('✅ getRenderChain: Chain found', {
       chainId: chain.id,
       chainName: chain.name,
       projectId: chain.projectId,
@@ -610,14 +611,14 @@ export async function getRenderChain(chainId: string) {
     // Verify project ownership
     const project = await ProjectsDAL.getById(chain.projectId);
     if (!project || project.userId !== user.id) {
-      console.log('❌ getRenderChain: Access denied');
+      logger.log('❌ getRenderChain: Access denied');
       return { success: false, error: 'Access denied' };
     }
 
-    console.log('✅ getRenderChain: Access granted, returning chain data');
+    logger.log('✅ getRenderChain: Access granted, returning chain data');
     return { success: true, data: chain };
   } catch (error) {
-    console.error('❌ getRenderChain: Error:', error);
+    logger.error('❌ getRenderChain: Error:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get render chain',
@@ -654,7 +655,7 @@ export async function deleteRenderChain(chainId: string) {
     revalidatePath('/engine');
     return { success: true };
   } catch (error) {
-    console.error('Error in deleteRenderChain:', error);
+    logger.error('Error in deleteRenderChain:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to delete render chain',

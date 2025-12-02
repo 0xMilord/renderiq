@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import DotGrid from '@/components/ui/dot-grid';
 import { Eye, EyeOff, Loader2, CheckCircle, Github, Chrome } from 'lucide-react';
+import { logger } from '@/lib/utils/logger';
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -67,7 +68,7 @@ export default function SignupPage() {
   };
 
   const handleGoogleSignIn = async () => {
-    console.log('🔐 Signup: Starting Google sign in');
+    logger.log('🔐 Signup: Starting Google sign in');
     setIsLoading(true);
     setError('');
 
@@ -85,7 +86,7 @@ export default function SignupPage() {
   };
 
   const handleGithubSignIn = async () => {
-    console.log('🔐 Signup: Starting GitHub sign in');
+    logger.log('🔐 Signup: Starting GitHub sign in');
     setIsLoading(true);
     setError('');
 

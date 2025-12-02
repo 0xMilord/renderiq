@@ -31,6 +31,7 @@ import { RenderChainViz } from './render-chain-viz';
 import { VersionSelector } from './version-selector';
 import { Render } from '@/lib/types/render';
 import { useUpscaling } from '@/lib/hooks/use-upscaling';
+import { logger } from '@/lib/utils/logger';
 
 interface RenderResult {
   imageUrl: string;
@@ -76,9 +77,9 @@ export function RenderPreview({
   onChainDeleted,
   onNewChain
 }: RenderPreviewProps) {
-  console.log('🖼️ RenderPreview: Component rendered with result:', result);
-  console.log('🖼️ RenderPreview: isGenerating:', isGenerating);
-  console.log('🖼️ RenderPreview: selectedRenderId:', selectedRenderId);
+  logger.log('🖼️ RenderPreview: Component rendered with result:', result);
+  logger.log('🖼️ RenderPreview: isGenerating:', isGenerating);
+  logger.log('🖼️ RenderPreview: selectedRenderId:', selectedRenderId);
   const [likes, setLikes] = useState(0);
   const [views, setViews] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
@@ -91,25 +92,25 @@ export function RenderPreview({
 
   // Debug result changes
   useEffect(() => {
-    console.log('🖼️ RenderPreview: Result changed:', result);
+    logger.log('🖼️ RenderPreview: Result changed:', result);
     if (result) {
-      console.log('🖼️ RenderPreview: Result has imageUrl:', !!result.imageUrl);
-      console.log('🖼️ RenderPreview: Result imageUrl value:', result.imageUrl);
+      logger.log('🖼️ RenderPreview: Result has imageUrl:', !!result.imageUrl);
+      logger.log('🖼️ RenderPreview: Result imageUrl value:', result.imageUrl);
     }
   }, [result]);
   const [currentVersionIndex, setCurrentVersionIndex] = useState(0);
 
   useEffect(() => {
     if (result) {
-      console.log('👁️ RenderPreview: New result received, incrementing views:', result);
-      console.log('👁️ RenderPreview: Result has imageUrl:', !!result.imageUrl);
-      console.log('👁️ RenderPreview: Result imageUrl value:', result.imageUrl);
+      logger.log('👁️ RenderPreview: New result received, incrementing views:', result);
+      logger.log('👁️ RenderPreview: Result has imageUrl:', !!result.imageUrl);
+      logger.log('👁️ RenderPreview: Result imageUrl value:', result.imageUrl);
       setViews(prev => prev + 1);
     }
   }, [result]);
 
   useEffect(() => {
-    console.log('🔄 RenderPreview: Props updated:', {
+    logger.log('🔄 RenderPreview: Props updated:', {
       hasResult: !!result,
       isGenerating,
       progress,
@@ -118,16 +119,16 @@ export function RenderPreview({
   }, [result, isGenerating, progress, engineType]);
 
   const handleLike = () => {
-    console.log('❤️ RenderPreview: Like button clicked, current state:', { likes, isLiked });
+    logger.log('❤️ RenderPreview: Like button clicked, current state:', { likes, isLiked });
     setLikes(prev => isLiked ? prev - 1 : prev + 1);
     setIsLiked(!isLiked);
-    console.log('✅ RenderPreview: Like state updated');
+    logger.log('✅ RenderPreview: Like state updated');
   };
 
   const handleUpscale = async (scale: 2 | 4 | 10) => {
     if (!result?.imageUrl) return;
     
-    console.log(`🔍 Upscaling image by ${scale}x`);
+    logger.log(`🔍 Upscaling image by ${scale}x`);
     await upscaleImage({
       imageUrl: result.imageUrl,
       scale,
@@ -140,39 +141,39 @@ export function RenderPreview({
   };
 
   const handleDownload = () => {
-    console.log('⬇️ RenderPreview: Download button clicked');
+    logger.log('⬇️ RenderPreview: Download button clicked');
     if (result?.imageUrl) {
-      console.log('📁 RenderPreview: Starting download for:', result.imageUrl);
+      logger.log('📁 RenderPreview: Starting download for:', result.imageUrl);
       const link = document.createElement('a');
       link.href = result.imageUrl;
       link.download = `${engineType}-render-${Date.now()}.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      console.log('✅ RenderPreview: Download initiated');
+      logger.log('✅ RenderPreview: Download initiated');
     } else {
-      console.log('❌ RenderPreview: No image URL available for download');
+      logger.log('❌ RenderPreview: No image URL available for download');
     }
   };
 
   const handleShare = () => {
-    console.log('📤 RenderPreview: Share button clicked');
+    logger.log('📤 RenderPreview: Share button clicked');
     if (navigator.share && result?.imageUrl) {
-      console.log('📱 RenderPreview: Using native share API');
+      logger.log('📱 RenderPreview: Using native share API');
       navigator.share({
         title: `${engineType} AI Render`,
         text: `Check out this amazing ${engineType} render!`,
         url: result.imageUrl,
       }).then(() => {
-        console.log('✅ RenderPreview: Share successful');
+        logger.log('✅ RenderPreview: Share successful');
       }).catch((error) => {
         console.error('❌ RenderPreview: Share failed:', error);
       });
     } else {
-      console.log('📋 RenderPreview: Using clipboard fallback');
+      logger.log('📋 RenderPreview: Using clipboard fallback');
       // Fallback to copying URL
       navigator.clipboard.writeText(result?.imageUrl || '').then(() => {
-        console.log('✅ RenderPreview: URL copied to clipboard');
+        logger.log('✅ RenderPreview: URL copied to clipboard');
       }).catch((error) => {
         console.error('❌ RenderPreview: Clipboard copy failed:', error);
       });
@@ -295,7 +296,7 @@ export function RenderPreview({
                              "max-w-full max-h-full object-contain rounded-lg",
                              isFullscreen && "fixed inset-0 z-50 bg-black object-contain"
                            )}
-                           onLoad={() => console.log('✅ RenderPreview: Image loaded successfully:', result.imageUrl)}
+                           onLoad={() => logger.log('✅ RenderPreview: Image loaded successfully:', result.imageUrl)}
                            onError={(e) => {
                              console.error('❌ RenderPreview: Image failed to load:', result.imageUrl, e);
                              console.error('❌ RenderPreview: Image error details:', e.currentTarget);
@@ -407,10 +408,10 @@ export function RenderPreview({
                            variant="default" 
                            size="sm" 
                            onClick={() => {
-                             console.log('🔄 RenderPreview: Iterate button clicked');
+                             logger.log('🔄 RenderPreview: Iterate button clicked');
                              if (result?.imageUrl) {
                                onIterate(result.imageUrl);
-                               console.log('✅ RenderPreview: Iterate callback triggered with:', result.imageUrl);
+                               logger.log('✅ RenderPreview: Iterate callback triggered with:', result.imageUrl);
                              }
                            }}
                            title="Iterate"

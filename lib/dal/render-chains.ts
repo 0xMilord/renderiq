@@ -2,10 +2,11 @@ import { db } from '@/lib/db';
 import { renderChains, renders, projects } from '@/lib/db/schema';
 import { eq, desc, inArray } from 'drizzle-orm';
 import { CreateChainData, UpdateChainData } from '@/lib/types/render-chain';
+import { logger } from '@/lib/utils/logger';
 
 export class RenderChainsDAL {
   static async create(data: CreateChainData) {
-    console.log('📝 Creating render chain:', data);
+    logger.log('📝 Creating render chain:', data);
     
     const [chain] = await db
       .insert(renderChains)
@@ -16,12 +17,12 @@ export class RenderChainsDAL {
       })
       .returning();
 
-    console.log('✅ Render chain created:', chain.id);
+    logger.log('✅ Render chain created:', chain.id);
     return chain;
   }
 
   static async getById(id: string) {
-    console.log('🔍 Fetching render chain by ID:', id);
+    logger.log('🔍 Fetching render chain by ID:', id);
     
     const [chain] = await db
       .select()
@@ -33,7 +34,7 @@ export class RenderChainsDAL {
   }
 
   static async getByProjectId(projectId: string) {
-    console.log('🔍 Fetching render chains for project:', projectId);
+    logger.log('🔍 Fetching render chains for project:', projectId);
     
     const chains = await db
       .select()
@@ -41,12 +42,12 @@ export class RenderChainsDAL {
       .where(eq(renderChains.projectId, projectId))
       .orderBy(desc(renderChains.createdAt));
 
-    console.log(`✅ Found ${chains.length} chains for project`);
+    logger.log(`✅ Found ${chains.length} chains for project`);
     return chains;
   }
 
   static async update(id: string, data: UpdateChainData) {
-    console.log('🔄 Updating render chain:', { id, data });
+    logger.log('🔄 Updating render chain:', { id, data });
     
     const [updatedChain] = await db
       .update(renderChains)
@@ -57,22 +58,22 @@ export class RenderChainsDAL {
       .where(eq(renderChains.id, id))
       .returning();
 
-    console.log('✅ Render chain updated:', updatedChain.id);
+    logger.log('✅ Render chain updated:', updatedChain.id);
     return updatedChain;
   }
 
   static async delete(id: string) {
-    console.log('🗑️ Deleting render chain:', id);
+    logger.log('🗑️ Deleting render chain:', id);
     
     await db
       .delete(renderChains)
       .where(eq(renderChains.id, id));
 
-    console.log('✅ Render chain deleted:', id);
+    logger.log('✅ Render chain deleted:', id);
   }
 
   static async addRender(chainId: string, renderId: string, position?: number) {
-    console.log('🔗 Adding render to chain:', { chainId, renderId, position });
+    logger.log('🔗 Adding render to chain:', { chainId, renderId, position });
     
     // Get current max position if position not specified
     let finalPosition = position;
@@ -98,12 +99,12 @@ export class RenderChainsDAL {
       .where(eq(renders.id, renderId))
       .returning();
 
-    console.log('✅ Render added to chain:', updatedRender.id);
+    logger.log('✅ Render added to chain:', updatedRender.id);
     return updatedRender;
   }
 
   static async removeRender(chainId: string, renderId: string) {
-    console.log('🔗 Removing render from chain:', { chainId, renderId });
+    logger.log('🔗 Removing render from chain:', { chainId, renderId });
     
     const [updatedRender] = await db
       .update(renders)
@@ -115,12 +116,12 @@ export class RenderChainsDAL {
       .where(eq(renders.id, renderId))
       .returning();
 
-    console.log('✅ Render removed from chain:', updatedRender.id);
+    logger.log('✅ Render removed from chain:', updatedRender.id);
     return updatedRender;
   }
 
   static async getChainRenders(chainId: string) {
-    console.log('🔍 Fetching renders for chain:', chainId);
+    logger.log('🔍 Fetching renders for chain:', chainId);
     
     const chainRenders = await db
       .select()
@@ -128,7 +129,7 @@ export class RenderChainsDAL {
       .where(eq(renders.chainId, chainId))
       .orderBy(desc(renders.chainPosition));
 
-    console.log(`✅ Found ${chainRenders.length} renders in chain`);
+    logger.log(`✅ Found ${chainRenders.length} renders in chain`);
     return chainRenders;
   }
 
@@ -139,7 +140,7 @@ export class RenderChainsDAL {
   static async batchRemoveRendersFromChain(renderIds: string[]) {
     if (renderIds.length === 0) return;
     
-    console.log('🔗 Batch removing', renderIds.length, 'renders from chain');
+    logger.log('🔗 Batch removing', renderIds.length, 'renders from chain');
     
     await db
       .update(renders)
@@ -150,12 +151,12 @@ export class RenderChainsDAL {
       })
       .where(inArray(renders.id, renderIds));
 
-    console.log('✅ Batch removed renders from chain');
+    logger.log('✅ Batch removed renders from chain');
   }
 
   // Batch method to get all chains for a user with renders in one query
   static async getUserChainsWithRenders(userId: string) {
-    console.log('🔍 [BATCH] Fetching all chains with renders for user:', userId);
+    logger.log('🔍 [BATCH] Fetching all chains with renders for user:', userId);
     
     // Get all user project IDs first
     const userProjects = await db
@@ -176,7 +177,7 @@ export class RenderChainsDAL {
       .where(inArray(renderChains.projectId, projectIds))
       .orderBy(desc(renderChains.createdAt));
 
-    console.log(`✅ [BATCH] Found ${chains.length} chains for user`);
+    logger.log(`✅ [BATCH] Found ${chains.length} chains for user`);
     
     if (chains.length === 0) {
       return chains.map(chain => ({ ...chain, renders: [] }));
@@ -190,7 +191,7 @@ export class RenderChainsDAL {
       .where(inArray(renders.chainId, chainIds))
       .orderBy(desc(renders.chainPosition));
 
-    console.log(`✅ [BATCH] Found ${allRenders.length} total renders`);
+    logger.log(`✅ [BATCH] Found ${allRenders.length} total renders`);
 
     // Group renders by chain
     const rendersByChain = allRenders.reduce((acc, render) => {

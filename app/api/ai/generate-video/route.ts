@@ -1,5 +1,6 @@
 import { AISDKService } from '@/lib/services/ai-sdk-service';
 import { NextRequest } from 'next/server';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * Google Generative AI Video Generation API Route
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('🎬 AI Video: Starting video generation via Google Generative AI', {
+    logger.log('🎬 AI Video: Starting video generation via Google Generative AI', {
       prompt: prompt.substring(0, 100) + '...',
       duration,
       style,
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('✅ AI Video: Generation successful', {
+    logger.log('✅ AI Video: Generation successful', {
       processingTime: result.data.processingTime,
       provider: result.data.provider
     });
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('❌ AI Video: Generation failed', error);
+    logger.error('❌ AI Video: Generation failed', error);
     return Response.json(
       { 
         success: false,

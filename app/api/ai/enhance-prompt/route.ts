@@ -1,5 +1,6 @@
 import { AISDKService } from '@/lib/services/ai-sdk-service';
 import { NextRequest } from 'next/server';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * Google Generative AI Prompt Enhancement API Route
@@ -15,14 +16,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('🔍 AI Enhancement: Starting prompt enhancement via Google Generative AI', {
+    logger.log('🔍 AI Enhancement: Starting prompt enhancement via Google Generative AI', {
       prompt: prompt.substring(0, 100) + '...'
     });
 
     const aiService = AISDKService.getInstance();
     const result = await aiService.enhancePrompt(prompt);
 
-    console.log('✅ AI Enhancement: Enhancement successful', {
+    logger.log('✅ AI Enhancement: Enhancement successful', {
       processingTime: result.processingTime,
       clarity: result.clarity,
       provider: result.provider
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('❌ AI Enhancement: Enhancement failed', error);
+    logger.error('❌ AI Enhancement: Enhancement failed', error);
     return Response.json(
       { 
         success: false,

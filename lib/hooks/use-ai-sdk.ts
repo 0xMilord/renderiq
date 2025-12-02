@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { AISDKService, PromptEnhancementResult, ImageGenerationResult, VideoGenerationResult } from '@/lib/services/ai-sdk-service';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * Google Generative AI Hook for Prompt Enhancement
@@ -18,7 +19,7 @@ export function usePromptEnhancement() {
     }
 
     try {
-      console.log('🚀 Starting prompt enhancement via Google Generative AI');
+      logger.log('🚀 Starting prompt enhancement via Google Generative AI');
       setIsEnhancing(true);
       setError(null);
       setResult(null);
@@ -29,7 +30,7 @@ export function usePromptEnhancement() {
 
       setResult(enhancementResult);
       setIsEnhanced(true);
-      console.log('✅ Enhancement successful via Google Generative AI');
+      logger.log('✅ Enhancement successful via Google Generative AI');
       return enhancementResult;
 
     } catch (err) {
@@ -94,7 +95,7 @@ export function useImageGeneration() {
     }
 
     try {
-      console.log('🎨 Starting image generation via Google Generative AI');
+      logger.log('🎨 Starting image generation via Google Generative AI');
       setIsGenerating(true);
       setError(null);
       setResult(null);
@@ -111,7 +112,7 @@ export function useImageGeneration() {
       if (!generationResult.success) {
         setError(generationResult.error || 'Image generation failed');
       }
-      console.log('✅ Image generation completed via Google Generative AI');
+      logger.log('✅ Image generation completed via Google Generative AI');
       return generationResult;
 
     } catch (err) {
@@ -159,7 +160,7 @@ export function useVideoGeneration() {
     }
 
     try {
-      console.log('🎬 Starting video generation via Google Generative AI');
+      logger.log('🎬 Starting video generation via Google Generative AI');
       setIsGenerating(true);
       setError(null);
       setResult(null);
@@ -175,7 +176,7 @@ export function useVideoGeneration() {
       if (!generationResult.success) {
         setError(generationResult.error || 'Video generation failed');
       }
-      console.log('✅ Video generation completed via Google Generative AI');
+      logger.log('✅ Video generation completed via Google Generative AI');
       return generationResult;
 
     } catch (err) {
@@ -455,7 +456,7 @@ export function useAIStreaming() {
     }
 
     try {
-      console.log('📝 Starting text streaming via Google Generative AI');
+      logger.log('📝 Starting text streaming via Google Generative AI');
       setIsStreaming(true);
       setError(null);
       setStreamedText('');
@@ -467,7 +468,7 @@ export function useAIStreaming() {
         setStreamedText(prev => prev + delta);
       }
 
-      console.log('✅ Text streaming completed via Google Generative AI');
+      logger.log('✅ Text streaming completed via Google Generative AI');
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';

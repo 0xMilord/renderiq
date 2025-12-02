@@ -72,4 +72,4 @@ export {
   Doc,
   contentlayer_config_default as default
 };
-//# sourceMappingURL=compiled-contentlayer-config-ABFXBWDE.mjs.map
+//# sourceMappingURL=compiled-contentlayer-config-YIQNRSJI.mjs.map

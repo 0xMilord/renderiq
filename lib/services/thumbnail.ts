@@ -1,6 +1,7 @@
 import { RendersDAL } from '@/lib/dal/renders';
 import { StorageService } from './storage';
 import { ThumbnailSize, ThumbnailGrid } from '@/lib/types/render-chain';
+import { logger } from '@/lib/utils/logger';
 
 export class ThumbnailService {
   // Thumbnail dimensions
@@ -19,7 +20,7 @@ export class ThumbnailService {
     renderId: string,
     size: ThumbnailSize = 'medium'
   ): Promise<string> {
-    console.log('🖼️ Generating thumbnail:', { renderId, size });
+    logger.log('🖼️ Generating thumbnail:', { renderId, size });
     
     const render = await RendersDAL.getById(renderId);
     
@@ -46,7 +47,7 @@ export class ThumbnailService {
     // For now, we'll construct a URL pattern that could be used with CDN transforms
     const thumbnailUrl = `${render.outputUrl}?w=${this.SIZES[size].width}&h=${this.SIZES[size].height}`;
     
-    console.log('✅ Thumbnail generated:', thumbnailUrl);
+    logger.log('✅ Thumbnail generated:', thumbnailUrl);
     
     return thumbnailUrl;
   }
@@ -55,7 +56,7 @@ export class ThumbnailService {
    * Generate thumbnails for all renders in a chain
    */
   static async generateChainThumbnails(chainId: string): Promise<ThumbnailGrid> {
-    console.log('🖼️ Generating thumbnails for chain:', chainId);
+    logger.log('🖼️ Generating thumbnails for chain:', chainId);
     
     const renders = await RendersDAL.getByChainId(chainId);
     const thumbnails = [];
@@ -70,7 +71,7 @@ export class ThumbnailService {
             position: render.chainPosition || 0,
           });
         } catch (error) {
-          console.error(`Failed to generate thumbnail for render ${render.id}:`, error);
+          logger.error(`Failed to generate thumbnail for render ${render.id}:`, error);
         }
       }
     }
@@ -78,7 +79,7 @@ export class ThumbnailService {
     // Sort by position
     thumbnails.sort((a, b) => a.position - b.position);
 
-    console.log(`✅ Generated ${thumbnails.length} thumbnails for chain`);
+    logger.log(`✅ Generated ${thumbnails.length} thumbnails for chain`);
 
     return {
       chainId,
@@ -91,7 +92,7 @@ export class ThumbnailService {
    * In production, this would regenerate and cache thumbnails
    */
   static async updateThumbnailCache(renderId: string): Promise<void> {
-    console.log('🔄 Updating thumbnail cache:', renderId);
+    logger.log('🔄 Updating thumbnail cache:', renderId);
     
     const render = await RendersDAL.getById(renderId);
     
@@ -105,9 +106,9 @@ export class ThumbnailService {
     for (const size of sizes) {
       try {
         const thumbnailUrl = await this.generateThumbnail(renderId, size);
-        console.log(`✅ Cached ${size} thumbnail:`, thumbnailUrl);
+        logger.log(`✅ Cached ${size} thumbnail:`, thumbnailUrl);
       } catch (error) {
-        console.error(`Failed to cache ${size} thumbnail:`, error);
+        logger.error(`Failed to cache ${size} thumbnail:`, error);
       }
     }
   }
@@ -164,7 +165,7 @@ export class ThumbnailService {
     
     const { width, height } = this.SIZES[size];
     
-    console.log('Processing thumbnail:', { sourceUrl, thumbnailKey, width, height });
+    logger.log('Processing thumbnail:', { sourceUrl, thumbnailKey, width, height });
     
     // Placeholder implementation
     return `${sourceUrl}?thumbnail=${size}`;
@@ -177,7 +178,7 @@ export class ThumbnailService {
     renderIds: string[],
     size: ThumbnailSize = 'medium'
   ): Promise<Map<string, string>> {
-    console.log(`🖼️ Bulk generating ${renderIds.length} thumbnails`);
+    logger.log(`🖼️ Bulk generating ${renderIds.length} thumbnails`);
     
     const results = new Map<string, string>();
 
@@ -186,11 +187,11 @@ export class ThumbnailService {
         const url = await this.generateThumbnail(renderId, size);
         results.set(renderId, url);
       } catch (error) {
-        console.error(`Failed to generate thumbnail for ${renderId}:`, error);
+        logger.error(`Failed to generate thumbnail for ${renderId}:`, error);
       }
     }
 
-    console.log(`✅ Generated ${results.size} thumbnails`);
+    logger.log(`✅ Generated ${results.size} thumbnails`);
     
     return results;
   }
@@ -199,7 +200,7 @@ export class ThumbnailService {
    * Delete thumbnails for a render
    */
   static async deleteThumbnails(renderId: string): Promise<void> {
-    console.log('🗑️ Deleting thumbnails:', renderId);
+    logger.log('🗑️ Deleting thumbnails:', renderId);
     
     // In production, delete all size variants from storage
     const sizes: ThumbnailSize[] = ['small', 'medium', 'large'];
@@ -208,13 +209,13 @@ export class ThumbnailService {
       const thumbnailKey = `thumbnails/${renderId}-${size}.jpg`;
       try {
         // await StorageService.deleteFile(thumbnailKey);
-        console.log(`Deleted thumbnail: ${thumbnailKey}`);
+        logger.log(`Deleted thumbnail: ${thumbnailKey}`);
       } catch (error) {
-        console.error(`Failed to delete thumbnail ${thumbnailKey}:`, error);
+        logger.error(`Failed to delete thumbnail ${thumbnailKey}:`, error);
       }
     }
     
-    console.log('✅ Thumbnails deleted');
+    logger.log('✅ Thumbnails deleted');
   }
 }
 

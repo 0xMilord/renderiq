@@ -86,7 +86,7 @@ export default function ContactPage() {
       
       if (result.success) {
         setSubmitSuccess(true);
-        toast.success(result.message || 'Message sent successfully! We'll get back to you soon.');
+        toast.success(result.message || "Message sent successfully! We'll get back to you soon.");
         setFormData({
           name: '',
           email: '',

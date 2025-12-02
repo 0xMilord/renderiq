@@ -2,9 +2,10 @@
 
 import { BillingDAL } from '@/lib/dal/billing';
 import { BillingService } from '@/lib/services/billing';
+import { logger } from '@/lib/utils/logger';
 
 export async function getUserSubscriptionAction(userId: string) {
-  console.log('💳 BillingAction: Getting user subscription for:', userId);
+  logger.log('💳 BillingAction: Getting user subscription for:', userId);
   
   try {
     const subscription = await BillingDAL.getUserSubscription(userId);
@@ -21,7 +22,7 @@ export async function getUserSubscriptionAction(userId: string) {
       data: subscription,
     };
   } catch (error) {
-    console.error('❌ BillingAction: Error getting subscription:', error);
+    logger.error('❌ BillingAction: Error getting subscription:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get subscription',
@@ -30,7 +31,7 @@ export async function getUserSubscriptionAction(userId: string) {
 }
 
 export async function isUserProAction(userId: string) {
-  console.log('🔍 BillingAction: Checking if user is pro:', userId);
+  logger.log('🔍 BillingAction: Checking if user is pro:', userId);
   
   try {
     const isPro = await BillingDAL.isUserPro(userId);
@@ -40,7 +41,7 @@ export async function isUserProAction(userId: string) {
       data: isPro,
     };
   } catch (error) {
-    console.error('❌ BillingAction: Error checking pro status:', error);
+    logger.error('❌ BillingAction: Error checking pro status:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to check pro status',
@@ -50,7 +51,7 @@ export async function isUserProAction(userId: string) {
 }
 
 export async function getUserCredits() {
-  console.log('💰 BillingAction: Getting user credits (no userId required)');
+  logger.log('💰 BillingAction: Getting user credits (no userId required)');
   
   try {
     // This function should be called from client components that have user context
@@ -61,7 +62,7 @@ export async function getUserCredits() {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
-      console.error('❌ BillingAction: No authenticated user');
+      logger.error('❌ BillingAction: No authenticated user');
       return {
         success: false,
         error: 'User not authenticated',
@@ -86,7 +87,7 @@ export async function getUserCredits() {
       },
     };
   } catch (error) {
-    console.error('❌ BillingAction: Error getting credits:', error);
+    logger.error('❌ BillingAction: Error getting credits:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get credits',
@@ -95,7 +96,7 @@ export async function getUserCredits() {
 }
 
 export async function getUserCreditsWithResetAction(userId: string) {
-  console.log('💰 BillingAction: Getting user credits with reset info for:', userId);
+  logger.log('💰 BillingAction: Getting user credits with reset info for:', userId);
   
   try {
     const credits = await BillingDAL.getUserCreditsWithReset(userId);
@@ -112,7 +113,7 @@ export async function getUserCreditsWithResetAction(userId: string) {
       data: credits,
     };
   } catch (error) {
-    console.error('❌ BillingAction: Error getting credits:', error);
+    logger.error('❌ BillingAction: Error getting credits:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get credits',
@@ -121,7 +122,7 @@ export async function getUserCreditsWithResetAction(userId: string) {
 }
 
 export async function getSubscriptionPlansAction() {
-  console.log('📋 BillingAction: Getting subscription plans');
+  logger.log('📋 BillingAction: Getting subscription plans');
   
   try {
     const plans = await BillingDAL.getSubscriptionPlans();
@@ -131,7 +132,7 @@ export async function getSubscriptionPlansAction() {
       data: plans,
     };
   } catch (error) {
-    console.error('❌ BillingAction: Error getting plans:', error);
+    logger.error('❌ BillingAction: Error getting plans:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get plans',
@@ -146,7 +147,7 @@ export async function addCredits(
   userId?: string,
   referenceType?: 'render' | 'subscription' | 'bonus' | 'refund'
 ) {
-  console.log('💰 BillingAction: Adding credits:', { amount, type, description, userId });
+  logger.log('💰 BillingAction: Adding credits:', { amount, type, description, userId });
   
   try {
     // If no userId provided, get from auth context
@@ -157,7 +158,7 @@ export async function addCredits(
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       
       if (authError || !user) {
-        console.error('❌ BillingAction: No authenticated user');
+        logger.error('❌ BillingAction: No authenticated user');
         return {
           success: false,
           error: 'User not authenticated',
@@ -178,7 +179,7 @@ export async function addCredits(
     
     return result;
   } catch (error) {
-    console.error('❌ BillingAction: Error adding credits:', error);
+    logger.error('❌ BillingAction: Error adding credits:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to add credits',
@@ -192,7 +193,7 @@ export async function deductCredits(
   referenceId?: string,
   referenceType?: 'render' | 'subscription' | 'bonus' | 'refund'
 ) {
-  console.log('💰 BillingAction: Deducting credits:', { amount, description, referenceId, referenceType });
+  logger.log('💰 BillingAction: Deducting credits:', { amount, description, referenceId, referenceType });
   
   try {
     // Get user from auth context
@@ -201,7 +202,7 @@ export async function deductCredits(
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
-      console.error('❌ BillingAction: No authenticated user');
+      logger.error('❌ BillingAction: No authenticated user');
       return {
         success: false,
         error: 'User not authenticated',
@@ -218,7 +219,7 @@ export async function deductCredits(
     
     return result;
   } catch (error) {
-    console.error('❌ BillingAction: Error deducting credits:', error);
+    logger.error('❌ BillingAction: Error deducting credits:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to deduct credits',

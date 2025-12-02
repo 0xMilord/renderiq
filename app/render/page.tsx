@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { ProjectsDAL } from '@/lib/dal/projects';
 import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { ChatPageClient } from '@/app/render/chat-client';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -23,7 +24,7 @@ export default async function ChatPage() {
       redirect('/login');
     }
 
-    console.log('🚀 [ChatPage SSR] Fetching data for user:', user.id);
+    logger.log('🚀 [ChatPage SSR] Fetching data for user:', user.id);
     const startTime = Date.now();
 
     // Batch fetch: Get all projects and chains with renders in minimal queries
@@ -33,7 +34,7 @@ export default async function ChatPage() {
     ]);
 
     const endTime = Date.now();
-    console.log(`✅ [ChatPage SSR] Data fetched in ${endTime - startTime}ms`, {
+    logger.log(`✅ [ChatPage SSR] Data fetched in ${endTime - startTime}ms`, {
       projects: projects.length,
       chains: chainsWithRenders.length,
       totalRenders: chainsWithRenders.reduce((sum, c) => sum + c.renders.length, 0)
