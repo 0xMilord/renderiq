@@ -591,61 +591,69 @@ export function UnifiedChatInterface({
     return `${cost} credit${cost !== 1 ? 's' : ''}`;
   };
 
-  // Whimsical messages from RenderIQ (our mascot)
+  // Whimsical messages from RenderIQ (our mascot) with Japanese kaomojis
+  // Messages change at specific stages: 0%, 25%, 50%, 90%
   const getRenderIQMessage = (progress: number, isVideo: boolean = false, failed: boolean = false): string => {
     if (failed) {
       const failedMessages = [
-        "Oops! I tripped :P Retrying...",
-        "My bad! Dropped it. One sec!",
-        "Whoops! Got distracted. Again!",
-        "Sorry I fell! Trying now :D",
-        "Fumbled it! Let me fix that :/"
+        "Oops! I tripped (´･ω･`) Retrying...",
+        "My bad! Dropped it (´；ω；`) One sec!",
+        "Whoops! Got distracted (´∀｀) Again!",
+        "Sorry I fell! Trying now (＾▽＾)",
+        "Fumbled it! Let me fix that (´･_･`)"
       ];
       return failedMessages[Math.floor(Math.random() * failedMessages.length)];
     }
 
-    if (progress < 20) {
+    // Stage 1: 0-24% - Starting
+    if (progress < 25) {
       const startMessages = [
-        "Asking viz lords... :>",
-        "Running to AI... :3",
-        "Delivering prompt... :]",
-        "Summoning magic... :D",
-        "Knocking on AI door... :O",
-        "Waking up the AI... zzz",
-        "Bribing the algorithm... :$"
+        "Asking viz lords... (◕‿◕)",
+        "Running to AI... (｡◕‿◕｡)",
+        "Delivering prompt... (＾ω＾)",
+        "Summoning magic... (≧▽≦)",
+        "Knocking on AI door... (◕‿-｡)",
+        "Waking up the AI... (´∀｀) zzz",
+        "Bribing the algorithm... (¬‿¬)"
       ];
       return startMessages[Math.floor(Math.random() * startMessages.length)];
-    } else if (progress < 50) {
+    } 
+    // Stage 2: 25-49% - Working
+    else if (progress < 50) {
       const midMessages = [
-        "Viz lords working... :>",
-        "Cooking render... :P",
-        "AI thinking... :/",
-        "Making it pretty... :3",
-        "Adding sparkles... :D",
-        "Pixels assembling... :]",
-        "Magic happening... :O"
+        "Viz lords working... (◕‿◕)",
+        "Cooking render... (＾▽＾)",
+        "AI thinking... (´･ω･`)",
+        "Making it pretty... (｡◕‿◕｡)",
+        "Adding sparkles... (≧▽≦)",
+        "Pixels assembling... (◕‿-｡)",
+        "Magic happening... (＾ω＾)"
       ];
       return midMessages[Math.floor(Math.random() * midMessages.length)];
-    } else if (progress < 80) {
+    } 
+    // Stage 3: 50-89% - Almost there
+    else if (progress < 90) {
       const lateMessages = [
-        "Almost done! :>",
-        "Final touches... :D",
-        "On my way back... :]",
-        "Polishing... :3",
-        "Just a sec... :/",
-        "Almost there! :O",
-        "Wrapping up... :P"
+        "Almost done! (◕‿◕)",
+        "Final touches... (＾▽＾)",
+        "On my way back... (｡◕‿◕｡)",
+        "Polishing... (≧▽≦)",
+        "Just a sec... (´∀｀)",
+        "Almost there! (◕‿-｡)",
+        "Wrapping up... (＾ω＾)"
       ];
       return lateMessages[Math.floor(Math.random() * lateMessages.length)];
-    } else {
+    } 
+    // Stage 4: 90-100% - Final
+    else {
       const finalMessages = [
-        "Almost there! :D",
-        "One last check... :]",
-        "Wrapping it up... :P",
-        "Final polish... :3",
-        "Almost ready! :>",
-        "Just finishing... :O",
-        "Last touches... :D"
+        "Almost there! (≧▽≦)",
+        "One last check... (◕‿◕)",
+        "Wrapping it up... (＾▽＾)",
+        "Final polish... (｡◕‿◕｡)",
+        "Almost ready! (◕‿-｡)",
+        "Just finishing... (＾ω＾)",
+        "Last touches... (´∀｀)"
       ];
       return finalMessages[Math.floor(Math.random() * finalMessages.length)];
     }
@@ -2634,8 +2642,6 @@ export function UnifiedChatInterface({
                             <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
                               <RefreshCw className="h-6 w-6 sm:h-8 sm:w-8 text-primary animate-spin" />
                             </div>
-                            <h3 className="text-sm sm:text-lg font-semibold">Generating your render...</h3>
-                            <p className="text-xs sm:text-sm text-muted-foreground">This may take a few moments</p>
                             
                             <div className="w-48 sm:w-64 space-y-2">
                               <div className="flex justify-between text-xs sm:text-sm text-muted-foreground">
