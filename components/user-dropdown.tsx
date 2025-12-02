@@ -90,27 +90,65 @@ export function UserDropdown() {
     );
   }
 
+  const planName = creditsData?.plan?.name;
+  const hasPlan = !!planName;
+
   return (
     <TooltipProvider>
-      <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-            <Avatar className="h-8 w-8">
-              <AvatarImage 
-                src={profile?.avatar || user.user_metadata?.avatar_url || user.user_metadata?.picture} 
-                alt={profile?.name || user.email || 'User'} 
-              />
-              <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                {(profile?.name || user.email)?.charAt(0).toUpperCase() || 'U'}
-              </AvatarFallback>
-            </Avatar>
-            {isPro && (
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
-                <Crown className="w-2.5 h-2.5 text-white" />
-              </div>
-            )}
-          </Button>
-        </DropdownMenuTrigger>
+      <div className="flex items-center gap-1.5 sm:gap-2">
+        {/* Credits Display - Outside Dropdown */}
+        <div className="flex items-center gap-1 sm:gap-1.5">
+          {/* Credits */}
+          <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 h-8 rounded-md bg-muted/50 border border-border">
+            <Coins className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
+            <span className="text-xs sm:text-sm font-semibold">
+              {creditsLoading ? '...' : creditsData?.balance ?? 0}
+            </span>
+          </div>
+
+          {/* Top Up Button - Hidden on very small screens */}
+          <Link href="/pricing" className="hidden sm:block">
+            <Button variant="outline" size="sm" className="h-7 px-2.5 text-xs">
+              <Zap className="h-3 w-3 mr-1" />
+              Top Up
+            </Button>
+          </Link>
+
+          {/* Plan Name or Get Pro Button */}
+          {hasPlan ? (
+            <Badge variant="secondary" className="h-7 px-2 sm:px-2.5 text-xs">
+              {planName}
+            </Badge>
+          ) : (
+            <Link href="/pricing">
+              <Button variant="default" size="sm" className="h-7 px-2 sm:px-2.5 text-xs">
+                <Crown className="h-3 w-3 mr-1" />
+                Get Pro
+              </Button>
+            </Link>
+          )}
+        </div>
+
+        {/* Avatar Dropdown */}
+        <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+              <Avatar className="h-8 w-8">
+                <AvatarImage 
+                  src={profile?.avatar || user.user_metadata?.avatar_url || user.user_metadata?.picture} 
+                  alt={profile?.name || user.email || 'User'} 
+                />
+                <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                  {(profile?.name || user.email)?.charAt(0).toUpperCase() || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              {isPro && (
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
+                  <Crown className="w-2.5 h-2.5 text-white" />
+                </div>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
         <DropdownMenuContent className="w-72" align="end" forceMount>
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
@@ -132,64 +170,32 @@ export function UserDropdown() {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           
-          {/* Credits Display */}
-          <div className="px-2 py-3">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-              <div className="flex items-center space-x-2">
-                <div className="p-1.5 rounded-full bg-primary/10">
-                  <Coins className="w-4 h-4 text-primary" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-1">
-                    <p className="text-xs font-medium text-muted-foreground">Available Credits</p>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="w-3 h-3 text-muted-foreground cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent side="right" className="max-w-xs">
-                        <p className="text-xs">
-                          {creditsData?.nextResetDate 
-                            ? `Credits reset monthly with your subscription. ${formatResetDate(creditsData.nextResetDate)}`
-                            : 'Subscribe to a plan to get monthly credits'}
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <p className="text-lg font-bold">
-                    {creditsLoading ? '...' : creditsData?.balance ?? 0}
-                  </p>
+          {/* Credits Info (if has subscription) */}
+          {creditsData?.nextResetDate && (
+            <>
+              <div className="px-2 py-2">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Credits reset:</span>
+                  <span>{formatResetDate(creditsData.nextResetDate)}</span>
                 </div>
               </div>
-              {!isPro && (
-                <Link href="/pricing" onClick={() => setIsOpen(false)}>
-                  <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors border-primary text-primary">
-                    <Crown className="w-3 h-3 mr-1" />
-                    Become Pro
-                  </Badge>
-                </Link>
-              )}
-            </div>
-            {creditsData?.nextResetDate && (
-              <p className="text-[10px] text-muted-foreground mt-1.5 text-center">
-                {formatResetDate(creditsData.nextResetDate)}
-              </p>
-            )}
-          </div>
-          <DropdownMenuSeparator />
+              <DropdownMenuSeparator />
+            </>
+          )}
+        
+        {/* Quick Access to Render - Primary */}
+        <DropdownMenuItem asChild>
+          <Link href="/render" className="flex items-center bg-primary text-primary-foreground hover:bg-primary/90">
+            <Palette className="mr-2 h-4 w-4" />
+            <span>Render</span>
+          </Link>
+        </DropdownMenuItem>
         
         {/* Dashboard Link */}
         <DropdownMenuItem asChild>
           <Link href="/dashboard" className="flex items-center">
             <LayoutDashboard className="mr-2 h-4 w-4" />
             <span>Dashboard</span>
-          </Link>
-        </DropdownMenuItem>
-        
-        {/* Quick Access to Render */}
-        <DropdownMenuItem asChild>
-          <Link href="/render" className="flex items-center">
-            <Palette className="mr-2 h-4 w-4" />
-            <span>Render</span>
           </Link>
         </DropdownMenuItem>
         
@@ -243,6 +249,7 @@ export function UserDropdown() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+      </div>
     </TooltipProvider>
   );
 }

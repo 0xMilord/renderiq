@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { createRenderChain } from '@/lib/actions/projects.actions';
 import { CreateProjectModal } from '@/components/projects/create-project-modal';
+import { ProjectChainsModal } from '@/components/projects/project-chains-modal';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { Project, RenderChain, Render } from '@/lib/db/schema';
@@ -40,8 +41,10 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [isCreatingChain, setIsCreatingChain] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Start closed on mobile
   const [selectedChainId, setSelectedChainId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRender, setSelectedRender] = useState<Render | null>(null);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
@@ -51,10 +54,17 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
     const newExpanded = new Set(expandedProjects);
     if (newExpanded.has(projectId)) {
       newExpanded.delete(projectId);
+      setSelectedProjectId(null);
     } else {
       newExpanded.add(projectId);
+      setSelectedProjectId(projectId);
     }
     setExpandedProjects(newExpanded);
+  };
+
+  const handleProjectClick = (projectId: string) => {
+    setSelectedProjectId(projectId);
+    setIsProjectModalOpen(true);
   };
 
   const handleCreateNewChain = async (projectId: string) => {
@@ -85,6 +95,10 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
 
   const handleSelectChain = (chainId: string) => {
     setSelectedChainId(chainId);
+    const chain = initialChains.find(c => c.id === chainId);
+    if (chain) {
+      setSelectedProjectId(chain.projectId);
+    }
     // Close sidebar on mobile after selecting a chain
     if (window.innerWidth < 640) { // sm breakpoint
       setIsSidebarOpen(false);
@@ -130,6 +144,18 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
     [initialChains]
   );
 
+  // Get selected project
+  const selectedProject = useMemo(() => 
+    selectedProjectId ? initialProjects.find(p => p.id === selectedProjectId) : null,
+    [selectedProjectId, initialProjects]
+  );
+
+  // Get chains for selected project
+  const selectedProjectChains = useMemo(() => 
+    selectedProjectId ? (chainsByProject[selectedProjectId] || []) : [],
+    [selectedProjectId, chainsByProject]
+  );
+
   // Get renders for selected chain
   const selectedChain = useMemo(() => 
     initialChains.find(c => c.id === selectedChainId),
@@ -149,21 +175,47 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
     setCurrentPage(1);
   }, [selectedChainId]);
 
+  // Auto-expand project when selected
+  useEffect(() => {
+    if (selectedProjectId && !expandedProjects.has(selectedProjectId)) {
+      setExpandedProjects(prev => new Set(prev).add(selectedProjectId));
+    }
+  }, [selectedProjectId, expandedProjects]);
+
+  // Auto-open sidebar on desktop, keep closed on mobile
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 640) { // sm breakpoint
+        setIsSidebarOpen(true);
+      } else {
+        setIsSidebarOpen(false);
+      }
+    };
+    handleResize(); // Set initial state
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
     <div className="flex h-[calc(100vh-2.75rem)] bg-background">
       {/* Sidebar */}
       <div
         className={cn(
-          "flex flex-col border-r bg-card transition-all duration-300",
-          isSidebarOpen ? "w-full max-w-[40vw] sm:w-80" : "w-12"
+          "flex flex-col border-r bg-card transition-all duration-300 shrink-0",
+          isSidebarOpen 
+            ? "w-full max-w-[40vw] sm:w-80" 
+            : "w-12"
         )}
       >
         {/* Sidebar Header */}
-        <div className={cn("px-4 py-3 border-b", !isSidebarOpen && "px-2")}>
+        <div className={cn(
+          "border-b shrink-0 flex items-end",
+          isSidebarOpen ? "px-4 h-16 pb-3" : "px-0 h-16 justify-center pb-3"
+        )}>
           
           {/* Search and Create Project in same row */}
           {isSidebarOpen ? (
-            <div className="flex items-center gap-2 h-10">
+            <div className="flex items-center gap-2 h-10 w-full">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
@@ -174,30 +226,31 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                 />
               </div>
               <CreateProjectModal>
-                <Button variant="outline" size="sm" className="h-10 text-sm px-3">
+                <Button variant="outline" size="sm" className="h-10 text-sm px-3 shrink-0">
                   <Plus className="h-3.5 w-3.5 sm:mr-1" />
                   <span className="hidden sm:inline">Project</span>
                 </Button>
               </CreateProjectModal>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-2 h-10">
-              <CreateProjectModal>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-10 w-10"
-                  title="New Project"
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </CreateProjectModal>
-            </div>
+            <CreateProjectModal>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                title="New Project"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </CreateProjectModal>
           )}
         </div>
 
         {/* Project Tree */}
-        <div className={cn("flex-1 overflow-y-auto", isSidebarOpen ? "p-2" : "p-1")}>
+        <div className={cn(
+          "flex-1 overflow-y-auto",
+          isSidebarOpen ? "p-2" : "p-2 flex flex-col items-center gap-2"
+        )}>
           {isSidebarOpen ? (
             filteredProjects.length === 0 ? (
               <div className="text-center py-8 px-4">
@@ -222,82 +275,59 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                   
                   return (
                     <div key={project.id} className="space-y-0.5">
-                      {/* Project Row */}
+                      {/* Project Row - Click to open modal */}
                       <div
-                        className="flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-accent cursor-pointer group"
+                        className={cn(
+                          "flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-accent hover:text-accent-foreground cursor-pointer group transition-colors",
+                          selectedProjectId === project.id && "bg-accent text-accent-foreground"
+                        )}
+                        onClick={() => handleProjectClick(project.id)}
                       >
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5 p-0"
-                          onClick={() => toggleProject(project.id)}
-                        >
-                          {isExpanded ? (
-                            <ChevronDown className="h-4 w-4" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4" />
-                          )}
-                        </Button>
-                        
-                        <div
-                          className="flex items-center gap-2 flex-1 min-w-0"
-                          onClick={() => toggleProject(project.id)}
-                        >
-                          {isExpanded ? (
-                            <FolderOpenIcon className="h-4 w-4 text-primary flex-shrink-0" />
-                          ) : (
-                            <Folder className="h-4 w-4 text-primary flex-shrink-0" />
-                          )}
-                          <span className="text-sm font-medium truncate">
-                            {project.name}
+                        <Folder className={cn(
+                          "h-4 w-4 flex-shrink-0",
+                          selectedProjectId === project.id 
+                            ? "text-foreground" 
+                            : "text-primary"
+                        )} />
+                        <span className="text-sm font-medium truncate flex-1">
+                          {project.name}
+                        </span>
+                        {projectChains.length > 0 && (
+                          <span className={cn(
+                            "text-xs",
+                            selectedProjectId === project.id 
+                              ? "text-accent-foreground/70" 
+                              : "text-muted-foreground"
+                          )}>
+                            {projectChains.length}
                           </span>
-                          {projectChains.length > 0 && (
-                            <span className="text-xs text-muted-foreground ml-auto">
-                              {projectChains.length}
-                            </span>
-                          )}
-                        </div>
-
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCreateNewChain(project.id);
-                          }}
-                          disabled={isCreatingChain === project.id}
-                        >
-                          {isCreatingChain === project.id ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Plus className="h-3 w-3" />
-                          )}
-                        </Button>
+                        )}
                       </div>
-
-                      {/* Chains */}
-                      {isExpanded && (
-                        <div className="ml-6 space-y-0.5">
-                          {projectChains.length === 0 ? (
-                            <div className="px-2 py-2 text-xs text-muted-foreground">
-                              No chats yet
+                      
+                      {/* Show chains inline when project is selected */}
+                      {selectedProjectId === project.id && projectChains.length > 0 && (
+                        <div className="ml-4 space-y-0.5 mt-1">
+                          {projectChains.map((chain) => (
+                            <div
+                              key={chain.id}
+                              className={cn(
+                                "flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors",
+                                selectedChainId === chain.id && "bg-accent text-accent-foreground"
+                              )}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelectChain(chain.id);
+                              }}
+                            >
+                              <MessageSquare className={cn(
+                                "h-3.5 w-3.5 flex-shrink-0",
+                                selectedChainId === chain.id 
+                                  ? "text-foreground" 
+                                  : "text-muted-foreground"
+                              )} />
+                              <span className="text-sm truncate">{chain.name}</span>
                             </div>
-                          ) : (
-                            projectChains.map((chain) => (
-                              <div
-                                key={chain.id}
-                                className={cn(
-                                  "flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent cursor-pointer",
-                                  selectedChainId === chain.id && "bg-accent"
-                                )}
-                                onClick={() => handleSelectChain(chain.id)}
-                              >
-                                <MessageSquare className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                                <span className="text-sm truncate">{chain.name}</span>
-                              </div>
-                            ))
-                          )}
+                          ))}
                         </div>
                       )}
                     </div>
@@ -306,40 +336,46 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
               </div>
             )
           ) : (
-            <div className="flex flex-col items-center gap-2">
+            <>
               {filteredProjects.slice(0, 8).map((project) => {
                 const projectChains = chainsByProject[project.id] || [];
                 
                 return (
-                  <div key={project.id} className="flex flex-col items-center gap-1">
+                  <div key={project.id} className="flex flex-col items-center gap-1 w-full">
                     <button
                       onClick={() => toggleProject(project.id)}
                       className={cn(
-                        "w-8 h-8 flex items-center justify-center rounded-lg hover:bg-accent",
-                        expandedProjects.has(project.id) && "bg-accent"
+                        "w-8 h-8 flex items-center justify-center rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors",
+                        expandedProjects.has(project.id) && "bg-accent text-accent-foreground"
                       )}
                       title={project.name}
                     >
                       {expandedProjects.has(project.id) ? (
-                        <FolderOpenIcon className="h-4 w-4 text-primary" />
+                        <FolderOpenIcon className={cn(
+                          "h-4 w-4",
+                          expandedProjects.has(project.id) ? "text-foreground" : "text-primary"
+                        )} />
                       ) : (
                         <Folder className="h-4 w-4 text-primary" />
                       )}
                     </button>
                     
                     {expandedProjects.has(project.id) && projectChains.length > 0 && (
-                      <div className="flex flex-col items-center gap-1">
+                      <div className="flex flex-col items-center gap-1 w-full">
                         {projectChains.slice(0, 3).map((chain) => (
                           <button
                             key={chain.id}
                             onClick={() => handleSelectChain(chain.id)}
                             className={cn(
-                              "w-6 h-6 flex items-center justify-center rounded hover:bg-accent",
-                              selectedChainId === chain.id && "bg-accent"
+                              "w-6 h-6 flex items-center justify-center rounded hover:bg-accent hover:text-accent-foreground transition-colors",
+                              selectedChainId === chain.id && "bg-accent text-accent-foreground"
                             )}
                             title={chain.name}
                           >
-                            <MessageSquare className="h-3 w-3 text-muted-foreground" />
+                            <MessageSquare className={cn(
+                              "h-3 w-3",
+                              selectedChainId === chain.id ? "text-foreground" : "text-muted-foreground"
+                            )} />
                           </button>
                         ))}
                         {projectChains.length > 3 && (
@@ -357,44 +393,90 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                   +{filteredProjects.length - 8}
                 </div>
               )}
-            </div>
+            </>
           )}
         </div>
       </div>
 
+
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="px-4 py-3 border-b flex items-center gap-4 h-16">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="h-10 w-10"
-          >
-            {isSidebarOpen ? (
-              <PanelLeftClose className="h-4 w-4" />
+        <div className="px-4 border-b flex items-end justify-between gap-4 h-16 pb-3">
+          <div className="flex items-center gap-4 flex-1 min-w-0 overflow-hidden h-10">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="h-10 w-10 shrink-0"
+            >
+              {isSidebarOpen ? (
+                <PanelLeftClose className="h-4 w-4" />
+              ) : (
+                <PanelLeftOpen className="h-4 w-4" />
+              )}
+            </Button>
+            {selectedChainId ? (
+              <div className="min-w-0 flex-1 overflow-hidden">
+                <h1 className="text-xl font-bold truncate">
+                  {initialProjects.find(p => p.id === initialChains.find(c => c.id === selectedChainId)?.projectId)?.name}
+                </h1>
+                <p className="text-sm text-muted-foreground truncate">
+                  {initialChains.find(c => c.id === selectedChainId)?.name}
+                </p>
+              </div>
+            ) : selectedProjectId ? (
+              <div className="min-w-0 flex-1 overflow-hidden">
+                <h1 className="text-xl font-bold truncate">
+                  {selectedProject?.name || 'Project'}
+                </h1>
+                <p className="text-sm text-muted-foreground truncate">
+                  Select a chat to continue
+                </p>
+              </div>
             ) : (
-              <PanelLeftOpen className="h-4 w-4" />
+              <div className="min-w-0 flex-1 overflow-hidden">
+                <h1 className="text-xl font-bold truncate">Projects & Chats</h1>
+                <p className="text-sm text-muted-foreground truncate">
+                  Select a project to get started
+                </p>
+              </div>
             )}
-          </Button>
-          {selectedChainId ? (
-            <div>
-              <h1 className="text-xl font-bold">
-                {initialProjects.find(p => p.id === initialChains.find(c => c.id === selectedChainId)?.projectId)?.name}
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                {initialChains.find(c => c.id === selectedChainId)?.name}
-              </p>
-            </div>
-          ) : (
-            <div>
-              <h1 className="text-xl font-bold">Projects & Chats</h1>
-              <p className="text-sm text-muted-foreground">
-                Select a chain to view renders
-              </p>
-            </div>
-          )}
+          </div>
+          
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 shrink-0 h-10">
+            {!selectedProjectId ? (
+              <CreateProjectModal>
+                <Button variant="default" size="sm" className="h-9">
+                  <Plus className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">New Project</span>
+                  <span className="sm:hidden">Project</span>
+                </Button>
+              </CreateProjectModal>
+            ) : selectedProjectId && !selectedChainId ? (
+              <Button 
+                variant="default" 
+                size="sm" 
+                className="h-9"
+                onClick={() => handleCreateNewChain(selectedProjectId)}
+                disabled={isCreatingChain === selectedProjectId}
+              >
+                {isCreatingChain === selectedProjectId ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <span className="hidden sm:inline">Creating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    <span className="hidden sm:inline">Start New Chat</span>
+                    <span className="sm:hidden">New Chat</span>
+                  </>
+                )}
+              </Button>
+            ) : null}
+          </div>
         </div>
 
         {/* Content Area */}
@@ -503,15 +585,123 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                 </div>
               )}
             </div>
+          ) : selectedProjectId ? (
+            /* Project Selected - Show Available Chats */
+            <div className="w-full h-full flex flex-col">
+              {/* Chats Header */}
+              <div className="mb-6 flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold mb-1">Chats</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedProjectChains.length} chat{selectedProjectChains.length !== 1 ? 's' : ''} in {selectedProject?.name}
+                  </p>
+                </div>
+                <Button 
+                  onClick={() => handleCreateNewChain(selectedProjectId)}
+                  disabled={isCreatingChain === selectedProjectId}
+                  size="lg"
+                >
+                  {isCreatingChain === selectedProjectId ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Start New Chat
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {/* Chats Grid */}
+              {selectedProjectChains.length > 0 ? (
+                <div className="flex-1 flex flex-col">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 w-full">
+                    {selectedProjectChains.map((chain) => {
+                      const chainProject = initialProjects.find(p => p.id === chain.projectId);
+                      return (
+                        <div
+                          key={chain.id}
+                          onClick={() => handleSelectChain(chain.id)}
+                          className={cn(
+                            "group relative cursor-pointer rounded-lg border bg-card p-4 hover:border-primary transition-all",
+                            selectedChainId === chain.id && "border-primary ring-2 ring-primary/20"
+                          )}
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <MessageSquare className="h-5 w-5 text-primary" />
+                              <h3 className="font-semibold text-sm truncate flex-1">
+                                {chain.name}
+                              </h3>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <span>{chain.renders.length} render{chain.renders.length !== 1 ? 's' : ''}</span>
+                              {chainProject && (
+                                <span className="truncate ml-2">{chainProject.name}</span>
+                              )}
+                            </div>
+                            {chain.renders.length > 0 && chain.renders[0]?.imageUrl && (
+                              <div className="relative aspect-video rounded-md overflow-hidden bg-muted">
+                                <img
+                                  src={chain.renders[0].imageUrl}
+                                  alt={chain.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <MessageSquare className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                  <h2 className="text-2xl font-bold mb-2">No Chats Yet</h2>
+                  <p className="text-muted-foreground mb-6">
+                    Create your first chat in {selectedProject?.name} to start rendering.
+                  </p>
+                  <Button 
+                    onClick={() => handleCreateNewChain(selectedProjectId)}
+                    disabled={isCreatingChain === selectedProjectId}
+                    size="lg"
+                  >
+                    {isCreatingChain === selectedProjectId ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Start New Chat
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
           ) : (
-            /* Empty State */
+            /* Empty State - No Project Selected */
             <div className="flex items-center justify-center h-full">
               <div className="text-center max-w-md">
-                <MessageSquare className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h2 className="text-2xl font-bold mb-2">No Chain Selected</h2>
-                <p className="text-muted-foreground">
-                  Select a chain from the sidebar to view its renders and continue editing.
+                <Folder className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h2 className="text-2xl font-bold mb-2">No Project Selected</h2>
+                <p className="text-muted-foreground mb-6">
+                  Select a project from the sidebar or create a new one to get started.
                 </p>
+                <CreateProjectModal>
+                  <Button size="lg">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create New Project
+                  </Button>
+                </CreateProjectModal>
               </div>
             </div>
           )}
@@ -523,6 +713,15 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
         isOpen={isImageModalOpen}
         onClose={handleCloseModal}
         item={selectedRender}
+      />
+
+      {/* Project Chains Modal */}
+      <ProjectChainsModal
+        isOpen={isProjectModalOpen}
+        onClose={() => setIsProjectModalOpen(false)}
+        project={selectedProject}
+        chains={selectedProjectChains}
+        onChainSelect={handleSelectChain}
       />
     </div>
   );

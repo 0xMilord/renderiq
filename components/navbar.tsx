@@ -102,7 +102,7 @@ export function Navbar() {
           </div>
 
           {/* Right Section: User Dropdown - Desktop only */}
-          <div className="hidden md:flex items-center flex-shrink-0">
+          <div className="hidden md:flex items-center flex-shrink-0 gap-2">
             {loading ? (
               <Skeleton className="w-8 h-8 rounded-full" />
             ) : (
@@ -111,7 +111,7 @@ export function Navbar() {
           </div>
 
           {/* Mobile menu button and user dropdown */}
-          <div className="md:hidden flex items-center space-x-2">
+          <div className="md:hidden flex items-center gap-1.5">
             {/* User Dropdown for mobile */}
             {loading ? (
               <Skeleton className="w-8 h-8 rounded-full" />

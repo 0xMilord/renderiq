@@ -47,7 +47,10 @@ import {
 import { 
   FaSquare,
   FaTv,
-  FaTabletAlt
+  FaTabletAlt,
+  FaCheckCircle,
+  FaExclamationTriangle,
+  FaExclamationCircle
 } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -1276,25 +1279,50 @@ export function UnifiedChatInterface({
             <div className="text-center flex-1">
             <h1 className="text-sm font-semibold">{projectName}</h1>
           </div>
-          <div className="flex bg-muted rounded-lg p-0.5">
-            <Button
-              variant={mobileView === 'chat' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setMobileView('chat')}
-              className="h-7 px-3 flex-1 text-xs"
-            >
-              <MessageSquare className="h-3 w-3 mr-1" />
-              Render
-            </Button>
-            <Button
-              variant={mobileView === 'render' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setMobileView('render')}
-              className="h-7 px-3 flex-1 text-xs"
-            >
-              <ImageIcon className="h-3 w-3 mr-1" />
-              Result
-            </Button>
+          <div className="relative">
+            {/* Background track */}
+            <div className="w-32 h-9 bg-muted rounded-lg p-1 flex">
+              <button
+                onClick={() => setMobileView('chat')}
+                className={cn(
+                  "flex-1 flex items-center justify-center rounded-md transition-all duration-200 hover:bg-background/50 relative z-20",
+                  mobileView === 'chat' && "bg-background shadow-sm"
+                )}
+                title="Render"
+              >
+                <span className={cn(
+                  "flex items-center gap-1 transition-colors duration-200 text-xs",
+                  mobileView === 'chat' ? "text-primary" : "text-muted-foreground"
+                )}>
+                  <MessageSquare className="h-3 w-3" />
+                  <span>Render</span>
+                </span>
+              </button>
+              <button
+                onClick={() => setMobileView('render')}
+                className={cn(
+                  "flex-1 flex items-center justify-center rounded-md transition-all duration-200 hover:bg-background/50 relative z-20",
+                  mobileView === 'render' && "bg-background shadow-sm"
+                )}
+                title="Result"
+              >
+                <span className={cn(
+                  "flex items-center gap-1 transition-colors duration-200 text-xs",
+                  mobileView === 'render' ? "text-primary" : "text-muted-foreground"
+                )}>
+                  <ImageIcon className="h-3 w-3" />
+                  <span>Result</span>
+                </span>
+              </button>
+            </div>
+            
+            {/* Sliding indicator - positioned behind the selected button */}
+            <div 
+              className={cn(
+                "absolute top-1 w-[calc(50%-0.125rem)] h-7 bg-background/80 border border-border rounded-md shadow-sm transition-all duration-200 pointer-events-none z-0",
+                mobileView === 'chat' ? "left-1" : "right-1"
+              )}
+            />
           </div>
         </div>
         
@@ -1720,6 +1748,25 @@ export function UnifiedChatInterface({
                         onClick={() => {
                           setCurrentRender(message.render!);
                           setMobileView('render');
+                          
+                          // If it's a video, switch to video mode on render tab
+                          if (message.render?.type === 'video') {
+                            setIsVideoMode(true);
+                            // Load the video as uploaded file for further editing
+                            if (message.render.outputUrl) {
+                              // Fetch video and convert to File object
+                              fetch(message.render.outputUrl)
+                                .then(response => response.blob())
+                                .then(blob => {
+                                  const file = new File([blob], `video-${Date.now()}.mp4`, { type: 'video/mp4' });
+                                  setUploadedFile(file);
+                                  setPreviewUrl(message.render!.outputUrl);
+                                })
+                                .catch(error => {
+                                  logger.error('Failed to load video for editing:', error);
+                                });
+                            }
+                          }
                         }}
                       >
                         {message.render.type === 'video' ? (
@@ -2390,52 +2437,74 @@ export function UnifiedChatInterface({
               </div>
             </div>
 
-            {/* Insufficient Credits Alert */}
-            {credits && credits.balance < getCreditsCost() && inputValue.trim() && (
-              <Alert variant="destructive" className="py-1 mt-2">
-                <AlertCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                <AlertDescription className="text-[10px] sm:text-xs">
-                  Insufficient credits. Need {getCreditsCost()}, have {credits.balance}
-                </AlertDescription>
-              </Alert>
-            )}
-
             {!isPro && (
               <>
-                <div className="grid grid-cols-3 gap-1.5 mt-2">
-                  {/* Credit Usage - Column 1 */}
-                  <div className="flex items-center justify-center px-1.5 py-1.5 rounded-md bg-muted/50 border border-border">
-                    <div className="text-[9px] sm:text-[10px] text-muted-foreground text-center">
-                      {getCreditsCost()} credit{getCreditsCost() !== 1 ? 's' : ''}
-                    </div>
+                <div className="border-t border-primary my-2" />
+                <div className="flex gap-1.5 mt-2">
+                  {/* Credit Usage - 50% space */}
+                  <div className={cn(
+                    "flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-md border h-6 sm:h-7 flex-[2]",
+                    credits && credits.balance < getCreditsCost()
+                      ? "bg-destructive/10 border-destructive/50 animate-pulse"
+                      : credits && credits.balance < getCreditsCost() * 2
+                      ? "bg-yellow-500/10 border-yellow-500/50"
+                      : "bg-muted/50 border-border"
+                  )}>
+                    {credits && credits.balance < getCreditsCost() ? (
+                      <>
+                        <FaExclamationCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
+                        <div className="text-[11px] sm:text-sm text-center leading-tight">
+                          <span className="text-destructive font-semibold">{getCreditsCost()}</span>
+                          <span className="text-muted-foreground"> needed / </span>
+                          <span className="text-destructive font-semibold">{credits.balance}</span>
+                          <span className="text-muted-foreground"> left</span>
+                        </div>
+                      </>
+                    ) : credits && credits.balance < getCreditsCost() * 2 ? (
+                      <>
+                        <FaExclamationTriangle className="h-3.5 w-3.5 text-yellow-500 flex-shrink-0" />
+                        <div className="text-[11px] sm:text-sm text-center leading-tight">
+                          <span className="text-yellow-600 dark:text-yellow-500 font-semibold">{getCreditsCost()}</span>
+                          <span className="text-muted-foreground"> needed / </span>
+                          <span className="text-yellow-600 dark:text-yellow-500 font-semibold">{credits.balance}</span>
+                          <span className="text-muted-foreground"> left</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <FaCheckCircle className="h-3.5 w-3.5 text-green-600 dark:text-green-500 flex-shrink-0" />
+                        <div className="text-[11px] sm:text-sm text-muted-foreground text-center font-medium leading-tight">
+                          {getCreditsCost()} credit{getCreditsCost() !== 1 ? 's' : ''}
+                        </div>
+                      </>
+                    )}
                   </div>
-                  {/* Get Pro - Column 2 */}
+                  {/* Get Pro - 25% space */}
                   <Button
                     variant="default"
                     size="sm"
-                    className="h-6 sm:h-7 text-[10px] sm:text-xs"
+                    className="h-6 sm:h-7 text-[10px] sm:text-xs px-2 flex-1"
                     onClick={() => window.open('/pricing', '_blank')}
                   >
                     Get Pro
                   </Button>
-                  {/* Project Rules - Column 3 */}
+                  {/* Project Rules - 25% space */}
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-6 sm:h-7 text-[10px] sm:text-xs"
+                    className="h-6 sm:h-7 text-[10px] sm:text-xs px-2 flex-1"
                     onClick={() => setIsProjectRulesModalOpen(true)}
                     title="Project Rules"
                   >
                     <FileText className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-0.5 sm:mr-1" />
-                    <span className="hidden sm:inline">Rules</span>
+                    <span>Rules</span>
                     {projectRules && projectRules.length > 0 && (
-                      <span className="ml-0.5 sm:ml-1 px-1 py-0.5 bg-primary/10 text-primary rounded text-[9px] sm:text-[10px] font-medium">
+                      <span className="ml-0.5 sm:ml-1 px-1 py-0.5 bg-primary/10 text-primary rounded text-[8px] sm:text-[9px] font-medium">
                         {projectRules.length}
                       </span>
                     )}
                   </Button>
                 </div>
-                <div className="border-t border-border my-2" />
               </>
             )}
           </div>
@@ -2458,23 +2527,27 @@ export function UnifiedChatInterface({
                 : messages.findIndex(m => m.render?.id === currentRender.id) + 1;
               return (
                 <div className="flex items-center gap-3 w-full">
-                  {/* Sidebar Toggle Button */}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                    className="h-7 w-7 p-0 shrink-0"
-                    title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                  >
-                    {isSidebarCollapsed ? (
-                      <PanelRight className="h-3 w-3" />
-                    ) : (
-                      <PanelLeft className="h-3 w-3" />
-                    )}
-                  </Button>
-                  
-                  {/* Separator */}
-                  <div className="h-4 w-px bg-border shrink-0"></div>
+                  {/* Sidebar Toggle Button - Only show on desktop when sidebar is visible */}
+                  {mobileView !== 'render' && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                        className="h-7 w-7 p-0 shrink-0 hidden lg:flex"
+                        title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                      >
+                        {isSidebarCollapsed ? (
+                          <PanelRight className="h-3 w-3" />
+                        ) : (
+                          <PanelLeft className="h-3 w-3" />
+                        )}
+                      </Button>
+                      
+                      {/* Separator */}
+                      <div className="h-4 w-px bg-border shrink-0 hidden lg:block"></div>
+                    </>
+                  )}
                   
                   {/* Version Control Dropdown */}
                   {messages.some(m => m.render) && (
@@ -2615,11 +2688,12 @@ export function UnifiedChatInterface({
                       variant="outline" 
                       size="sm" 
                       onClick={() => {}} 
-                      className="h-7 px-2 text-[10px] flex-1 flex items-center justify-center gap-1.5" 
+                      className="h-7 px-1.5 sm:px-2 text-[10px] flex-1 flex items-center justify-center gap-1 sm:gap-1.5" 
                       disabled
+                      title="More"
                     >
                       <MoreVertical className="h-3 w-3 shrink-0" />
-                      <span>More</span>
+                      <span className="hidden sm:inline">More</span>
                     </Button>
                   </div>
                 </div>
