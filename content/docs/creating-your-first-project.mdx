@@ -1,0 +1,364 @@
+---
+title: Creating Your First Project - Complete Guide to Project Management in Renderiq
+description: Learn how to create, manage, and organize projects in Renderiq. Step-by-step guide covering project creation, upload options, organization, and best practices.
+order: 4
+category: Projects
+---
+
+# Creating Your First Project
+
+Projects are the foundation of your work in Renderiq. Each project contains your sketches, renders, and render chains. This comprehensive guide covers everything you need to know about creating and managing projects.
+
+## What is a Project?
+
+A project in Renderiq is a container that organizes:
+
+- **Original Sketches/Images**: Your uploaded source materials
+- **All Renders**: Every render generated from those sketches
+- **Render Chains**: Organized sequences of related renders
+- **Project Metadata**: Name, description, tags, status
+- **Project Settings**: Default preferences and configurations
+
+### Project Structure
+
+Each project includes:
+- **Unique ID**: UUID for database reference
+- **Slug**: URL-friendly identifier (e.g., `modern-house-design`)
+- **User ID**: Owner of the project
+- **Name**: Display name
+- **Description**: Optional project description
+- **Original Image ID**: Reference to uploaded sketch
+- **Status**: Processing, Completed, or Failed
+- **Tags**: Array of tags for organization
+- **Metadata**: JSON object for additional data
+- **Timestamps**: Created and updated dates
+
+## Creating a Project
+
+### Method 1: From the Dashboard Projects Page
+
+1. **Navigate to Projects**: Go to `/dashboard/projects`
+2. **Click "New Project"**: Button in the top right
+3. **Fill Project Details**:
+   - **Project Name**: Enter a descriptive name (required)
+   - **Description**: Add optional description
+4. **Upload Initial Image** (optional):
+   - **Drag & Drop**: Drag image file into upload area
+   - **Click to Browse**: Click upload area to select file
+   - **Supported Formats**: JPG, PNG, WebP
+   - **Maximum Size**: 10MB recommended
+5. **Use Shape Generator** (alternative):
+   - Click "Generate Shape" button
+   - Select shape type
+   - Shape becomes project's initial image
+6. **Create Project**: Click "Create Project" button
+
+**What Happens**:
+- Image is uploaded to Supabase Storage
+- Project record is created in database
+- Unique slug is generated from project name
+- Project status is set to "processing"
+- You're redirected to project detail page
+
+### Method 2: From the Render Page
+
+1. **Navigate to Render**: Go to `/render`
+2. **No Project Selected**: If no project is selected, you'll see a prompt
+3. **Click "Create New Project"**: Button in the prompt
+4. **Follow Steps**: Same as Method 1
+
+### Method 3: Using Server Actions
+
+Projects can be created programmatically using the `createProject` server action:
+
+```typescript
+const formData = new FormData();
+formData.append('file', imageFile);
+formData.append('projectName', 'My Project');
+formData.append('description', 'Project description');
+
+const result = await createProject(formData);
+```
+
+## Project Upload Options
+
+### Image Upload
+
+**Supported Formats**:
+- JPEG/JPG
+- PNG
+- WebP
+
+**Size Recommendations**:
+- **Maximum**: 10MB
+- **Recommended**: 2-5MB
+- **Resolution**: 1024x1024 or higher for best results
+
+**Upload Methods**:
+1. **Drag & Drop**: Drag file directly onto upload area
+2. **Click to Browse**: Click upload area to open file browser
+3. **Paste from Clipboard**: Copy image and paste (if supported by browser)
+
+### Shape Generator
+
+Generate basic shapes as starting points:
+
+- **Square**: Perfect square shape
+- **Rectangle**: Rectangular shape
+- **Circle**: Circular shape
+- **Custom**: Define custom dimensions
+
+**Use Cases**:
+- Quick prototyping
+- Testing workflows
+- Learning the platform
+- Creating placeholder projects
+
+### Dicebear Avatars
+
+Use Dicebear-generated avatars as project images:
+
+- **Automatic Generation**: Unique avatar per project
+- **Consistent Style**: Cohesive visual identity
+- **No Upload Required**: Instant project creation
+
+## Project Organization
+
+### Using Tags
+
+Tags help organize projects:
+
+- **Add Tags**: When creating or editing project
+- **Multiple Tags**: Add multiple tags per project
+- **Filter by Tags**: Filter projects by tags (coming soon)
+- **Tag Suggestions**: Common tags suggested
+
+**Best Practices**:
+- Use consistent naming (e.g., "residential", "commercial")
+- Create tag hierarchy (e.g., "architecture", "interior-design")
+- Use descriptive tags (e.g., "modern", "traditional")
+
+### Project Status
+
+Projects have three statuses:
+
+- **Processing**: Project is being set up or processed
+- **Completed**: Project is ready for use
+- **Failed**: Project creation or processing failed
+
+**Status Updates**:
+- Automatically updated during project lifecycle
+- Can be manually updated in project settings
+- Affects project visibility and actions
+
+### Project Metadata
+
+Store additional information in metadata:
+
+- **Custom Fields**: Add custom key-value pairs
+- **Project Notes**: Internal notes and reminders
+- **Client Information**: Client details (if applicable)
+- **Timeline**: Project timeline and milestones
+
+## Project Management
+
+### Viewing Projects
+
+**Projects Page** (`/dashboard/projects`):
+- Grid view with project cards
+- List view for detailed information
+- Compact view for quick browsing
+- Search and filter functionality
+
+**Project Detail** (`/dashboard/projects/[slug]`):
+- Full project information
+- All renders in project
+- Render chains
+- Project settings
+
+### Editing Projects
+
+1. **Navigate to Project**: Go to project detail page
+2. **Click "Edit"**: Button in project header
+3. **Update Information**:
+   - Change project name
+   - Update description
+   - Modify tags
+   - Update metadata
+4. **Save Changes**: Click "Save" button
+
+**Note**: Project slug cannot be changed after creation.
+
+### Duplicating Projects
+
+Create a copy of an existing project:
+
+1. **Navigate to Projects**: Go to `/dashboard/projects`
+2. **Find Project**: Locate project to duplicate
+3. **Click Duplicate**: Duplicate button on project card
+4. **Confirm**: Confirm duplication
+5. **New Project Created**: Copy created with "- Copy" suffix
+
+**What Gets Duplicated**:
+- Project name and description
+- Tags and metadata
+- Original image (reference copied)
+- Project settings
+
+**What Doesn't Get Duplicated**:
+- Renders (empty project)
+- Render chains (empty project)
+- Project slug (new slug generated)
+
+### Deleting Projects
+
+1. **Navigate to Project**: Go to project detail page
+2. **Click "Delete"**: Delete button in project header
+3. **Confirm Deletion**: Type project name to confirm
+4. **Project Deleted**: Project and all associated data removed
+
+**Warning**: Deletion is permanent and cannot be undone.
+
+**What Gets Deleted**:
+- Project record
+- All renders in project
+- All render chains
+- Project metadata
+
+**What's Preserved**:
+- Public gallery renders (if made public)
+- Storage files (may be cleaned up later)
+
+## Project Settings
+
+### Basic Settings
+
+Access from project detail page:
+
+- **Name**: Project display name
+- **Description**: Project description
+- **Tags**: Project tags
+- **Visibility**: Public or private (coming soon)
+
+### Advanced Settings
+
+- **Default Style**: Set default rendering style
+- **Default Quality**: Set default quality level
+- **Default Aspect Ratio**: Set default aspect ratio
+- **Auto-save**: Enable/disable auto-save
+- **Notifications**: Project-specific notifications
+
+## Project URLs and Sharing
+
+### Project Slugs
+
+Projects use URL-friendly slugs:
+
+- **Format**: Generated from project name
+- **Example**: "Modern House Design" → `modern-house-design`
+- **Uniqueness**: Automatically ensures uniqueness
+- **Persistence**: Cannot be changed after creation
+
+### Project URLs
+
+- **Detail Page**: `/dashboard/projects/[slug]`
+- **Shareable**: Can be shared with team members (coming soon)
+- **SEO-Friendly**: Clean URLs for better SEO
+
+## Best Practices
+
+### Naming Projects
+
+- **Be Descriptive**: Use clear, descriptive names
+- **Include Context**: Add project type or client name
+- **Use Dates**: Include dates for time-based projects
+- **Avoid Special Characters**: Keep names simple
+
+**Good Examples**:
+- "Modern Residential House - 2024"
+- "Commercial Office Building - Client ABC"
+- "Interior Design - Living Room"
+
+**Poor Examples**:
+- "Project 1"
+- "Test"
+- "New Project"
+
+### Organizing Projects
+
+- **Use Tags**: Tag projects consistently
+- **Group Related**: Keep related projects together
+- **Archive Old**: Archive completed projects
+- **Regular Cleanup**: Delete unused projects
+
+### Project Workflow
+
+1. **Create Project**: Start with clear name and description
+2. **Upload Sketch**: Add initial sketch or use shape generator
+3. **Generate Renders**: Create renders using unified chat
+4. **Organize Chains**: Group related renders into chains
+5. **Iterate**: Refine and improve renders
+6. **Export**: Export final renders when complete
+
+## Troubleshooting
+
+### Can't Upload Image
+
+**Common Issues**:
+- File format not supported
+- File size too large
+- Browser compatibility
+- Network issues
+
+**Solutions**:
+- Check file format (JPG, PNG, WebP)
+- Compress image if too large
+- Try different browser
+- Check internet connection
+- Clear browser cache
+
+### Project Not Appearing
+
+**Common Issues**:
+- Project creation failed
+- Wrong account
+- Filter applied
+- Search query active
+
+**Solutions**:
+- Refresh the page
+- Check if you're on correct account
+- Clear filters
+- Clear search query
+- Check project status
+
+### Upload Fails
+
+**Common Issues**:
+- File corrupted
+- Network timeout
+- Storage quota exceeded
+- Server error
+
+**Solutions**:
+- Try different image
+- Check file isn't corrupted
+- Reduce file size
+- Try again later
+- Contact support
+
+### Slug Conflicts
+
+**Note**: Slugs are automatically made unique. If a slug exists, a number is appended (e.g., `project-name-2`).
+
+## Next Steps
+
+After creating your project:
+
+- [Creating Your First Chain](/docs/creating-your-first-chain) - Organize renders
+- [Unified Chat Interface](/docs/unified-chat-interface) - Generate renders
+- [Prompt Engineering](/docs/prompt-engineering) - Write better prompts
+
+## SEO Keywords
+
+Renderiq projects, project management, create project, upload sketches, project organization, project tags, project settings, architectural projects, design projects

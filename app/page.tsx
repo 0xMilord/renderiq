@@ -474,7 +474,7 @@ export default async function Home() {
                 <li className="flex items-center"><CheckCircle className="h-5 w-5 text-green-500 mr-3" />SSO integration</li>
                 <li className="flex items-center"><CheckCircle className="h-5 w-5 text-green-500 mr-3" />Custom integrations</li>
               </ul>
-              <Link href="/billing/plans">
+              <Link href="/pricing">
                 <Button className="w-full" variant="outline">
                   View All Plans
                 </Button>

@@ -1,0 +1,284 @@
+---
+title: Unified Chat Interface
+description: Complete guide to the unified chat interface - how it works, controls, and output
+order: 6
+category: Features
+---
+
+# Unified Chat Interface
+
+The Unified Chat Interface is the heart of Renderiq's rendering system. It combines chat-based interaction with powerful AI rendering capabilities in one intuitive interface.
+
+## Overview
+
+The unified chat interface allows you to:
+- Generate renders through natural conversation
+- Upload and reference images
+- Iterate on designs with context
+- Control all rendering parameters
+- View real-time progress
+
+## Interface Layout
+
+### Main Components
+
+1. **Chat Area**: Where messages and renders appear
+2. **Input Area**: Text input and controls
+3. **Settings Panel**: Style, quality, and advanced options
+4. **Render Preview**: Real-time preview of generated renders
+
+### Layout Modes
+
+- **Desktop**: Side-by-side chat and preview
+- **Mobile**: Stacked layout with collapsible panels
+- **Fullscreen**: Maximized render preview
+
+## How It Works
+
+### Basic Workflow
+
+1. **Enter Prompt**: Type your design description
+2. **Configure Settings**: Choose style, quality, aspect ratio
+3. **Generate**: Click generate or press Enter
+4. **View Result**: Render appears in chat
+5. **Iterate**: Refine with follow-up prompts
+
+### Message Types
+
+#### User Messages
+- Text prompts
+- Image uploads
+- Settings changes
+- Commands
+
+#### Assistant Messages
+- Generated renders
+- Status updates
+- Error messages
+- Suggestions
+
+## Controls
+
+### Input Controls
+
+#### Text Input
+- **Placeholder**: "Describe your design..."
+- **Multiline**: Supports multi-line prompts
+- **Auto-resize**: Expands as you type
+- **Character Limit**: 2000 characters
+
+#### Image Upload
+- **Drag & Drop**: Drag images into the input area
+- **Click to Upload**: Click the upload icon
+- **Paste**: Paste from clipboard (if supported)
+- **Supported Formats**: JPG, PNG, WebP
+
+#### Send Button
+- **Generate**: Creates a new render
+- **Keyboard Shortcut**: Enter (or Cmd/Ctrl + Enter)
+
+### Settings Panel
+
+#### Style Selection
+Choose from predefined styles:
+- **Realistic**: Photorealistic rendering
+- **Sketch**: Hand-drawn style
+- **Wireframe**: Technical wireframe
+- **Illustration**: Artistic illustration
+- **Custom**: Define your own style
+
+#### Quality Settings
+- **Standard**: Fast, good quality (1 credit)
+- **High**: Better quality, slower (2 credits)
+- **Ultra**: Best quality, slowest (3 credits)
+
+#### Aspect Ratio
+- **16:9**: Widescreen (default)
+- **9:16**: Portrait/vertical
+- **1:1**: Square
+- **4:3**: Traditional
+- **21:9**: Ultra-wide
+
+#### Advanced Options
+
+**Environment**
+- Sunny, Overcast, Rainy
+- Sunset, Sunrise, Night
+- Foggy, Cloudy
+
+**Effects**
+- Photoreal, Sketch, Wireframe
+- Illustration, Digital Art
+- Custom effects
+
+**Temperature**
+- Controls creativity vs determinism
+- Range: 0.0 (deterministic) to 1.0 (creative)
+- Default: 0.7
+
+**Seed**
+- For reproducible results
+- Leave empty for random
+- Use same seed for consistency
+
+**Negative Prompt**
+- What to avoid in the render
+- Example: "no people, no cars"
+
+## Output
+
+### Render Display
+
+Each generated render shows:
+- **Image/Video**: The generated content
+- **Processing Time**: How long it took
+- **Provider**: AI model used
+- **Metadata**: Settings used
+
+### Render Actions
+
+#### View
+- Click to view full size
+- Zoom and pan
+- Download option
+
+#### Download
+- Download original quality
+- Choose format (PNG, JPG)
+- Includes metadata
+
+#### Share
+- Generate shareable link
+- Share to gallery
+- Export options
+
+#### Iterate
+- Use as reference for next render
+- Create variations
+- Continue chain
+
+#### Upscale
+- Increase resolution
+- 2x, 4x, or 10x upscaling
+- Higher quality options
+
+### Render History
+
+View all renders in the chat:
+- Scroll through history
+- Click to view details
+- Reference in new prompts
+- Delete unwanted renders
+
+## Advanced Features
+
+### Version References
+
+Reference previous renders using mentions:
+- `@v1` - First render in chain
+- `@v2` - Second render
+- `@latest` - Most recent render
+- `@previous` - Previous render
+
+### Style Transfer
+
+Apply styles from reference images:
+1. Upload a style reference image
+2. Enable style transfer
+3. Generate with style applied
+
+### Image-to-Image
+
+Transform existing images:
+1. Upload source image
+2. Enter transformation prompt
+3. Generate modified version
+
+### Context Preservation
+
+The interface maintains context:
+- Previous renders in conversation
+- Project settings
+- Chain history
+- User preferences
+
+## Keyboard Shortcuts
+
+- **Enter**: Send message / Generate
+- **Shift + Enter**: New line
+- **Cmd/Ctrl + K**: Focus input
+- **Esc**: Close modals
+- **Arrow Keys**: Navigate history (coming soon)
+
+## Mobile Experience
+
+### Optimized Layout
+- Stacked interface
+- Collapsible panels
+- Touch-optimized controls
+- Swipe gestures
+
+### Mobile-Specific Features
+- Camera upload
+- Voice input (coming soon)
+- Simplified controls
+- Quick actions
+
+## Tips for Best Results
+
+### Writing Prompts
+- Be specific and detailed
+- Include style preferences
+- Mention important elements
+- Use architectural terminology
+
+### Using References
+- Upload clear reference images
+- Use high-quality source images
+- Combine multiple references
+- Reference previous successful renders
+
+### Iterating
+- Start with broad concepts
+- Refine with specific details
+- Use version references
+- Build on successful renders
+
+### Settings
+- Match quality to needs
+- Use appropriate aspect ratios
+- Experiment with styles
+- Adjust temperature for creativity
+
+## Troubleshooting
+
+### Render Not Generating
+- Check credits balance
+- Verify prompt isn't empty
+- Ensure settings are valid
+- Check internet connection
+
+### Poor Quality Results
+- Increase quality setting
+- Add more detail to prompt
+- Use reference images
+- Try different styles
+
+### Slow Generation
+- Lower quality setting
+- Check server status
+- Reduce image size
+- Try again later
+
+### Upload Issues
+- Check file format
+- Verify file size
+- Try different browser
+- Clear cache
+
+## Next Steps
+
+- [Prompt Engineering](/docs/prompt-engineering) - Master prompt writing
+- [Creating Your First Project](/docs/creating-your-first-project) - Set up projects
+- [Creating Your First Chain](/docs/creating-your-first-chain) - Organize renders
+

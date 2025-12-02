@@ -161,11 +161,11 @@ export function UserDropdown() {
                 </div>
               </div>
               {!isPro && (
-                <Link href="/plans" onClick={() => setIsOpen(false)}>
-                  <Button size="sm" className="h-7 text-xs">
-                    <Zap className="w-3 h-3 mr-1" />
-                    Upgrade
-                  </Button>
+                <Link href="/pricing" onClick={() => setIsOpen(false)}>
+                  <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors border-primary text-primary">
+                    <Crown className="w-3 h-3 mr-1" />
+                    Become Pro
+                  </Badge>
                 </Link>
               )}
             </div>

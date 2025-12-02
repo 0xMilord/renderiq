@@ -30,7 +30,41 @@ export const subscriptionPlans = pgTable('subscription_plans', {
   maxProjects: integer('max_projects'),
   maxRendersPerProject: integer('max_renders_per_project'),
   features: jsonb('features').$type<string[]>(),
+  razorpayPlanId: text('razorpay_plan_id'), // Razorpay plan ID for recurring subscriptions
   isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Credit packages for one-time purchases
+export const creditPackages = pgTable('credit_packages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  description: text('description'),
+  credits: integer('credits').notNull(),
+  price: decimal('price', { precision: 10, scale: 2 }).notNull(),
+  currency: text('currency').default('INR').notNull(), // Razorpay uses INR
+  bonusCredits: integer('bonus_credits').default(0).notNull(), // Bonus credits (like "Buy 100, Get 10 free")
+  isPopular: boolean('is_popular').default(false).notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  displayOrder: integer('display_order').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Payment orders for tracking Razorpay payments
+export const paymentOrders = pgTable('payment_orders', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  type: text('type', { enum: ['subscription', 'credit_package'] }).notNull(),
+  referenceId: uuid('reference_id'), // plan_id or credit_package_id
+  razorpayOrderId: text('razorpay_order_id').unique(),
+  razorpayPaymentId: text('razorpay_payment_id'),
+  razorpaySubscriptionId: text('razorpay_subscription_id'),
+  amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
+  currency: text('currency').default('INR').notNull(),
+  status: text('status', { enum: ['pending', 'processing', 'completed', 'failed', 'cancelled'] }).default('pending').notNull(),
+  metadata: jsonb('metadata').$type<Record<string, any>>(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -43,6 +77,8 @@ export const userSubscriptions = pgTable('user_subscriptions', {
   status: text('status', { enum: ['active', 'canceled', 'past_due', 'unpaid'] }).notNull(),
   stripeSubscriptionId: text('stripe_subscription_id').unique(),
   stripeCustomerId: text('stripe_customer_id'),
+  razorpaySubscriptionId: text('razorpay_subscription_id').unique(),
+  razorpayCustomerId: text('razorpay_customer_id'),
   currentPeriodStart: timestamp('current_period_start').notNull(),
   currentPeriodEnd: timestamp('current_period_end').notNull(),
   cancelAtPeriodEnd: boolean('cancel_at_period_end').default(false).notNull(),
@@ -419,3 +455,9 @@ export type NewUserSettings = typeof userSettings.$inferInsert;
 
 export type CanvasGraph = typeof canvasGraphs.$inferSelect;
 export type NewCanvasGraph = typeof canvasGraphs.$inferInsert;
+
+export type CreditPackage = typeof creditPackages.$inferSelect;
+export type NewCreditPackage = typeof creditPackages.$inferInsert;
+
+export type PaymentOrder = typeof paymentOrders.$inferSelect;
+export type NewPaymentOrder = typeof paymentOrders.$inferInsert;

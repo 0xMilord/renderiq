@@ -1,0 +1,325 @@
+---
+title: Prompt Engineering
+description: Master the art of writing effective prompts for AI rendering
+order: 7
+category: Features
+---
+
+# Prompt Engineering
+
+Writing effective prompts is key to getting great results from Renderiq. This guide will teach you how to craft prompts that produce the renders you envision.
+
+## Understanding Prompts
+
+A prompt is a text description that tells the AI what to generate. The better your prompt, the better your results.
+
+### What Makes a Good Prompt?
+
+1. **Specificity**: Clear and detailed descriptions
+2. **Structure**: Organized information
+3. **Context**: Relevant background information
+4. **Style**: Consistent style references
+5. **Constraints**: What to include/exclude
+
+## Prompt Structure
+
+### Basic Structure
+
+```
+[Subject] + [Style] + [Details] + [Environment] + [Quality Indicators]
+```
+
+### Example
+
+```
+Modern minimalist house with floor-to-ceiling windows, Scandinavian style, 
+white walls and natural wood accents, surrounded by pine trees, 
+sunny day with soft shadows, photorealistic, high detail, 
+architectural photography style
+```
+
+## Key Components
+
+### 1. Subject
+
+Clearly describe what you're creating:
+- **Building Type**: House, office, restaurant, etc.
+- **Architectural Style**: Modern, traditional, contemporary, etc.
+- **Key Features**: Windows, materials, layout, etc.
+
+**Good Examples:**
+- "Contemporary glass office building"
+- "Traditional Japanese tea house"
+- "Modernist concrete apartment complex"
+
+**Poor Examples:**
+- "Building"
+- "Nice house"
+- "Architecture"
+
+### 2. Style
+
+Specify the visual style:
+- **Architectural Style**: Modern, Art Deco, Brutalist, etc.
+- **Rendering Style**: Photorealistic, sketch, wireframe, etc.
+- **Artistic Style**: Minimalist, ornate, industrial, etc.
+
+**Examples:**
+- "Brutalist concrete architecture"
+- "Art Nouveau decorative style"
+- "Minimalist Scandinavian design"
+
+### 3. Materials and Textures
+
+Describe materials explicitly:
+- **Exterior**: Concrete, glass, wood, metal, stone
+- **Interior**: Marble, hardwood, fabric, leather
+- **Textures**: Smooth, rough, polished, weathered
+
+**Examples:**
+- "Weathered cedar wood siding"
+- "Polished marble floors"
+- "Raw concrete walls with formwork texture"
+
+### 4. Environment and Context
+
+Set the scene:
+- **Location**: Urban, rural, coastal, mountain
+- **Surroundings**: Trees, water, other buildings
+- **Time of Day**: Morning, noon, sunset, night
+- **Weather**: Sunny, cloudy, rainy, foggy
+
+**Examples:**
+- "Urban setting with city skyline in background"
+- "Coastal location with ocean view"
+- "Mountain setting surrounded by pine forests"
+
+### 5. Lighting
+
+Describe lighting conditions:
+- **Natural Light**: Direct sun, diffused, golden hour
+- **Artificial Light**: Warm, cool, accent lighting
+- **Shadows**: Soft, hard, dramatic
+- **Atmosphere**: Bright, moody, ethereal
+
+**Examples:**
+- "Golden hour sunlight casting long shadows"
+- "Soft diffused daylight through large windows"
+- "Dramatic evening lighting with warm interior glow"
+
+### 6. Composition and Perspective
+
+Guide the camera/view:
+- **Angle**: Aerial, eye-level, low angle
+- **Distance**: Close-up, medium, wide shot
+- **Focus**: Foreground, background, specific elements
+
+**Examples:**
+- "Aerial view from above"
+- "Eye-level perspective from street"
+- "Close-up of entrance detail"
+
+## Advanced Techniques
+
+### Negative Prompts
+
+Specify what to avoid:
+- "No people, no vehicles, no text"
+- "Avoid cluttered backgrounds"
+- "No visible power lines or signs"
+
+### Style References
+
+Reference specific styles or architects:
+- "In the style of Frank Lloyd Wright"
+- "Bauhaus-inspired design"
+- "Japanese minimalist aesthetic"
+
+### Technical Details
+
+Include architectural specifics:
+- "Cantilevered structure"
+- "Post-and-beam construction"
+- "Curtain wall facade system"
+
+### Mood and Atmosphere
+
+Convey feeling:
+- "Serene and peaceful"
+- "Dynamic and energetic"
+- "Luxurious and opulent"
+- "Industrial and raw"
+
+## Prompt Templates
+
+### Exterior Architecture
+
+```
+[Building Type] in [Architectural Style], 
+[Key Materials], [Notable Features], 
+located in [Environment], 
+[Time of Day] with [Lighting], 
+[Perspective], [Style], [Quality]
+```
+
+### Interior Design
+
+```
+[Room Type] with [Style] design, 
+[Key Materials and Colors], 
+[Furniture and Layout], 
+[Lighting Conditions], 
+[View/Windows], [Mood], [Quality]
+```
+
+### Landscape Architecture
+
+```
+[Space Type] featuring [Elements], 
+[Materials and Plants], 
+[Layout and Flow], 
+[Surrounding Context], 
+[Time of Day], [Season], [Quality]
+```
+
+## Common Mistakes
+
+### Too Vague
+❌ "Nice building"
+✅ "Modern glass office building with geometric facade"
+
+### Too Complex
+❌ "A building with everything"
+✅ Focus on key elements
+
+### Missing Context
+❌ "House"
+✅ "Contemporary single-family house in suburban setting"
+
+### Inconsistent Style
+❌ Mixing multiple conflicting styles
+✅ Choose one style and be consistent
+
+### Ignoring Environment
+❌ "Building" (no context)
+✅ "Building in urban setting with surrounding architecture"
+
+## Iterative Refinement
+
+### Start Broad
+Begin with general concept:
+"Modern house"
+
+### Add Details
+Refine with specifics:
+"Modern minimalist house with large windows and flat roof"
+
+### Include Context
+Add environment:
+"Modern minimalist house with large windows and flat roof, 
+surrounded by mature trees, sunny day"
+
+### Specify Style
+Add rendering style:
+"Modern minimalist house with large windows and flat roof, 
+surrounded by mature trees, sunny day, 
+photorealistic architectural photography"
+
+## Using References
+
+### Image References
+- Upload clear reference images
+- Describe what you want from the reference
+- Combine multiple references
+- Use as style guide, not exact copy
+
+### Previous Renders
+- Reference successful renders
+- Build on what worked
+- Use version mentions (@v1, @latest)
+- Iterate on concepts
+
+## Style-Specific Tips
+
+### Photorealistic
+- Include lighting details
+- Specify camera settings
+- Mention photography style
+- Add realistic details
+
+### Sketch/Illustration
+- Mention drawing style
+- Specify line weight
+- Include artistic medium
+- Add texture details
+
+### Wireframe
+- Focus on structure
+- Mention line style
+- Include technical details
+- Specify view angle
+
+## Quality Indicators
+
+Add quality hints:
+- "High detail"
+- "Sharp focus"
+- "Professional photography"
+- "Architectural rendering quality"
+- "4K resolution detail"
+
+## Examples
+
+### Good Prompt Example 1
+
+```
+Contemporary glass and steel office building, 
+minimalist design with clean lines, 
+curtain wall facade with bronze tinted glass, 
+located in downtown urban setting, 
+late afternoon golden hour lighting, 
+aerial perspective, 
+photorealistic architectural photography, 
+high detail, professional rendering
+```
+
+### Good Prompt Example 2
+
+```
+Scandinavian-style single-family house, 
+white painted wood siding with black window frames, 
+pitched roof with dark shingles, 
+surrounded by birch trees and wildflowers, 
+soft morning light with gentle shadows, 
+eye-level street view, 
+photorealistic, 
+warm and inviting atmosphere
+```
+
+### Good Prompt Example 3
+
+```
+Brutalist concrete apartment complex, 
+raw concrete with visible formwork texture, 
+geometric shapes and sharp angles, 
+urban setting with other buildings visible, 
+overcast day with diffused lighting, 
+wide-angle perspective, 
+photorealistic, 
+dramatic and imposing presence
+```
+
+## Practice Tips
+
+1. **Start Simple**: Begin with basic prompts
+2. **Iterate**: Refine based on results
+3. **Experiment**: Try different approaches
+4. **Learn from Results**: See what works
+5. **Build Library**: Save successful prompts
+
+## Next Steps
+
+- [Unified Chat Interface](/docs/unified-chat-interface) - Use prompts in the interface
+- [Creating Your First Project](/docs/creating-your-first-project) - Start creating
+- [Known Issues](/docs/known-issues) - Common problems and solutions
+

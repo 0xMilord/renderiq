@@ -48,7 +48,7 @@ export function SubscriptionCard() {
           
           <div className="space-y-2">
             <Button asChild className="w-full">
-              <Link href="/billing/plans">
+              <Link href="/pricing">
                 Upgrade Plan
               </Link>
             </Button>
@@ -152,7 +152,7 @@ export function SubscriptionCard() {
                 Cancel Subscription
               </Button>
               <Button asChild variant="outline" className="flex-1">
-                <Link href="/billing/plans">
+                <Link href="/pricing">
                   Change Plan
                 </Link>
               </Button>
@@ -166,7 +166,7 @@ export function SubscriptionCard() {
             </Button>
           ) : (
             <Button asChild className="w-full">
-              <Link href="/billing/plans">
+              <Link href="/pricing">
                 Choose Plan
               </Link>
             </Button>

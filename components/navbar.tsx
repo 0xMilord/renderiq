@@ -70,7 +70,7 @@ export function Navbar() {
                   <span>Gallery</span>
                 </Link>
                 <Link
-                  href="/plans"
+                  href="/pricing"
                   className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
                 >
                   <CreditCard className="h-4 w-4" />
@@ -84,11 +84,11 @@ export function Navbar() {
                   <span>About</span>
                 </Link>
                 <Link
-                  href="/api-docs"
+                  href="/docs"
                   className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
                 >
                   <FileText className="h-4 w-4" />
-                  <span>API Docs</span>
+                  <span>Docs</span>
                 </Link>
                 <Link
                   href="/contact"
@@ -181,12 +181,12 @@ export function Navbar() {
                 <span>About</span>
               </Link>
               <Link
-                href="/api-docs"
+                href="/docs"
                 className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium"
                 onClick={() => setIsOpen(false)}
               >
                 <FileText className="h-4 w-4" />
-                <span>API Docs</span>
+                <span>Docs</span>
               </Link>
               <Link
                 href="/contact"

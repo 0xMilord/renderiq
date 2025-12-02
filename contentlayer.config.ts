@@ -1,4 +1,6 @@
+// @ts-ignore - ContentLayer2 types
 import { defineDocumentType, makeSource } from 'contentlayer2/source-files'
+import rehypePrettyCode from 'rehype-pretty-code'
 import remarkGfm from 'remark-gfm'
 import rehypeSlug from 'rehype-slug'
 import rehypeAutolinkHeadings from 'rehype-autolink-headings'
@@ -41,6 +43,7 @@ export const Doc = defineDocumentType(() => ({
 export default makeSource({
   contentDirPath: 'content/docs',
   documentTypes: [Doc],
+  disableImportAliasWarning: true,
   mdx: {
     remarkPlugins: [remarkGfm],
     rehypePlugins: [
@@ -54,7 +57,17 @@ export default makeSource({
           },
         },
       ],
-      rehypeHighlight,
+      [
+        rehypePrettyCode,
+        {
+          theme: 'github-dark',
+          onVisitLine(node: any) {
+            if (node.children.length === 0) {
+              node.children = [{ type: 'text', value: ' ' }];
+            }
+          },
+        },
+      ],
     ],
   },
 })

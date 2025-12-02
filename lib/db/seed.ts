@@ -1,5 +1,5 @@
 import { db } from './index';
-import { subscriptionPlans } from './schema';
+import { subscriptionPlans, creditPackages } from './schema';
 
 export async function seedSubscriptionPlans() {
   const plans = [
@@ -7,7 +7,7 @@ export async function seedSubscriptionPlans() {
       name: 'Free',
       description: 'Perfect for getting started with AI architectural visualization',
       price: '0.00',
-      currency: 'USD',
+      currency: 'INR',
       interval: 'month' as const,
       creditsPerMonth: 10,
       maxProjects: 3,
@@ -25,8 +25,8 @@ export async function seedSubscriptionPlans() {
     {
       name: 'Pro',
       description: 'For professionals who need more credits and advanced features',
-      price: '15.00',
-      currency: 'USD',
+      price: '499.00',
+      currency: 'INR',
       interval: 'month' as const,
       creditsPerMonth: 100,
       maxProjects: 25,
@@ -47,8 +47,8 @@ export async function seedSubscriptionPlans() {
     {
       name: 'Pro Annual',
       description: 'Save 20% with annual billing',
-      price: '144.00',
-      currency: 'USD',
+      price: '4790.00', // 100 credits/month × 12 = 1200 credits/year × 5 INR = 6000, with 20% discount = 4800, but offering at 4790
+      currency: 'INR',
       interval: 'year' as const,
       creditsPerMonth: 100,
       maxProjects: 25,
@@ -70,8 +70,8 @@ export async function seedSubscriptionPlans() {
     {
       name: 'Enterprise',
       description: 'For teams and organizations with high-volume needs',
-      price: '99.00',
-      currency: 'USD',
+      price: '4999.00', // 1000 credits × 5 INR = 5000 INR, but offering at 4999 INR
+      currency: 'INR',
       interval: 'month' as const,
       creditsPerMonth: 1000,
       maxProjects: null,
@@ -95,8 +95,8 @@ export async function seedSubscriptionPlans() {
     {
       name: 'Enterprise Annual',
       description: 'Save 25% with annual billing',
-      price: '891.00',
-      currency: 'USD',
+      price: '44999.00', // 1000 credits/month × 12 = 12000 credits/year × 5 INR = 60000, with 25% discount = 45000, but offering at 44999
+      currency: 'INR',
       interval: 'year' as const,
       creditsPerMonth: 1000,
       maxProjects: null,
@@ -127,9 +127,65 @@ export async function seedSubscriptionPlans() {
   console.log('✅ Subscription plans seeded successfully');
 }
 
+export async function seedCreditPackages() {
+  const packages = [
+    {
+      name: 'Starter Pack',
+      description: 'Perfect for trying out Renderiq',
+      credits: 50,
+      price: '250.00', // 50 credits × 5 INR = 250 INR
+      currency: 'INR',
+      bonusCredits: 0,
+      isPopular: false,
+      isActive: true,
+      displayOrder: 1,
+    },
+    {
+      name: 'Professional Pack',
+      description: 'Best value for regular users (matches Pro subscription)',
+      credits: 100,
+      price: '499.00', // 100 credits × 5 INR = 500 INR, but offering at 499 INR
+      currency: 'INR',
+      bonusCredits: 0,
+      isPopular: true,
+      isActive: true,
+      displayOrder: 2,
+    },
+    {
+      name: 'Power Pack',
+      description: 'For power users who need more',
+      credits: 500,
+      price: '2499.00', // 500 credits × 5 INR = 2500 INR, but offering at 2499 INR
+      currency: 'INR',
+      bonusCredits: 0,
+      isPopular: false,
+      isActive: true,
+      displayOrder: 3,
+    },
+    {
+      name: 'Enterprise Pack',
+      description: 'Maximum credits for heavy usage',
+      credits: 1000,
+      price: '4999.00', // 1000 credits × 5 INR = 5000 INR, but offering at 4999 INR
+      currency: 'INR',
+      bonusCredits: 0,
+      isPopular: false,
+      isActive: true,
+      displayOrder: 4,
+    },
+  ];
+
+  for (const pkg of packages) {
+    await db.insert(creditPackages).values(pkg).onConflictDoNothing();
+  }
+
+  console.log('✅ Credit packages seeded successfully');
+}
+
 export async function seedDatabase() {
   try {
     await seedSubscriptionPlans();
+    await seedCreditPackages();
     console.log('🎉 Database seeding completed successfully');
   } catch (error) {
     console.error('❌ Database seeding failed:', error);

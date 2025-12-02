@@ -8,6 +8,21 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // Server Actions configuration - increase body size limit to 20 MB for image uploads
+  serverActions: {
+    bodySizeLimit: '20mb',
+  },
+  // Webpack config to handle contentlayer2 imports
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      const path = require('path');
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        'contentlayer2/generated': path.resolve(__dirname, '.contentlayer/generated/index.mjs'),
+      };
+    }
+    return config;
+  },
   images: {
     domains: ['renderiq.io', 'ncfgivjhkvorikuebtrl.supabase.co'],
     formats: ['image/webp', 'image/avif'],

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { BillingDAL } from '@/lib/dal/billing';
+import { BillingService } from '@/lib/services/billing';
 import { RendersDAL } from '@/lib/dal/renders';
 import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { AISDKService } from '@/lib/services/ai-sdk-service';
@@ -67,29 +68,36 @@ export async function POST(request: NextRequest) {
     });
 
     // Check user credits
-    const billingDAL = new BillingDAL();
-    const userCredits = await billingDAL.getUserCreditsWithReset(user.id);
+    const userCredits = await BillingDAL.getUserCreditsWithReset(user.id);
     
-    if (userCredits.credits < creditsCost) {
+    if (!userCredits || userCredits.balance < creditsCost) {
       console.log('❌ Video API: Insufficient credits:', {
         required: creditsCost,
-        available: userCredits.credits
+        available: userCredits?.balance || 0
       });
       return NextResponse.json({ 
         error: 'Insufficient credits', 
         required: creditsCost,
-        available: userCredits.credits 
+        available: userCredits?.balance || 0
       }, { status: 402 });
     }
 
     // Deduct credits
     console.log('💰 Video API: Deducting credits:', { amount: creditsCost, description: `Generated video - ${model} model` });
-    await billingDAL.deductCredits({
-      amount: creditsCost,
-      description: `Generated video - ${model} model`,
-      referenceId: undefined,
-      referenceType: 'render'
-    });
+    const deductResult = await BillingService.deductCredits(
+      user.id,
+      creditsCost,
+      `Generated video - ${model} model`,
+      undefined,
+      'render'
+    );
+
+    if (!deductResult.success) {
+      console.error('❌ Video API: Failed to deduct credits:', deductResult.error);
+      return NextResponse.json({ 
+        error: deductResult.error || 'Failed to deduct credits'
+      }, { status: 500 });
+    }
 
     // Handle chain logic
     let finalChainId = chainId;
@@ -255,12 +263,14 @@ export async function POST(request: NextRequest) {
       await rendersDAL.updateStatus(render.id, 'failed', error instanceof Error ? error.message : 'Unknown error');
 
       // Refund credits
-      await billingDAL.deductCredits({
-        amount: -creditsCost, // Negative amount = refund
-        description: `Refund for failed video generation`,
-        referenceId: render.id,
-        referenceType: 'render'
-      });
+      await BillingService.addCredits(
+        user.id,
+        creditsCost,
+        'refund',
+        `Refund for failed video generation`,
+        render.id,
+        'render'
+      );
 
       return NextResponse.json({
         success: false,

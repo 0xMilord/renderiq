@@ -1788,7 +1788,7 @@ export function UnifiedChatInterface({
                   variant="outline"
                   size="sm"
                   className="w-full h-5 sm:h-6 text-[10px] sm:text-xs"
-                  onClick={() => window.open('/plans', '_blank')}
+                  onClick={() => window.open('/pricing', '_blank')}
                 >
                   Upgrade to Pro
                 </Button>

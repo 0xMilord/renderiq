@@ -43,6 +43,13 @@
       "when": 1759586747305,
       "tag": "0005_furry_scorpion",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1764636327975,
+      "tag": "0006_jittery_dakota_north",
+      "breakpoints": true
     }
   ]
 }

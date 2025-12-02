@@ -1,0 +1,305 @@
+---
+title: Making Your Renderiq Account - Complete Signup and Account Management Guide
+description: Learn how to create, verify, and manage your Renderiq account. Complete guide covering email signup, OAuth authentication, profile management, and credit system.
+order: 2
+category: Getting Started
+---
+
+# Making Your Account
+
+This comprehensive guide covers everything you need to know about creating and managing your Renderiq account, from initial signup to advanced account settings.
+
+## Signing Up for Renderiq
+
+### Option 1: Email and Password Signup
+
+The traditional email/password signup process:
+
+1. **Navigate to Sign Up**: Go to `/signup` or click "Sign Up" in the navigation
+2. **Enter Your Information**:
+   - **Full Name**: Your display name (required)
+   - **Email Address**: A valid email address (required)
+   - **Password**: Minimum 6 characters (required)
+   - **Confirm Password**: Must match your password (required)
+3. **Accept Terms**: Check the box to accept Terms of Service and Privacy Policy
+4. **Create Account**: Click "Create account" button
+5. **Email Verification**: Check your email for a verification link
+6. **Verify Email**: Click the verification link in the email
+
+**Important**: Email verification is required before you can sign in. The verification email is sent automatically after signup.
+
+### Option 2: OAuth Signup (Google or GitHub)
+
+Quick signup using OAuth providers:
+
+1. **Navigate to Sign Up**: Go to `/signup`
+2. **Choose Provider**: Click either the "Google" or "GitHub" button
+3. **Authorize Renderiq**: Grant permissions in the OAuth popup
+4. **Account Created**: Your account is created automatically
+5. **No Email Verification**: OAuth signups don't require email verification
+
+**Note**: Use the same OAuth provider for future logins. Your account is linked to that provider.
+
+## Signing In
+
+### Email and Password Login
+
+1. **Navigate to Login**: Go to `/login` or click "Sign In"
+2. **Enter Credentials**:
+   - Email address used during signup
+   - Your password
+3. **Remember Me** (Optional): Check to stay signed in
+4. **Sign In**: Click "Sign in" button
+
+**Troubleshooting**: If you can't sign in:
+- Verify your email address is correct
+- Ensure you've verified your email (check spam folder)
+- Try resetting your password
+- Contact support if issues persist
+
+### OAuth Login
+
+1. **Navigate to Login**: Go to `/login`
+2. **Choose Provider**: Click the same OAuth provider you used for signup
+3. **Authorize**: Grant permissions if prompted
+4. **Signed In**: You're automatically signed in
+
+**Important**: You must use the same OAuth provider (Google or GitHub) that you used during signup.
+
+## Account Architecture
+
+Renderiq uses a layered authentication system:
+
+### Authentication Flow
+
+1. **Supabase Auth**: Handles authentication and session management
+2. **User Profile Creation**: Automatic profile creation after email verification
+3. **Credit System**: Initial credits assigned upon account creation
+4. **Database Integration**: User data stored in PostgreSQL
+
+### User Profile Structure
+
+Your account includes:
+- **User ID**: Unique identifier (UUID)
+- **Email**: Your email address
+- **Name**: Display name
+- **Avatar**: Profile picture (optional)
+- **Credits**: Current credit balance
+- **Subscription**: Active subscription (if any)
+- **Projects**: All your architectural projects
+- **Renders**: All generated renders
+
+## Account Settings
+
+Access your account settings from the dashboard:
+
+### Navigation to Settings
+
+1. Click on your profile icon in the top right corner
+2. Select "Settings" from the dropdown
+3. Or navigate directly to `/dashboard/settings`
+
+### Available Settings Sections
+
+#### Profile Information
+- Update your display name
+- Change your email address
+- Upload or change your avatar
+- Update profile description
+
+#### Security Settings
+- Change password (email/password accounts)
+- Manage two-factor authentication (coming soon)
+- View active sessions
+- Security activity log
+
+#### Notification Preferences
+- Email notifications for renders
+- In-app notifications
+- Marketing emails (opt-in/opt-out)
+- System updates
+
+#### Billing and Credits
+- View current credit balance
+- Purchase additional credits
+- Manage subscription
+- View transaction history
+- Update payment methods
+
+#### Render Preferences
+- Default quality settings
+- Default aspect ratio
+- Default style preferences
+- Auto-save settings
+
+## Credits System
+
+### Understanding Credits
+
+Renderiq uses a credit-based billing system:
+
+- **Credits**: Virtual currency for generating renders
+- **Balance**: Current available credits
+- **Transactions**: History of all credit usage
+- **Reset**: Credits may reset based on subscription plan
+
+### Credit Costs
+
+**Image Generation**:
+- Standard Quality: 1 credit
+- High Quality: 2 credits
+- Ultra Quality: 3 credits
+
+**Video Generation**:
+- Base Cost: 5 credits
+- Additional costs based on duration and model
+
+**Upscaling**:
+- Varies based on scale factor (2x, 4x, 10x)
+
+### Getting Credits
+
+1. **Free Tier**: Initial credits upon signup
+2. **Subscription Plans**: Monthly credits included with plans
+3. **One-time Purchase**: Buy credits as needed from billing page
+4. **Referrals**: Earn credits by referring friends (coming soon)
+
+### Managing Credits
+
+- **View Balance**: Check `/dashboard/billing` for current balance
+- **Purchase Credits**: Buy additional credits from billing page
+- **Transaction History**: View all credit transactions
+- **Usage Tracking**: Monitor credit usage per project
+
+## Account Management
+
+### Updating Your Profile
+
+1. Navigate to `/dashboard/profile`
+2. Click "Edit Profile" button
+3. Update your information:
+   - Name
+   - Email (requires verification)
+   - Avatar (upload new image)
+   - Bio/Description
+4. Click "Save Changes"
+
+### Changing Your Password
+
+1. Go to `/dashboard/settings`
+2. Navigate to "Security" section
+3. Click "Change Password"
+4. Enter current password
+5. Enter new password (minimum 6 characters)
+6. Confirm new password
+7. Click "Update Password"
+
+**Note**: Password changes require re-authentication for security.
+
+### Email Verification
+
+If you need to verify or change your email:
+
+1. Go to `/dashboard/settings`
+2. Navigate to "Profile" section
+3. Click "Verify Email" or "Change Email"
+4. Check your email for verification link
+5. Click the link to verify
+
+### Deleting Your Account
+
+**Warning**: Account deletion is permanent and cannot be undone.
+
+1. Go to `/dashboard/settings`
+2. Scroll to "Danger Zone" section
+3. Click "Delete Account"
+4. Enter your password to confirm
+5. Type "DELETE" to confirm deletion
+6. Click "Delete Account"
+
+**What Gets Deleted**:
+- All projects and renders
+- All credit balance (non-refundable)
+- All account data
+- All uploaded files
+
+**What's Preserved**:
+- Public gallery renders (if made public)
+- Transaction records (for legal compliance)
+
+## Troubleshooting
+
+### Can't Sign In
+
+**Common Issues**:
+- Email not verified (check spam folder)
+- Incorrect password (use password reset)
+- Wrong OAuth provider (use same provider as signup)
+- Account locked (contact support)
+
+**Solutions**:
+1. Verify email address is correct
+2. Check spam folder for verification email
+3. Use password reset if forgotten
+4. Clear browser cache and cookies
+5. Try incognito/private mode
+6. Contact support if issues persist
+
+### Email Verification Issues
+
+**If verification email not received**:
+1. Check spam/junk folder
+2. Wait a few minutes (emails can be delayed)
+3. Request new verification email from settings
+4. Try a different email provider
+5. Contact support with your email address
+
+### OAuth Issues
+
+**If OAuth login fails**:
+1. Ensure you're using the same provider (Google/GitHub)
+2. Check OAuth account permissions
+3. Clear browser cache
+4. Try different browser
+5. Check if OAuth account is active
+
+### Credit Issues
+
+**If credits not updating**:
+1. Refresh the page
+2. Wait a few minutes for sync
+3. Check transaction history
+4. Contact support with transaction ID
+
+## Best Practices
+
+### Account Security
+- Use a strong, unique password
+- Enable two-factor authentication when available
+- Don't share your account credentials
+- Log out from shared devices
+- Review security activity regularly
+
+### Credit Management
+- Monitor credit usage regularly
+- Set up subscription for consistent credits
+- Purchase credits in advance for large projects
+- Track credit costs per render type
+
+### Profile Optimization
+- Use a clear profile picture
+- Add a descriptive bio
+- Keep email address updated
+- Verify email for account recovery
+
+## Next Steps
+
+After setting up your account:
+
+- [Around the App](/docs/around-the-app) - Explore all features
+- [Creating Your First Project](/docs/creating-your-first-project) - Start creating
+- [Unified Chat Interface](/docs/unified-chat-interface) - Learn the interface
+
+## SEO Keywords
+
+Renderiq account, signup guide, OAuth authentication, email verification, account management, credit system, user profile, account settings, password reset, billing management

@@ -37,7 +37,7 @@ Disallow: /billing/
 # Allow important content for AI discovery
 Allow: /gallery
 Allow: /use-cases
-Allow: /plans
+Allow: /pricing
 Allow: /tutorials
 Allow: /blog
 Allow: /api-docs
