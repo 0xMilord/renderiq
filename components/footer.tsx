@@ -15,11 +15,22 @@ import {
 import { Sparkles, Images, Lightbulb, Newspaper, CreditCard, Info, FileText, Mail } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { PWAInstallButton } from '@/components/pwa/install-button';
+import { Button } from '@/components/ui/button';
 
 export function Footer() {
   return (
-    <footer className="bg-background border-t w-full">
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-12">
+    <footer className="bg-background border-t w-full relative">
+      {/* Floating Render Button - Centered with top offset */}
+      <div className="absolute left-1/2 -translate-x-1/2 -top-6 z-10">
+        <Button asChild size="lg" className="shadow-lg">
+          <Link href="/render">
+            <Sparkles className="h-5 w-5 mr-2" />
+            Render
+          </Link>
+        </Button>
+      </div>
+      
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-12 pt-16">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="col-span-1 md:col-span-2">

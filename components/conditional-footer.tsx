@@ -17,8 +17,12 @@ export function ConditionalFooter() {
     return null;
   }
   
-  // Hide footer on render routes and project/chain routes
-  if (pathname?.includes('/render') || pathname?.startsWith('/project/')) {
+  // Hide footer on render routes, project/chain routes, and dashboard routes
+  if (
+    pathname?.includes('/render') || 
+    pathname?.startsWith('/project/') ||
+    pathname?.startsWith('/dashboard')
+  ) {
     return null;
   }
   

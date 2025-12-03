@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
-import { userSubscriptions, subscriptionPlans, userCredits } from '@/lib/db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { userSubscriptions, subscriptionPlans, userCredits, creditTransactions } from '@/lib/db/schema';
+import { eq, and, desc, gte, lte, sql } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
 
 export class BillingDAL {
@@ -154,6 +154,98 @@ export class BillingDAL {
       };
     } catch (error) {
       console.error('❌ BillingDAL: Error getting credits with reset:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get monthly credits earned and spent for a user within a billing period
+   */
+  static async getMonthlyCredits(userId: string, periodStart: Date, periodEnd: Date) {
+    logger.log('💰 BillingDAL: Getting monthly credits:', { userId, periodStart, periodEnd });
+    
+    try {
+      const [earnedResult] = await db
+        .select({
+          total: sql<number>`COALESCE(SUM(CASE WHEN ${creditTransactions.type} IN ('earned', 'bonus', 'refund') THEN ${creditTransactions.amount} ELSE 0 END), 0)`,
+        })
+        .from(creditTransactions)
+        .where(
+          and(
+            eq(creditTransactions.userId, userId),
+            gte(creditTransactions.createdAt, periodStart),
+            lte(creditTransactions.createdAt, periodEnd)
+          )
+        );
+
+      const [spentResult] = await db
+        .select({
+          total: sql<number>`COALESCE(SUM(CASE WHEN ${creditTransactions.type} = 'spent' THEN ABS(${creditTransactions.amount}) ELSE 0 END), 0)`,
+        })
+        .from(creditTransactions)
+        .where(
+          and(
+            eq(creditTransactions.userId, userId),
+            gte(creditTransactions.createdAt, periodStart),
+            lte(creditTransactions.createdAt, periodEnd)
+          )
+        );
+
+      const monthlyEarned = Number(earnedResult?.total || 0);
+      const monthlySpent = Number(spentResult?.total || 0);
+
+      logger.log(`✅ BillingDAL: Monthly credits - Earned: ${monthlyEarned}, Spent: ${monthlySpent}`);
+      
+      return {
+        monthlyEarned,
+        monthlySpent,
+      };
+    } catch (error) {
+      console.error('❌ BillingDAL: Error getting monthly credits:', error);
+      return {
+        monthlyEarned: 0,
+        monthlySpent: 0,
+      };
+    }
+  }
+
+  /**
+   * Get user credits with reset info and monthly usage
+   */
+  static async getUserCreditsWithResetAndMonthly(userId: string) {
+    logger.log('💰 BillingDAL: Getting user credits with reset and monthly info:', userId);
+    
+    try {
+      // Get subscription to access currentPeriodStart
+      const subscription = await this.getUserSubscription(userId);
+      
+      // Get credits data
+      const creditsData = await this.getUserCreditsWithReset(userId);
+      
+      if (!creditsData) {
+        return null;
+      }
+
+      // Calculate monthly credits if user has an active subscription with period dates
+      let monthlyEarned = 0;
+      let monthlySpent = 0;
+      
+      if (subscription?.subscription?.currentPeriodStart && subscription?.subscription?.currentPeriodEnd) {
+        const periodStart = new Date(subscription.subscription.currentPeriodStart);
+        const periodEnd = new Date(subscription.subscription.currentPeriodEnd);
+        
+        const monthlyCredits = await this.getMonthlyCredits(userId, periodStart, periodEnd);
+        monthlyEarned = monthlyCredits.monthlyEarned;
+        monthlySpent = monthlyCredits.monthlySpent;
+      }
+
+      return {
+        ...creditsData,
+        monthlyEarned,
+        monthlySpent,
+      };
+    } catch (error) {
+      console.error('❌ BillingDAL: Error getting credits with monthly:', error);
       throw error;
     }
   }

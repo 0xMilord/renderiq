@@ -9,6 +9,8 @@ type CreditsData = {
   balance: number;
   totalEarned: number;
   totalSpent: number;
+  monthlyEarned?: number;
+  monthlySpent?: number;
 };
 
 export function useCredits() {

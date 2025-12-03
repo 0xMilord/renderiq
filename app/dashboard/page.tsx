@@ -12,11 +12,20 @@ import {
   TrendingUp, 
   Clock,
   Users,
-  Zap
+  Zap,
+  Sparkles,
+  Paintbrush
 } from 'lucide-react';
 import Link from 'next/link';
 import { ProjectsDAL } from '@/lib/dal/projects';
 import { RendersDAL } from '@/lib/dal/renders';
+import { BillingDAL } from '@/lib/dal/billing';
+import { ActivityDAL } from '@/lib/dal/activity';
+import { db } from '@/lib/db';
+import { projects, renders } from '@/lib/db/schema';
+import { eq, sql } from 'drizzle-orm';
+import { RecentProjectsPaginated } from '@/components/dashboard/recent-projects-paginated';
+import { RecentActivityPaginated } from '@/components/dashboard/recent-activity-paginated';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -29,289 +38,153 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
-  // Fetch user's projects and recent renders
-  let projects = [];
-  let recentRenders = [];
+  // Fetch dashboard data
+  let recentProjects = [];
+  let recentActivity = [];
+  let totalProjects = 0;
+  let totalRenders = 0;
+  let completedRenders = 0;
+  let userCredits = 0;
   
   try {
-    [projects, recentRenders] = await Promise.all([
-      ProjectsDAL.getByUserId(user.id, 5),
-      RendersDAL.getByUser(user.id, null, 5)
+    // Fetch counts and recent items in parallel
+    const [
+      projectsData,
+      activityData,
+      creditsData,
+      projectCountResult,
+      renderCountResult
+    ] = await Promise.all([
+      ProjectsDAL.getByUserId(user.id, 100), // All projects for pagination
+      ActivityDAL.getUserActivity(user.id, 100), // Unified activity feed (renders + likes)
+      BillingDAL.getUserCreditsWithReset(user.id), // User credits
+      // Get total project count
+      db.select({ count: sql<number>`COUNT(*)` })
+        .from(projects)
+        .where(eq(projects.userId, user.id)),
+      // Get total render count and completed count
+      db.select({
+        total: sql<number>`COUNT(*)`,
+        completed: sql<number>`COUNT(*) FILTER (WHERE ${renders.status} = 'completed')`
+      })
+        .from(renders)
+        .where(eq(renders.userId, user.id))
     ]);
+
+    recentProjects = projectsData || [];
+    recentActivity = activityData || [];
+    userCredits = creditsData?.balance || 0;
+    totalProjects = projectCountResult[0]?.count || 0;
+    totalRenders = renderCountResult[0]?.total || 0;
+    completedRenders = renderCountResult[0]?.completed || 0;
   } catch (error) {
     console.error('Error fetching dashboard data:', error);
-    // Continue with empty arrays if there's an error
+    // Continue with default values if there's an error
   }
 
-  const totalProjects = projects.length;
-  const totalRenders = recentRenders.length;
-  const completedRenders = recentRenders.filter(r => r.status === 'completed').length;
+  const successRate = totalRenders > 0 ? Math.round((completedRenders / totalRenders) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-full">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-        {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Dashboard</h1>
-          <p className="text-muted-foreground text-sm sm:text-base">Welcome back! Manage your projects and track your AI renders.</p>
-        </div>
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
-              <FolderOpen className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalProjects}</div>
-              <p className="text-xs text-muted-foreground">
-                Active architectural projects
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Renders</CardTitle>
-              <Image className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalRenders}</div>
-              <p className="text-xs text-muted-foreground">
-                {completedRenders} completed successfully
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {totalRenders > 0 ? Math.round((completedRenders / totalRenders) * 100) : 0}%
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Rendering success rate
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Credits</CardTitle>
-              <Zap className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">--</div>
-              <p className="text-xs text-muted-foreground">
-                <Link href="/dashboard/billing" className="text-primary hover:underline">
-                  Manage credits
+        {/* Quick Actions Ribbon */}
+        <div className="mb-4 sm:mb-6">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-muted/50 border border-border rounded-lg">
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+              <span className="text-sm font-medium text-muted-foreground">Quick Actions:</span>
+              <div className="h-4 w-px bg-border hidden sm:block" />
+            </div>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-1">
+              <Button asChild size="default" variant="default" className="flex-1 min-w-0">
+                <Link href="/render" className="flex items-center justify-center">
+                  <Sparkles className="h-4 w-4 sm:mr-2 shrink-0" />
+                  <span className="hidden sm:inline">Render</span>
                 </Link>
-              </p>
-            </CardContent>
-          </Card>
+              </Button>
+              <Button asChild size="default" variant="outline" className="relative flex-1 min-w-0">
+                <Link href="/canvas" className="flex items-center justify-center">
+                  <Paintbrush className="h-4 w-4 sm:mr-2 shrink-0" />
+                  <span className="hidden sm:inline">Canvas</span>
+                  <span className="hidden sm:inline ml-1.5 text-[10px] font-medium opacity-60">ALPHA</span>
+                </Link>
+              </Button>
+              <Button asChild size="default" variant="outline" className="flex-1 min-w-0">
+                <Link href="/dashboard/projects" className="flex items-center justify-center">
+                  <FolderOpen className="h-4 w-4 sm:mr-2 shrink-0" />
+                  <span className="hidden sm:inline">Projects</span>
+                </Link>
+              </Button>
+              <Button asChild size="default" variant="outline" className="flex-1 min-w-0">
+                <Link href="/dashboard/billing" className="flex items-center justify-center">
+                  <CreditCard className="h-4 w-4 sm:mr-2 shrink-0" />
+                  <span className="hidden sm:inline">Billing</span>
+                </Link>
+              </Button>
+              <Button asChild size="default" variant="outline" className="flex-1 min-w-0">
+                <Link href="/gallery" className="flex items-center justify-center">
+                  <Image className="h-4 w-4 sm:mr-2 shrink-0" />
+                  <span className="hidden sm:inline">Gallery</span>
+                </Link>
+              </Button>
+            </div>
+          </div>
         </div>
 
-        {/* Quick Actions */}
+        {/* Quick Stats - Standardized Cards */}
+        <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
+          <div className="bg-card text-card-foreground flex flex-col gap-1 rounded-xl border shadow-sm p-3 sm:p-4 relative overflow-hidden">
+            <FolderOpen className="absolute top-2 right-2 h-16 w-16 text-muted-foreground opacity-10" />
+            <div className="relative z-10">
+              <CardTitle className="text-sm font-medium">Projects</CardTitle>
+            </div>
+            <div className="text-2xl font-bold leading-tight relative z-10">{totalProjects}</div>
+            <p className="text-xs text-muted-foreground leading-tight relative z-10">
+              Total
+            </p>
+          </div>
+
+          <div className="bg-card text-card-foreground flex flex-col gap-2 rounded-xl border shadow-sm p-3 sm:p-4 relative overflow-hidden">
+            <Image className="absolute top-2 right-2 h-16 w-16 text-muted-foreground opacity-10" />
+            <div className="relative z-10">
+              <CardTitle className="text-sm font-medium">Renders</CardTitle>
+            </div>
+            <div className="text-2xl font-bold leading-tight relative z-10">{totalRenders}</div>
+            <p className="text-xs text-muted-foreground leading-tight relative z-10">
+              {completedRenders} done
+            </p>
+          </div>
+
+          <div className="bg-card text-card-foreground flex flex-col gap-2 rounded-xl border shadow-sm p-3 sm:p-4 relative overflow-hidden">
+            <TrendingUp className="absolute top-2 right-2 h-16 w-16 text-muted-foreground opacity-10" />
+            <div className="relative z-10">
+              <CardTitle className="text-sm font-medium">Success</CardTitle>
+            </div>
+            <div className="text-2xl font-bold leading-tight relative z-10">{successRate}%</div>
+            <p className="text-xs text-muted-foreground leading-tight relative z-10">
+              Rate
+            </p>
+          </div>
+
+          <div className="bg-card text-card-foreground flex flex-col gap-2 rounded-xl border shadow-sm p-3 sm:p-4 relative overflow-hidden">
+            <Zap className="absolute top-2 right-2 h-16 w-16 text-muted-foreground opacity-10" />
+            <div className="relative z-10">
+              <CardTitle className="text-sm font-medium">Credits</CardTitle>
+            </div>
+            <div className="text-2xl font-bold leading-tight relative z-10">{userCredits}</div>
+            <p className="text-xs text-muted-foreground leading-tight relative z-10">
+              <Link href="/dashboard/billing" className="text-primary hover:underline">
+                Manage
+              </Link>
+            </p>
+          </div>
+        </div>
+
+        {/* Recent Projects & Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mb-6 sm:mb-8">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5" />
-                Quick Actions
-              </CardTitle>
-              <CardDescription>
-                Start creating with AI chat and manage your projects
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                <Button asChild className="h-auto p-3 sm:p-4 flex flex-col items-center space-y-1 sm:space-y-2">
-                  <Link href="/render">
-                    <div className="text-xl sm:text-2xl">💬</div>
-                    <span className="text-xs sm:text-sm">AI Chat</span>
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="h-auto p-3 sm:p-4 flex flex-col items-center space-y-1 sm:space-y-2">
-                  <Link href="/dashboard/projects">
-                    <div className="text-xl sm:text-2xl">📁</div>
-                    <span className="text-xs sm:text-sm">Projects</span>
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Recent Activity
-              </CardTitle>
-              <CardDescription>
-                Your latest renders and projects
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {recentRenders.length > 0 ? (
-                  recentRenders.slice(0, 3).map((render) => (
-                    <div key={render.id} className="flex items-center justify-between p-2 sm:p-3 border border-border rounded-lg bg-card">
-                      <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
-                        <div className="w-8 h-8 bg-muted rounded flex items-center justify-center shrink-0">
-                          {render.type === 'video' ? '🎥' : '🖼️'}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs sm:text-sm font-medium truncate">
-                            {render.prompt}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(render.createdAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <Badge variant={
-                        render.status === 'completed' ? 'default' :
-                        render.status === 'processing' ? 'secondary' :
-                        render.status === 'failed' ? 'destructive' : 'outline'
-                      }>
-                        {render.status}
-                      </Badge>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Image className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No renders yet</p>
-                    <p className="text-xs">Start by creating your first AI render</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <RecentProjectsPaginated projects={recentProjects} />
+          <RecentActivityPaginated activities={recentActivity} />
         </div>
 
-        {/* Projects Overview */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <FolderOpen className="h-5 w-5" />
-                    Recent Projects
-                  </CardTitle>
-                  <CardDescription>
-                    Your latest architectural projects
-                  </CardDescription>
-                </div>
-                <Button asChild size="sm">
-                  <Link href="/dashboard/projects">
-                    View All
-                  </Link>
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {projects.length > 0 ? (
-                  <div className="space-y-4">
-                    {projects.map((project) => (
-                      <div key={project.id} className="flex items-center justify-between p-3 sm:p-4 border border-border rounded-lg bg-card gap-2 sm:gap-4">
-                        <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
-                          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-muted rounded flex items-center justify-center shrink-0">
-                            <FolderOpen className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm sm:text-base font-medium truncate">{project.name}</p>
-                            <p className="text-xs sm:text-sm text-muted-foreground">
-                              Created {new Date(project.createdAt).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
-                          <Badge variant={
-                            project.status === 'completed' ? 'default' :
-                            project.status === 'processing' ? 'secondary' :
-                            project.status === 'failed' ? 'destructive' : 'outline'
-                          }>
-                            {project.status}
-                          </Badge>
-                          <Button asChild variant="ghost" size="sm">
-                            <Link href={`/dashboard/projects/${project.id}`}>
-                              View
-                            </Link>
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <FolderOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No projects yet</p>
-                    <p className="text-xs">Create your first project to get started</p>
-                    <Button asChild className="mt-4">
-                      <Link href="/dashboard/projects">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create Project
-                      </Link>
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Community
-                </CardTitle>
-                <CardDescription>
-                  Explore the gallery
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Discover amazing architectural renders from our community of designers and architects.
-                </p>
-                <Button asChild className="w-full">
-                  <Link href="/gallery">
-                    <Image className="h-4 w-4 mr-2" />
-                    Browse Gallery
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5" />
-                  Billing
-                </CardTitle>
-                <CardDescription>
-                  Manage your subscription
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Upgrade your plan for more credits and advanced features.
-                </p>
-                <Button asChild variant="outline" className="w-full">
-                  <Link href="/dashboard/billing">
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Manage Billing
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
       </div>
     </div>
   );

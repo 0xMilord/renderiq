@@ -63,7 +63,7 @@ export function InvoicesList() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Billing History</CardTitle>
+          <CardTitle>Recent Invoices</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
@@ -84,11 +84,11 @@ export function InvoicesList() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
-            <Download className="h-5 w-5" />
-            <span>Billing History</span>
+            <FileText className="h-5 w-5" />
+            <span>Recent Invoices</span>
           </CardTitle>
           <CardDescription>
-            Download invoices and view payment history
+            Download your recent invoices
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -109,18 +109,18 @@ export function InvoicesList() {
   }
 
   return (
-    <Card>
+    <Card className="h-full flex flex-col">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
-          <Download className="h-5 w-5" />
-          <span>Billing History</span>
+          <FileText className="h-5 w-5" />
+          <span>Recent Invoices</span>
         </CardTitle>
         <CardDescription>
-          Download invoices and view payment history
+          Download your recent invoices
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
+      <CardContent className="flex-1 flex flex-col">
+        <div className="space-y-3 flex-1 overflow-y-auto">
           {invoices.slice(0, 5).map((invoice) => (
             <div
               key={invoice.id}

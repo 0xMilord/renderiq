@@ -36,26 +36,33 @@ export function BillingOverview() {
   const creditsUsed = credits ? credits.totalSpent : 0;
   const creditsEarned = credits ? credits.totalEarned : 0;
   const creditsBalance = credits ? credits.balance : 0;
-  const creditsPercentage = creditsEarned > 0 ? (creditsUsed / creditsEarned) * 100 : 0;
+  // Monthly usage for progress bar (current billing period)
+  const monthlyEarned = credits?.monthlyEarned || 0;
+  const monthlySpent = credits?.monthlySpent || 0;
+  const monthlyPercentage = monthlyEarned > 0 ? (monthlySpent / monthlyEarned) * 100 : 0;
 
   return (
-    <Card>
+    <Card className="h-full flex flex-col">
       <CardHeader>
         <CardTitle>Account Overview</CardTitle>
         <CardDescription>
           Your current account status and usage
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 flex-1 flex flex-col">
         {/* Credits Usage */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Credits Usage</span>
+            <span className="text-sm font-medium">Monthly Usage</span>
             <span className="text-sm text-muted-foreground">
-              {creditsUsed} / {creditsEarned} used
+              {monthlySpent > 0 || monthlyEarned > 0 ? (
+                <>{monthlySpent} / {monthlyEarned} used</>
+              ) : (
+                <>{creditsUsed} / {creditsEarned} total</>
+              )}
             </span>
           </div>
-          <Progress value={creditsPercentage} className="h-2" />
+          <Progress value={monthlyEarned > 0 ? monthlyPercentage : (creditsEarned > 0 ? (creditsUsed / creditsEarned) * 100 : 0)} className="h-2" />
           <div className="flex items-center justify-between mt-2">
             <span className="text-xs text-muted-foreground">Available: {creditsBalance}</span>
             {creditsBalance < 5 && (

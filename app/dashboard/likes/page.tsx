@@ -50,18 +50,8 @@ export default function LikesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-full">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-        {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <Heart className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Liked Images</h1>
-          </div>
-          <p className="text-muted-foreground text-sm sm:text-base">
-            {likedItems.length} {likedItems.length === 1 ? 'image' : 'images'} you've liked
-          </p>
-        </div>
 
         {/* Gallery Grid */}
         {likedItems.length > 0 ? (

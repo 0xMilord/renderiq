@@ -120,15 +120,12 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background overflow-y-auto">
+    <div className="h-full">
       <div className="max-w-[2400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 pb-20">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 space-y-4 sm:space-y-0">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">My Projects</h1>
-            <p className="text-muted-foreground mt-2 text-sm sm:text-base">
-              {projects.length} project{projects.length !== 1 ? 's' : ''}
-            </p>
+          <div className="text-sm text-muted-foreground">
+            {projects.length} project{projects.length !== 1 ? 's' : ''}
           </div>
           <div className="flex items-center space-x-2 flex-wrap gap-2">
             <Button 

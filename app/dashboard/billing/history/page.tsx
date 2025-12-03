@@ -70,11 +70,10 @@ export default function PaymentHistoryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-4 sm:p-6 lg:p-8">
+    <div className="h-full p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Payment History</h1>
           <p className="text-muted-foreground mt-2 text-sm sm:text-base">
             View all your payment transactions and download receipts
           </p>

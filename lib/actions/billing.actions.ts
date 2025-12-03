@@ -69,7 +69,7 @@ export async function getUserCredits() {
       };
     }
 
-    const credits = await BillingDAL.getUserCreditsWithReset(user.id);
+    const credits = await BillingDAL.getUserCreditsWithResetAndMonthly(user.id);
     
     if (!credits) {
       return {
@@ -84,6 +84,8 @@ export async function getUserCredits() {
         balance: credits.balance,
         totalEarned: credits.totalEarned,
         totalSpent: credits.totalSpent,
+        monthlyEarned: credits.monthlyEarned || 0,
+        monthlySpent: credits.monthlySpent || 0,
       },
     };
   } catch (error) {
