@@ -12,16 +12,16 @@ import { RecentProjectsSection } from '@/components/profile/recent-projects-sect
 
 export default function ProfilePage() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-[2400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Profile</h1>
-          <p className="text-gray-600 mt-2">Manage your account settings and preferences</p>
+    <div className="min-h-screen bg-background">
+      <div className="max-w-[2400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Profile</h1>
+          <p className="text-muted-foreground mt-2 text-sm sm:text-base">Manage your account settings and preferences</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             <Suspense fallback={<div>Loading profile...</div>}>
               <ProfileHeader />
             </Suspense>
@@ -36,31 +36,31 @@ export default function ProfilePage() {
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Quick Actions */}
             <Card>
               <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-base sm:text-lg">Quick Actions</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
                   Common profile management tasks
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <Button asChild variant="outline" className="w-full justify-start">
-                  <Link href="/profile/settings">
-                    <Settings className="h-4 w-4 mr-2" />
+              <CardContent className="space-y-2 sm:space-y-3">
+                <Button asChild variant="outline" className="w-full justify-start text-sm">
+                  <Link href="/dashboard/settings">
+                    <Settings className="h-4 w-4 mr-2 shrink-0" />
                     Account Settings
                   </Link>
                 </Button>
-                <Button asChild variant="outline" className="w-full justify-start">
-                  <Link href="/profile/notifications">
-                    <Bell className="h-4 w-4 mr-2" />
+                <Button asChild variant="outline" className="w-full justify-start text-sm">
+                  <Link href="/dashboard/settings#notifications">
+                    <Bell className="h-4 w-4 mr-2 shrink-0" />
                     Notifications
                   </Link>
                 </Button>
-                <Button asChild variant="outline" className="w-full justify-start">
-                  <Link href="/billing">
-                    <CreditCard className="h-4 w-4 mr-2" />
+                <Button asChild variant="outline" className="w-full justify-start text-sm">
+                  <Link href="/dashboard/billing">
+                    <CreditCard className="h-4 w-4 mr-2 shrink-0" />
                     Billing & Subscription
                   </Link>
                 </Button>
@@ -71,17 +71,17 @@ export default function ProfilePage() {
             <Suspense fallback={
               <Card>
                 <CardHeader>
-                  <CardTitle>Recent Projects</CardTitle>
-                  <CardDescription>Your latest architectural projects</CardDescription>
+                  <CardTitle className="text-base sm:text-lg">Recent Projects</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Your latest architectural projects</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {Array.from({ length: 2 }).map((_, i) => (
-                      <div key={i} className="flex items-center space-x-3 p-3 border rounded-lg">
-                        <div className="w-12 h-12 bg-muted animate-pulse rounded-lg flex-shrink-0" />
-                        <div className="flex-1 min-w-0 space-y-2">
-                          <div className="h-4 w-32 bg-muted animate-pulse rounded" />
-                          <div className="h-3 w-24 bg-muted animate-pulse rounded" />
+                      <div key={i} className="flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 border border-border rounded-lg bg-card">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-muted animate-pulse rounded-lg flex-shrink-0" />
+                        <div className="flex-1 min-w-0 space-y-1 sm:space-y-2">
+                          <div className="h-3 sm:h-4 w-24 sm:w-32 bg-muted animate-pulse rounded" />
+                          <div className="h-2 sm:h-3 w-16 sm:w-24 bg-muted animate-pulse rounded" />
                         </div>
                       </div>
                     ))}

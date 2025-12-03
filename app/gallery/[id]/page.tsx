@@ -7,8 +7,26 @@ import Script from 'next/script';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
 
+// ISR: Revalidate every 60 seconds (1 minute)
+export const revalidate = 60;
+
 interface PageProps {
   params: Promise<{ id: string }>;
+}
+
+// Generate static params for popular/recent gallery items
+export async function generateStaticParams() {
+  try {
+    // Pre-generate the most popular gallery items (top 500)
+    const itemIds = await RendersDAL.getAllPublicGalleryItemIds(500);
+    
+    return itemIds.map((id) => ({
+      id: id,
+    }));
+  } catch (error) {
+    console.error('Error generating static params for gallery items:', error);
+    return [];
+  }
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

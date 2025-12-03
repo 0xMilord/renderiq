@@ -41,11 +41,11 @@ export default function ChainDetailPage({
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="max-w-[2400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-[2400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-              <p className="text-muted-foreground">Loading chain...</p>
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+              <p className="text-muted-foreground text-sm sm:text-base">Loading chain...</p>
             </div>
           </div>
         </div>
@@ -56,13 +56,13 @@ export default function ChainDetailPage({
   if (error || !chain) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="max-w-[2400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center py-12">
-            <div className="text-red-500 mb-4">Chain not found</div>
-            <p className="text-muted-foreground mb-4">{error || 'The chain you are looking for does not exist.'}</p>
-            <Button asChild>
+        <div className="max-w-[2400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+          <div className="text-center py-8 sm:py-12">
+            <div className="text-destructive mb-4 text-sm sm:text-base">Chain not found</div>
+            <p className="text-muted-foreground mb-4 text-sm sm:text-base">{error || 'The chain you are looking for does not exist.'}</p>
+            <Button asChild size="sm" className="text-sm">
               <Link href={`/dashboard/projects/${slug}`}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
+                <ArrowLeft className="h-4 w-4 mr-2 shrink-0" />
                 Back to Project
               </Link>
             </Button>
@@ -74,28 +74,28 @@ export default function ChainDetailPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-[2400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-[2400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 space-y-4 sm:space-y-0">
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="sm" asChild>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 space-y-4 sm:space-y-0">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 min-w-0 flex-1">
+            <Button variant="ghost" size="sm" asChild className="self-start shrink-0">
               <Link href={`/dashboard/projects/${slug}`}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
+                <ArrowLeft className="h-4 w-4 mr-2 shrink-0" />
+                <span className="text-sm">Back</span>
               </Link>
             </Button>
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <GitBranch className="h-6 w-6 text-primary" />
-                <h1 className="text-3xl font-bold text-foreground">{chain.name}</h1>
-                <Badge variant="secondary">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <GitBranch className="h-5 w-5 sm:h-6 sm:w-6 text-primary shrink-0" />
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground truncate">{chain.name}</h1>
+                <Badge variant="secondary" className="text-xs sm:text-sm shrink-0">
                   {renders.length} version{renders.length !== 1 ? 's' : ''}
                 </Badge>
               </div>
               {chain.description && (
-                <p className="text-muted-foreground">{chain.description}</p>
+                <p className="text-sm sm:text-base text-muted-foreground break-words">{chain.description}</p>
               )}
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                 Created {formatDistanceToNow(new Date(chain.createdAt), { addSuffix: true })}
               </p>
             </div>

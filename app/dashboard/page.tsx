@@ -49,15 +49,15 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back! Manage your projects and track your AI renders.</p>
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Dashboard</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">Welcome back! Manage your projects and track your AI renders.</p>
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
@@ -116,7 +116,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mb-6 sm:mb-8">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -128,17 +128,17 @@ export default async function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <Button asChild className="h-auto p-4 flex flex-col items-center space-y-2">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                <Button asChild className="h-auto p-3 sm:p-4 flex flex-col items-center space-y-1 sm:space-y-2">
                   <Link href="/render">
-                    <div className="text-2xl">💬</div>
-                    <span className="text-sm">AI Chat</span>
+                    <div className="text-xl sm:text-2xl">💬</div>
+                    <span className="text-xs sm:text-sm">AI Chat</span>
                   </Link>
                 </Button>
-                <Button asChild variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
+                <Button asChild variant="outline" className="h-auto p-3 sm:p-4 flex flex-col items-center space-y-1 sm:space-y-2">
                   <Link href="/dashboard/projects">
-                    <div className="text-2xl">📁</div>
-                    <span className="text-sm">Projects</span>
+                    <div className="text-xl sm:text-2xl">📁</div>
+                    <span className="text-xs sm:text-sm">Projects</span>
                   </Link>
                 </Button>
               </div>
@@ -159,13 +159,13 @@ export default async function DashboardPage() {
               <div className="space-y-4">
                 {recentRenders.length > 0 ? (
                   recentRenders.slice(0, 3).map((render) => (
-                    <div key={render.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-muted rounded flex items-center justify-center">
+                    <div key={render.id} className="flex items-center justify-between p-2 sm:p-3 border border-border rounded-lg bg-card">
+                      <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+                        <div className="w-8 h-8 bg-muted rounded flex items-center justify-center shrink-0">
                           {render.type === 'video' ? '🎥' : '🖼️'}
                         </div>
-                        <div>
-                          <p className="text-sm font-medium truncate max-w-[200px]">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs sm:text-sm font-medium truncate">
                             {render.prompt}
                           </p>
                           <p className="text-xs text-muted-foreground">
@@ -195,7 +195,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Projects Overview */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           <div className="lg:col-span-2">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
@@ -218,19 +218,19 @@ export default async function DashboardPage() {
                 {projects.length > 0 ? (
                   <div className="space-y-4">
                     {projects.map((project) => (
-                      <div key={project.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
-                            <FolderOpen className="h-5 w-5 text-muted-foreground" />
+                      <div key={project.id} className="flex items-center justify-between p-3 sm:p-4 border border-border rounded-lg bg-card gap-2 sm:gap-4">
+                        <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-muted rounded flex items-center justify-center shrink-0">
+                            <FolderOpen className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                           </div>
-                          <div>
-                            <p className="font-medium">{project.name}</p>
-                            <p className="text-sm text-muted-foreground">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm sm:text-base font-medium truncate">{project.name}</p>
+                            <p className="text-xs sm:text-sm text-muted-foreground">
                               Created {new Date(project.createdAt).toLocaleDateString()}
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
                           <Badge variant={
                             project.status === 'completed' ? 'default' :
                             project.status === 'processing' ? 'secondary' :

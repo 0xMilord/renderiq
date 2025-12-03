@@ -121,16 +121,16 @@ export default function ProjectsPage() {
 
   return (
     <div className="min-h-screen bg-background overflow-y-auto">
-      <div className="max-w-[2400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20">
+      <div className="max-w-[2400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 pb-20">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 space-y-4 sm:space-y-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 space-y-4 sm:space-y-0">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">My Projects</h1>
-            <p className="text-muted-foreground mt-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">My Projects</h1>
+            <p className="text-muted-foreground mt-2 text-sm sm:text-base">
               {projects.length} project{projects.length !== 1 ? 's' : ''}
             </p>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 flex-wrap gap-2">
             <Button 
               variant="outline" 
               size="sm" 
@@ -151,17 +151,17 @@ export default function ProjectsPage() {
         </div>
 
         {/* Search and Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search projects..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-10 text-sm sm:text-base"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Select value={sortBy} onValueChange={setSortBy}>
               <SelectTrigger className="w-[140px]">
                 <SelectValue />

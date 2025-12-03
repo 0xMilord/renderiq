@@ -375,9 +375,9 @@ export function GalleryItemPageClient({ item, similarItems }: GalleryItemPageCli
           {/* More like this - Fixed height scroll container */}
           {similarItems.length > 0 && (
             <section className="mt-12" aria-label="Similar gallery items">
-              <h2 className="text-2xl font-bold mb-6">More like this</h2>
+              <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">More like this</h2>
               <div className="h-[600px] overflow-y-auto pr-2">
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                   {similarItems.map((similarItem) => (
                     <GalleryImageCard
                       key={similarItem.id}

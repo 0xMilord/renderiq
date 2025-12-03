@@ -89,9 +89,9 @@ export function GalleryImageCard({
   };
 
   const handleCardClick = (e: React.MouseEvent) => {
-    // Don't navigate if clicking on user link or like button
+    // Don't navigate if clicking on user link, like button, or View Image button
     const target = e.target as HTMLElement;
-    if (target.closest('a') || target.closest('button')) {
+    if (target.closest('a') || target.closest('button') || target.closest('[data-view-image]')) {
       return;
     }
     router.push(`/gallery/${item.id}`);
@@ -510,16 +510,18 @@ export function GalleryImageCard({
             variant="outline"
             size="sm"
             className="h-7 text-xs border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+            data-view-image
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              router.push(`/gallery/${item.id}`);
+              const url = `/gallery/${item.id}`;
+              router.push(url);
               if (onView) {
                 onView(item.id);
               }
             }}
           >
-            <Eye className="h-3 w-3 mr-1" />
+            <Eye className="h-3 w-3 mr-1 shrink-0" />
             View Image
           </Button>
         </div>

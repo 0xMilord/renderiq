@@ -336,6 +336,26 @@ export class RendersDAL {
   }
 
   /**
+   * Get all public gallery item IDs for SSG
+   * Returns IDs sorted by popularity (likes + views) and recency
+   */
+  static async getAllPublicGalleryItemIds(limit = 1000) {
+    logger.log('🖼️ Fetching all public gallery item IDs for SSG');
+    
+    const items = await db
+      .select({
+        id: galleryItems.id,
+      })
+      .from(galleryItems)
+      .where(eq(galleryItems.isPublic, true))
+      .orderBy(desc(sql`${galleryItems.likes} + ${galleryItems.views}`))
+      .limit(limit);
+
+    logger.log(`✅ Found ${items.length} public gallery item IDs`);
+    return items.map(item => item.id);
+  }
+
+  /**
    * Get multiple renders by IDs in ONE query
    * ✅ OPTIMIZED: Batch operation for bulk render fetching
    */

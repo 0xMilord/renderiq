@@ -56,11 +56,11 @@ export default function PaymentHistoryPage() {
 
   return (
     <div className="min-h-screen bg-background p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold">Payment History</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Payment History</h1>
+          <p className="text-muted-foreground mt-2 text-sm sm:text-base">
             View all your payment transactions and download receipts
           </p>
         </div>
@@ -74,7 +74,7 @@ export default function PaymentHistoryPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <Select
                 value={filters.type}
                 onValueChange={(value) => setFilters({ ...filters, type: value as any })}
@@ -143,17 +143,17 @@ export default function PaymentHistoryPage() {
               </div>
             ) : (
               <>
-                <div className="rounded-md border">
+                <div className="rounded-md border border-border overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Item</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Invoice</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Date</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Type</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Item</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Amount</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Status</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Invoice</TableHead>
+                        <TableHead className="text-right text-xs sm:text-sm">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
