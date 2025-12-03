@@ -158,7 +158,7 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
 
       if (!result.success) {
         // Handle duplicate subscription error
-        if (result.hasExistingSubscription || result.hasPendingSubscription) {
+        if (result.hasExistingSubscription) {
           toast.error(result.error || 'You already have a subscription');
           // Optionally redirect to billing page
           setTimeout(() => {
@@ -284,35 +284,11 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
           backdrop_color: isDarkMode ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.8)',
         },
         modal: {
-          ondismiss: async () => {
+          ondismiss: () => {
             setLoading(null);
             razorpayInstanceRef.current = null; // Clear reference
-            
-            // CRITICAL: Cancel pending subscription when user dismisses payment modal
-            try {
-              logger.log('🚫 User dismissed payment modal, cancelling pending subscription:', result.data.subscriptionId);
-              
-              const cancelResponse = await fetch('/api/payments/cancel-subscription', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  subscriptionId: result.data.subscriptionId,
-                }),
-              });
-              
-              const cancelResult = await cancelResponse.json();
-              
-              if (cancelResult.success) {
-                logger.log('✅ Pending subscription cancelled after user dismissed payment');
-                toast.info('Payment cancelled. Subscription has been cancelled.');
-              } else {
-                logger.warn('⚠️ Failed to cancel subscription after dismissal:', cancelResult.error);
-                toast.warning('Payment cancelled, but there was an issue updating the subscription. Please check your billing page.');
-              }
-            } catch (error) {
-              logger.error('❌ Error cancelling subscription after dismissal:', error);
-              toast.warning('Payment cancelled, but there was an error. Please check your billing page.');
-            }
+            // No database record exists yet, so nothing to cancel
+            toast.info('Payment cancelled');
           },
           escape: true,
           animation: true,
@@ -333,30 +309,14 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
       const razorpayInstance = new Razorpay(options);
       razorpayInstanceRef.current = razorpayInstance; // Store reference
       
-      // CRITICAL: Add payment failure handler to prevent users being marked pro on failure
+      // Payment failure handler
       razorpayInstance.on('payment.failed', async (response: any) => {
         console.error('Payment failed:', response);
         setLoading(null);
         razorpayInstanceRef.current = null; // Clear reference
         const errorDescription = response.error?.description || 'Unknown error';
         
-        // IMPORTANT: Cancel/delete the pending subscription to prevent user being marked pro
-        try {
-          const cancelResponse = await fetch('/api/payments/cancel-subscription', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              subscriptionId: result.data.subscriptionId,
-            }),
-          });
-          
-          if (!cancelResponse.ok) {
-            console.error('Failed to cancel subscription after payment failure');
-          }
-        } catch (error) {
-          console.error('Error cancelling subscription:', error);
-        }
-        
+        // No database record exists yet, so nothing to cancel
         toast.error(`Payment failed: ${errorDescription}`);
         // Redirect to failure page
         window.location.href = `/payment/failure?razorpay_subscription_id=${result.data.subscriptionId}&error_description=${encodeURIComponent(errorDescription)}`;
@@ -466,7 +426,6 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
           // Check if this is the user's current plan
           const isCurrentPlan = userSubscription?.subscription?.planId === plan.id;
           const hasActiveSubscription = userSubscription?.subscription?.status === 'active';
-          const hasPendingSubscription = userSubscription?.subscription?.status === 'pending';
           const currentPlanPrice = userSubscription?.plan ? parseFloat(userSubscription.plan.price) : 0;
           const isUpgrade = hasActiveSubscription && !isCurrentPlan && parseFloat(plan.price) > currentPlanPrice;
           const isDowngrade = hasActiveSubscription && !isCurrentPlan && parseFloat(plan.price) < currentPlanPrice;
@@ -480,17 +439,10 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
                   </Badge>
                 </div>
               )}
-              {isCurrentPlan && (
+              {isCurrentPlan && hasActiveSubscription && (
                 <div className="absolute -top-3 right-4">
                   <Badge className="bg-green-500 text-white">
                     Current Plan
-                  </Badge>
-                </div>
-              )}
-              {hasPendingSubscription && isCurrentPlan && (
-                <div className="absolute -top-3 right-4">
-                  <Badge className="bg-yellow-500 text-white">
-                    Payment Pending
                   </Badge>
                 </div>
               )}
@@ -576,15 +528,12 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
                     razorpayLoading || 
                     !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 
                     parseFloat(plan.price) === 0 ||
-                    (isCurrentPlan && hasActiveSubscription) ||
-                    hasPendingSubscription
+                    (isCurrentPlan && hasActiveSubscription)
                   }
                   variant={isCurrentPlan && hasActiveSubscription ? 'outline' : 'default'}
                   title={
                     isCurrentPlan && hasActiveSubscription
                       ? 'This is your current plan'
-                      : hasPendingSubscription
-                      ? 'You have a pending subscription. Please wait for payment to complete.'
                       : !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID 
                       ? 'Payment gateway not configured' 
                       : razorpayLoading || !razorpayLoaded
@@ -598,8 +547,6 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
                     'Loading...'
                   ) : isCurrentPlan && hasActiveSubscription ? (
                     'Current Plan'
-                  ) : hasPendingSubscription && isCurrentPlan ? (
-                    'Payment Pending'
                   ) : isUpgrade ? (
                     'Upgrade Plan'
                   ) : isDowngrade ? (

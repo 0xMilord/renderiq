@@ -190,36 +190,11 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
           backdrop_color: isDarkMode ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.8)', // Semi-transparent backdrop
         },
         modal: {
-          ondismiss: async () => {
+          ondismiss: () => {
             setLoading(null);
             razorpayInstanceRef.current = null; // Clear reference
-            
-            // CRITICAL: Cancel pending payment order when user dismisses payment modal
-            try {
-              logger.log('🚫 User dismissed payment modal, cancelling pending order:', orderId);
-              
-              const cancelResponse = await fetch('/api/payments/cancel-order', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  orderId: orderId,
-                  paymentOrderId: orderResult.data.paymentOrderId,
-                }),
-              });
-              
-              const cancelResult = await cancelResponse.json();
-              
-              if (cancelResult.success) {
-                logger.log('✅ Pending payment order cancelled after user dismissed payment');
-                toast.info('Payment cancelled. Order has been cancelled.');
-              } else {
-                logger.warn('⚠️ Failed to cancel order after dismissal:', cancelResult.error);
-                toast.warning('Payment cancelled, but there was an issue updating the order.');
-              }
-            } catch (error) {
-              logger.error('❌ Error cancelling order after dismissal:', error);
-              toast.warning('Payment cancelled, but there was an error updating the order.');
-            }
+            // No database record exists yet, so nothing to cancel
+            toast.info('Payment cancelled');
           },
           escape: true, // Allow ESC key to close
           animation: true, // Enable animations
@@ -390,29 +365,21 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
                     </div>
                   )}
 
-                  <CardHeader className="text-center pb-2 pt-4 px-3">
-                    <div className={`${isSmallPackage ? 'w-8 h-8' : 'w-10 h-10'} bg-muted rounded-lg flex items-center justify-center mx-auto mb-2`}>
-                      {pkg.bonusCredits > 0 ? (
-                        <Sparkles className={`${isSmallPackage ? 'h-4 w-4' : 'h-5 w-5'} text-primary`} />
-                      ) : (
-                        <Coins className={`${isSmallPackage ? 'h-4 w-4' : 'h-5 w-5'} text-muted-foreground`} />
-                      )}
-                    </div>
-                    <CardTitle className={`${isSmallPackage ? 'text-sm' : 'text-base'} font-semibold leading-tight`}>{pkg.name}</CardTitle>
+                  <CardHeader className="pb-1 pt-2 px-3">
                     {pkg.description && !isSmallPackage && (
-                      <CardDescription className="text-xs mt-1 line-clamp-2">{pkg.description}</CardDescription>
+                      <CardDescription className="text-[10px] text-center mb-1 line-clamp-1">{pkg.description}</CardDescription>
                     )}
                   </CardHeader>
 
-                  <CardContent className="space-y-3 px-3 pb-3 flex-1 flex flex-col">
-                    {/* Credits and Pricing - Stack vertically on mobile, side by side on desktop */}
-                    <div className="flex flex-col sm:grid sm:grid-cols-2 gap-3">
+                  <CardContent className="space-y-2 px-3 pb-2 flex-1 flex flex-col">
+                    {/* Credits and Pricing - 2 columns, 1 row */}
+                    <div className="grid grid-cols-2 gap-2">
                       {/* Credits Column */}
-                      <div className={`text-center ${isSmallPackage ? 'p-2' : 'p-3'} bg-muted rounded-lg`}>
-                        <div className={`${isSmallPackage ? 'text-base' : 'text-lg'} font-bold text-foreground`}>
+                      <div className="text-center p-1.5 bg-muted rounded">
+                        <div className="text-sm font-bold text-foreground">
                           {formatNumberCompact(Number(totalCredits) || 0)}
                         </div>
-                        <div className={`${isSmallPackage ? 'text-[10px]' : 'text-xs'} text-muted-foreground mt-0.5`}>
+                        <div className="text-[9px] text-muted-foreground mt-0.5">
                           {formatNumberCompact(Number(pkg.credits) || 0)} credits
                           {pkg.bonusCredits > 0 && (
                             <span className="text-primary"> +{formatNumberCompact(Number(pkg.bonusCredits) || 0)}</span>
@@ -421,13 +388,13 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
                       </div>
 
                       {/* Pricing Column */}
-                      <div className={`text-center ${isSmallPackage ? 'p-2' : 'p-3'} bg-muted rounded-lg`}>
-                        <div className={`${isSmallPackage ? 'text-base' : 'text-lg'} font-bold text-foreground`}>
+                      <div className="text-center p-1.5 bg-muted rounded">
+                        <div className="text-sm font-bold text-foreground">
                           {currencyLoading || !convertedPrices[pkg.id] 
                             ? '...' 
                             : formatCurrencyCompact(convertedPrices[pkg.id], currency)}
                         </div>
-                        <div className={`${isSmallPackage ? 'text-[10px]' : 'text-xs'} text-muted-foreground mt-0.5`}>
+                        <div className="text-[9px] text-muted-foreground mt-0.5">
                           {currencyLoading || !convertedPrices[pkg.id]
                             ? '...'
                             : `${formatCurrencyCompact(Math.round((convertedPrices[pkg.id] || 0) / totalCredits), currency)}/credit`}
@@ -435,42 +402,43 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
                       </div>
                     </div>
 
-                    {/* Value proposition */}
-                    {pkg.bonusCredits > 0 && !isSmallPackage && (
-                      <div className="bg-primary/10 rounded-lg p-2 text-center">
-                        <p className="text-xs font-medium text-primary">
-                          +{pkg.bonusCredits} bonus!
-                        </p>
+                    {/* Package Name with Icon and Buy Now Button - 1 row 2 columns */}
+                    <div className="grid grid-cols-2 gap-2 items-center mt-auto">
+                      <div className="flex items-center gap-1.5">
+                        {pkg.bonusCredits > 0 ? (
+                          <Sparkles className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                        ) : (
+                          <Coins className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                        )}
+                        <CardTitle className="text-sm font-semibold leading-tight truncate">{pkg.name}</CardTitle>
                       </div>
-                    )}
-
-                    {/* CTA Button */}
-                <Button
-                  className={`w-full ${isSmallPackage ? 'text-xs h-8' : 'text-sm h-9'} mt-auto`}
-                  onClick={() => handlePurchase(pkg.id, pkg)}
-                  disabled={loading === pkg.id || !razorpayLoaded || razorpayLoading || !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID}
-                  title={
-                    !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID 
-                      ? 'Payment gateway not configured' 
-                      : razorpayLoading || !razorpayLoaded
-                        ? 'Payment gateway is loading...' 
-                        : ''
-                  }
-                >
-                  {loading === pkg.id ? (
-                    <>
-                      <Loader2 className={`${isSmallPackage ? 'h-3 w-3' : 'h-4 w-4'} mr-1.5 animate-spin`} />
-                      <span className={isSmallPackage ? 'text-xs' : ''}>Processing...</span>
-                    </>
-                  ) : razorpayLoading || !razorpayLoaded ? (
-                    <>
-                      <Loader2 className={`${isSmallPackage ? 'h-3 w-3' : 'h-4 w-4'} mr-1.5 animate-spin`} />
-                      <span className={isSmallPackage ? 'text-xs' : ''}>Loading...</span>
-                    </>
-                  ) : (
-                    <span className={isSmallPackage ? 'text-xs' : ''}>Buy Now</span>
-                  )}
-                </Button>
+                      <Button
+                        className="w-full text-xs h-8"
+                        onClick={() => handlePurchase(pkg.id, pkg)}
+                        disabled={loading === pkg.id || !razorpayLoaded || razorpayLoading || !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID}
+                        title={
+                          !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID 
+                            ? 'Payment gateway not configured' 
+                            : razorpayLoading || !razorpayLoaded
+                              ? 'Payment gateway is loading...' 
+                              : ''
+                        }
+                      >
+                        {loading === pkg.id ? (
+                          <>
+                            <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                            <span className="text-xs">Processing...</span>
+                          </>
+                        ) : razorpayLoading || !razorpayLoaded ? (
+                          <>
+                            <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                            <span className="text-xs">Loading...</span>
+                          </>
+                        ) : (
+                          <span className="text-xs">Buy Now</span>
+                        )}
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               );

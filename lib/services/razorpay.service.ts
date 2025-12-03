@@ -114,26 +114,11 @@ export class RazorpayService {
       const razorpay = getRazorpayInstance();
       const razorpayOrder = await razorpay.orders.create(orderOptions);
 
-      logger.log('✅ RazorpayService: Order created:', razorpayOrder.id);
+      logger.log('✅ RazorpayService: Order created in Razorpay:', razorpayOrder.id);
 
-      // Create payment order record in database
-      const [paymentOrder] = await db
-        .insert(paymentOrders)
-        .values({
-          userId,
-          type: 'credit_package',
-          referenceId: creditPackageId,
-          razorpayOrderId: razorpayOrder.id,
-          amount: amount.toString(),
-          currency,
-          status: 'pending',
-          metadata: {
-            credits: packageData.credits,
-            bonusCredits: packageData.bonusCredits,
-            packageName: packageData.name,
-          },
-        })
-        .returning();
+      // IMPORTANT: Do NOT create database records here
+      // Database records will be created ONLY after payment is verified in verifyPayment
+      // This prevents pending/failed records from being created when user closes payment modal
 
       return {
         success: true,
@@ -141,7 +126,10 @@ export class RazorpayService {
           orderId: razorpayOrder.id,
           amount: typeof razorpayOrder.amount === 'number' ? razorpayOrder.amount / 100 : Number(razorpayOrder.amount) / 100, // Convert back from paise
           currency: razorpayOrder.currency,
-          paymentOrderId: paymentOrder.id,
+          creditPackageId,
+          credits: packageData.credits,
+          bonusCredits: packageData.bonusCredits,
+          packageName: packageData.name,
         },
       };
     } catch (error) {
@@ -164,15 +152,61 @@ export class RazorpayService {
     try {
       logger.log('🔐 RazorpayService: Verifying payment:', { razorpayOrderId, razorpayPaymentId });
 
-      // Get payment order from database
-      const [paymentOrder] = await db
+      // Fetch order details from Razorpay first
+      const razorpay = getRazorpayInstance();
+      const razorpayOrder = await razorpay.orders.fetch(razorpayOrderId);
+      
+      // Get payment order from database (may not exist if user closed modal before)
+      let [paymentOrder] = await db
         .select()
         .from(paymentOrders)
         .where(eq(paymentOrders.razorpayOrderId, razorpayOrderId))
         .limit(1);
 
+      // If payment order doesn't exist, create it now (payment is verified)
       if (!paymentOrder) {
-        return { success: false, error: 'Payment order not found' };
+        logger.log('📝 RazorpayService: Payment order not found, creating from Razorpay order data');
+        
+        // Extract metadata from Razorpay order notes
+        const notes = razorpayOrder.notes || {};
+        const userId = notes.userId;
+        const creditPackageId = notes.creditPackageId;
+        
+        if (!userId || !creditPackageId) {
+          return { success: false, error: 'Missing order metadata. Cannot create payment order.' };
+        }
+        
+        // Get credit package details
+        const [packageData] = await db
+          .select()
+          .from(creditPackages)
+          .where(eq(creditPackages.id, creditPackageId))
+          .limit(1);
+        
+        if (!packageData) {
+          return { success: false, error: 'Credit package not found' };
+        }
+        
+        // Create payment order record with status 'completed' (payment is verified)
+        [paymentOrder] = await db
+          .insert(paymentOrders)
+          .values({
+            userId,
+            type: 'credit_package',
+            referenceId: creditPackageId,
+            razorpayOrderId: razorpayOrder.id,
+            amount: (typeof razorpayOrder.amount === 'number' ? razorpayOrder.amount / 100 : Number(razorpayOrder.amount) / 100).toString(),
+            currency: razorpayOrder.currency,
+            status: 'completed', // Payment is verified, so it's completed
+            metadata: {
+              credits: packageData.credits,
+              bonusCredits: packageData.bonusCredits,
+              packageName: packageData.name,
+            },
+          })
+          .returning();
+        
+        logger.log('✅ RazorpayService: Payment order created from verified payment');
       }
 
       // Verify signature
@@ -187,8 +221,7 @@ export class RazorpayService {
         return { success: false, error: 'Invalid payment signature' };
       }
 
-      // Fetch payment details from Razorpay
-      const razorpay = getRazorpayInstance();
+      // Fetch payment details from Razorpay (already have instance from above)
       const payment = await razorpay.payments.fetch(razorpayPaymentId);
 
       if (payment.status !== 'captured' && payment.status !== 'authorized') {
@@ -512,66 +545,20 @@ export class RazorpayService {
         }
       }
 
-      logger.log('✅ RazorpayService: Subscription created:', razorpaySubscription.id);
+      logger.log('✅ RazorpayService: Subscription created in Razorpay:', razorpaySubscription.id);
       logger.log('📊 RazorpayService: Subscription status from Razorpay:', razorpaySubscription.status);
 
-      // Calculate period dates
-      const now = new Date();
-      const periodEnd = new Date(now);
-      if (plan.interval === 'year') {
-        periodEnd.setFullYear(periodEnd.getFullYear() + 1);
-      } else {
-        periodEnd.setMonth(periodEnd.getMonth() + 1);
-      }
-
-      // Create subscription record in database
-      // IMPORTANT: Subscription status should be 'pending' until payment is successful
-      // Razorpay subscriptions start as 'created' or 'authenticated', not 'active'
-      // Only set to 'active' when payment is successful via webhook
-      const subscriptionStatus = razorpaySubscription.status === 'active' ? 'active' : 'pending';
-      logger.log('📊 RazorpayService: Setting subscription status in database:', subscriptionStatus);
-      
-      const [subscription] = await db
-        .insert(userSubscriptions)
-        .values({
-          userId,
-          planId,
-          status: subscriptionStatus,
-          razorpaySubscriptionId: razorpaySubscription.id,
-          razorpayCustomerId,
-          currentPeriodStart: now,
-          currentPeriodEnd: periodEnd,
-        })
-        .returning();
-      
-      logger.log('✅ RazorpayService: Subscription record created in database with status:', subscription.status);
-
-      // Create payment order record
-      await db.insert(paymentOrders).values({
-        userId,
-        type: 'subscription',
-        referenceId: planId,
-        razorpaySubscriptionId: razorpaySubscription.id,
-        amount: plan.price.toString(),
-        currency: plan.currency,
-        status: razorpaySubscription.status === 'active' ? 'completed' : 'pending',
-        metadata: {
-          planName: plan.name,
-          creditsPerMonth: plan.creditsPerMonth,
-        },
-      });
-
-      // Add initial credits if subscription is active
-      if (razorpaySubscription.status === 'active') {
-        await this.addSubscriptionCredits(userId, planId);
-      }
+      // IMPORTANT: Do NOT create database records here
+      // Database records will be created ONLY after payment is verified in verifySubscriptionPayment
+      // This prevents pending/failed records from being created when user closes payment modal
 
       return {
         success: true,
         data: {
           subscriptionId: razorpaySubscription.id,
           status: razorpaySubscription.status,
-          dbSubscriptionId: subscription.id,
+          razorpayCustomerId,
+          planId,
         },
       };
     } catch (error: any) {
@@ -673,15 +660,69 @@ Please verify the plan exists in Razorpay Dashboard.`;
         razorpayPaymentId 
       });
 
-      // Find subscription in database
-      const [subscription] = await db
+      // Fetch subscription and payment from Razorpay first to verify
+      const razorpay = getRazorpayInstance();
+      const razorpaySubscription = await razorpay.subscriptions.fetch(razorpaySubscriptionId);
+      const payment = await razorpay.payments.fetch(razorpayPaymentId);
+
+      // Check if subscription exists in database (may not exist if user closed modal before)
+      let [subscription] = await db
         .select()
         .from(userSubscriptions)
         .where(eq(userSubscriptions.razorpaySubscriptionId, razorpaySubscriptionId))
         .limit(1);
 
+      // If subscription doesn't exist, create it now (payment is verified)
       if (!subscription) {
-        return { success: false, error: 'Subscription not found' };
+        logger.log('📝 RazorpayService: Subscription not found, creating from Razorpay subscription data');
+        
+        // Extract metadata from Razorpay subscription notes
+        const notes = razorpaySubscription.notes || {};
+        const userId = notes.userId;
+        const planId = notes.planId;
+        
+        if (!userId || !planId) {
+          return { success: false, error: 'Missing subscription metadata. Cannot create subscription record.' };
+        }
+        
+        // Get plan details
+        const [plan] = await db
+          .select()
+          .from(subscriptionPlans)
+          .where(eq(subscriptionPlans.id, planId))
+          .limit(1);
+        
+        if (!plan) {
+          return { success: false, error: 'Subscription plan not found' };
+        }
+        
+        // Calculate period dates
+        const now = new Date();
+        const periodEnd = new Date(now);
+        if (plan.interval === 'year') {
+          periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+        } else {
+          periodEnd.setMonth(periodEnd.getMonth() + 1);
+        }
+        
+        // Get customer ID from subscription
+        const razorpayCustomerId = razorpaySubscription.customer_id;
+        
+        // Create subscription record with status 'active' (payment is verified)
+        [subscription] = await db
+          .insert(userSubscriptions)
+          .values({
+            userId,
+            planId,
+            status: 'active',
+            razorpaySubscriptionId: razorpaySubscription.id,
+            razorpayCustomerId,
+            currentPeriodStart: now,
+            currentPeriodEnd: periodEnd,
+          })
+          .returning();
+        
+        logger.log('✅ RazorpayService: Subscription record created from verified payment');
       }
 
       // Verify signature for subscription payment
@@ -759,12 +800,7 @@ Please verify the plan exists in Razorpay Dashboard.`;
         logger.log('✅ RazorpayService: Signature verified successfully using format:', usedFormat);
       }
 
-      // Fetch payment details from Razorpay
-      // Note: If signature verification failed and we used API fallback, payment/subscription
-      // are already fetched above, but we fetch again here to ensure consistent code path
-      const razorpay = getRazorpayInstance();
-      const payment = await razorpay.payments.fetch(razorpayPaymentId);
-      const razorpaySubscription = await razorpay.subscriptions.fetch(razorpaySubscriptionId);
+      // Payment and subscription are already fetched above
 
       if (payment.status !== 'captured' && payment.status !== 'authorized') {
         return { success: false, error: `Payment not successful. Status: ${payment.status}` };
@@ -775,16 +811,53 @@ Please verify the plan exists in Razorpay Dashboard.`;
         return { success: false, error: `Subscription not active. Status: ${razorpaySubscription.status}` };
       }
 
-      // Find payment order for this subscription
-      const [paymentOrder] = await db
+      // Find or create payment order for this subscription
+      let [paymentOrder] = await db
         .select()
         .from(paymentOrders)
         .where(eq(paymentOrders.razorpaySubscriptionId, razorpaySubscriptionId))
         .orderBy(desc(paymentOrders.createdAt))
         .limit(1);
 
-      // Update payment order status if found
-      if (paymentOrder) {
+      // If payment order doesn't exist, create it now (payment is verified)
+      if (!paymentOrder) {
+        logger.log('📝 RazorpayService: Payment order not found, creating from subscription data');
+        
+        // Get plan details
+        const [plan] = await db
+          .select()
+          .from(subscriptionPlans)
+          .where(eq(subscriptionPlans.id, subscription.planId))
+          .limit(1);
+        
+        if (!plan) {
+          return { success: false, error: 'Subscription plan not found' };
+        }
+        
+        const isCompleted = payment.status === 'captured';
+        
+        // Create payment order record with status 'completed' (payment is verified)
+        [paymentOrder] = await db
+          .insert(paymentOrders)
+          .values({
+            userId: subscription.userId,
+            type: 'subscription',
+            referenceId: subscription.planId,
+            razorpaySubscriptionId: razorpaySubscription.id,
+            razorpayPaymentId: razorpayPaymentId,
+            amount: plan.price.toString(),
+            currency: plan.currency,
+            status: isCompleted ? 'completed' : 'processing',
+            metadata: {
+              planName: plan.name,
+              creditsPerMonth: plan.creditsPerMonth,
+            },
+          })
+          .returning();
+        
+        logger.log('✅ RazorpayService: Payment order created from verified payment');
+      } else {
+        // Update existing payment order status
         const isCompleted = payment.status === 'captured';
         await db
           .update(paymentOrders)
@@ -794,17 +867,17 @@ Please verify the plan exists in Razorpay Dashboard.`;
             updatedAt: new Date(),
           })
           .where(eq(paymentOrders.id, paymentOrder.id));
+      }
 
-        // Generate invoice and receipt for completed payments
-        if (isCompleted) {
-          try {
-            await InvoiceService.createInvoice(paymentOrder.id);
-            ReceiptService.generateReceiptPdf(paymentOrder.id).catch((error) => {
-              logger.error('❌ RazorpayService: Error generating receipt:', error);
-            });
-          } catch (error) {
-            logger.error('❌ RazorpayService: Error creating invoice/receipt:', error);
-          }
+      // Generate invoice and receipt for completed payments
+      if (payment.status === 'captured') {
+        try {
+          await InvoiceService.createInvoice(paymentOrder.id);
+          ReceiptService.generateReceiptPdf(paymentOrder.id).catch((error) => {
+            logger.error('❌ RazorpayService: Error generating receipt:', error);
+          });
+        } catch (error) {
+          logger.error('❌ RazorpayService: Error creating invoice/receipt:', error);
         }
       }
 

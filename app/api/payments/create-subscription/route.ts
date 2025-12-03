@@ -53,77 +53,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // CRITICAL: Check for existing active or pending subscription
+    // CRITICAL: Check for existing active subscription only (no pending records exist)
     const existingSubscription = await BillingDAL.getUserSubscription(user.id);
     
     if (existingSubscription) {
       const isActive = existingSubscription.subscription.status === 'active';
-      const isPending = existingSubscription.subscription.status === 'pending';
       const isDifferentPlan = existingSubscription.subscription.planId !== planId;
       
       logger.log('🔍 API: Existing subscription check:', {
         isActive,
-        isPending,
         isDifferentPlan,
         existingPlanId: existingSubscription.subscription.planId,
         newPlanId: planId,
         upgrade,
       });
-      
-      // If user already has active subscription and not upgrading
-      if (isActive && !upgrade && !isDifferentPlan) {
-        // Only block if it's the same plan
-        logger.warn('⚠️ API: User trying to subscribe to same plan:', {
-          userId: user.id,
-          planId,
-        });
-        
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: 'You are already subscribed to this plan.',
-            hasExistingSubscription: true,
-            existingSubscription: {
-              planId: existingSubscription.subscription.planId,
-              planName: existingSubscription.plan?.name,
-              status: existingSubscription.subscription.status,
-            },
-          },
-          { status: 400 }
-        );
-      }
-      
-      // If user has active subscription and selecting different plan, treat as upgrade/downgrade
-      if (isActive && isDifferentPlan && !upgrade) {
-        logger.log('🔄 API: Detected plan change but upgrade flag not set, treating as upgrade');
-        // Continue to upgrade logic below
-      }
-      
-      // If user has pending subscription, don't allow new one (unless upgrading)
-      if (isPending && !upgrade) {
-        logger.warn('⚠️ API: User has pending subscription:', {
-          userId: user.id,
-          existingPlanId: existingSubscription.subscription.planId,
-        });
-        
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: 'You have a pending subscription. Please wait for the payment to complete or cancel it first.',
-            hasPendingSubscription: true,
-            existingSubscription: {
-              planId: existingSubscription.subscription.planId,
-              planName: existingSubscription.plan?.name,
-              status: existingSubscription.subscription.status,
-            },
-          },
-          { status: 400 }
-        );
-      }
-      
-      // If user has active subscription and selecting different plan, treat as upgrade/downgrade
-      // Auto-detect upgrade if upgrade flag is not set but plan is different
-      const shouldUpgrade = upgrade || (isActive && isDifferentPlan);
       
       // If user already has active subscription and selecting same plan, block it
       if (isActive && !isDifferentPlan && !upgrade) {
@@ -147,7 +90,10 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      // If upgrading/downgrading (or auto-detected plan change), cancel old subscription first
+      // If user has active subscription and selecting different plan, treat as upgrade/downgrade
+      const shouldUpgrade = upgrade || (isActive && isDifferentPlan);
+      
+      // If upgrading/downgrading, cancel old subscription first
       if (shouldUpgrade && isActive) {
         logger.log('🔄 API: Upgrading/downgrading subscription - cancelling old one');
         
