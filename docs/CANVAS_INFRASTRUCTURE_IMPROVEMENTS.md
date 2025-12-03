@@ -273,3 +273,4 @@ The canvas infrastructure has been significantly improved:
 
 The canvas now matches the quality and accessibility of the unified chat interface, with a robust foundation for future enhancements.
 
+

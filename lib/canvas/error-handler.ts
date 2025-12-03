@@ -121,3 +121,4 @@ export class CanvasErrorHandler {
 // Singleton instance
 export const canvasErrorHandler = new CanvasErrorHandler();
 
+
