@@ -15,17 +15,32 @@ export function RecentPayments() {
 
   const handleDownloadReceipt = async (paymentOrderId: string) => {
     try {
-      const response = await fetch(`/api/payments/receipt/${paymentOrderId}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data?.receiptUrl) {
-          window.open(data.data.receiptUrl, '_blank');
-        } else {
-          toast.error('Receipt not available');
-        }
-      } else {
-        toast.error('Failed to download receipt');
+      // Fetch PDF with download parameter
+      const response = await fetch(`/api/payments/receipt/${paymentOrderId}?download=true`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download receipt');
       }
+
+      // Get PDF blob
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create download link
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `receipt_${paymentOrderId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up blob URL
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Receipt downloaded successfully');
     } catch (error) {
       toast.error('Error downloading receipt');
     }

@@ -81,14 +81,20 @@ export async function createUserProfileAction(
   if (fingerprint) {
     try {
       const headersList = await headers();
-      const ipAddress = getClientIdentifier(new Headers(headersList as any));
+      // Convert headers() result to Headers object
+      const headersObj = new Headers();
+      headersList.forEach((value, key) => {
+        headersObj.set(key, value);
+      });
+      const ipAddress = getClientIdentifier(headersObj);
       requestContext = {
         deviceFingerprint: fingerprint,
-        request: new Request('http://localhost', { headers: headersList as any }),
+        request: new Request('http://localhost', { headers: headersObj }),
         ipAddress,
       };
     } catch (error) {
       logger.warn('⚠️ UserOnboardingAction: Failed to create request context:', error);
+      // Continue without request context - not critical
     }
   }
   

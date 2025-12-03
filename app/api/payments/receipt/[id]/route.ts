@@ -11,10 +11,11 @@ export const runtime = 'nodejs';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    logger.log('🧾 API: Getting receipt for payment order:', params.id);
+    const { id } = await params;
+    logger.log('🧾 API: Getting receipt for payment order:', id);
 
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -30,7 +31,7 @@ export async function GET(
     const [paymentOrder] = await db
       .select()
       .from(paymentOrders)
-      .where(eq(paymentOrders.id, params.id))
+      .where(eq(paymentOrders.id, id))
       .limit(1);
 
     if (!paymentOrder) {
@@ -50,7 +51,7 @@ export async function GET(
 
     // Generate receipt if not already generated
     if (!paymentOrder.receiptPdfUrl) {
-      const receiptResult = await ReceiptService.generateReceiptPdf(params.id);
+      const receiptResult = await ReceiptService.generateReceiptPdf(id);
       if (!receiptResult.success) {
         return NextResponse.json(
           { success: false, error: receiptResult.error },
@@ -63,7 +64,7 @@ export async function GET(
     const [updatedOrder] = await db
       .select()
       .from(paymentOrders)
-      .where(eq(paymentOrders.id, params.id))
+      .where(eq(paymentOrders.id, id))
       .limit(1);
 
     if (!updatedOrder?.receiptPdfUrl) {
@@ -71,6 +72,40 @@ export async function GET(
         { success: false, error: 'Failed to generate receipt' },
         { status: 500 }
       );
+    }
+
+    // Check if download query parameter is present
+    const { searchParams } = new URL(request.url);
+    const download = searchParams.get('download') === 'true';
+
+    if (download) {
+      // Stream the PDF file directly for download
+      try {
+        const pdfResponse = await fetch(updatedOrder.receiptPdfUrl);
+        if (!pdfResponse.ok) {
+          return NextResponse.json(
+            { success: false, error: 'Failed to fetch PDF' },
+            { status: 500 }
+          );
+        }
+
+        const pdfBuffer = await pdfResponse.arrayBuffer();
+        const fileName = `receipt_${updatedOrder.invoiceNumber || id}.pdf`;
+
+        return new NextResponse(pdfBuffer, {
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename="${fileName}"`,
+            'Content-Length': pdfBuffer.byteLength.toString(),
+          },
+        });
+      } catch (error) {
+        logger.error('❌ API: Error streaming PDF:', error);
+        return NextResponse.json(
+          { success: false, error: 'Failed to stream PDF' },
+          { status: 500 }
+        );
+      }
     }
 
     // Return receipt URL
@@ -92,10 +127,11 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    logger.log('🧾 API: Generating receipt for payment order:', params.id);
+    const { id } = await params;
+    logger.log('🧾 API: Generating receipt for payment order:', id);
 
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -111,7 +147,7 @@ export async function POST(
     const [paymentOrder] = await db
       .select()
       .from(paymentOrders)
-      .where(eq(paymentOrders.id, params.id))
+      .where(eq(paymentOrders.id, id))
       .limit(1);
 
     if (!paymentOrder) {
@@ -130,7 +166,7 @@ export async function POST(
     }
 
     // Generate receipt
-    const receiptResult = await ReceiptService.generateReceiptPdf(params.id);
+    const receiptResult = await ReceiptService.generateReceiptPdf(id);
 
     if (!receiptResult.success) {
       return NextResponse.json(

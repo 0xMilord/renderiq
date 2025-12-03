@@ -13,11 +13,36 @@ import { toast } from 'sonner';
 export function InvoicesList() {
   const { invoices, loading } = useInvoices({ limit: 5 });
 
-  const handleDownloadInvoice = (pdfUrl?: string) => {
-    if (pdfUrl) {
-      window.open(pdfUrl, '_blank');
-    } else {
+  const handleDownloadInvoice = async (pdfUrl?: string) => {
+    if (!pdfUrl) {
       toast.error('Invoice PDF not available');
+      return;
+    }
+
+    try {
+      // Fetch the PDF and trigger download
+      const response = await fetch(pdfUrl);
+      if (!response.ok) {
+        throw new Error('Failed to fetch PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Extract filename from URL or use default
+      const fileName = pdfUrl.split('/').pop() || `invoice_${Date.now()}.pdf`;
+      link.download = fileName;
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Downloading invoice...');
+    } catch (error) {
+      toast.error('Error downloading invoice');
     }
   };
 

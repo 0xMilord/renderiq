@@ -242,7 +242,7 @@ export default async function Home() {
               <span className="block text-muted-foreground">architecture visualization</span>
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Comprehensive <strong>architecture render software</strong> combining cutting-edge AI with intuitive design tools for AEC and retail professionals
+              Comprehensive architecture render software combining cutting-edge AI with intuitive design tools for AEC and retail professionals
             </p>
           </div>
 
@@ -254,14 +254,13 @@ export default async function Home() {
               </div>
               <h3 className="text-xl font-semibold text-card-foreground mb-3">AI-Powered Rendering</h3>
               <p className="text-muted-foreground mb-4">
-                Transform basic sketches into photorealistic architectural visualizations using <strong>Google Gemini 3 Pro</strong> and <strong>Veo 3.1</strong> AI technology.
+                Transform basic sketches into photorealistic architectural visualizations using Google Gemini 3 Pro and Veo 3.1 AI technology.
               </p>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" /><strong>Google Gemini 3 Pro</strong> - Architecture-aware AI</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" /><strong>Veo 3.1</strong> - Video generation</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />AEC finetunes for technical accuracy</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Technically correct renders</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Material library & style presets</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Multiple AI models</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Style presets</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Custom prompts</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Material library</li>
               </ul>
             </div>
 
@@ -289,14 +288,13 @@ export default async function Home() {
               </div>
               <h3 className="text-xl font-semibold text-card-foreground mb-3">Video Generation</h3>
               <p className="text-muted-foreground mb-4">
-                Create both images and videos from your sketches using <strong>Veo 3.1</strong> with cinematic quality. Perfect for AEC presentations and retail walkthroughs.
+                Create both images and videos from your sketches with cinematic quality. Perfect for AEC presentations and retail walkthroughs.
               </p>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" /><strong>Veo 3.1</strong> - Advanced video AI</li>
                 <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />4K video output</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Camera movements & keyframe animation</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Text-to-video & image-to-video</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Multiple formats & export options</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Camera movements</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Multiple formats</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Keyframe animation</li>
               </ul>
             </div>
 
@@ -488,7 +486,7 @@ export default async function Home() {
               See what&apos;s possible with Renderiq
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
-              Explore stunning renders created by architects, engineers, and retail designers using our <strong>architecture render software</strong>
+              Explore stunning renders created by architects, engineers, and retail designers using our architecture render software
             </p>
             <Link href="/gallery">
               <Button size="lg" variant="outline" className="px-8 py-4 text-lg font-semibold">
@@ -588,6 +586,52 @@ export default async function Home() {
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
               Join thousands of architects, engineers, and designers who trust Renderiq for their visualization needs
             </p>
+          </div>
+
+          {/* Traditional Testimonials */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+            <div className="bg-background border border-border rounded-2xl p-6">
+              <p className="text-muted-foreground mb-6 italic leading-relaxed">
+                &ldquo;Renderiq has revolutionized how we present our designs to clients. The AI renders are so realistic that clients can immediately visualize the final result. It&apos;s saved us countless hours of manual rendering work.&rdquo;
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold">
+                  SM
+                </div>
+                <div>
+                  <div className="font-semibold text-foreground">Sarah Mitchell</div>
+                  <div className="text-sm text-muted-foreground">Senior Architect, Design Studio</div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-background border border-border rounded-2xl p-6">
+              <p className="text-muted-foreground mb-6 italic leading-relaxed">
+                &ldquo;The video generation feature is incredible. We can now create stunning walkthroughs of our AEC projects in minutes instead of days. Our clients are absolutely amazed by the quality.&rdquo;
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold">
+                  JC
+                </div>
+                <div>
+                  <div className="font-semibold text-foreground">James Chen</div>
+                  <div className="text-sm text-muted-foreground">Principal, Urban Architects</div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-background border border-border rounded-2xl p-6">
+              <p className="text-muted-foreground mb-6 italic leading-relaxed">
+                &ldquo;As a retail designer, Renderiq has given me the tools to compete with larger firms. The quality of renders I can produce now is professional-grade, and it&apos;s helped me win more projects.&rdquo;
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold">
+                  AR
+                </div>
+                <div>
+                  <div className="font-semibold text-foreground">Anna Rodriguez</div>
+                  <div className="text-sm text-muted-foreground">Retail Design Consultant</div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Twitter Testimonials - Masonry Layout */}

@@ -59,8 +59,48 @@ export class RazorpayService {
       const shortTimestamp = Date.now().toString().slice(-8); // Last 8 digits of timestamp
       const receipt = `pkg_${shortPackageId}_${shortTimestamp}`; // Max length: 3 + 1 + 8 + 1 + 8 = 21 chars
       
+      // Razorpay minimum amounts (in base currency units)
+      const minimumAmounts: Record<string, number> = {
+        INR: 1.00,      // ₹1 minimum
+        USD: 0.01,     // $0.01 minimum
+        EUR: 0.01,     // €0.01 minimum
+        GBP: 0.01,     // £0.01 minimum
+        JPY: 1,        // ¥1 minimum
+        AUD: 0.01,     // A$0.01 minimum
+        CAD: 0.01,     // C$0.01 minimum
+        SGD: 0.01,     // S$0.01 minimum
+        AED: 0.01,     // د.إ0.01 minimum
+        SAR: 0.01,     // ﷼0.01 minimum
+      };
+
+      const minimumAmount = minimumAmounts[currency] || 0.01;
+      
+      // Validate minimum amount
+      if (amount < minimumAmount) {
+        logger.error(`❌ RazorpayService: Amount ${amount} ${currency} is below minimum ${minimumAmount} ${currency}`);
+        return { 
+          success: false, 
+          error: `Minimum order amount is ${minimumAmount} ${currency}. Please select a larger credit package.` 
+        };
+      }
+
+      // Convert to smallest currency unit (paise for INR, cents for USD, etc.)
+      // Most currencies use 100, but JPY uses 1
+      const currencyMultiplier = currency === 'JPY' ? 1 : 100;
+      const amountInSmallestUnit = Math.round(amount * currencyMultiplier);
+      
+      // Ensure minimum in smallest unit (e.g., 100 paise for INR, 1 cent for USD)
+      const minimumInSmallestUnit = Math.ceil(minimumAmount * currencyMultiplier);
+      if (amountInSmallestUnit < minimumInSmallestUnit) {
+        logger.error(`❌ RazorpayService: Amount ${amountInSmallestUnit} is below minimum ${minimumInSmallestUnit} in smallest unit`);
+        return { 
+          success: false, 
+          error: `Minimum order amount is ${minimumAmount} ${currency}. Please select a larger credit package.` 
+        };
+      }
+      
       const orderOptions = {
-        amount: Math.round(amount * 100), // Convert to paise
+        amount: amountInSmallestUnit,
         currency: currency,
         receipt: receipt, // Max 40 characters as per Razorpay API
         notes: {
@@ -297,23 +337,52 @@ export class RazorpayService {
       contact?: string;
     }
   ) {
+    let plan: any = null;
     try {
       logger.log('💳 RazorpayService: Creating subscription:', { userId, planId });
 
       // Get subscription plan details
-      const [plan] = await db
+      const [planData] = await db
         .select()
         .from(subscriptionPlans)
         .where(eq(subscriptionPlans.id, planId))
         .limit(1);
 
-      if (!plan) {
+      if (!planData) {
         return { success: false, error: 'Subscription plan not found' };
       }
 
+      plan = planData;
+
       if (!plan.razorpayPlanId) {
+        logger.error('❌ RazorpayService: Plan missing razorpayPlanId:', { 
+          planId, 
+          planName: plan.name, 
+          planPrice: plan.price 
+        });
         return { success: false, error: 'Razorpay plan ID not configured for this plan' };
       }
+
+      // Validate Razorpay plan ID format (should start with 'plan_')
+      if (!plan.razorpayPlanId.startsWith('plan_')) {
+        logger.error('❌ RazorpayService: Invalid Razorpay plan ID format:', { 
+          razorpayPlanId: plan.razorpayPlanId,
+          planId,
+          planName: plan.name 
+        });
+        return { 
+          success: false, 
+          error: `Invalid Razorpay plan ID format. Expected format: plan_xxxxx, got: ${plan.razorpayPlanId}` 
+        };
+      }
+
+      logger.log('💳 RazorpayService: Plan details:', {
+        planId,
+        planName: plan.name,
+        razorpayPlanId: plan.razorpayPlanId,
+        price: plan.price,
+        interval: plan.interval
+      });
 
       // Create or get Razorpay customer
       const razorpay = getRazorpayInstance();
@@ -322,6 +391,7 @@ export class RazorpayService {
         const customers = await razorpay.customers.all({ email: customerDetails.email, count: 1 });
         if (customers.items.length > 0) {
           razorpayCustomerId = customers.items[0].id;
+          logger.log('💳 RazorpayService: Found existing customer:', razorpayCustomerId);
         } else {
           const customer = await razorpay.customers.create({
             name: customerDetails.name,
@@ -332,10 +402,28 @@ export class RazorpayService {
             },
           });
           razorpayCustomerId = customer.id;
+          logger.log('💳 RazorpayService: Created new customer:', razorpayCustomerId);
         }
-      } catch (error) {
-        logger.error('❌ RazorpayService: Error creating/getting customer:', error);
-        return { success: false, error: 'Failed to create customer' };
+      } catch (error: any) {
+        logger.error('❌ RazorpayService: Error creating/getting customer:', {
+          error: error.message,
+          statusCode: error.statusCode,
+          errorDescription: error.error?.description
+        });
+        return { 
+          success: false, 
+          error: `Failed to create customer: ${error.error?.description || error.message}` 
+        };
+      }
+
+      // Try to verify plan exists first (this will help diagnose the issue)
+      try {
+        logger.log('💳 RazorpayService: Verifying plan exists:', plan.razorpayPlanId);
+        // Note: Razorpay SDK doesn't have a direct plans.fetch method, so we'll try to create subscription
+        // If subscriptions feature is not enabled, this will fail with "URL not found"
+      } catch (verifyError: any) {
+        logger.error('❌ RazorpayService: Plan verification failed:', verifyError);
+        // Continue anyway - the create call will provide better error
       }
 
       // Create subscription in Razorpay
@@ -349,6 +437,9 @@ export class RazorpayService {
         },
       };
 
+      logger.log('💳 RazorpayService: Creating subscription with options:', subscriptionOptions);
+      logger.log('💳 RazorpayService: Using Razorpay instance with key:', process.env.RAZORPAY_KEY_ID?.substring(0, 10) + '...');
+      
       const razorpaySubscription = await razorpay.subscriptions.create(subscriptionOptions);
 
       logger.log('✅ RazorpayService: Subscription created:', razorpaySubscription.id);
@@ -404,11 +495,49 @@ export class RazorpayService {
           dbSubscriptionId: subscription.id,
         },
       };
-    } catch (error) {
-      logger.error('❌ RazorpayService: Error creating subscription:', error);
+    } catch (error: any) {
+      const razorpayPlanId = plan?.razorpayPlanId || 'unknown';
+      
+      logger.error('❌ RazorpayService: Error creating subscription:', {
+        error: error.message,
+        statusCode: error.statusCode,
+        errorCode: error.error?.code,
+        errorDescription: error.error?.description,
+        errorSource: error.error?.source,
+        planId,
+        razorpayPlanId,
+        planName: plan?.name
+      });
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to create subscription';
+      
+      if (error.statusCode === 400) {
+        if (error.error?.description?.includes('not found') || error.error?.code === 'BAD_REQUEST_ERROR') {
+          // This is almost certainly because subscriptions feature is not enabled
+          errorMessage = `Subscriptions Feature Not Enabled
+
+The Subscriptions feature is not enabled on your Razorpay account. Please contact Razorpay support to enable it.
+
+Plan ID: ${razorpayPlanId}
+Plan Name: ${plan?.name || 'Unknown'}
+Account Mode: ${process.env.RAZORPAY_KEY_ID?.includes('rzp_test') ? 'TEST' : 'LIVE'}`;
+        } else {
+          errorMessage = error.error?.description || error.message || 'Invalid request to Razorpay';
+        }
+      } else if (error.statusCode === 401) {
+        errorMessage = 'Razorpay authentication failed. Please check your API credentials.';
+      } else if (error.statusCode === 404) {
+        errorMessage = `Subscriptions Feature Not Enabled
+
+The Subscriptions feature is not enabled on your Razorpay account. Please contact Razorpay support (support@razorpay.com) to enable it.`;
+      } else {
+        errorMessage = error.error?.description || error.message || 'Failed to create subscription';
+      }
+      
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to create subscription',
+        error: errorMessage,
       };
     }
   }

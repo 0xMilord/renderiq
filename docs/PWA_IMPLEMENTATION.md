@@ -1,7 +1,7 @@
 # Production-Grade PWA Implementation Guide - 2025
 
 ## Overview
-This document outlines the complete implementation of a production-grade Progressive Web App (PWA) for RenderIQ, incorporating all latest 2025 features and best practices.
+This document outlines the complete implementation of a production-grade Progressive Web App (PWA) for Renderiq, incorporating all latest 2025 features and best practices.
 
 ## Table of Contents
 1. [PWA Features Implemented](#pwa-features-implemented)

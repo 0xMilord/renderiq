@@ -123,11 +123,18 @@ export default function RootLayout({
         <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32x32.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16x16.png" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <meta name="theme-color" content="#22c55e" />
+        <meta name="theme-color" content="#D1F24A" media="(prefers-color-scheme: dark)" />
+        <meta name="theme-color" content="#22c55e" media="(prefers-color-scheme: light)" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Renderiq" />
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            html { background-color: hsl(0, 0%, 7%); }
+            body { background-color: hsl(0, 0%, 7%); }
+          `
+        }} />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-y-auto`}

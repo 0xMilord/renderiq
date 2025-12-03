@@ -1,4 +1,4 @@
-# RenderIQ PWA Implementation - Quick Start Guide
+# Renderiq PWA Implementation - Quick Start Guide
 
 ## ✅ What's Been Implemented
 

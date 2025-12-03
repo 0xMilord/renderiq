@@ -70,14 +70,14 @@ The install button automatically appears in the navbar when:
 ### File Handlers
 Users can:
 1. Right-click an image file
-2. Select "Open with RenderIQ"
+2. Select "Open with Renderiq"
 3. File opens in `/open` page
 4. Redirects to render page with file
 
 ### Share Target
 Users can:
 1. Share images/text from other apps
-2. Select RenderIQ as share target
+2. Select Renderiq as share target
 3. Content opens in `/share` page
 4. Can create render with shared content
 

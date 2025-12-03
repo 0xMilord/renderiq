@@ -66,12 +66,24 @@ export function checkRateLimit(
 }
 
 /**
- * Get client identifier from request
+ * Get client identifier from request or headers
  */
-export function getClientIdentifier(request: Request): string {
+export function getClientIdentifier(requestOrHeaders: Request | Headers): string {
+  let headers: Headers;
+  
+  // Handle both Request and Headers objects
+  if (requestOrHeaders instanceof Request) {
+    headers = requestOrHeaders.headers;
+  } else if (requestOrHeaders instanceof Headers) {
+    headers = requestOrHeaders;
+  } else {
+    // Fallback for server actions or other contexts
+    return 'unknown';
+  }
+  
   // Try to get IP from headers (Vercel provides this)
-  const forwardedFor = request.headers.get('x-forwarded-for');
-  const realIp = request.headers.get('x-real-ip');
+  const forwardedFor = headers.get('x-forwarded-for');
+  const realIp = headers.get('x-real-ip');
   const ip = forwardedFor?.split(',')[0] || realIp || 'unknown';
   
   return ip;

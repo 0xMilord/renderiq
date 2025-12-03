@@ -7,6 +7,7 @@ import { CreditPackages } from '@/components/pricing/credit-packages';
 import { getCreditPackagesAction, getSubscriptionPlansAction, getUserCreditsAction } from '@/lib/actions/pricing.actions';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { resetCurrencyToINR } from '@/lib/utils/reset-currency-to-inr';
 
 export default function PricingPage() {
   const [activeTab, setActiveTab] = useState<'plans' | 'credits'>('plans');
@@ -16,6 +17,8 @@ export default function PricingPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Reset currency to INR on pricing page load (Razorpay default)
+    resetCurrencyToINR();
     loadData();
   }, []);
 

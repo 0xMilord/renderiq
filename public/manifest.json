@@ -1,13 +1,13 @@
 {
-  "name": "RenderIQ - AI Architectural Visualization",
-  "short_name": "RenderIQ",
+  "name": "Renderiq - AI Architectural Visualization",
+  "short_name": "Renderiq",
   "description": "Transform architectural sketches into hyperrealistic AI renders and videos using advanced artificial intelligence.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "theme_color": "#22c55e",
-  "background_color": "#ffffff",
+  "theme_color": "#D1F24A",
+  "background_color": "#121212",
   "lang": "en",
   "dir": "ltr",
   "categories": ["design", "productivity", "business"],
@@ -67,14 +67,14 @@
       "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "RenderIQ Desktop View"
+      "label": "Renderiq Desktop View"
     },
     {
       "src": "/screenshots/mobile-1.png",
       "sizes": "750x1334",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "RenderIQ Mobile View"
+      "label": "Renderiq Mobile View"
     }
   ],
   "shortcuts": [

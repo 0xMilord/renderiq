@@ -3,10 +3,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, Zap, Crown, Building2 } from 'lucide-react';
-import { useState } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Check, Zap, Crown, Building2, Mail, ExternalLink, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
+import { useCurrency } from '@/lib/hooks/use-currency';
 
 const planIcons: Record<string, any> = {
   free: Zap,
@@ -24,8 +26,26 @@ interface PricingPlansProps {
 export function PricingPlans({ plans, userCredits }: PricingPlansProps) {
   const [billingInterval, setBillingInterval] = useState<'month' | 'year'>('month');
   const [loading, setLoading] = useState<string | null>(null);
+  const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string; planId?: string }>({ open: false, message: '' });
   const { theme, resolvedTheme } = useTheme();
   const isDarkMode = resolvedTheme === 'dark' || theme === 'dark';
+  const { currency, currencyInfo, exchangeRate, format, convert, loading: currencyLoading } = useCurrency();
+  const [convertedPrices, setConvertedPrices] = useState<Record<string, number>>({});
+
+  // Convert plan prices when currency or exchange rate changes
+  useEffect(() => {
+    if (plans.length === 0 || currencyLoading || !exchangeRate) {
+      return;
+    }
+
+    const converted: Record<string, number> = {};
+    for (const plan of plans) {
+      const priceInINR = parseFloat(plan.price);
+      // Convert directly without using convert function to avoid dependency issues
+      converted[plan.id] = currency === 'INR' ? priceInINR : priceInINR * exchangeRate;
+    }
+    setConvertedPrices(converted);
+  }, [currency, exchangeRate, plans, currencyLoading]);
 
   const filteredPlans = plans.filter((plan) =>
     billingInterval === 'year' ? plan.interval === 'year' : plan.interval === 'month'
@@ -45,7 +65,20 @@ export function PricingPlans({ plans, userCredits }: PricingPlansProps) {
       const result = await response.json();
 
       if (!result.success) {
-        throw new Error(result.error || 'Failed to create subscription');
+        // Show detailed error message, especially for subscriptions not enabled
+        if (result.requiresRazorpaySupport) {
+          // Show user-friendly error dialog
+          setErrorDialog({
+            open: true,
+            message: result.error || 'Subscriptions feature is not enabled on your Razorpay account.',
+            planId: planId
+          });
+          // Also log the full error for debugging
+          console.error('Subscription creation failed:', result.error);
+        } else {
+          toast.error(result.error || 'Failed to create subscription');
+        }
+        return;
       }
 
       // Initialize Razorpay checkout
@@ -130,8 +163,11 @@ export function PricingPlans({ plans, userCredits }: PricingPlansProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredPlans.map((plan) => {
           const Icon = planIcons[plan.name.toLowerCase().replace(' ', '-')] || Zap;
-          const monthlyPrice = plan.interval === 'year' ? parseFloat(plan.price) / 12 : parseFloat(plan.price);
-          const savings = plan.interval === 'year' ? Math.round((1 - parseFloat(plan.price) / (monthlyPrice * 12)) * 100) : 0;
+          const priceInINR = parseFloat(plan.price);
+          const convertedPrice = convertedPrices[plan.id] || (currency === 'INR' ? priceInINR : priceInINR * exchangeRate);
+          const monthlyPrice = plan.interval === 'year' ? convertedPrice / 12 : convertedPrice;
+          const annualPrice = plan.interval === 'year' ? convertedPrice : convertedPrice * 12;
+          const savings = plan.interval === 'year' ? Math.round((1 - convertedPrice / annualPrice) * 100) : 0;
 
           return (
             <Card key={plan.id} className="relative">
@@ -158,7 +194,9 @@ export function PricingPlans({ plans, userCredits }: PricingPlansProps) {
                 <div className="text-center">
                   <div className="flex items-baseline justify-center">
                     <span className="text-4xl font-bold text-foreground">
-                      ₹{parseFloat(plan.price).toLocaleString()}
+                      {currencyLoading || !convertedPrices[plan.id] 
+                        ? '...' 
+                        : format(convertedPrices[plan.id] || parseFloat(plan.price))}
                     </span>
                     <span className="text-muted-foreground ml-1">
                       /{plan.interval}
@@ -170,7 +208,9 @@ export function PricingPlans({ plans, userCredits }: PricingPlansProps) {
                     </p>
                   )}
                   <p className="text-sm text-muted-foreground mt-2">
-                    ₹{monthlyPrice.toFixed(2)}/month
+                    {currencyLoading || !convertedPrices[plan.id]
+                      ? '...'
+                      : `${format(monthlyPrice)}/month`}
                   </p>
                 </div>
 
@@ -229,6 +269,80 @@ export function PricingPlans({ plans, userCredits }: PricingPlansProps) {
           );
         })}
       </div>
+
+      {/* Error Dialog for Subscriptions Not Enabled */}
+      <Dialog open={errorDialog.open} onOpenChange={(open) => setErrorDialog({ ...errorDialog, open })}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-destructive/10 rounded-full flex items-center justify-center">
+                <AlertCircle className="h-5 w-5 text-destructive" />
+              </div>
+              <DialogTitle>Subscriptions Feature Not Enabled</DialogTitle>
+            </div>
+            <DialogDescription className="pt-2">
+              The Subscriptions feature needs to be enabled on your Razorpay account before you can create subscriptions.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="bg-muted rounded-lg p-4 space-y-3">
+              <h4 className="font-semibold text-sm">Quick Fix Steps:</h4>
+              <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
+                <li>Contact Razorpay Support to enable Subscriptions feature</li>
+                <li>Wait 24-48 hours for activation</li>
+                <li>Verify "Subscriptions" section appears in Razorpay Dashboard</li>
+                <li>Try subscribing again</li>
+              </ol>
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="font-semibold text-sm">Account Details:</h4>
+              <div className="text-sm text-muted-foreground space-y-1">
+                <p>• Account Mode: {process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.includes('rzp_test') ? 'TEST' : 'LIVE'}</p>
+                <p>• Plan ID: plan_Rn3lmBVjGI02dN</p>
+                <p>• Plan Name: Pro</p>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                window.open('https://dashboard.razorpay.com', '_blank');
+              }}
+              className="w-full sm:w-auto"
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Open Razorpay Dashboard
+            </Button>
+            <Button
+              onClick={() => {
+                const subject = encodeURIComponent('Enable Subscriptions Feature');
+                const body = encodeURIComponent(`Hi Razorpay Support,
+
+I need to enable the Subscriptions/Recurring Payments feature on my Razorpay account.
+
+Account Details:
+- Mode: ${process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.includes('rzp_test') ? 'TEST' : 'LIVE'}
+- Plan ID: plan_Rn3lmBVjGI02dN
+- Plan Name: Pro
+
+I'm trying to create subscriptions using the API but getting "URL not found" error (400).
+Please enable the Subscriptions feature so I can use the subscriptions API.
+
+Thank you!`);
+                window.location.href = `mailto:support@razorpay.com?subject=${subject}&body=${body}`;
+              }}
+              className="w-full sm:w-auto"
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              Contact Support
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

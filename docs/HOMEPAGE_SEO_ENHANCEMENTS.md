@@ -37,7 +37,7 @@
 
 #### ✅ **Comparison Section** (`components/home/comparison-section.tsx`)
 - Comparison table vs competitors
-- Highlights RenderIQ advantages
+- Highlights Renderiq advantages
 - Feature-by-feature comparison
 - Mobile-responsive table
 

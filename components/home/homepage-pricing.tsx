@@ -33,13 +33,8 @@ export async function HomepagePricing() {
             Simple, Transparent Pricing
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-4">
-            Choose a subscription plan for unlimited renders or purchase credits for pay-as-you-go usage.
+            Choose the plan that fits your needs. No hidden fees, cancel anytime. Perfect for AEC firms and retail businesses.
           </p>
-          {cheapestPackage && (
-            <p className="text-lg font-semibold text-foreground">
-              Try Renderiq for as low as ₹{cheapestPackage.price} using our credit-based system
-            </p>
-          )}
         </div>
 
         {/* Credit Packages Section - Featured First */}

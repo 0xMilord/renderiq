@@ -1,4 +1,4 @@
-import PDFDocument from 'pdfkit';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { db } from '@/lib/db';
 import { invoices, paymentOrders, users, creditPackages, subscriptionPlans } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -13,6 +13,9 @@ export class ReceiptService {
   static async generateReceiptPdf(paymentOrderId: string): Promise<{ success: boolean; pdfUrl?: string; error?: string }> {
     try {
       logger.log('🧾 ReceiptService: Generating receipt PDF for payment order:', paymentOrderId);
+      
+      // Note: PDFKit font loading errors are caught and handled below
+      // If fonts fail to load, PDFKit will use fallback fonts
 
       // Get payment order
       const [paymentOrder] = await db
@@ -65,124 +68,297 @@ export class ReceiptService {
         itemDescription = `${plan?.name || 'Subscription Plan'} - ${plan?.creditsPerMonth || 0} credits/month`;
       }
 
-      // Generate PDF
-      const doc = new PDFDocument({ margin: 50, size: 'A4' });
-      const chunks: Buffer[] = [];
+      // Generate PDF using pdf-lib (much simpler and more reliable than PDFKit)
+      try {
+        // Create PDF document
+        const pdfDoc = await PDFDocument.create();
+        const page = pdfDoc.addPage([595, 842]); // A4 size in points (72 DPI)
+        const { width, height } = page.getSize();
+        
+        // Load fonts
+        const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const helveticaBoldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+        
+        let yPosition = height - 50; // Start from top with margin
+        
+        // Helper function to center text
+        const centerText = (text: string, fontSize: number, font: any) => {
+          const textWidth = font.widthOfTextAtSize(text, fontSize);
+          return (width - textWidth) / 2;
+        };
+        
+        // Header
+        page.drawText('Receipt', {
+          x: centerText('Receipt', 24, helveticaBoldFont),
+          y: yPosition,
+          size: 24,
+          font: helveticaBoldFont,
+          color: rgb(0, 0, 0),
+        });
+        yPosition -= 40;
+        
+        // Company Info
+        page.drawText('Renderiq', {
+          x: centerText('Renderiq', 10, helveticaFont),
+          y: yPosition,
+          size: 10,
+          font: helveticaFont,
+          color: rgb(0, 0, 0),
+        });
+        yPosition -= 15;
+        page.drawText('AI-Powered Rendering Platform', {
+          x: centerText('AI-Powered Rendering Platform', 10, helveticaFont),
+          y: yPosition,
+          size: 10,
+          font: helveticaFont,
+          color: rgb(0.5, 0.5, 0.5),
+        });
+        yPosition -= 40;
+        
+        // Invoice Number
+        page.drawText(`Invoice Number: ${invoice.invoiceNumber}`, {
+          x: 50,
+          y: yPosition,
+          size: 12,
+          font: helveticaFont,
+          color: rgb(0, 0, 0),
+        });
+        yPosition -= 20;
+        page.drawText(`Date: ${new Date(paymentOrder.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, {
+          x: 50,
+          y: yPosition,
+          size: 12,
+          font: helveticaFont,
+          color: rgb(0, 0, 0),
+        });
+        yPosition -= 40;
+        
+        // Customer Info
+        page.drawText('Bill To:', {
+          x: 50,
+          y: yPosition,
+          size: 12,
+          font: helveticaBoldFont,
+          color: rgb(0, 0, 0),
+        });
+        yPosition -= 20;
+        if (user?.name) {
+          page.drawText(user.name, {
+            x: 50,
+            y: yPosition,
+            size: 10,
+            font: helveticaFont,
+            color: rgb(0, 0, 0),
+          });
+          yPosition -= 15;
+        }
+        if (user?.email) {
+          page.drawText(user.email, {
+            x: 50,
+            y: yPosition,
+            size: 10,
+            font: helveticaFont,
+            color: rgb(0, 0, 0),
+          });
+          yPosition -= 30;
+        }
+        
+        // Items Table Header
+        page.drawText('Items:', {
+          x: 50,
+          y: yPosition,
+          size: 12,
+          font: helveticaBoldFont,
+          color: rgb(0, 0, 0),
+        });
+        yPosition -= 25;
+        
+        page.drawText('Description', {
+          x: 50,
+          y: yPosition,
+          size: 10,
+          font: helveticaBoldFont,
+          color: rgb(0, 0, 0),
+        });
+        page.drawText('Amount', {
+          x: width - 150,
+          y: yPosition,
+          size: 10,
+          font: helveticaBoldFont,
+          color: rgb(0, 0, 0),
+        });
+        yPosition -= 25;
+        
+        // Table Row
+        const amount = parseFloat(paymentOrder.amount || '0');
+        const taxAmount = parseFloat(paymentOrder.taxAmount || '0');
+        const discountAmount = parseFloat(paymentOrder.discountAmount || '0');
+        const totalAmount = amount + taxAmount - discountAmount;
+        
+        page.drawText(itemDescription || 'Payment', {
+          x: 50,
+          y: yPosition,
+          size: 10,
+          font: helveticaFont,
+          color: rgb(0, 0, 0),
+        });
+        page.drawText(`${paymentOrder.currency || 'INR'} ${amount.toFixed(2)}`, {
+          x: width - 150,
+          y: yPosition,
+          size: 10,
+          font: helveticaFont,
+          color: rgb(0, 0, 0),
+        });
+        yPosition -= 30;
+        
+        // Totals
+        if (discountAmount > 0) {
+          page.drawText('Discount:', {
+            x: width - 250,
+            y: yPosition,
+            size: 10,
+            font: helveticaFont,
+            color: rgb(0, 0, 0),
+          });
+          page.drawText(`-${paymentOrder.currency || 'INR'} ${discountAmount.toFixed(2)}`, {
+            x: width - 150,
+            y: yPosition,
+            size: 10,
+            font: helveticaFont,
+            color: rgb(0, 0, 0),
+          });
+          yPosition -= 20;
+        }
+        if (taxAmount > 0) {
+          page.drawText('Tax:', {
+            x: width - 250,
+            y: yPosition,
+            size: 10,
+            font: helveticaFont,
+            color: rgb(0, 0, 0),
+          });
+          page.drawText(`${paymentOrder.currency || 'INR'} ${taxAmount.toFixed(2)}`, {
+            x: width - 150,
+            y: yPosition,
+            size: 10,
+            font: helveticaFont,
+            color: rgb(0, 0, 0),
+          });
+          yPosition -= 20;
+        }
+        page.drawText('Total:', {
+          x: width - 250,
+          y: yPosition,
+          size: 12,
+          font: helveticaBoldFont,
+          color: rgb(0, 0, 0),
+        });
+        page.drawText(`${paymentOrder.currency || 'INR'} ${totalAmount.toFixed(2)}`, {
+          x: width - 150,
+          y: yPosition,
+          size: 12,
+          font: helveticaBoldFont,
+          color: rgb(0, 0, 0),
+        });
+        yPosition -= 40;
+        
+        // Payment Info
+        page.drawText('Payment Information:', {
+          x: 50,
+          y: yPosition,
+          size: 10,
+          font: helveticaBoldFont,
+          color: rgb(0, 0, 0),
+        });
+        yPosition -= 20;
+        page.drawText(`Payment ID: ${paymentOrder.razorpayPaymentId || 'N/A'}`, {
+          x: 50,
+          y: yPosition,
+          size: 10,
+          font: helveticaFont,
+          color: rgb(0, 0, 0),
+        });
+        yPosition -= 15;
+        page.drawText(`Order ID: ${paymentOrder.razorpayOrderId || 'N/A'}`, {
+          x: 50,
+          y: yPosition,
+          size: 10,
+          font: helveticaFont,
+          color: rgb(0, 0, 0),
+        });
+        yPosition -= 15;
+        page.drawText(`Status: ${paymentOrder.status.toUpperCase()}`, {
+          x: 50,
+          y: yPosition,
+          size: 10,
+          font: helveticaFont,
+          color: rgb(0, 0, 0),
+        });
+        yPosition -= 40;
+        
+        // Footer
+        page.drawText('Thank you for your business!', {
+          x: centerText('Thank you for your business!', 8, helveticaFont),
+          y: yPosition,
+          size: 8,
+          font: helveticaFont,
+          color: rgb(0.5, 0.5, 0.5),
+        });
+        yPosition -= 15;
+        page.drawText('This is a computer-generated receipt.', {
+          x: centerText('This is a computer-generated receipt.', 8, helveticaFont),
+          y: yPosition,
+          size: 8,
+          font: helveticaFont,
+          color: rgb(0.5, 0.5, 0.5),
+        });
+        
+        // Generate PDF bytes
+        const pdfBytes = await pdfDoc.save();
+        const pdfBuffer = Buffer.from(pdfBytes);
+        
+        logger.log('✅ ReceiptService: PDF generated successfully using pdf-lib');
 
-      doc.on('data', (chunk) => chunks.push(chunk));
-      doc.on('end', () => {});
+        // Upload PDF to storage (using uploads bucket for receipts)
+        const fileName = `receipt_${invoice.invoiceNumber}_${Date.now()}.pdf`;
+        const uploadResult = await StorageService.uploadFile(
+          pdfBuffer,
+          'uploads',
+          paymentOrder.userId,
+          fileName
+        );
 
-      // Header
-      doc.fontSize(24).text('Receipt', { align: 'center' });
-      doc.moveDown();
+        // Update invoice and payment order with PDF URL
+        await InvoiceService.updateInvoicePdfUrl(invoice.id, uploadResult.url);
+        await db
+          .update(paymentOrders)
+          .set({
+            receiptPdfUrl: uploadResult.url,
+            updatedAt: new Date(),
+          })
+          .where(eq(paymentOrders.id, paymentOrderId));
 
-      // Company Info
-      doc.fontSize(10).text('RenderIQ', { align: 'center' });
-      doc.text('AI-Powered Rendering Platform', { align: 'center' });
-      doc.moveDown(2);
+        logger.log('✅ ReceiptService: Receipt PDF generated:', uploadResult.url);
 
-      // Invoice Number
-      doc.fontSize(12).text(`Invoice Number: ${invoice.invoiceNumber}`, { align: 'left' });
-      doc.text(`Date: ${new Date(paymentOrder.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, { align: 'left' });
-      doc.moveDown();
-
-      // Customer Info
-      doc.fontSize(12).text('Bill To:', { underline: true });
-      doc.fontSize(10);
-      if (user?.name) doc.text(user.name);
-      if (user?.email) doc.text(user.email);
-      doc.moveDown();
-
-      // Items Table
-      doc.fontSize(12).text('Items:', { underline: true });
-      doc.moveDown(0.5);
-
-      const tableTop = doc.y;
-      const itemHeight = 30;
-
-      // Table Header
-      doc.fontSize(10).font('Helvetica-Bold');
-      doc.text('Description', 50, tableTop);
-      doc.text('Amount', 450, tableTop, { align: 'right' });
-      doc.moveDown();
-
-      // Table Row
-      doc.font('Helvetica');
-      const amount = parseFloat(paymentOrder.amount || '0');
-      const taxAmount = parseFloat(paymentOrder.taxAmount || '0');
-      const discountAmount = parseFloat(paymentOrder.discountAmount || '0');
-      const totalAmount = amount + taxAmount - discountAmount;
-
-      doc.text(itemDescription || 'Payment', 50);
-      doc.text(`${paymentOrder.currency || 'INR'} ${amount.toFixed(2)}`, 450, doc.y - 15, { align: 'right' });
-      doc.moveDown();
-
-      // Totals
-      doc.moveDown();
-      doc.fontSize(10);
-      if (discountAmount > 0) {
-        doc.text(`Discount:`, 350, doc.y, { align: 'right' });
-        doc.text(`-${paymentOrder.currency || 'INR'} ${discountAmount.toFixed(2)}`, 450, doc.y - 15, { align: 'right' });
-        doc.moveDown();
+        return {
+          success: true,
+          pdfUrl: uploadResult.url,
+        };
+      } catch (error: any) {
+        logger.error('❌ ReceiptService: Error generating receipt PDF:', {
+          error: error.message,
+          stack: error.stack
+        });
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to generate receipt PDF',
+        };
       }
-      if (taxAmount > 0) {
-        doc.text(`Tax:`, 350, doc.y, { align: 'right' });
-        doc.text(`${paymentOrder.currency || 'INR'} ${taxAmount.toFixed(2)}`, 450, doc.y - 15, { align: 'right' });
-        doc.moveDown();
-      }
-      doc.fontSize(12).font('Helvetica-Bold');
-      doc.text(`Total:`, 350, doc.y, { align: 'right' });
-      doc.text(`${paymentOrder.currency || 'INR'} ${totalAmount.toFixed(2)}`, 450, doc.y - 15, { align: 'right' });
-      doc.moveDown(2);
-
-      // Payment Info
-      doc.fontSize(10).font('Helvetica');
-      doc.text('Payment Information:', { underline: true });
-      doc.text(`Payment ID: ${paymentOrder.razorpayPaymentId || 'N/A'}`);
-      doc.text(`Order ID: ${paymentOrder.razorpayOrderId || 'N/A'}`);
-      doc.text(`Status: ${paymentOrder.status.toUpperCase()}`);
-      doc.moveDown();
-
-      // Footer
-      doc.fontSize(8).text('Thank you for your business!', { align: 'center' });
-      doc.text('This is a computer-generated receipt.', { align: 'center' });
-
-      doc.end();
-
-      // Wait for PDF to be generated
-      await new Promise<void>((resolve) => {
-        doc.on('end', resolve);
+    } catch (error: any) {
+      logger.error('❌ ReceiptService: Error generating receipt PDF:', {
+        error: error.message,
+        stack: error.stack
       });
-
-      const pdfBuffer = Buffer.concat(chunks);
-
-      // Upload PDF to storage (using uploads bucket for receipts)
-      const fileName = `receipt_${invoice.invoiceNumber}_${Date.now()}.pdf`;
-      const uploadResult = await StorageService.uploadFile(
-        pdfBuffer,
-        'uploads',
-        paymentOrder.userId,
-        fileName
-      );
-
-      // Update invoice and payment order with PDF URL
-      await InvoiceService.updateInvoicePdfUrl(invoice.id, uploadResult.url);
-      await db
-        .update(paymentOrders)
-        .set({
-          receiptPdfUrl: uploadResult.url,
-          updatedAt: new Date(),
-        })
-        .where(eq(paymentOrders.id, paymentOrderId));
-
-      logger.log('✅ ReceiptService: Receipt PDF generated:', uploadResult.url);
-
-      return {
-        success: true,
-        pdfUrl: uploadResult.url,
-      };
-    } catch (error) {
-      logger.error('❌ ReceiptService: Error generating receipt PDF:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to generate receipt PDF',

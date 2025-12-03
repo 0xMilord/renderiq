@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { RazorpayService } from '@/lib/services/razorpay.service';
 import { logger } from '@/lib/utils/logger';
 import { checkRateLimit } from '@/lib/utils/payment-security';
+import { convertCurrency, getRazorpayCurrencyCode, SUPPORTED_CURRENCIES } from '@/lib/utils/currency';
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { creditPackageId } = body;
+    const { creditPackageId, currency: requestedCurrency } = body;
 
     if (!creditPackageId) {
       return NextResponse.json(
@@ -36,6 +37,11 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Validate currency
+    let currency = requestedCurrency && SUPPORTED_CURRENCIES[requestedCurrency]
+      ? getRazorpayCurrencyCode(requestedCurrency)
+      : 'INR'; // Default to INR
 
     // Get credit package details to calculate amount
     const { db } = await import('@/lib/db');
@@ -62,12 +68,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Convert price if currency is different
+    let orderAmount = parseFloat(packageData.price);
+    if (currency !== 'INR' && packageData.currency === 'INR') {
+      // Convert from INR to target currency
+      orderAmount = await convertCurrency(orderAmount, currency);
+      
+      // Ensure minimum amount after conversion
+      const minimumAmounts: Record<string, number> = {
+        INR: 1.00, USD: 0.01, EUR: 0.01, GBP: 0.01, JPY: 1,
+        AUD: 0.01, CAD: 0.01, SGD: 0.01, AED: 0.01, SAR: 0.01,
+      };
+      const minimumAmount = minimumAmounts[currency] || 0.01;
+      
+      if (orderAmount < minimumAmount) {
+        logger.log(`⚠️ API: Converted amount ${orderAmount} ${currency} is below minimum ${minimumAmount}, using INR instead`);
+        // Revert to INR if converted amount is too small
+        orderAmount = parseFloat(packageData.price);
+        currency = 'INR';
+      }
+    }
+
     // Create Razorpay order
     const result = await RazorpayService.createOrder(
       user.id,
       creditPackageId,
-      parseFloat(packageData.price),
-      packageData.currency
+      orderAmount,
+      currency
     );
 
     if (!result.success) {

@@ -8,23 +8,19 @@ import { Badge } from '@/components/ui/badge';
 
 const faqs = [
   {
-    category: 'Getting Started',
+    category: 'General',
     questions: [
       {
         question: 'What is Renderiq and how does it work?',
         answer: 'Renderiq is an AI-powered architectural visualization platform powered by Google Gemini 3 Pro and Veo 3.1. Transform sketches into photorealistic renders using our unified chat interface. Simply upload your design, describe what you want, and get professional-quality visualizations in minutes. No 3D modeling required.',
       },
       {
-        question: 'Do I need any technical skills or 3D modeling experience?',
+        question: 'Do I need any technical skills to use Renderiq?',
         answer: 'No! Renderiq is designed for architects, designers, and anyone who needs to visualize architectural concepts. Our unified chat interface makes it easy to create stunning renders without any prior experience. Just describe what you want or upload a sketch.',
       },
       {
         question: 'What file formats does Renderiq support?',
         answer: 'Renderiq supports common image formats including PNG, JPG, JPEG, and WebP. You can upload sketches, photos, or screenshots from 3D modeling software. We also support video input for video-to-video transformations using Veo 3.1.',
-      },
-      {
-        question: 'How do I get started?',
-        answer: 'Sign up for a free account and get 5 renders per month. Create a project, upload a sketch or image, and use our unified chat interface to generate renders. You can try Renderiq for as low as ₹500 using our credit-based system.',
       },
     ],
   },
@@ -54,15 +50,11 @@ const faqs = [
     ],
   },
   {
-    category: 'AI & Technology',
+    category: 'Technical',
     questions: [
       {
         question: 'What AI models does Renderiq use?',
         answer: 'Renderiq uses Google Gemini 3 Pro for image generation and Veo 3.1 for video generation. Gemini 3 Pro is architecture-aware and understands design intent, while Veo 3.1 creates cinematic-quality videos from text or images. Both models are fine-tuned for AEC applications.',
-      },
-      {
-        question: 'How accurate are the renders? Do they maintain design intent?',
-        answer: 'Yes! Renderiq uses AEC finetunes that are specifically trained to understand architectural elements, maintain proportions, and preserve design intent. The AI recognizes building components, materials, and spatial relationships to produce technically correct renders suitable for professional use.',
       },
       {
         question: 'How long does it take to generate a render?',
@@ -71,6 +63,10 @@ const faqs = [
       {
         question: 'What resolution can I export renders at?',
         answer: 'Renderiq supports multiple quality levels, from standard HD to ultra-high 4K resolution. Video renders can be exported in 720p or 1080p, with support for various aspect ratios. All renders are stored in your project and can be downloaded at any time.',
+      },
+      {
+        question: 'Is my data secure and private?',
+        answer: 'Yes, security and privacy are our top priorities. All uploads are encrypted, and you can choose to keep projects private or share them publicly. We\'re GDPR compliant, SOC 2 compliant, and never share your data with third parties. Enterprise plans include additional security features.',
       },
     ],
   },
@@ -103,24 +99,20 @@ const faqs = [
         answer: 'Credits are used to generate renders. Each render costs credits based on quality and type (image vs video). You can purchase credit packages starting from ₹500 or subscribe to a plan that includes monthly credits. Purchased credits never expire, making it perfect for occasional use.',
       },
       {
-        question: 'Can I try Renderiq for free?',
-        answer: 'Yes! Renderiq offers a free tier with 5 renders per month, HD exports, and full access to all features including render chains, version control, and the unified chat interface. Perfect for testing and learning. You can also purchase credits starting from ₹500.',
-      },
-      {
         question: 'Can I cancel my subscription anytime?',
         answer: 'Yes, you can cancel your subscription at any time. Your subscription will remain active until the end of your billing period, and you\'ll continue to have access to all features until then. Any purchased credits remain in your account even after cancellation.',
       },
       {
-        question: 'Do unused credits expire?',
-        answer: 'No! Credits purchased through credit packages never expire. Monthly subscription credits reset each billing cycle, but any purchased credits remain in your account indefinitely. Perfect for pay-as-you-go usage.',
+        question: 'Do unused credits roll over?',
+        answer: 'Credits purchased through credit packages never expire and remain in your account indefinitely. Monthly subscription credits reset each billing cycle, but any purchased credits roll over. Perfect for pay-as-you-go usage.',
       },
     ],
   },
   {
-    category: 'AEC & Professional Use',
+    category: 'AEC & Retail',
     questions: [
       {
-        question: 'Is Renderiq suitable for professional AEC projects?',
+        question: 'Is Renderiq suitable for AEC (Architecture, Engineering, Construction) projects?',
         answer: 'Absolutely! Renderiq is specifically designed for AEC professionals with AEC finetunes that ensure technically correct renders. It\'s perfect for visualizing commercial buildings, industrial facilities, educational institutions, healthcare facilities, and more. The AI understands architectural elements and produces accurate, professional renders suitable for client presentations.',
       },
       {
@@ -128,12 +120,8 @@ const faqs = [
         answer: 'Yes! Renderiq excels at retail visualization. Use it to design store layouts, visualize product displays, create marketing materials, and present retail concepts to stakeholders. Perfect for both physical retail and e-commerce visualization needs.',
       },
       {
-        question: 'Are the renders suitable for client presentations?',
-        answer: 'Yes! Renderiq produces professional-quality renders suitable for client presentations, marketing materials, and design documentation. With AEC finetunes ensuring technical accuracy and 4K export options, your renders will meet professional standards.',
-      },
-      {
-        question: 'Does Renderiq integrate with CAD or BIM software?',
-        answer: 'Renderiq works with any image format, so you can export screenshots from CAD or BIM software and import them into Renderiq. We also offer API access for advanced integrations. The unified chat interface makes it easy to refine renders from CAD/BIM exports.',
+        question: 'Does Renderiq support large-scale commercial projects?',
+        answer: 'Yes! Renderiq handles projects of all scales, from small residential designs to large commercial complexes. Our AI understands architectural context and can visualize entire buildings, campuses, and developments. Perfect for AEC firms working on large-scale projects.',
       },
     ],
   },

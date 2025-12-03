@@ -131,13 +131,19 @@ export async function checkDuplicatePayment(
 export function cleanupRateLimitCache() {
   const now = Date.now();
   for (const [key, value] of rateLimitCache.entries()) {
-    if (now > value.resetAt) {
+    // Only delete if resetAt is valid and in the past
+    if (value.resetAt > 0 && now > value.resetAt) {
       rateLimitCache.delete(key);
     }
   }
 }
 
-// Clean up cache every 5 minutes
-setInterval(cleanupRateLimitCache, 5 * 60 * 1000);
+// Clean up cache every 5 minutes (only in Node.js environment)
+if (typeof setInterval !== 'undefined') {
+  const cleanupInterval = 5 * 60 * 1000; // 5 minutes
+  if (cleanupInterval > 0) {
+    setInterval(cleanupRateLimitCache, cleanupInterval);
+  }
+}
 
 

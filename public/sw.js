@@ -1,4 +1,4 @@
-// Service Worker for RenderIQ PWA
+// Service Worker for Renderiq PWA
 // Version: 1.0.0
 // Cache Version: v1
 
@@ -219,7 +219,7 @@ self.addEventListener('push', (event) => {
   console.log('[SW] Push notification received');
   
   const data = event.data ? event.data.json() : {};
-  const title = data.title || 'RenderIQ';
+  const title = data.title || 'Renderiq';
   const options = {
     body: data.body || 'You have a new notification',
     icon: '/icons/icon-192x192.png',

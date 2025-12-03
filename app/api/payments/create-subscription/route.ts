@@ -48,8 +48,20 @@ export async function POST(request: NextRequest) {
     );
 
     if (!result.success) {
+      // Provide more detailed error response
+      const errorMessage = result.error || 'Failed to create subscription';
+      
+      // Check if it's the subscriptions not enabled error
+      const isSubscriptionsNotEnabled = errorMessage.includes('Subscriptions Feature Not Enabled') || 
+                                        errorMessage.includes('not enabled');
+      
       return NextResponse.json(
-        { success: false, error: result.error },
+        { 
+          success: false, 
+          error: errorMessage,
+          requiresRazorpaySupport: isSubscriptionsNotEnabled,
+          errorType: isSubscriptionsNotEnabled ? 'SUBSCRIPTIONS_NOT_ENABLED' : 'OTHER'
+        },
         { status: 400 }
       );
     }

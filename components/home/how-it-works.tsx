@@ -40,6 +40,9 @@ export function HowItWorksSection() {
             From Sketch to Stunning Render
             <span className="block text-muted-foreground">in 3 Simple Steps</span>
           </h2>
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
+            Our streamlined process makes it easy to create professional architectural visualizations
+          </p>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
             Our streamlined process makes it easy to create professional architectural visualizations
           </p>

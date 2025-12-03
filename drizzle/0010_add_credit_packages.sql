@@ -6,7 +6,7 @@
 INSERT INTO credit_packages (id, name, description, credits, price, currency, bonus_credits, is_popular, is_active, display_order, created_at, updated_at)
 VALUES
   -- Starter Package - 100 credits for 499 INR (499 / 5 = 99.8, rounded to 100)
-  (gen_random_uuid(), 'Starter Pack', 'Perfect for trying out RenderIQ', 100, 499.00, 'INR', 0, false, true, 1, now(), now()),
+  (gen_random_uuid(), 'Starter Pack', 'Perfect for trying out Renderiq', 100, 499.00, 'INR', 0, false, true, 1, now(), now()),
   
   -- Popular Package - 300 credits for 1499 INR (1499 / 5 = 299.8, rounded to 300)
   (gen_random_uuid(), 'Popular Pack', 'Great value for regular users', 300, 1499.00, 'INR', 0, true, true, 2, now(), now()),
