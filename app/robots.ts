@@ -44,11 +44,50 @@ export default function robots(): MetadataRoute.Robots {
           '/dashboard/*',
           '/auth/*',
         ],
+      },
+      {
+        userAgent: 'Googlebot-Image',
+        allow: [
+          '/gallery',
+          '/gallery/*',
+        ],
+        disallow: [
+          '/api/*',
+          '/dashboard/*',
+        ],
+      },
+      {
+        userAgent: 'Googlebot-Video',
+        allow: [
+          '/gallery',
+          '/gallery/*',
+        ],
+        disallow: [
+          '/api/*',
+          '/dashboard/*',
+        ],
+      },
+      {
+        userAgent: 'Bingbot',
+        allow: [
+          '/',
+          '/gallery',
+          '/gallery/*',
+          '/blog',
+          '/blog/*',
+        ],
+        disallow: [
+          '/api/*',
+          '/dashboard/*',
+          '/auth/*',
+        ],
+        crawlDelay: 1,
       }
     ],
     sitemap: [
       `${baseUrl}/sitemap.xml`,
       `${baseUrl}/sitemap-images.xml`,
+      `${baseUrl}/sitemap-video.xml`,
     ],
   }
 }

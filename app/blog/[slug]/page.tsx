@@ -130,30 +130,66 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
     notFound();
   }
 
+  // Generate structured data
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
+  
   // Get related blogs (same tags or recent)
   const allBlogs = getAllBlogs();
   const relatedBlogs = allBlogs
-    .filter((b) => b.slug !== blog.slug)
+    .filter((b) => {
+      if (b.slug === blog.slug) return false;
+      // Match by tags or category
+      const blogTags = blog.tags || [];
+      const bTags = b.tags || [];
+      const hasCommonTag = blogTags.some((tag: string) => bTags.includes(tag));
+      const sameCategory = (blog.category || blog.collection) === (b.category || b.collection);
+      return hasCommonTag || sameCategory;
+    })
     .slice(0, 3);
 
-  // Generate structured data
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
+  // Related Articles ItemList Schema
+  const relatedArticlesSchema = relatedBlogs.length > 0 ? {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: 'Related Articles',
+    itemListElement: relatedBlogs.map((relatedBlog: any, index: number) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      item: {
+        '@type': 'BlogPosting',
+        '@id': `${siteUrl}/blog/${relatedBlog.slug}`,
+        headline: relatedBlog.title,
+        description: relatedBlog.excerpt,
+        datePublished: relatedBlog.publishedAt,
+      },
+    })),
+  } : null;
   const blogUrl = `${siteUrl}/blog/${slug}`;
   const coverImageUrl = blog.coverImage 
     ? (blog.coverImage.startsWith('http') ? blog.coverImage : `${siteUrl}${blog.coverImage}`)
     : `${siteUrl}/og-image.jpg`;
 
-  // Article schema (generated server-side)
+  // Calculate word count and reading time
+  const wordCount = blog.body?.raw 
+    ? blog.body.raw.replace(/[^\w\s]/g, '').split(/\s+/).filter(Boolean).length 
+    : (blog.excerpt?.split(/\s+/).length || 0) * 50; // Estimate if no body
+  const readingTimeMinutes = Math.ceil(wordCount / 200); // Average reading speed: 200 words/min
+  const timeRequired = `PT${readingTimeMinutes}M`;
+
+  // Extract article section (category)
+  const articleSection = blog.category || blog.collection || 'General';
+
+  // Article schema (generated server-side) - Using BlogPosting instead of Article
   const articleSchema = {
     '@context': 'https://schema.org',
-    '@type': 'Article',
+    '@type': 'BlogPosting',
     headline: blog.title,
     description: blog.seoDescription || blog.excerpt,
     image: coverImageUrl,
     datePublished: blog.publishedAt,
     dateModified: blog.publishedAt,
     author: {
-      '@type': 'Organization',
+      '@type': 'Person',
       name: blog.authorName || blog.author || 'Renderiq Team',
     },
     publisher: {
@@ -163,6 +199,19 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
         '@type': 'ImageObject',
         url: `${siteUrl}/logo.png`,
       },
+    },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': blogUrl,
+    },
+    articleSection: articleSection,
+    wordCount: wordCount,
+    timeRequired: timeRequired,
+    inLanguage: 'en-US',
+    // Speakable structured data for voice search
+    speakable: {
+      '@type': 'SpeakableSpecification',
+      cssSelector: ['h1', 'h2', '.excerpt'],
     },
   };
 

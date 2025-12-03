@@ -50,6 +50,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const pageUrl = `${siteUrl}/gallery/${id}`;
   const creatorName = item.user?.name || 'Anonymous';
   const createdAt = new Date(item.createdAt).toISOString();
+  const isVideo = item.render.type === 'video';
   
   // Generate rich description
   const description = `${truncatedPrompt} Created by ${creatorName}. ${item.views} views, ${item.likes} likes. Explore more AI-generated architectural renders on Renderiq Gallery.`;
@@ -170,7 +171,7 @@ export default async function GalleryItemPage({ params }: PageProps) {
   };
 
   // ImageObject Schema
-  const imageSchema = imageUrl ? {
+  const imageSchema = imageUrl && !isVideo ? {
     '@context': 'https://schema.org',
     '@type': 'ImageObject',
     contentUrl: imageUrl,
@@ -185,6 +186,33 @@ export default async function GalleryItemPage({ params }: PageProps) {
       name: creatorName,
     },
     license: `${siteUrl}/terms`,
+    inLanguage: 'en-US',
+  } : null;
+
+  // VideoObject Schema for video renders
+  const videoSchema = imageUrl && isVideo ? {
+    '@context': 'https://schema.org',
+    '@type': 'VideoObject',
+    name: item.render.prompt || 'AI-generated architectural render',
+    description: item.render.prompt || 'View this AI-generated architectural render video on Renderiq Gallery',
+    contentUrl: imageUrl,
+    embedUrl: imageUrl,
+    thumbnailUrl: imageUrl,
+    uploadDate: createdAt,
+    duration: item.render.settings?.duration ? `PT${item.render.settings.duration}S` : undefined,
+    creator: {
+      '@type': 'Person',
+      name: creatorName,
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Renderiq',
+      logo: {
+        '@type': 'ImageObject',
+        url: `${siteUrl}/logo.png`,
+      },
+    },
+    inLanguage: 'en-US',
   } : null;
 
   // Breadcrumb Schema
@@ -228,6 +256,15 @@ export default async function GalleryItemPage({ params }: PageProps) {
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify(imageSchema),
+          }}
+        />
+      )}
+      {videoSchema && (
+        <Script
+          id="gallery-item-video-schema"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(videoSchema),
           }}
         />
       )}

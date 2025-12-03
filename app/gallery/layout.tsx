@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import Script from 'next/script';
+import { RendersDAL } from '@/lib/dal/renders';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
 
@@ -102,18 +103,50 @@ const breadcrumbSchema = {
   ],
 };
 
-export default function GalleryLayout({
+export default async function GalleryLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Fetch initial gallery items for ItemList schema (top 20)
+  let itemListElements: any[] = [];
+  try {
+    const initialItems = await RendersDAL.getPublicGallery(20, 0);
+    itemListElements = initialItems.slice(0, 20).map((item, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      item: {
+        '@type': 'ImageObject',
+        '@id': `${siteUrl}/gallery/${item.id}`,
+        name: item.render.prompt || 'AI-generated architectural render',
+        image: item.render.outputUrl,
+        creator: {
+          '@type': 'Person',
+          name: item.user?.name || 'Anonymous',
+        },
+      },
+    }));
+  } catch (error) {
+    console.error('Error fetching gallery items for schema:', error);
+  }
+
+  // Update gallery schema with dynamic ItemList
+  const dynamicGallerySchema = {
+    ...gallerySchema,
+    mainEntity: {
+      '@type': 'ItemList',
+      numberOfItems: itemListElements.length,
+      itemListElement: itemListElements,
+    },
+  };
+
   return (
     <>
       <Script
         id="gallery-schema"
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(gallerySchema),
+          __html: JSON.stringify(dynamicGallerySchema),
         }}
       />
       <Script

@@ -2,10 +2,60 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import { BlogCard } from '@/components/blog/blog-card';
 import { Badge } from '@/components/ui/badge';
+import Script from 'next/script';
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
 
 export const metadata: Metadata = {
   title: 'Blog | Renderiq - AI Architectural Rendering Insights',
   description: 'Learn about AI rendering tools, architectural visualization, and best practices for architects and designers.',
+  keywords: [
+    'AI architecture blog',
+    'architectural rendering',
+    'AI visualization',
+    'design tools',
+    'architectural visualization',
+    'AI rendering software',
+  ],
+  authors: [{ name: 'Renderiq' }],
+  creator: 'Renderiq',
+  publisher: 'Renderiq',
+  alternates: {
+    canonical: `${siteUrl}/blog`,
+  },
+  openGraph: {
+    title: 'Blog | Renderiq - AI Architectural Rendering Insights',
+    description: 'Learn about AI rendering tools, architectural visualization, and best practices for architects and designers.',
+    type: 'website',
+    url: `${siteUrl}/blog`,
+    siteName: 'Renderiq',
+    images: [
+      {
+        url: `${siteUrl}/og-blog.jpg`,
+        width: 1200,
+        height: 630,
+        alt: 'Renderiq Blog - AI Architectural Rendering',
+      },
+    ],
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Blog | Renderiq - AI Architectural Rendering Insights',
+    description: 'Learn about AI rendering tools, architectural visualization, and best practices.',
+    images: [`${siteUrl}/og-blog.jpg`],
+    creator: '@Renderiq',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
 };
 
 function getAllBlogs(): any[] {
@@ -59,8 +109,75 @@ export default function BlogPage() {
   const blogs = getAllBlogs();
   const categories = getAllCategories();
 
+  // CollectionPage Schema for blog listing
+  const collectionPageSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: 'Renderiq Blog',
+    description: 'Insights, tutorials, and guides on AI-powered architectural rendering, visualization tools, and design workflows.',
+    url: `${siteUrl}/blog`,
+    mainEntity: {
+      '@type': 'ItemList',
+      numberOfItems: blogs.length,
+      itemListElement: blogs.slice(0, 20).map((blog: any, index: number) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        item: {
+          '@type': 'BlogPosting',
+          '@id': `${siteUrl}/blog/${blog.slug}`,
+          headline: blog.title,
+          description: blog.excerpt,
+          datePublished: blog.publishedAt,
+        },
+      })),
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Renderiq',
+      logo: {
+        '@type': 'ImageObject',
+        url: `${siteUrl}/logo.png`,
+      },
+    },
+  };
+
+  // Breadcrumb Schema
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: siteUrl,
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Blog',
+        item: `${siteUrl}/blog`,
+      },
+    ],
+  };
+
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <Script
+        id="blog-collection-schema"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(collectionPageSchema),
+        }}
+      />
+      <Script
+        id="blog-breadcrumb-schema"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(breadcrumbSchema),
+        }}
+      />
+      <div className="min-h-screen bg-background">
       {/* Hero */}
       <section className="border-b bg-muted/30 py-20 px-4">
         <div className="container mx-auto max-w-7xl">
@@ -116,7 +233,8 @@ export default function BlogPage() {
           )}
         </div>
       </section>
-    </div>
+      </div>
+    </>
   );
 }
 

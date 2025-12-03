@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import Script from 'next/script';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -63,6 +64,8 @@ export async function generateStaticParams() {
   }));
 }
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
+
 export async function generateMetadata({ 
   params 
 }: { 
@@ -70,10 +73,57 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { category } = await params;
   const categoryName = category.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+  const categoryUrl = `${siteUrl}/blog/category/${category}`;
   
   return {
     title: `${categoryName} | Blog | Renderiq`,
     description: `Browse all ${categoryName} blog posts about AI architectural rendering, visualization tools, and design workflows.`,
+    keywords: [
+      categoryName,
+      'AI architecture',
+      'architectural rendering',
+      'AI visualization',
+      'design tools',
+    ],
+    authors: [{ name: 'Renderiq' }],
+    creator: 'Renderiq',
+    publisher: 'Renderiq',
+    alternates: {
+      canonical: categoryUrl,
+    },
+    openGraph: {
+      title: `${categoryName} | Blog | Renderiq`,
+      description: `Browse all ${categoryName} blog posts about AI architectural rendering, visualization tools, and design workflows.`,
+      type: 'website',
+      url: categoryUrl,
+      siteName: 'Renderiq',
+      images: [
+        {
+          url: `${siteUrl}/og-blog.jpg`,
+          width: 1200,
+          height: 630,
+          alt: `${categoryName} Blog Posts - Renderiq`,
+        },
+      ],
+      locale: 'en_US',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${categoryName} | Blog | Renderiq`,
+      description: `Browse all ${categoryName} blog posts about AI architectural rendering.`,
+      images: [`${siteUrl}/og-blog.jpg`],
+      creator: '@Renderiq',
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+      },
+    },
   };
 }
 
@@ -101,9 +151,83 @@ export default async function CategoryPage({
   }
   
   const categoryName = category.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
-  
+  const categoryUrl = `${siteUrl}/blog/category/${category}`;
+
+  // CollectionPage Schema for category
+  const collectionPageSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: `${categoryName} Articles`,
+    description: `Collection of ${categoryName} blog posts about AI architectural rendering, visualization tools, and design workflows.`,
+    url: categoryUrl,
+    mainEntity: {
+      '@type': 'ItemList',
+      numberOfItems: filteredBlogs.length,
+      itemListElement: filteredBlogs.slice(0, 20).map((blog: any, index: number) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        item: {
+          '@type': 'BlogPosting',
+          '@id': `${siteUrl}/blog/${blog.slug}`,
+          headline: blog.title,
+          description: blog.excerpt,
+          datePublished: blog.publishedAt,
+        },
+      })),
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Renderiq',
+      logo: {
+        '@type': 'ImageObject',
+        url: `${siteUrl}/logo.png`,
+      },
+    },
+  };
+
+  // Breadcrumb Schema
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: siteUrl,
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Blog',
+        item: `${siteUrl}/blog`,
+      },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: categoryName,
+        item: categoryUrl,
+      },
+    ],
+  };
+
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <Script
+        id="blog-category-collection-schema"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(collectionPageSchema),
+        }}
+      />
+      <Script
+        id="blog-category-breadcrumb-schema"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(breadcrumbSchema),
+        }}
+      />
+      <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="border-b bg-muted/30">
         <div className="container mx-auto max-w-7xl px-4 py-4">
@@ -174,7 +298,8 @@ export default async function CategoryPage({
           </div>
         </section>
       )}
-    </div>
+      </div>
+    </>
   );
 }
 

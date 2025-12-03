@@ -7,7 +7,7 @@ import { ConditionalFooter } from "@/components/conditional-footer";
 import { ThemeProvider } from "@/components/theme-provider";
 import { UserOnboardingProvider } from "@/components/user-onboarding-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
-import { JsonLd, organizationSchema, softwareSchema, websiteSchema, comprehensiveFAQSchema } from "@/components/seo/json-ld";
+import { JsonLd, organizationSchema, softwareSchema, websiteSchema, comprehensiveFAQSchema, siteNavigationSchema } from "@/components/seo/json-ld";
 import { SEOMonitor, SEOAnalytics } from "@/components/seo/seo-monitor";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 import { ConsoleSecurityWarning } from "@/components/security/console-warning";
@@ -136,6 +136,7 @@ export default function RootLayout({
         <JsonLd data={softwareSchema} />
         <JsonLd data={websiteSchema} />
         <JsonLd data={comprehensiveFAQSchema} />
+        <JsonLd data={siteNavigationSchema} />
         <SEOMonitor />
         <SEOAnalytics />
         <ServiceWorkerRegister />

@@ -128,6 +128,46 @@ export const websiteSchema = {
   }
 };
 
+// SiteNavigationElement Schema
+export const siteNavigationSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'SiteNavigationElement',
+  name: 'Main Navigation',
+  url: 'https://renderiq.io',
+  hasPart: [
+    {
+      '@type': 'SiteNavigationElement',
+      name: 'Home',
+      url: 'https://renderiq.io'
+    },
+    {
+      '@type': 'SiteNavigationElement',
+      name: 'Gallery',
+      url: 'https://renderiq.io/gallery'
+    },
+    {
+      '@type': 'SiteNavigationElement',
+      name: 'Blog',
+      url: 'https://renderiq.io/blog'
+    },
+    {
+      '@type': 'SiteNavigationElement',
+      name: 'Pricing',
+      url: 'https://renderiq.io/pricing'
+    },
+    {
+      '@type': 'SiteNavigationElement',
+      name: 'Use Cases',
+      url: 'https://renderiq.io/use-cases'
+    },
+    {
+      '@type': 'SiteNavigationElement',
+      name: 'About',
+      url: 'https://renderiq.io/about'
+    }
+  ]
+};
+
 // Breadcrumb Schema Generator
 export function generateBreadcrumbSchema(items: { name: string; url: string }[]) {
   return {
