@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
-import { useCreditsWithReset, useIsPro } from '@/lib/hooks/use-subscription';
+import { useCreditsWithReset, useIsPro, useSubscription } from '@/lib/hooks/use-subscription';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -47,6 +47,7 @@ export function UserDropdown() {
   const { profile, loading: profileLoading } = useUserProfile();
   const { data: creditsData, loading: creditsLoading } = useCreditsWithReset(profile?.id);
   const { data: isPro, loading: proLoading } = useIsPro(profile?.id);
+  const { data: subscription, loading: subscriptionLoading } = useSubscription(profile?.id);
   const [isOpen, setIsOpen] = useState(false);
 
   const handleSignOut = async () => {
@@ -93,8 +94,20 @@ export function UserDropdown() {
     );
   }
 
-  const planName = creditsData?.plan?.name;
-  const hasPlan = !!planName;
+  // Get subscription status - check both subscription hook and creditsData
+  const subscriptionStatus = subscription?.subscription?.status || creditsData?.subscription?.status;
+  const isActiveSubscription = subscriptionStatus === 'active';
+  const isPendingSubscription = subscriptionStatus === 'pending';
+  const isFailedSubscription = subscriptionStatus === 'past_due' || subscriptionStatus === 'unpaid' || subscriptionStatus === 'canceled';
+  
+  // Only show plan name for active subscriptions (not pending/failed/canceled)
+  // Also check isPro to ensure user is actually pro
+  const planName = (isActiveSubscription && isPro) ? creditsData?.plan?.name : null;
+  const hasPlan = !!planName && isActiveSubscription && isPro;
+  
+  // Show status badge if subscription is pending or failed
+  const showStatusBadge = isPendingSubscription || isFailedSubscription;
+  const statusBadgeText = isPendingSubscription ? 'Pending' : isFailedSubscription ? 'Failed' : null;
 
   return (
     <TooltipProvider>
@@ -117,10 +130,14 @@ export function UserDropdown() {
             </Button>
           </Link>
 
-          {/* Plan Name or Get Pro Button */}
+          {/* Plan Name, Status Badge, or Get Pro Button */}
           {hasPlan ? (
             <Badge variant="secondary" className="h-7 px-2 sm:px-2.5 text-xs">
               {planName}
+            </Badge>
+          ) : showStatusBadge ? (
+            <Badge variant="outline" className="h-7 px-2 sm:px-2.5 text-xs border-yellow-500 text-yellow-600 dark:text-yellow-400">
+              {statusBadgeText}
             </Badge>
           ) : (
             <Link href="/pricing">
@@ -148,9 +165,14 @@ export function UserDropdown() {
                   {(profile?.name || user.email)?.charAt(0).toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
-              {isPro && (
+              {isPro && isActiveSubscription && (
                 <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
                   <Crown className="w-2.5 h-2.5 text-white" />
+                </div>
+              )}
+              {showStatusBadge && (
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-500 rounded-full flex items-center justify-center border-2 border-background">
+                  <Info className="w-2.5 h-2.5 text-white" />
                 </div>
               )}
             </Button>
@@ -162,10 +184,15 @@ export function UserDropdown() {
                 <p className="text-sm font-medium leading-none">
                   {profile?.name || user.user_metadata?.name || user.user_metadata?.full_name || 'User'}
                 </p>
-                {isPro && (
+                {isPro && isActiveSubscription && (
                   <Badge variant="default" className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0">
                     <Crown className="w-3 h-3 mr-1" />
                     Pro
+                  </Badge>
+                )}
+                {showStatusBadge && (
+                  <Badge variant="outline" className="border-yellow-500 text-yellow-600 dark:text-yellow-400">
+                    {statusBadgeText}
                   </Badge>
                 )}
               </div>
