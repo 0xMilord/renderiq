@@ -365,45 +365,9 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
                     </div>
                   )}
 
-                  <CardHeader className="pb-1 pt-2 px-3">
-                    {pkg.description && !isSmallPackage && (
-                      <CardDescription className="text-[10px] text-center mb-1 line-clamp-1">{pkg.description}</CardDescription>
-                    )}
-                  </CardHeader>
-
-                  <CardContent className="space-y-2 px-3 pb-2 flex-1 flex flex-col">
-                    {/* Credits and Pricing - 2 columns, 1 row */}
-                    <div className="grid grid-cols-2 gap-2">
-                      {/* Credits Column */}
-                      <div className="text-center p-1.5 bg-muted rounded">
-                        <div className="text-sm font-bold text-foreground">
-                          {formatNumberCompact(Number(totalCredits) || 0)}
-                        </div>
-                        <div className="text-[9px] text-muted-foreground mt-0.5">
-                          {formatNumberCompact(Number(pkg.credits) || 0)} credits
-                          {pkg.bonusCredits > 0 && (
-                            <span className="text-primary"> +{formatNumberCompact(Number(pkg.bonusCredits) || 0)}</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Pricing Column */}
-                      <div className="text-center p-1.5 bg-muted rounded">
-                        <div className="text-sm font-bold text-foreground">
-                          {currencyLoading || !convertedPrices[pkg.id] 
-                            ? '...' 
-                            : formatCurrencyCompact(convertedPrices[pkg.id], currency)}
-                        </div>
-                        <div className="text-[9px] text-muted-foreground mt-0.5">
-                          {currencyLoading || !convertedPrices[pkg.id]
-                            ? '...'
-                            : `${formatCurrencyCompact(Math.round((convertedPrices[pkg.id] || 0) / totalCredits), currency)}/credit`}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Package Name with Icon and Buy Now Button - 1 row 2 columns */}
-                    <div className="grid grid-cols-2 gap-2 items-center mt-auto">
+                  <CardHeader className="pb-2 pt-2 px-3">
+                    {/* Package Name with Icon and Buy Now Button - 1 row 2 columns at top */}
+                    <div className="grid grid-cols-2 gap-2 items-center mb-2">
                       <div className="flex items-center gap-1.5">
                         {pkg.bonusCredits > 0 ? (
                           <Sparkles className="h-3.5 w-3.5 text-primary flex-shrink-0" />
@@ -438,6 +402,41 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
                           <span className="text-xs">Buy Now</span>
                         )}
                       </Button>
+                    </div>
+                    {pkg.description && !isSmallPackage && (
+                      <CardDescription className="text-[10px] text-center line-clamp-1">{pkg.description}</CardDescription>
+                    )}
+                  </CardHeader>
+
+                  <CardContent className="space-y-2 px-3 pb-2 flex-1 flex flex-col">
+                    {/* Credits and Pricing - Stack on mobile, side by side on larger screens */}
+                    <div className="flex flex-col sm:grid sm:grid-cols-2 gap-2">
+                      {/* Credits Column */}
+                      <div className="text-center p-1.5 bg-muted rounded">
+                        <div className="text-sm font-bold text-foreground">
+                          {formatNumberCompact(Number(totalCredits) || 0)}
+                        </div>
+                        <div className="text-[9px] text-muted-foreground mt-0.5">
+                          {formatNumberCompact(Number(pkg.credits) || 0)} credits
+                          {pkg.bonusCredits > 0 && (
+                            <span className="text-primary"> +{formatNumberCompact(Number(pkg.bonusCredits) || 0)}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Pricing Column */}
+                      <div className="text-center p-1.5 bg-muted rounded">
+                        <div className="text-sm font-bold text-foreground">
+                          {currencyLoading || !convertedPrices[pkg.id] 
+                            ? '...' 
+                            : formatCurrencyCompact(convertedPrices[pkg.id], currency)}
+                        </div>
+                        <div className="text-[9px] text-muted-foreground mt-0.5">
+                          {currencyLoading || !convertedPrices[pkg.id]
+                            ? '...'
+                            : `${formatCurrencyCompact(Math.round((convertedPrices[pkg.id] || 0) / totalCredits), currency)}/credit`}
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
