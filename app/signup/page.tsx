@@ -24,8 +24,32 @@ export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const { signUp, signInWithGoogle, signInWithGithub } = useAuth();
+  const { user, loading: authLoading, signUp, signInWithGoogle, signInWithGithub } = useAuth();
   const router = useRouter();
+
+  // Redirect authenticated users to dashboard
+  useEffect(() => {
+    if (!authLoading && user) {
+      // Check for redirect parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectTo = urlParams.get('redirect') || '/dashboard';
+      router.push(redirectTo);
+    }
+  }, [user, authLoading, router]);
+
+  // Show loading state while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Don't render signup form if user is authenticated (will redirect)
+  if (user) {
+    return null;
+  }
 
   // Collect device fingerprint on page load (for email/password signup)
   useEffect(() => {
@@ -69,8 +93,11 @@ export default function SignupPage() {
         setError(error instanceof Error ? error.message : String(error));
       } else {
         setSuccess(true);
+        // Get redirect parameter if present
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectTo = urlParams.get('redirect') || '/dashboard';
         setTimeout(() => {
-          router.push('/login');
+          router.push(redirectTo);
         }, 2000);
       }
     } catch {

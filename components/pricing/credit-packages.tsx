@@ -11,6 +11,32 @@ import { useCurrency } from '@/lib/hooks/use-currency';
 import { useRazorpaySDK } from '@/lib/hooks/use-razorpay-sdk';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SUPPORTED_CURRENCIES } from '@/lib/utils/currency';
+import { logger } from '@/lib/utils/logger';
+
+// Helper function to format numbers with k/m/b suffixes (no decimals)
+const formatNumberCompact = (num: number | string | null | undefined): string => {
+  const number = typeof num === 'string' ? parseFloat(num) : (num || 0);
+  const value = isNaN(number) ? 0 : number;
+  
+  if (value >= 1000000000) {
+    return (value / 1000000000).toFixed(1).replace(/\.0$/, '') + 'b';
+  }
+  if (value >= 1000000) {
+    return (value / 1000000).toFixed(1).replace(/\.0$/, '') + 'm';
+  }
+  if (value >= 1000) {
+    return (value / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+  }
+  return Math.round(value).toString();
+};
+
+// Helper function to format currency with k/m/b suffixes
+const formatCurrencyCompact = (amount: number, currency: string): string => {
+  const currencyInfo = SUPPORTED_CURRENCIES[currency] || SUPPORTED_CURRENCIES['INR'];
+  const symbol = currencyInfo.symbol;
+  const compact = formatNumberCompact(amount);
+  return `${symbol}${compact}`;
+};
 
 interface CreditPackagesProps {
   packages: any[];
@@ -53,6 +79,18 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
   }, []);
 
   const handlePurchase = async (packageId: string, packageData: any) => {
+    // Check if user is authenticated
+    const supabase = (await import('@/lib/supabase/client')).createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      toast.error('Please sign up or log in to purchase credits');
+      setTimeout(() => {
+        window.location.href = `/signup?redirect=${encodeURIComponent(window.location.pathname)}`;
+      }, 1500);
+      return;
+    }
+
     // Check if Razorpay key is configured first
     const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
     if (!razorpayKey) {
@@ -152,9 +190,36 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
           backdrop_color: isDarkMode ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.8)', // Semi-transparent backdrop
         },
         modal: {
-          ondismiss: () => {
+          ondismiss: async () => {
             setLoading(null);
-            toast.info('Payment cancelled');
+            razorpayInstanceRef.current = null; // Clear reference
+            
+            // CRITICAL: Cancel pending payment order when user dismisses payment modal
+            try {
+              logger.log('🚫 User dismissed payment modal, cancelling pending order:', orderId);
+              
+              const cancelResponse = await fetch('/api/payments/cancel-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  orderId: orderId,
+                  paymentOrderId: orderResult.data.paymentOrderId,
+                }),
+              });
+              
+              const cancelResult = await cancelResponse.json();
+              
+              if (cancelResult.success) {
+                logger.log('✅ Pending payment order cancelled after user dismissed payment');
+                toast.info('Payment cancelled. Order has been cancelled.');
+              } else {
+                logger.warn('⚠️ Failed to cancel order after dismissal:', cancelResult.error);
+                toast.warning('Payment cancelled, but there was an issue updating the order.');
+              }
+            } catch (error) {
+              logger.error('❌ Error cancelling order after dismissal:', error);
+              toast.warning('Payment cancelled, but there was an error updating the order.');
+            }
           },
           escape: true, // Allow ESC key to close
           animation: true, // Enable animations
@@ -192,6 +257,22 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
       // Store Razorpay instance
       const razorpay = new Razorpay(options);
       razorpayInstanceRef.current = razorpay;
+      
+      // CRITICAL: Add payment failure handler
+      // Note: Webhook will update order status to "failed", so we don't need to do it here
+      razorpay.on('payment.failed', async (response: any) => {
+        console.error('Payment failed:', response);
+        setLoading(null);
+        razorpayInstanceRef.current = null; // Clear reference
+        const errorDescription = response.error?.description || 'Unknown error';
+        
+        logger.log('🚫 Payment failed:', { orderId, error: errorDescription });
+        
+        toast.error(`Payment failed: ${errorDescription}`);
+        // Redirect to failure page
+        // Webhook will handle updating order status to "failed"
+        window.location.href = `/payment/failure?razorpay_order_id=${orderId}&error_description=${encodeURIComponent(errorDescription)}`;
+      });
       
       // Open Razorpay checkout
       razorpay.open();
@@ -237,13 +318,6 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
       setTimeout(styleRazorpayModal, 200);
       setTimeout(styleRazorpayModal, 500);
       setTimeout(styleRazorpayModal, 1000);
-      
-      razorpay.on('payment.failed', (response: any) => {
-        console.error('Payment failed:', response);
-        setLoading(null);
-        const errorDescription = response.error?.description || 'Unknown error';
-        window.location.href = `/payment/failure?razorpay_order_id=${orderId}&error_description=${encodeURIComponent(errorDescription)}`;
-      });
     } catch (error: any) {
       console.error('Error processing purchase:', error);
       toast.error(error.message || 'Failed to process purchase');
@@ -331,32 +405,32 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
                   </CardHeader>
 
                   <CardContent className="space-y-3 px-3 pb-3 flex-1 flex flex-col">
-                    {/* Credits and Pricing - 2 column layout */}
-                    <div className="grid grid-cols-2 gap-3">
+                    {/* Credits and Pricing - Stack vertically on mobile, side by side on desktop */}
+                    <div className="flex flex-col sm:grid sm:grid-cols-2 gap-3">
                       {/* Credits Column */}
                       <div className={`text-center ${isSmallPackage ? 'p-2' : 'p-3'} bg-muted rounded-lg`}>
-                        <div className={`${isSmallPackage ? 'text-lg' : 'text-xl'} font-bold text-foreground`}>
-                          {totalCredits.toLocaleString()}
+                        <div className={`${isSmallPackage ? 'text-base' : 'text-lg'} font-bold text-foreground`}>
+                          {formatNumberCompact(Number(totalCredits) || 0)}
                         </div>
                         <div className={`${isSmallPackage ? 'text-[10px]' : 'text-xs'} text-muted-foreground mt-0.5`}>
-                          {pkg.credits.toLocaleString()} credits
+                          {formatNumberCompact(Number(pkg.credits) || 0)} credits
                           {pkg.bonusCredits > 0 && (
-                            <span className="text-primary"> +{pkg.bonusCredits}</span>
+                            <span className="text-primary"> +{formatNumberCompact(Number(pkg.bonusCredits) || 0)}</span>
                           )}
                         </div>
                       </div>
 
                       {/* Pricing Column */}
                       <div className={`text-center ${isSmallPackage ? 'p-2' : 'p-3'} bg-muted rounded-lg`}>
-                        <div className={`${isSmallPackage ? 'text-lg' : 'text-xl'} font-bold text-foreground`}>
+                        <div className={`${isSmallPackage ? 'text-base' : 'text-lg'} font-bold text-foreground`}>
                           {currencyLoading || !convertedPrices[pkg.id] 
                             ? '...' 
-                            : format(convertedPrices[pkg.id])}
+                            : formatCurrencyCompact(convertedPrices[pkg.id], currency)}
                         </div>
                         <div className={`${isSmallPackage ? 'text-[10px]' : 'text-xs'} text-muted-foreground mt-0.5`}>
                           {currencyLoading || !convertedPrices[pkg.id]
                             ? '...'
-                            : `${format((convertedPrices[pkg.id] || 0) / totalCredits)}/credit`}
+                            : `${formatCurrencyCompact(Math.round((convertedPrices[pkg.id] || 0) / totalCredits), currency)}/credit`}
                         </div>
                       </div>
                     </div>

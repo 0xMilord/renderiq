@@ -44,6 +44,13 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Redirect authenticated users away from login/signup pages
+  if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup')) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
+    return NextResponse.redirect(url);
+  }
+
   // Protect upload, render, dashboard, engine, and project routes
   if (
     !user &&

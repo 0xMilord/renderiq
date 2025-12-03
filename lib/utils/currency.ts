@@ -259,6 +259,26 @@ export async function convertCurrency(amountInINR: number, targetCurrency: strin
 }
 
 /**
+ * Format number with k, m, b suffixes (no decimals)
+ */
+export function formatNumberCompact(num: number | string | null | undefined): string {
+  // Convert to number and handle edge cases
+  const number = typeof num === 'string' ? parseFloat(num) : (num || 0);
+  const value = isNaN(number) ? 0 : number;
+  
+  if (value >= 1000000000) {
+    return (value / 1000000000).toFixed(1).replace(/\.0$/, '') + 'b';
+  }
+  if (value >= 1000000) {
+    return (value / 1000000).toFixed(1).replace(/\.0$/, '') + 'm';
+  }
+  if (value >= 1000) {
+    return (value / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+  }
+  return Math.round(value).toString();
+}
+
+/**
  * Format currency amount
  */
 export function formatCurrency(amount: number, currency: string): string {
@@ -274,6 +294,16 @@ export function formatCurrency(amount: number, currency: string): string {
   parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
   return `${symbol}${parts.join('.')}`;
+}
+
+/**
+ * Format currency amount compact (no decimals, with k/m/b)
+ */
+export function formatCurrencyCompact(amount: number, currency: string): string {
+  const currencyInfo = SUPPORTED_CURRENCIES[currency] || SUPPORTED_CURRENCIES[BASE_CURRENCY];
+  const symbol = currencyInfo.symbol;
+  const compact = formatNumberCompact(amount);
+  return `${symbol}${compact}`;
 }
 
 /**

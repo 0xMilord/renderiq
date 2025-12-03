@@ -11,6 +11,32 @@ import { useTheme } from 'next-themes';
 import { useCurrency } from '@/lib/hooks/use-currency';
 import { useRazorpaySDK } from '@/lib/hooks/use-razorpay-sdk';
 import { logger } from '@/lib/utils/logger';
+import { SUPPORTED_CURRENCIES } from '@/lib/utils/currency';
+
+// Helper function to format numbers with k/m/b suffixes (no decimals)
+const formatNumberCompact = (num: number | string | null | undefined): string => {
+  const number = typeof num === 'string' ? parseFloat(num) : (num || 0);
+  const value = isNaN(number) ? 0 : number;
+  
+  if (value >= 1000000000) {
+    return (value / 1000000000).toFixed(1).replace(/\.0$/, '') + 'b';
+  }
+  if (value >= 1000000) {
+    return (value / 1000000).toFixed(1).replace(/\.0$/, '') + 'm';
+  }
+  if (value >= 1000) {
+    return (value / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+  }
+  return Math.round(value).toString();
+};
+
+// Helper function to format currency with k/m/b suffixes
+const formatCurrencyCompact = (amount: number, currency: string): string => {
+  const currencyInfo = SUPPORTED_CURRENCIES[currency] || SUPPORTED_CURRENCIES['INR'];
+  const symbol = currencyInfo.symbol;
+  const compact = formatNumberCompact(amount);
+  return `${symbol}${compact}`;
+};
 
 const planIcons: Record<string, any> = {
   free: Zap,
@@ -76,6 +102,18 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
     });
 
   const handleSubscribe = async (planId: string) => {
+    // Check if user is authenticated
+    const supabase = (await import('@/lib/supabase/client')).createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      toast.error('Please sign up or log in to subscribe');
+      setTimeout(() => {
+        window.location.href = `/signup?redirect=${encodeURIComponent(window.location.pathname)}`;
+      }, 1500);
+      return;
+    }
+
     try {
       setLoading(planId);
       
@@ -246,9 +284,35 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
           backdrop_color: isDarkMode ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.8)',
         },
         modal: {
-          ondismiss: () => {
+          ondismiss: async () => {
             setLoading(null);
-            toast.info('Payment cancelled');
+            razorpayInstanceRef.current = null; // Clear reference
+            
+            // CRITICAL: Cancel pending subscription when user dismisses payment modal
+            try {
+              logger.log('🚫 User dismissed payment modal, cancelling pending subscription:', result.data.subscriptionId);
+              
+              const cancelResponse = await fetch('/api/payments/cancel-subscription', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  subscriptionId: result.data.subscriptionId,
+                }),
+              });
+              
+              const cancelResult = await cancelResponse.json();
+              
+              if (cancelResult.success) {
+                logger.log('✅ Pending subscription cancelled after user dismissed payment');
+                toast.info('Payment cancelled. Subscription has been cancelled.');
+              } else {
+                logger.warn('⚠️ Failed to cancel subscription after dismissal:', cancelResult.error);
+                toast.warning('Payment cancelled, but there was an issue updating the subscription. Please check your billing page.');
+              }
+            } catch (error) {
+              logger.error('❌ Error cancelling subscription after dismissal:', error);
+              toast.warning('Payment cancelled, but there was an error. Please check your billing page.');
+            }
           },
           escape: true,
           animation: true,
@@ -444,34 +508,34 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
               <CardContent className="space-y-6">
                 {/* Pricing */}
                 <div className="text-center">
-                  <div className="flex items-baseline justify-center">
-                    <span className="text-4xl font-bold text-foreground">
+                  <div className="flex items-baseline justify-center flex-wrap gap-1">
+                    <span className="text-2xl sm:text-3xl font-bold text-foreground">
                       {currencyLoading || !convertedPrices[plan.id] 
                         ? '...' 
-                        : format(convertedPrices[plan.id] || parseFloat(plan.price))}
+                        : formatCurrencyCompact(convertedPrices[plan.id] || parseFloat(plan.price), currency)}
                     </span>
-                    <span className="text-muted-foreground ml-1">
+                    <span className="text-sm text-muted-foreground">
                       /{plan.interval}
                     </span>
                   </div>
                   {savings > 0 && (
-                    <p className="text-sm text-green-500 mt-1">
+                    <p className="text-xs sm:text-sm text-green-500 mt-1">
                       Save {savings}% with annual billing
                     </p>
                   )}
-                  <p className="text-sm text-muted-foreground mt-2">
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-2">
                     {currencyLoading || !convertedPrices[plan.id]
                       ? '...'
-                      : `${format(monthlyPrice)}/month`}
+                      : `${formatCurrencyCompact(Math.round(monthlyPrice), currency)}/month`}
                   </p>
                 </div>
 
                 {/* Credits */}
                 <div className="text-center p-4 bg-muted rounded-lg">
-                  <div className="text-2xl font-bold text-foreground">
-                    {plan.creditsPerMonth.toLocaleString()}
+                  <div className="text-xl sm:text-2xl font-bold text-foreground">
+                    {formatNumberCompact(Number(plan.creditsPerMonth) || 0)}
                   </div>
-                  <div className="text-sm text-muted-foreground">credits per month</div>
+                  <div className="text-xs sm:text-sm text-muted-foreground">credits per month</div>
                 </div>
 
                 {/* Features */}
