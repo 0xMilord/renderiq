@@ -416,15 +416,9 @@ export class RazorpayService {
         };
       }
 
-      // Try to verify plan exists first (this will help diagnose the issue)
-      try {
-        logger.log('💳 RazorpayService: Verifying plan exists:', plan.razorpayPlanId);
-        // Note: Razorpay SDK doesn't have a direct plans.fetch method, so we'll try to create subscription
-        // If subscriptions feature is not enabled, this will fail with "URL not found"
-      } catch (verifyError: any) {
-        logger.error('❌ RazorpayService: Plan verification failed:', verifyError);
-        // Continue anyway - the create call will provide better error
-      }
+      // Note: Plan verification via SDK may not be available in all Razorpay SDK versions
+      // We'll proceed directly to subscription creation which will provide clearer errors
+      logger.log('💳 RazorpayService: Attempting to create subscription with plan:', plan.razorpayPlanId);
 
       // Create subscription in Razorpay
       const subscriptionOptions = {
@@ -439,8 +433,82 @@ export class RazorpayService {
 
       logger.log('💳 RazorpayService: Creating subscription with options:', subscriptionOptions);
       logger.log('💳 RazorpayService: Using Razorpay instance with key:', process.env.RAZORPAY_KEY_ID?.substring(0, 10) + '...');
+      logger.log('💳 RazorpayService: Account mode:', process.env.RAZORPAY_KEY_ID?.includes('rzp_test') ? 'TEST' : 'LIVE');
       
-      const razorpaySubscription = await razorpay.subscriptions.create(subscriptionOptions);
+      // Try creating subscription via SDK first
+      let razorpaySubscription: any;
+      try {
+        razorpaySubscription = await razorpay.subscriptions.create(subscriptionOptions);
+        logger.log('✅ RazorpayService: Subscription created successfully via SDK:', razorpaySubscription.id);
+      } catch (sdkError: any) {
+        // If SDK fails with "URL not found", try direct API call as fallback
+        if (sdkError.statusCode === 400 && (sdkError.error?.description?.includes('not found') || sdkError.error?.code === 'BAD_REQUEST_ERROR')) {
+          logger.warn('⚠️ RazorpayService: SDK subscription creation failed, trying direct API call');
+          logger.log('💳 RazorpayService: Attempting direct API call to Razorpay subscriptions endpoint');
+          
+          try {
+            // Make direct HTTP request to Razorpay API
+            const keyId = process.env.RAZORPAY_KEY_ID;
+            const keySecret = process.env.RAZORPAY_KEY_SECRET;
+            
+            if (!keyId || !keySecret) {
+              throw new Error('Razorpay credentials not configured');
+            }
+            
+            const auth = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+            
+            // Use the correct API endpoint based on account mode
+            const apiUrl = 'https://api.razorpay.com/v1/subscriptions';
+            logger.log('💳 RazorpayService: Calling Razorpay API:', apiUrl);
+            
+            const response = await fetch(apiUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${auth}`,
+              },
+              body: JSON.stringify(subscriptionOptions),
+            });
+            
+            const responseText = await response.text();
+            logger.log('💳 RazorpayService: API response status:', response.status);
+            logger.log('💳 RazorpayService: API response:', responseText.substring(0, 500));
+            
+            if (!response.ok) {
+              let errorData;
+              try {
+                errorData = JSON.parse(responseText);
+              } catch {
+                errorData = { error: { description: responseText } };
+              }
+              
+              throw {
+                statusCode: response.status,
+                error: errorData.error || { description: errorData.message || 'Unknown error' },
+                message: errorData.error?.description || errorData.message || 'API request failed'
+              };
+            }
+            
+            razorpaySubscription = JSON.parse(responseText);
+            logger.log('✅ RazorpayService: Subscription created via direct API:', razorpaySubscription.id);
+          } catch (apiError: any) {
+            logger.error('❌ RazorpayService: Direct API call also failed:', {
+              statusCode: apiError.statusCode,
+              error: apiError.error,
+              message: apiError.message
+            });
+            // If direct API also fails, throw the original SDK error with more context
+            throw {
+              ...sdkError,
+              directApiError: apiError,
+              suggestion: 'Both SDK and direct API calls failed. Please verify: 1) Subscriptions feature is enabled in Razorpay Dashboard, 2) Plan ID exists and matches exactly, 3) Using correct account mode (test/live)'
+            };
+          }
+        } else {
+          // Re-throw non-URL errors
+          throw sdkError;
+        }
+      }
 
       logger.log('✅ RazorpayService: Subscription created:', razorpaySubscription.id);
 
@@ -506,31 +574,68 @@ export class RazorpayService {
         errorSource: error.error?.source,
         planId,
         razorpayPlanId,
-        planName: plan?.name
+        planName: plan?.name,
+        directApiError: (error as any).directApiError,
+        suggestion: (error as any).suggestion
       });
       
       // Provide more specific error messages
       let errorMessage = 'Failed to create subscription';
       
       if (error.statusCode === 400) {
-        if (error.error?.description?.includes('not found') || error.error?.code === 'BAD_REQUEST_ERROR') {
-          // This is almost certainly because subscriptions feature is not enabled
-          errorMessage = `Subscriptions Feature Not Enabled
+        const errorDesc = error.error?.description || '';
+        
+        if (errorDesc.includes('not found') || error.error?.code === 'BAD_REQUEST_ERROR') {
+          // Check if it's a plan not found error vs subscriptions not enabled
+          if (errorDesc.toLowerCase().includes('plan') || errorDesc.toLowerCase().includes('invalid plan')) {
+            errorMessage = `Plan Not Found
 
-The Subscriptions feature is not enabled on your Razorpay account. Please contact Razorpay support to enable it.
+The plan ID '${razorpayPlanId}' was not found in your Razorpay account.
+
+Please verify:
+1. The plan exists in Razorpay Dashboard (Products → Plans)
+2. The plan ID matches exactly (including test/live mode)
+3. You're using the correct Razorpay account (test vs live)
 
 Plan ID: ${razorpayPlanId}
 Plan Name: ${plan?.name || 'Unknown'}
 Account Mode: ${process.env.RAZORPAY_KEY_ID?.includes('rzp_test') ? 'TEST' : 'LIVE'}`;
+          } else {
+            // Likely subscriptions feature not enabled OR plan doesn't exist
+            const suggestion = (error as any).suggestion;
+            errorMessage = `Subscription Creation Failed
+
+Possible causes:
+1. Plan ID '${razorpayPlanId}' doesn't exist in your Razorpay account
+2. Subscriptions feature may not be fully enabled yet
+3. Wrong account mode (test vs live keys mismatch)
+4. API endpoint issue (both SDK and direct API failed)
+
+${suggestion ? `\n${suggestion}\n` : ''}
+Please verify:
+- Plan exists in Razorpay Dashboard (Products → Plans)
+- Plan ID matches exactly: ${razorpayPlanId}
+- Using ${process.env.RAZORPAY_KEY_ID?.includes('rzp_test') ? 'TEST' : 'LIVE'} mode keys
+- Subscriptions section is visible in Razorpay Dashboard
+
+Plan Name: ${plan?.name || 'Unknown'}`;
+          }
         } else {
           errorMessage = error.error?.description || error.message || 'Invalid request to Razorpay';
         }
       } else if (error.statusCode === 401) {
-        errorMessage = 'Razorpay authentication failed. Please check your API credentials.';
+        errorMessage = 'Razorpay authentication failed. Please check your API credentials (RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET).';
       } else if (error.statusCode === 404) {
-        errorMessage = `Subscriptions Feature Not Enabled
+        errorMessage = `Plan or API Endpoint Not Found
 
-The Subscriptions feature is not enabled on your Razorpay account. Please contact Razorpay support (support@razorpay.com) to enable it.`;
+The plan ID '${razorpayPlanId}' was not found, or the Subscriptions API endpoint is not available.
+
+This could mean:
+1. Plan doesn't exist in your Razorpay account
+2. Subscriptions feature is not enabled
+3. Wrong account mode (test vs live)
+
+Please verify the plan exists in Razorpay Dashboard.`;
       } else {
         errorMessage = error.error?.description || error.message || 'Failed to create subscription';
       }
