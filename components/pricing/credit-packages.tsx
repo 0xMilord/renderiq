@@ -349,7 +349,7 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
         const sortedPackages = [...packages].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
         
         return (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 md:gap-4">
             {sortedPackages.map((pkg) => {
               const totalCredits = pkg.credits + (pkg.bonusCredits || 0);
               const pricePerCredit = parseFloat(pkg.price) / totalCredits;
