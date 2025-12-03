@@ -66,10 +66,10 @@ export async function submitContactForm(formData: {
     };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      logger.warn('❌ [ContactForm] Validation error:', error.errors);
+      logger.warn('❌ [ContactForm] Validation error:', error.issues);
       return {
         success: false,
-        error: error.errors[0]?.message || 'Invalid form data',
+        error: error.issues[0]?.message || 'Invalid form data',
       };
     }
 

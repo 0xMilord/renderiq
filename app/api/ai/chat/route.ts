@@ -21,8 +21,8 @@ export async function POST(request: NextRequest) {
     });
 
     // Convert messages to the format expected by our service
-    const formattedMessages = messages.map((msg: any) => ({
-      role: msg.role === 'user' ? 'user' : 'assistant',
+    const formattedMessages: { role: 'user' | 'assistant'; content: string }[] = messages.map((msg: any) => ({
+      role: (msg.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
       content: typeof msg.content === 'string' ? msg.content : msg.content?.text || JSON.stringify(msg.content),
     }));
 

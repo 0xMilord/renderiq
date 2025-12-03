@@ -1,7 +1,16 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { ImageGenerationResult } from '@/lib/services/image-generation';
+// ImageGenerationResult type definition
+export interface ImageGenerationResult {
+  imageUrl: string;
+  prompt: string;
+  style: string;
+  quality: string;
+  aspectRatio: string;
+  processingTime: number;
+  provider: string;
+}
 import { logger } from '@/lib/utils/logger';
 
 export interface OptimisticRender {

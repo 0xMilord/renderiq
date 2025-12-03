@@ -16,7 +16,8 @@ import { StyleNodeData } from '@/lib/types/canvas';
 import { BaseNode } from './base-node';
 import { NodeExecutionStatus } from '@/lib/canvas/workflow-executor';
 
-export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
+export function StyleNode(props: any) {
+  const { data, id } = props;
   const [localData, setLocalData] = useState<StyleNodeData>(data || {
     camera: {
       focalLength: 35,
@@ -68,7 +69,7 @@ export function StyleNode({ data, id }: NodeProps<{ data: StyleNodeData }>) {
       title="Style Node"
       icon={Camera}
       nodeType="style"
-      nodeId={id}
+      nodeId={String(id)}
       className="w-96"
       status={status}
       outputs={[{ id: 'style', position: Position.Right, type: 'style', label: 'Style' }]}

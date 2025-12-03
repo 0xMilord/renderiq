@@ -47,7 +47,7 @@ export default function LoginPage() {
     try {
       const { error } = await signInWithGoogle();
       if (error) {
-        setError(error.message);
+        setError(error || 'An error occurred');
         setIsLoading(false);
       }
       // Don't set loading to false here as user will be redirected
@@ -65,7 +65,7 @@ export default function LoginPage() {
     try {
       const { error } = await signInWithGithub();
       if (error) {
-        setError(error.message);
+        setError(error || 'An error occurred');
         setIsLoading(false);
       }
       // Don't set loading to false here as user will be redirected

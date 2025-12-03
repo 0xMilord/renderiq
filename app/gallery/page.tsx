@@ -248,7 +248,7 @@ export default function GalleryPage() {
                   {/* Sort */}
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Sort By</Label>
-                    <Select value={sortBy} onValueChange={setSortBy}>
+                    <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
                       <SelectTrigger className="w-full">
                         <SelectValue />
                       </SelectTrigger>

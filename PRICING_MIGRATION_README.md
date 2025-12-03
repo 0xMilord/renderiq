@@ -10,6 +10,7 @@ This migration updates all pricing to follow a consistent model: **5 INR per cre
 | Plan | Credits/Month | Price (INR) | Notes |
 |------|--------------|-------------|-------|
 | Free | 10 | 0.00 | Free tier |
+| Starter | 24 | 119.00 | Base: 120 INR (24 × 5), offered at 119 INR |
 | Pro | 100 | 499.00 | Base: 500 INR (100 × 5), offered at 499 INR |
 | Pro Annual | 100 | 4790.00/year | Base: 6000 INR (1200 × 5), 20% discount = 4800, offered at 4790 |
 | Enterprise | 1000 | 4999.00 | Base: 5000 INR (1000 × 5), offered at 4999 INR |

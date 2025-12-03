@@ -105,6 +105,7 @@ export async function createRenderAction(formData: FormData) {
     // Calculate credits cost
     // Image: 5 credits base (standard), 10 credits (high), 15 credits (ultra)
     // Video: 30 credits per second (based on Veo 3.1 pricing with 2x markup and 100 INR/USD conversion)
+    let creditsCost: number;
     if (type === 'video') {
       // Video: 30 credits per second
       const duration = parseInt(formData.get('duration') as string) || 5;

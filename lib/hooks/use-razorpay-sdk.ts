@@ -87,33 +87,98 @@ export function useRazorpaySDK() {
       }, 200);
     };
 
-    script.onerror = () => {
+    script.onerror = (event) => {
       setIsLoading(false);
       setError('Failed to load payment gateway');
       
       // Check if script was blocked
       const scriptElement = document.getElementById(SCRIPT_ID);
+      
+      // Enhanced debugging information
+      const errorInfo = {
+        scriptSrc: RAZORPAY_SCRIPT_URL,
+        scriptId: SCRIPT_ID,
+        scriptElementExists: !!scriptElement,
+        scriptReadyState: scriptElement?.getAttribute('src') || 'unknown',
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+        online: typeof navigator !== 'undefined' ? navigator.onLine : true,
+        timestamp: new Date().toISOString(),
+      };
+      
+      // Log as warn to avoid alarming users - error is already shown via toast
+      console.warn('⚠️ Razorpay SDK load failed:', errorInfo);
+      console.warn('Event details:', event);
+      
+      // Check for CSP violations in console (browser will log separately)
+      if (typeof window !== 'undefined') {
+        // Check if we can see CSP errors (they appear in console)
+        console.warn('💡 Troubleshooting tips:');
+        console.warn('1. Check browser console for CSP violation messages');
+        console.warn('2. Verify network connectivity');
+        console.warn('3. Check if ad blockers are enabled');
+        console.warn('4. Try accessing:', RAZORPAY_SCRIPT_URL);
+        console.warn('5. Check browser DevTools → Network tab for blocked requests');
+      }
+      
       if (!scriptElement) {
-        console.error('Script element was removed - possible CSP violation or ad blocker');
+        console.error('⚠️ Script element was removed - possible CSP violation or ad blocker');
         toast.error('Payment gateway blocked. Please disable ad blockers and refresh the page.', {
           duration: 5000,
         });
       } else {
-        console.error('Script load failed - network error or CSP violation');
-        toast.error('Failed to load payment gateway. Please check your connection and refresh.', {
-          duration: 5000,
+        // Use warn instead of error to avoid alarming users unnecessarily
+        // The actual error will be shown via toast notification
+        console.warn('⚠️ Razorpay SDK: Script load failed - network error or CSP violation');
+        console.error('Script element exists but failed to load. Possible causes:');
+        console.error('1. Network connectivity issue');
+        console.error('2. CSP (Content Security Policy) blocking the script');
+        console.error('3. CORS (Cross-Origin) restrictions');
+        console.error('4. Ad blocker or browser extension blocking');
+        console.error('5. Firewall or proxy blocking external scripts');
+        console.error('');
+        console.error('🔍 Diagnostic Information:');
+        console.error('- Script URL:', RAZORPAY_SCRIPT_URL);
+        console.error('- Script in DOM:', !!scriptElement);
+        console.error('- Online status:', typeof navigator !== 'undefined' ? navigator.onLine : 'unknown');
+        
+        // Try to fetch the script URL directly to test connectivity (non-blocking)
+        if (typeof fetch !== 'undefined') {
+          fetch(RAZORPAY_SCRIPT_URL, { method: 'HEAD', mode: 'no-cors' })
+            .then(() => {
+              console.log('✅ Script URL is accessible (HEAD request succeeded) - issue may be CSP or ad blocker');
+            })
+            .catch((fetchError) => {
+              console.error('❌ Script URL fetch test failed:', fetchError);
+              console.error('This suggests a network, CORS, or CSP issue');
+            });
+        }
+        
+        toast.error('Failed to load payment gateway. Check console for details, disable ad blockers, and refresh.', {
+          duration: 6000,
         });
       }
     };
 
     // Append to document head (better for CSP compliance)
     try {
+      // Verify script URL is accessible before appending
+      console.log('📦 Loading Razorpay SDK from:', RAZORPAY_SCRIPT_URL);
+      console.log('📦 Script ID:', SCRIPT_ID);
+      
       document.head.appendChild(script);
-      console.log('📦 Loading Razorpay SDK...');
+      console.log('✅ Razorpay script element appended to DOM');
+      
+      // Additional check after a moment to see if script is still there
+      setTimeout(() => {
+        const checkScript = document.getElementById(SCRIPT_ID);
+        if (!checkScript) {
+          console.warn('⚠️ Script element was removed shortly after append - possible CSP violation');
+        }
+      }, 500);
     } catch (err) {
       setIsLoading(false);
       setError('Failed to initialize payment gateway');
-      console.error('Failed to append Razorpay script:', err);
+      console.error('❌ Failed to append Razorpay script to DOM:', err);
       toast.error('Failed to initialize payment gateway. Please refresh the page.', {
         duration: 5000,
       });

@@ -5,10 +5,11 @@ import { logger } from '@/lib/utils/logger';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { invoiceNumber: string } }
+  { params }: { params: Promise<{ invoiceNumber: string }> }
 ) {
   try {
-    logger.log('📄 API: Getting invoice by number:', params.invoiceNumber);
+    const { invoiceNumber } = await params;
+    logger.log('📄 API: Getting invoice by number:', invoiceNumber);
 
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -20,7 +21,7 @@ export async function GET(
       );
     }
 
-    const result = await InvoiceService.getInvoiceByNumber(params.invoiceNumber);
+    const result = await InvoiceService.getInvoiceByNumber(invoiceNumber);
 
     if (!result.success) {
       return NextResponse.json(

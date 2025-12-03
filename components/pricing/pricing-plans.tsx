@@ -10,9 +10,11 @@ import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
 import { useCurrency } from '@/lib/hooks/use-currency';
 import { useRazorpaySDK } from '@/lib/hooks/use-razorpay-sdk';
+import { logger } from '@/lib/utils/logger';
 
 const planIcons: Record<string, any> = {
   free: Zap,
+  starter: Zap,
   pro: Crown,
   'pro-annual': Crown,
   enterprise: Building2,
@@ -52,9 +54,13 @@ export function PricingPlans({ plans, userCredits }: PricingPlansProps) {
     setConvertedPrices(converted);
   }, [currency, exchangeRate, plans, currencyLoading]);
 
-  const filteredPlans = plans.filter((plan) =>
-    billingInterval === 'year' ? plan.interval === 'year' : plan.interval === 'month'
-  );
+  const filteredPlans = plans.filter((plan) => {
+    // Filter by billing interval
+    const matchesInterval = billingInterval === 'year' ? plan.interval === 'year' : plan.interval === 'month';
+    // Exclude free plans
+    const isNotFree = plan.name?.toLowerCase() !== 'free' && parseFloat(plan.price) > 0;
+    return matchesInterval && isNotFree;
+  });
 
   const handleSubscribe = async (planId: string) => {
     try {
@@ -161,9 +167,15 @@ export function PricingPlans({ plans, userCredits }: PricingPlansProps) {
                 }, 1500);
               }
             } else {
-              toast.warning('Payment successful, but verification failed. Credits will be added via webhook shortly.');
+              // CRITICAL: Even if verification fails, redirect to success page
+              // Webhook will handle the actual payment processing
+              logger.warn('⚠️ Payment verification failed but payment was successful. Redirecting to success page - webhook will handle.');
+              toast.warning('Payment successful, but verification is pending. Credits will be added via webhook shortly.');
+              
+              // Redirect to success page with available IDs
               setTimeout(() => {
-                window.location.reload();
+                const successUrl = `/payment/success?payment_order_id=${result.data.subscriptionId || ''}&razorpay_subscription_id=${response.razorpay_subscription_id || result.data.subscriptionId}&razorpay_payment_id=${response.razorpay_payment_id || ''}&verification=pending`;
+                window.location.href = successUrl;
               }, 2000);
             }
           } catch (error: any) {

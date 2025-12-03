@@ -80,6 +80,14 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // CRITICAL: Skip caching external payment gateway scripts (Razorpay, etc.)
+  // These must load fresh from origin to avoid CSP violations and ensure latest version
+  if (url.hostname.includes('razorpay.com') || 
+      url.hostname.includes('checkout.razorpay.com')) {
+    // Don't intercept - let browser handle directly (bypasses service worker)
+    return;
+  }
+
   // Static assets - Cache First strategy
   if (url.pathname.match(/\.(js|css|woff|woff2|ttf|eot)$/i) || 
       url.pathname.startsWith('/_next/static/')) {

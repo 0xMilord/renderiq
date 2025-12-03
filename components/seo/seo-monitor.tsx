@@ -125,11 +125,14 @@ export function SEOAnalytics() {
       new PerformanceObserver((entryList) => {
         for (const entry of entryList.getEntries()) {
           if (window.gtag) {
-            window.gtag('event', 'web_vitals', {
-              metric_name: 'FID',
-              metric_value: entry.processingStart - entry.startTime,
-              page_url: window.location.href,
-            });
+            const fidEntry = entry as PerformanceEventTiming;
+            if (fidEntry.processingStart) {
+              window.gtag('event', 'web_vitals', {
+                metric_name: 'FID',
+                metric_value: fidEntry.processingStart - fidEntry.startTime,
+                page_url: window.location.href,
+              });
+            }
           }
         }
       }).observe({ entryTypes: ['first-input'] });
@@ -138,8 +141,9 @@ export function SEOAnalytics() {
       let clsValue = 0;
       new PerformanceObserver((entryList) => {
         for (const entry of entryList.getEntries()) {
-          if (!entry.hadRecentInput) {
-            clsValue += entry.value;
+          const layoutShiftEntry = entry as PerformanceEntry & { hadRecentInput?: boolean; value?: number };
+          if (!layoutShiftEntry.hadRecentInput && layoutShiftEntry.value) {
+            clsValue += layoutShiftEntry.value;
           }
         }
         if (window.gtag) {

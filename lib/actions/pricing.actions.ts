@@ -43,7 +43,7 @@ export async function getSubscriptionPlansAction() {
       .select()
       .from(subscriptionPlans)
       .where(eq(subscriptionPlans.isActive, true))
-      .orderBy(desc(subscriptionPlans.createdAt));
+      .orderBy(subscriptionPlans.price); // Order by price to show Free, Starter, Pro, Enterprise
 
     return {
       success: true,

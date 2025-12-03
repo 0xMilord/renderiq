@@ -8,7 +8,8 @@ import { TextNodeData } from '@/lib/types/canvas';
 import { BaseNode } from './base-node';
 import { NodeExecutionStatus } from '@/lib/canvas/workflow-executor';
 
-export function TextNode({ data, id }: NodeProps<{ data: TextNodeData }>) {
+export function TextNode(props: any) {
+  const { data, id } = props;
   const nodeData = data || { prompt: '', placeholder: 'Enter your prompt...' };
   
   const handleChange = useCallback(
@@ -32,7 +33,7 @@ export function TextNode({ data, id }: NodeProps<{ data: TextNodeData }>) {
       title="Text Node"
       icon={Type}
       nodeType="text"
-      nodeId={id}
+      nodeId={String(id)}
       status={status}
       progress={progress}
       outputs={[{ id: 'text', position: Position.Right, type: 'text' }]}

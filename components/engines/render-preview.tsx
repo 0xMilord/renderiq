@@ -28,7 +28,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RenderChainViz } from './render-chain-viz';
-import { VersionSelector } from './version-selector';
+// VersionSelector component removed - functionality integrated elsewhere
+// import { VersionSelector } from './version-selector';
 import { Render } from '@/lib/types/render';
 import { useUpscaling } from '@/lib/hooks/use-upscaling';
 import { logger } from '@/lib/utils/logger';
@@ -128,11 +129,21 @@ export function RenderPreview({
   const handleUpscale = async (scale: 2 | 4 | 10) => {
     if (!result?.imageUrl) return;
     
+    // Get projectId from selected render or first chain render
+    const selectedRender = chainRenders.find(r => r.id === selectedRenderId);
+    const projectId = selectedRender?.projectId || chainRenders[0]?.projectId || '';
+    
+    if (!projectId) {
+      logger.error('❌ RenderPreview: Cannot upscale without projectId');
+      return;
+    }
+    
     logger.log(`🔍 Upscaling image by ${scale}x`);
     await upscaleImage({
       imageUrl: result.imageUrl,
       scale,
-      quality: 'high'
+      quality: 'high',
+      projectId
     });
   };
 
@@ -422,7 +433,7 @@ export function RenderPreview({
                        
                        {/* Upscaling Options - Compact Dropdown */}
                        <div className="flex items-center space-x-2">
-                         <Select onValueChange={(value) => handleUpscale(parseInt(value))} disabled={isUpscaling}>
+                         <Select onValueChange={(value) => handleUpscale(parseInt(value) as 2 | 4 | 10)} disabled={isUpscaling}>
                            <SelectTrigger className="w-24 h-8 text-xs">
                              <SelectValue placeholder="Upscale" />
                            </SelectTrigger>

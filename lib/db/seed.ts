@@ -24,6 +24,25 @@ export async function seedSubscriptionPlans() {
       isActive: true,
     },
     {
+      name: 'Starter',
+      description: 'Great for casual creators',
+      price: '119.00',
+      currency: 'INR',
+      interval: 'month' as const,
+      creditsPerMonth: 24,
+      maxProjects: 10,
+      maxRendersPerProject: 10,
+      features: [
+        '24 credits per month',
+        '10 projects maximum',
+        '10 renders per project',
+        'Standard quality renders',
+        'Community support',
+        'Public gallery access'
+      ],
+      isActive: true,
+    },
+    {
       name: 'Pro',
       description: 'For professionals who need more credits and advanced features',
       price: '499.00',

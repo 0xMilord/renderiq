@@ -379,9 +379,9 @@ export default function ProjectSlugPage() {
           onLike={handleLike}
           onDownload={handleDownload}
           onShare={handleShare}
-          onRemix={(render) => {
+          onRemix={(prompt) => {
             // Navigate to engine with the prompt
-            router.push(`/render?prompt=${encodeURIComponent(render.prompt)}`);
+            router.push(`/render?prompt=${encodeURIComponent(prompt)}`);
           }}
         />
       )}

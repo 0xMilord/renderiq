@@ -92,11 +92,17 @@ export async function GET(
         const pdfBuffer = await pdfResponse.arrayBuffer();
         const fileName = `receipt_${updatedOrder.invoiceNumber || id}.pdf`;
 
+        // Force download by using attachment and proper filename encoding
+        const encodedFileName = encodeURIComponent(fileName);
+        
         return new NextResponse(pdfBuffer, {
           headers: {
             'Content-Type': 'application/pdf',
-            'Content-Disposition': `attachment; filename="${fileName}"`,
+            'Content-Disposition': `attachment; filename="${fileName}"; filename*=UTF-8''${encodedFileName}`,
             'Content-Length': pdfBuffer.byteLength.toString(),
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
           },
         });
       } catch (error) {

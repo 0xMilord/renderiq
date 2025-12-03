@@ -249,10 +249,10 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
     const rawContent = blog.body.raw;
     
     // Pattern 1: **Q:** and **A:** format
-    const faqPattern1 = rawContent.match(/\*\*Q:\s*(.+?)\*\*\s*\n\*\*A:\s*(.+?)(?=\n\n|\*\*Q:|$)/gs);
+    const faqPattern1 = rawContent.match(/\*\*Q:\s*([\s\S]+?)\*\*\s*\n\*\*A:\s*([\s\S]+?)(?=\n\n|\*\*Q:|$)/g);
     if (faqPattern1) {
       faqPattern1.forEach((match) => {
-        const [, question, answer] = match.match(/\*\*Q:\s*(.+?)\*\*\s*\n\*\*A:\s*(.+)/s) || [];
+        const [, question, answer] = match.match(/\*\*Q:\s*([\s\S]+?)\*\*\s*\n\*\*A:\s*([\s\S]+)/) || [];
         if (question && answer) {
           faqs.push({
             question: question.trim().replace(/\*\*/g, ''),
@@ -264,10 +264,10 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
     
     // Pattern 2: Q: and A: format (without bold)
     if (faqs.length === 0) {
-      const faqPattern2 = rawContent.match(/Q:\s*(.+?)\nA:\s*(.+?)(?=\n\n|Q:|$)/gs);
+      const faqPattern2 = rawContent.match(/Q:\s*([\s\S]+?)\nA:\s*([\s\S]+?)(?=\n\n|Q:|$)/g);
       if (faqPattern2) {
         faqPattern2.forEach((match) => {
-          const [, question, answer] = match.match(/Q:\s*(.+?)\nA:\s*(.+)/s) || [];
+          const [, question, answer] = match.match(/Q:\s*([\s\S]+?)\nA:\s*([\s\S]+)/) || [];
           if (question && answer) {
             faqs.push({
               question: question.trim(),

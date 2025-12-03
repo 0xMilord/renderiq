@@ -358,8 +358,8 @@ export default function ProjectPage() {
           onLike={handleLike}
           onDownload={handleDownload}
           onShare={handleShare}
-          onRemix={(render) => {
-            router.push(`/render?prompt=${encodeURIComponent(render.prompt)}`);
+          onRemix={(prompt) => {
+            router.push(`/render?prompt=${encodeURIComponent(prompt)}`);
           }}
         />
       )}

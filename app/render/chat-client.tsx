@@ -643,10 +643,10 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                                 <span className="truncate ml-2">{chainProject.name}</span>
                               )}
                             </div>
-                            {chain.renders.length > 0 && chain.renders[0]?.imageUrl && (
+                            {chain.renders.length > 0 && chain.renders[0]?.outputUrl && (
                               <div className="relative aspect-video rounded-md overflow-hidden bg-muted">
                                 <img
-                                  src={chain.renders[0].imageUrl}
+                                  src={chain.renders[0].outputUrl}
                                   alt={chain.name}
                                   className="w-full h-full object-cover"
                                 />

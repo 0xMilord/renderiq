@@ -486,19 +486,9 @@ export async function POST(request: NextRequest) {
         const videoResult = await aiService.generateVideo({
           prompt: finalPrompt,
           duration: finalVideoDuration as 4 | 6 | 8, // Veo 3.1 supports 4, 6, or 8 seconds
-          aspectRatio: aspectRatio as '16:9' | '9:16',
+          aspectRatio: (aspectRatio as '16:9' | '9:16' | '1:1') || '16:9',
           uploadedImageData: uploadedImageData || undefined,
           uploadedImageType: uploadedImageType || undefined,
-          referenceImages: referenceImages?.map(kf => ({
-            imageData: kf.imageData,
-            imageType: kf.imageType
-          })),
-          lastFrame: lastFrame ? {
-            imageData: lastFrame.imageData,
-            imageType: lastFrame.imageType
-          } : undefined,
-          negativePrompt: negativePrompt || undefined,
-          resolution: resolution === '1080p' && duration === 8 ? '1080p' : '720p',
         });
         
         if (!videoResult.success || !videoResult.data) {

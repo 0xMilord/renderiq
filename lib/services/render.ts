@@ -210,10 +210,16 @@ export class RenderService {
         });
       } else {
         logger.log('🎬 [processRender] Generating video with Google Generative AI...');
+        // Map aspect ratios to supported values
+        const aspectRatio = renderData.settings.aspectRatio || '16:9';
+        const supportedAspectRatio: '16:9' | '9:16' | '1:1' = 
+          aspectRatio === '1:1' ? '1:1' :
+          '16:9'; // Default to 16:9 for 4:3, 21:9, etc. (9:16 not in source type)
+        
         result = await this.aiService.generateVideo({
           prompt: renderData.prompt,
           duration: renderData.settings.duration || 5,
-          aspectRatio: renderData.settings.aspectRatio || '16:9',
+          aspectRatio: supportedAspectRatio,
         });
       }
 
@@ -276,12 +282,11 @@ export class RenderService {
         }
 
         logger.log('✅ [processRender] Upload successful, updating render status...');
-        await RendersDALNew.updateStatus(
+        await RendersDALNew.updateOutput(
           renderId,
-          'completed',
           fileUrl,
           fileKey,
-          undefined,
+          'completed',
           processingTime
         );
         
@@ -308,10 +313,7 @@ export class RenderService {
         await RendersDALNew.updateStatus(
           renderId,
           'failed',
-          undefined,
-          undefined,
-          result.error,
-          processingTime
+          result.error
         );
       }
     } catch (error) {
@@ -319,10 +321,7 @@ export class RenderService {
       await RendersDALNew.updateStatus(
         renderId,
         'failed',
-        undefined,
-        undefined,
-        error instanceof Error ? error.message : 'Processing failed',
-        undefined
+        error instanceof Error ? error.message : 'Processing failed'
       );
     }
   }

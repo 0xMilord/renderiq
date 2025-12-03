@@ -70,6 +70,8 @@ export function CanvasToolbar({
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDescription, setNewProjectDescription] = useState('');
   const [newChainName, setNewChainName] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch projects
   const fetchProjects = useCallback(async () => {

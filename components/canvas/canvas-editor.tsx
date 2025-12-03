@@ -15,6 +15,7 @@ import {
   BackgroundVariant,
   NodeTypes,
   ReactFlowProvider,
+  ConnectionMode,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { TextNode } from './nodes/text-node';
@@ -41,11 +42,11 @@ import { MultiSelectManager } from '@/components/canvas/multi-select';
 import { toast } from 'sonner';
 
 const nodeTypes: NodeTypes = {
-  text: TextNode,
-  image: ImageNode,
-  variants: VariantsNode,
-  style: StyleNode,
-  material: MaterialNode,
+  text: TextNode as any,
+  image: ImageNode as any,
+  variants: VariantsNode as any,
+  style: StyleNode as any,
+  material: MaterialNode as any,
 };
 
 const edgeTypes = {
@@ -654,7 +655,7 @@ function CanvasEditorInner({
           nodesDraggable={true}
           nodesConnectable={true}
           elementsSelectable={true}
-          connectionMode="loose"
+          connectionMode={ConnectionMode.Loose}
           isValidConnection={(connection) => {
             // Use ConnectionValidator for validation
             const validation = ConnectionValidator.validateConnection(connection, nodes);

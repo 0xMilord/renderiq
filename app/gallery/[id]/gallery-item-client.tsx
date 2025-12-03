@@ -152,7 +152,7 @@ export function GalleryItemPageClient({ item, similarItems }: GalleryItemPageCli
   // Get user initials for fallback avatar
   const getUserInitials = () => {
     if (!item.user) return 'U';
-    const name = item.user.name || item.user.email || 'User';
+    const name = item.user.name || 'User';
     const parts = name.trim().split(/\s+/);
     if (parts.length >= 2) {
       return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
@@ -239,8 +239,6 @@ export function GalleryItemPageClient({ item, similarItems }: GalleryItemPageCli
                   firstImage={{ imageUrl: item.render.uploadedImageUrl }}
                   secondImage={{ imageUrl: item.render.outputUrl }}
                   currentPercentPosition={75} // 75% shows more of the generated image
-                  sliderLineWidth={4}
-                  sliderLineColor="hsl(var(--primary))"
                 />
                 {/* Labels - Bottom corners */}
                 <div className="absolute bottom-4 left-4 bg-black/70 text-white px-3 py-1.5 rounded-md text-sm font-medium z-10">

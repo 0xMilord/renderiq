@@ -2940,8 +2940,6 @@ export function UnifiedChatInterface({
                               firstImage={{ imageUrl: previousRender.outputUrl }}
                               secondImage={{ imageUrl: currentRender.outputUrl }}
                               currentPercentPosition={75} // 3/4 shows new (75% = new image visible)
-                              sliderLineWidth={4}
-                              sliderLineColor="hsl(var(--primary))"
                             />
                             {/* Labels */}
                             <div className="absolute top-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium">

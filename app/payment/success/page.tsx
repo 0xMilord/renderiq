@@ -59,14 +59,20 @@ function PaymentSuccessContent() {
     }
   };
 
-  const handleDownloadReceipt = async () => {
+  const handleDownloadReceipt = async (e?: React.MouseEvent) => {
+    // Prevent any default behavior
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
     if (!paymentOrderId) {
       toast.error('Payment order ID not found');
       return;
     }
 
     try {
-      // Fetch PDF with download parameter (same as billing dashboard)
+      // Fetch PDF with download parameter
       const response = await fetch(`/api/payments/receipt/${paymentOrderId}?download=true`, {
         method: 'GET',
         credentials: 'include',
@@ -76,20 +82,43 @@ function PaymentSuccessContent() {
         throw new Error('Failed to download receipt');
       }
 
+      // Verify content type is PDF
+      const contentType = response.headers.get('content-type');
+      if (contentType && !contentType.includes('application/pdf')) {
+        console.warn('Unexpected content type:', contentType);
+      }
+
       // Get PDF blob
       const blob = await response.blob();
+      
+      // Verify blob is actually a PDF
+      if (blob.type && !blob.type.includes('pdf')) {
+        console.warn('Blob type is not PDF:', blob.type);
+      }
+      
       const url = window.URL.createObjectURL(blob);
       
-      // Create download link
+      // Create download link with proper attributes to force download
       const link = document.createElement('a');
       link.href = url;
       link.download = `receipt_${paymentOrderId}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      link.style.display = 'none';
+      link.setAttribute('download', `receipt_${paymentOrderId}.pdf`);
+      link.setAttribute('target', '_self'); // Ensure it doesn't open in new tab
       
-      // Clean up blob URL
-      window.URL.revokeObjectURL(url);
+      // Append to body
+      document.body.appendChild(link);
+      
+      // Trigger download immediately
+      link.click();
+      
+      // Clean up after a short delay
+      setTimeout(() => {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+        window.URL.revokeObjectURL(url);
+      }, 100);
       
       toast.success('Receipt downloaded successfully');
     } catch (error) {

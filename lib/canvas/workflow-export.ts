@@ -104,7 +104,7 @@ export class WorkflowExporter {
         id: node.id,
         type: node.type,
         position: node.position,
-        data: node.data,
+        data: node.data as unknown as Record<string, unknown>,
       }));
 
       const edges: Edge[] = data.connections.map((conn) => ({

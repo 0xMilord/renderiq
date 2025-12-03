@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 export function BillingOverview() {
   const { user } = useAuth();
   const { credits, loading: creditsLoading } = useCredits();
-  const { subscription, loading: subscriptionLoading } = useSubscription();
+  const { data: subscription, loading: subscriptionLoading } = useSubscription(user?.id);
 
   if (creditsLoading || subscriptionLoading) {
     return (

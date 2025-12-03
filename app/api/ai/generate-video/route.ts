@@ -27,8 +27,7 @@ export async function POST(request: NextRequest) {
     const result = await aiService.generateVideo({
       prompt,
       duration: duration || 5,
-      style: style || 'cinematic',
-      aspectRatio: aspectRatio || '16:9'
+      aspectRatio: (aspectRatio || '16:9') as '16:9' | '9:16' | '1:1'
     });
 
     if (!result.success || !result.data) {

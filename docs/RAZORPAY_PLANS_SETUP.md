@@ -5,13 +5,14 @@ This guide helps you create subscription plans in Razorpay Dashboard and map the
 
 ## Current Database Plans
 
-Your database already has these plans seeded (from migration `0011_add_subscription_plans.sql`):
+Your database already has these plans seeded (from migration `0011_add_subscription_plans.sql` and `0018_add_starter_plan_119.sql`):
 
 1. **Free** - Monthly - ₹0.00 - 10 credits/month
-2. **Pro** - Monthly - ₹499.00 - 100 credits/month
-3. **Pro Annual** - Yearly - ₹4,790.00 - 100 credits/month
-4. **Enterprise** - Monthly - ₹4,999.00 - 1,000 credits/month
-5. **Enterprise Annual** - Yearly - ₹44,999.00 - 1,000 credits/month
+2. **Starter** - Monthly - ₹119.00 - 24 credits/month
+3. **Pro** - Monthly - ₹499.00 - 100 credits/month
+4. **Pro Annual** - Yearly - ₹4,790.00 - 100 credits/month
+5. **Enterprise** - Monthly - ₹4,999.00 - 1,000 credits/month
+6. **Enterprise Annual** - Yearly - ₹44,999.00 - 1,000 credits/month
 
 ## Step 1: Create Plans in Razorpay Dashboard
 
@@ -23,7 +24,18 @@ For each plan above (except Free), create a plan in Razorpay:
 
 ### Plan Configuration
 
-#### 1. Pro Plan - Monthly
+#### 1. Starter Plan - Monthly
+- **Plan Name**: `Starter Monthly` (or `Starter`)
+- **Plan Description**: `Great for casual creators - 24 credits per month`
+- **Billing Frequency**: 
+  - Every: `1`
+  - Period: `Month(s)`
+- **Billing Amount**: `₹119.00` (in INR)
+- **Internal Notes**: `Starter plan - Monthly subscription - 24 credits/month`
+
+**After creating, copy the Plan ID** (starts with `plan_`)
+
+#### 2. Pro Plan - Monthly
 - **Plan Name**: `Pro Monthly` (or `Pro`)
 - **Plan Description**: `Perfect for regular creators - 100 credits per month`
 - **Billing Frequency**: 
@@ -34,7 +46,7 @@ For each plan above (except Free), create a plan in Razorpay:
 
 **After creating, copy the Plan ID** (starts with `plan_`)
 
-#### 2. Pro Annual Plan
+#### 3. Pro Annual Plan
 - **Plan Name**: `Pro Annual`
 - **Plan Description**: `Best value for regular creators - 100 credits per month`
 - **Billing Frequency**: 
@@ -45,7 +57,7 @@ For each plan above (except Free), create a plan in Razorpay:
 
 **After creating, copy the Plan ID** (starts with `plan_`)
 
-#### 3. Enterprise Plan - Monthly
+#### 4. Enterprise Plan - Monthly
 - **Plan Name**: `Enterprise Monthly` (or `Enterprise`)
 - **Plan Description**: `For professional studios - 1000 credits per month`
 - **Billing Frequency**: 
@@ -56,7 +68,7 @@ For each plan above (except Free), create a plan in Razorpay:
 
 **After creating, copy the Plan ID** (starts with `plan_`)
 
-#### 4. Enterprise Annual Plan
+#### 5. Enterprise Annual Plan
 - **Plan Name**: `Enterprise Annual`
 - **Plan Description**: `Best value for professional studios - 1000 credits per month`
 - **Billing Frequency**: 
@@ -79,6 +91,14 @@ After creating plans in Razorpay, you need to update your database to store the 
 Run this SQL script, replacing the `plan_xxxxx` values with your actual Razorpay Plan IDs:
 
 ```sql
+-- Update Starter Monthly plan
+UPDATE subscription_plans 
+SET razorpay_plan_id = 'plan_xxxxx', -- Replace with actual Razorpay Plan ID
+    updated_at = now()
+WHERE name = 'Starter' 
+  AND interval = 'month' 
+  AND price = 119.00;
+
 -- Update Pro Monthly plan
 UPDATE subscription_plans 
 SET razorpay_plan_id = 'plan_xxxxx', -- Replace with actual Razorpay Plan ID
@@ -137,10 +157,11 @@ FROM subscription_plans
 ORDER BY 
   CASE name 
     WHEN 'Free' THEN 1
-    WHEN 'Pro' THEN 2
-    WHEN 'Pro Annual' THEN 3
-    WHEN 'Enterprise' THEN 4
-    WHEN 'Enterprise Annual' THEN 5
+    WHEN 'Starter' THEN 2
+    WHEN 'Pro' THEN 3
+    WHEN 'Pro Annual' THEN 4
+    WHEN 'Enterprise' THEN 5
+    WHEN 'Enterprise Annual' THEN 6
   END,
   interval;
 ```

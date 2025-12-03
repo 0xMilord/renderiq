@@ -129,7 +129,7 @@ export async function createProjectRule(formData: FormData) {
   } catch (error) {
     logger.error('❌ [createProjectRule] Error:', error);
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message };
+      return { success: false, error: error.issues[0].message };
     }
     return { success: false, error: error instanceof Error ? error.message : 'Failed to create project rule' };
   }
@@ -186,7 +186,7 @@ export async function updateProjectRule(formData: FormData) {
   } catch (error) {
     logger.error('❌ [updateProjectRule] Error:', error);
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message };
+      return { success: false, error: error.issues[0].message };
     }
     return { success: false, error: error instanceof Error ? error.message : 'Failed to update project rule' };
   }

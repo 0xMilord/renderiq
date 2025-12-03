@@ -17,7 +17,8 @@ import { MaterialNodeData } from '@/lib/types/canvas';
 import { BaseNode } from './base-node';
 import { NodeExecutionStatus } from '@/lib/canvas/workflow-executor';
 
-export function MaterialNode({ data, id }: NodeProps<{ data: MaterialNodeData }>) {
+export function MaterialNode(props: any) {
+  const { data, id } = props;
   const [localData, setLocalData] = useState<MaterialNodeData>(data || {
     materials: [],
   });
@@ -72,7 +73,7 @@ export function MaterialNode({ data, id }: NodeProps<{ data: MaterialNodeData }>
       title="Material Reference"
       icon={Layers}
       nodeType="material"
-      nodeId={id}
+      nodeId={String(id)}
       className="w-96"
       status={status}
       outputs={[{ id: 'materials', position: Position.Right, type: 'material', label: 'Materials' }]}

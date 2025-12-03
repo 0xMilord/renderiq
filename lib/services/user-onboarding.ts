@@ -41,11 +41,13 @@ export class UserOnboardingService {
       // Run sybil detection if device fingerprint is available
       let sybilResult;
       let creditsToAward = INITIAL_SIGNUP_CREDITS;
+      let ipAddress: string | undefined;
+      let userAgent: string | undefined;
 
       if (context?.deviceFingerprint && context?.request) {
         try {
-          const ipAddress = context.ipAddress || getClientIdentifier(context.request);
-          const userAgent = context.request.headers.get('user-agent') || '';
+          ipAddress = context.ipAddress || getClientIdentifier(context.request);
+          userAgent = context.request.headers.get('user-agent') || '';
 
           sybilResult = await SybilDetectionService.detectSybil(
             userProfile.id,

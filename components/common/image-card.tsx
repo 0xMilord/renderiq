@@ -108,8 +108,9 @@ export function CommonImageCard({
   };
 
   const getVersionLabel = () => {
-    if (variant === 'owner' && renderData.chainPosition !== undefined) {
-      return `Version ${renderData.chainPosition + 1}`;
+    if (variant === 'owner' && 'chainPosition' in renderData && renderData.chainPosition !== undefined) {
+      const chainPos = typeof renderData.chainPosition === 'number' ? renderData.chainPosition : Number(renderData.chainPosition) || 0;
+      return `Version ${chainPos + 1}`;
     }
     return renderData.prompt;
   };

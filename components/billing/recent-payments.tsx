@@ -11,7 +11,7 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 
 export function RecentPayments() {
-  const { payments, loading } = usePaymentHistory({ limit: 5 });
+  const { payments, loading } = usePaymentHistory({});
 
   const handleDownloadReceipt = async (paymentOrderId: string) => {
     try {

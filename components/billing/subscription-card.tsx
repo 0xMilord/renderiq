@@ -9,7 +9,7 @@ import { Calendar, CreditCard, Settings, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
 export function SubscriptionCard() {
-  const { subscription, loading, cancelSubscription, reactivateSubscription } = useSubscription();
+  const { data: subscription, loading } = useSubscription();
 
   if (loading) {
     return (
@@ -168,12 +168,10 @@ export function SubscriptionCard() {
             </div>
           ) : isActive && !isCanceled ? (
             <div className="flex space-x-2">
-              <Button 
-                variant="outline" 
-                className="flex-1"
-                onClick={() => cancelSubscription(subscription.id)}
-              >
-                Cancel Subscription
+              <Button asChild variant="outline" className="flex-1">
+                <Link href="/dashboard/billing">
+                  Manage Subscription
+                </Link>
               </Button>
               <Button asChild variant="outline" className="flex-1">
                 <Link href="/pricing">
@@ -182,11 +180,10 @@ export function SubscriptionCard() {
               </Button>
             </div>
           ) : isCanceled ? (
-            <Button 
-              className="w-full"
-              onClick={() => reactivateSubscription(subscription.id)}
-            >
-              Reactivate Subscription
+            <Button asChild className="w-full">
+              <Link href="/dashboard/billing">
+                Reactivate Subscription
+              </Link>
             </Button>
           ) : (
             <Button asChild className="w-full">

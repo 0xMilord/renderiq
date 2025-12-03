@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { EdgeProps, getBezierPath, EdgeLabelRenderer, BaseEdge, useReactFlow } from '@xyflow/react';
 import { ConnectionLabelsManager } from '@/lib/canvas/connection-labels';
 
@@ -13,12 +14,13 @@ export function CustomEdge({
   targetPosition,
   style = {},
   markerEnd,
-  sourceHandle,
-  targetHandle,
   source,
   target,
   data,
+  ...props
 }: EdgeProps) {
+  const sourceHandle = (props as any).sourceHandle;
+  const targetHandle = (props as any).targetHandle;
   const { getNodes } = useReactFlow();
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -45,8 +47,8 @@ export function CustomEdge({
   );
 
   // Get color from data or edge label
-  const edgeColor = data?.color || edgeLabel?.color || 'hsl(var(--border))';
-  const edgeLabelText = data?.label || edgeLabel?.label;
+  const edgeColor = (data?.color || edgeLabel?.color || 'hsl(var(--border))') as string;
+  const edgeLabelText = (data?.label || edgeLabel?.label) as string | undefined;
 
   return (
     <>
@@ -56,8 +58,8 @@ export function CustomEdge({
         style={{
           ...style,
           strokeWidth: 2,
-          stroke: edgeColor,
-        }}
+          stroke: edgeColor as string,
+        } as React.CSSProperties}
       />
       {edgeLabelText && (
         <EdgeLabelRenderer>
@@ -76,7 +78,7 @@ export function CustomEdge({
                 border: `1px solid ${edgeColor}`,
                 borderRadius: '4px',
                 padding: '2px 6px',
-                color: edgeColor,
+                color: edgeColor as string,
                 fontWeight: 500,
                 boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
               }}

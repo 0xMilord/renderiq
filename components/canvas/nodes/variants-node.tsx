@@ -10,7 +10,8 @@ import { useNodeExecution } from '@/lib/hooks/use-node-execution';
 import { BaseNode } from './base-node';
 import { NodeExecutionStatus } from '@/lib/canvas/workflow-executor';
 
-export function VariantsNode({ data, id }: NodeProps<{ data: VariantsNodeData }>) {
+export function VariantsNode(props: any) {
+  const { data, id } = props;
   const [localData, setLocalData] = useState<VariantsNodeData>(data || {
     count: 4,
     settings: {
@@ -43,7 +44,7 @@ export function VariantsNode({ data, id }: NodeProps<{ data: VariantsNodeData }>
         prompt: localData.prompt,
         count: localData.count,
         settings: localData.settings,
-        nodeId: id,
+        nodeId: String(id),
       });
 
       if (result.success && result.data) {
@@ -90,7 +91,7 @@ export function VariantsNode({ data, id }: NodeProps<{ data: VariantsNodeData }>
       title="Variants Node"
       icon={Layers}
       nodeType="variants"
-      nodeId={id}
+      nodeId={String(id)}
       className="w-[500px]"
       status={nodeStatus}
       inputs={[{ id: 'sourceImage', position: Position.Left, type: 'image', label: 'Source Image' }]}

@@ -130,10 +130,10 @@ export async function getSimilarGalleryItems(itemId: string, limit = 12) {
       return { success: false, error: 'Gallery item not found' };
     }
 
-    const currentSettings = currentItem.render.settings || {};
-    const currentStyle = currentSettings.style;
-    const currentQuality = currentSettings.quality;
-    const currentAspectRatio = currentSettings.aspectRatio;
+    const currentSettings = (currentItem.render.settings || {}) as Record<string, any>;
+    const currentStyle = currentSettings.style as string | undefined;
+    const currentQuality = currentSettings.quality as string | undefined;
+    const currentAspectRatio = currentSettings.aspectRatio as string | undefined;
     const currentPrompt = currentItem.render.prompt?.toLowerCase() || '';
 
     // Extract keywords from prompt (simple approach)

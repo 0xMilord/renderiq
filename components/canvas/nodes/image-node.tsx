@@ -18,7 +18,9 @@ import { BaseNode } from './base-node';
 import { NodeExecutionStatus } from '@/lib/canvas/workflow-executor';
 import { logger } from '@/lib/utils/logger';
 
-export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
+export function ImageNode(props: any) {
+  const { data, id } = props;
+  const nodeId = String(id);
   const { getEdges } = useReactFlow();
   const [localData, setLocalData] = useState<ImageNodeData>(data || {
     prompt: '',
@@ -27,15 +29,15 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
       quality: 'standard',
       aspectRatio: '16:9',
     },
-    status: 'idle',
+    status: 'idle' as ImageNodeData['status'],
   });
   const { generateImage, enhancePrompt, loading } = useNodeExecution();
 
   // Check connections
   const edges = getEdges();
-  const hasTextInput = edges.some((e) => e.target === id && e.targetHandle === 'prompt');
-  const hasStyleInput = edges.some((e) => e.target === id && e.targetHandle === 'style');
-  const hasMaterialInput = edges.some((e) => e.target === id && e.targetHandle === 'material');
+  const hasTextInput = edges.some((e) => e.target === nodeId && e.targetHandle === 'prompt');
+  const hasStyleInput = edges.some((e) => e.target === nodeId && e.targetHandle === 'style');
+  const hasMaterialInput = edges.some((e) => e.target === nodeId && e.targetHandle === 'material');
   
   // Use localData.prompt which gets updated from connections
   const hasPrompt = localData.prompt && localData.prompt.trim().length > 0;
@@ -86,7 +88,7 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
       const result = await generateImage({
         prompt: enhancedPrompt,
         settings: localData.settings,
-        nodeId: id,
+        nodeId: nodeId,
       });
 
       logger.log('🎨 ImageNode: Generation result', {
@@ -180,7 +182,7 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
       title="Image Node"
       icon={ImageIcon}
       nodeType="image"
-      nodeId={id}
+      nodeId={nodeId}
       className="w-96"
       status={nodeStatus}
       inputs={[
@@ -342,7 +344,7 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
             onClick={handleEnhancePrompt}
             variant="outline"
             size="sm"
-            disabled={loading || localData.status === 'generating'}
+            disabled={loading || localData.status === ('generating' as ImageNodeData['status'])}
             className="flex-1 h-8 text-xs nodrag nopan"
           >
             <Sparkles className="h-3 w-3 mr-1" />
@@ -350,10 +352,10 @@ export function ImageNode({ data, id }: NodeProps<{ data: ImageNodeData }>) {
           </Button>
           <Button
             onClick={handleGenerate}
-            disabled={loading || localData.status === 'generating' || !localData.prompt}
+            disabled={loading || (localData.status as string) === 'generating' || !localData.prompt}
             className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground h-8 text-xs nodrag nopan"
           >
-            {loading || localData.status === 'generating' ? (
+            {loading || (localData.status as string) === 'generating' ? (
               <>
                 <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                 Generating...

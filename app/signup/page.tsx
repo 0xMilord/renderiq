@@ -66,7 +66,7 @@ export default function SignupPage() {
     try {
       const { error } = await signUp(formData.email, formData.password, formData.name);
       if (error) {
-        setError(error);
+        setError(error instanceof Error ? error.message : String(error));
       } else {
         setSuccess(true);
         setTimeout(() => {

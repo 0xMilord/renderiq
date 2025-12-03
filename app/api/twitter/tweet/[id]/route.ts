@@ -59,11 +59,11 @@ export async function GET(
       // Extract text from blockquote (Twitter oEmbed format)
       // Twitter oEmbed wraps content in <blockquote> with <p> tags
       let text = '';
-      const blockquoteMatch = html.match(/<blockquote[^>]*>(.*?)<\/blockquote>/s);
+      const blockquoteMatch = html.match(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/);
       if (blockquoteMatch) {
         const blockquoteContent = blockquoteMatch[1];
         // Extract all <p> tags and combine their text
-        const pMatches = blockquoteContent.match(/<p[^>]*>(.*?)<\/p>/gs);
+        const pMatches = blockquoteContent.match(/<p[^>]*>([\s\S]*?)<\/p>/g);
         if (pMatches) {
           text = pMatches
             .map(p => p.replace(/<[^>]*>/g, '').trim())

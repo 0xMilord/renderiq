@@ -108,15 +108,13 @@ export async function POST(request: NextRequest) {
     let chainPosition = 1;
 
     if (chainId) {
-      const renderChainsDAL = new RenderChainsDAL();
-      const chainRenders = await renderChainsDAL.getRendersByChainId(chainId);
+      const chainRenders = await RendersDAL.getByChainId(chainId);
       chainPosition = chainRenders.length + 1;
       logger.log('🔗 Video API: Using existing chain:', { chainId, chainPosition });
     }
 
     // Create render record in database
-    const rendersDAL = new RendersDAL();
-    const render = await rendersDAL.create({
+    const render = await RendersDAL.create({
       projectId,
       userId: user.id,
       type: 'video',
@@ -128,7 +126,7 @@ export async function POST(request: NextRequest) {
         duration,
         model,
         generationType
-      },
+      } as any, // Video-specific settings extend the base type
       status: 'pending',
       chainId: finalChainId,
       chainPosition,
@@ -141,7 +139,7 @@ export async function POST(request: NextRequest) {
     logger.log('✅ Video API: Render record created:', render.id);
 
     // Update render status to processing
-    await rendersDAL.updateStatus(render.id, 'processing');
+    await RendersDAL.updateStatus(render.id, 'processing');
 
     try {
       // Initialize AI SDK service
@@ -161,11 +159,12 @@ export async function POST(request: NextRequest) {
         }
 
         // Upload image to storage
-        const storageService = new StorageService();
-        const uploadResult = await storageService.uploadFile(
+        const uploadResult = await StorageService.uploadFile(
           uploadedImage,
-          `projects/${projectId}/${user.id}`,
-          'video-input'
+          'uploads',
+          user.id,
+          undefined,
+          projectId
         );
 
         uploadedImageUrl = uploadResult.url;
@@ -231,21 +230,29 @@ export async function POST(request: NextRequest) {
       });
 
       // Update render record with results
-      await rendersDAL.updateRenderOutput({
-        id: render.id,
-        outputUrl: result.data.videoUrl || '',
-        status: 'completed',
-        processingTime: result.data.processingTime || 0
-      });
+      await RendersDAL.updateOutput(
+        render.id,
+        result.data.videoUrl || '',
+        '', // outputKey - not available from video generation
+        'completed',
+        result.data.processingTime || 0
+      );
 
       // Update uploaded image info if applicable
       if (uploadedImageUrl) {
-        await rendersDAL.updateUploadedImage({
-          id: render.id,
-          uploadedImageUrl,
-          uploadedImageKey,
-          uploadedImageId
-        });
+        // Direct update for uploaded image fields
+        const { db } = await import('@/lib/db');
+        const { renders } = await import('@/lib/db/schema');
+        const { eq } = await import('drizzle-orm');
+        await db
+          .update(renders)
+          .set({
+            uploadedImageUrl,
+            uploadedImageKey,
+            uploadedImageId,
+            updatedAt: new Date(),
+          })
+          .where(eq(renders.id, render.id));
       }
 
       // Check if user has pro subscription
@@ -278,7 +285,7 @@ export async function POST(request: NextRequest) {
       logger.error('🎬 Video API: Video generation failed:', error);
       
       // Update render status to failed
-      await rendersDAL.updateStatus(render.id, 'failed', error instanceof Error ? error.message : 'Unknown error');
+      await RendersDAL.updateStatus(render.id, 'failed', error instanceof Error ? error.message : 'Unknown error');
 
       // Refund credits
       await BillingService.addCredits(

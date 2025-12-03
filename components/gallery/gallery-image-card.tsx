@@ -16,7 +16,7 @@ import 'react-before-after-slider-component/dist/build.css';
 
 interface GalleryImageCardProps {
   item: GalleryItemWithDetails;
-  onLike?: (itemId: string) => Promise<{ success: boolean; error?: string }>;
+  onLike?: (itemId: string) => Promise<{ success: boolean; data?: { likes: number; liked: boolean }; error?: string }>;
   onView?: (itemId: string) => void;
   priority?: boolean;
 }
@@ -184,7 +184,7 @@ export function GalleryImageCard({
   // Get user initials for fallback avatar
   const getUserInitials = () => {
     if (!item.user) return 'U';
-    const name = item.user.name || item.user.email || 'User';
+    const name = item.user.name || 'User';
     const parts = name.trim().split(/\s+/);
     if (parts.length >= 2) {
       return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
@@ -193,14 +193,14 @@ export function GalleryImageCard({
   };
 
   // Format date for display - only calculate relative time after mount to avoid hydration mismatch
-  const formatDate = (date: string) => {
+  const formatDate = (date: string | Date) => {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
     if (!mounted) {
       // Return a stable format during SSR
-      const d = new Date(date);
-      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
     
-    const d = new Date(date);
+    const d = dateObj;
     const now = new Date();
     const diffInHours = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60));
     
@@ -456,8 +456,6 @@ export function GalleryImageCard({
                 firstImage={{ imageUrl: item.render.uploadedImageUrl }}
                 secondImage={{ imageUrl: item.render.outputUrl }}
                 currentPercentPosition={75}
-                sliderLineWidth={3}
-                sliderLineColor="hsl(var(--primary))"
               />
               {/* Labels - Bottom corners to avoid clashing with tabs */}
               <div className="absolute bottom-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium z-10">

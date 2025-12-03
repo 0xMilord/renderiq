@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { invoices, paymentOrders, users, creditPackages, subscriptionPlans } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
 
 export class InvoiceService {
