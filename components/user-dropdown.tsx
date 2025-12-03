@@ -124,9 +124,12 @@ export function UserDropdown() {
             </Badge>
           ) : (
             <Link href="/pricing">
-              <Button variant="default" size="sm" className="h-7 px-2 sm:px-2.5 text-xs">
-                <Crown className="h-3 w-3 mr-1" />
-                Get Pro
+              <Button variant="default" size="sm" className="h-7 px-1.5 sm:px-2 text-[10px] leading-tight">
+                <Crown className="h-2.5 w-2.5 mr-0.5 sm:mr-1 shrink-0" />
+                <span className="flex flex-col leading-none">
+                  <span>Get</span>
+                  <span>Pro</span>
+                </span>
               </Button>
             </Link>
           )}
