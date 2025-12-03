@@ -2,7 +2,7 @@ import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import { db } from '@/lib/db';
 import { paymentOrders, creditPackages, subscriptionPlans, userSubscriptions, userCredits, creditTransactions } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
 import { InvoiceService } from './invoice.service';
 import { ReceiptService } from './receipt.service';
@@ -511,6 +511,7 @@ export class RazorpayService {
       }
 
       logger.log('✅ RazorpayService: Subscription created:', razorpaySubscription.id);
+      logger.log('📊 RazorpayService: Subscription status from Razorpay:', razorpaySubscription.status);
 
       // Calculate period dates
       const now = new Date();
@@ -522,18 +523,26 @@ export class RazorpayService {
       }
 
       // Create subscription record in database
+      // IMPORTANT: Subscription status should be 'pending' until payment is successful
+      // Razorpay subscriptions start as 'created' or 'authenticated', not 'active'
+      // Only set to 'active' when payment is successful via webhook
+      const subscriptionStatus = razorpaySubscription.status === 'active' ? 'active' : 'pending';
+      logger.log('📊 RazorpayService: Setting subscription status in database:', subscriptionStatus);
+      
       const [subscription] = await db
         .insert(userSubscriptions)
         .values({
           userId,
           planId,
-          status: razorpaySubscription.status === 'active' ? 'active' : 'active',
+          status: subscriptionStatus,
           razorpaySubscriptionId: razorpaySubscription.id,
           razorpayCustomerId,
           currentPeriodStart: now,
           currentPeriodEnd: periodEnd,
         })
         .returning();
+      
+      logger.log('✅ RazorpayService: Subscription record created in database with status:', subscription.status);
 
       // Create payment order record
       await db.insert(paymentOrders).values({
@@ -648,6 +657,147 @@ Please verify the plan exists in Razorpay Dashboard.`;
   }
 
   /**
+   * Verify subscription payment signature and activate subscription
+   * Similar to verifyPayment but for subscriptions
+   */
+  static async verifySubscriptionPayment(
+    razorpaySubscriptionId: string,
+    razorpayPaymentId: string,
+    razorpaySignature: string
+  ) {
+    try {
+      logger.log('🔐 RazorpayService: Verifying subscription payment:', { 
+        razorpaySubscriptionId, 
+        razorpayPaymentId 
+      });
+
+      // Find subscription in database
+      const [subscription] = await db
+        .select()
+        .from(userSubscriptions)
+        .where(eq(userSubscriptions.razorpaySubscriptionId, razorpaySubscriptionId))
+        .limit(1);
+
+      if (!subscription) {
+        return { success: false, error: 'Subscription not found' };
+      }
+
+      // Verify signature for subscription payment
+      // Format: subscription_id|payment_id
+      const text = `${razorpaySubscriptionId}|${razorpayPaymentId}`;
+      const generatedSignature = crypto
+        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
+        .update(text)
+        .digest('hex');
+
+      if (generatedSignature !== razorpaySignature) {
+        logger.error('❌ RazorpayService: Invalid subscription payment signature');
+        return { success: false, error: 'Invalid payment signature' };
+      }
+
+      // Fetch payment details from Razorpay
+      const razorpay = getRazorpayInstance();
+      const payment = await razorpay.payments.fetch(razorpayPaymentId);
+
+      if (payment.status !== 'captured' && payment.status !== 'authorized') {
+        return { success: false, error: `Payment not successful. Status: ${payment.status}` };
+      }
+
+      // Fetch subscription from Razorpay to verify status
+      const razorpaySubscription = await razorpay.subscriptions.fetch(razorpaySubscriptionId);
+      
+      if (razorpaySubscription.status !== 'active') {
+        logger.warn('⚠️ RazorpayService: Subscription not active in Razorpay:', razorpaySubscription.status);
+        return { success: false, error: `Subscription not active. Status: ${razorpaySubscription.status}` };
+      }
+
+      // Find payment order for this subscription
+      const [paymentOrder] = await db
+        .select()
+        .from(paymentOrders)
+        .where(eq(paymentOrders.razorpaySubscriptionId, razorpaySubscriptionId))
+        .orderBy(desc(paymentOrders.createdAt))
+        .limit(1);
+
+      // Update payment order status if found
+      if (paymentOrder) {
+        const isCompleted = payment.status === 'captured';
+        await db
+          .update(paymentOrders)
+          .set({
+            razorpayPaymentId: razorpayPaymentId,
+            status: isCompleted ? 'completed' : 'processing',
+            updatedAt: new Date(),
+          })
+          .where(eq(paymentOrders.id, paymentOrder.id));
+
+        // Generate invoice and receipt for completed payments
+        if (isCompleted) {
+          try {
+            await InvoiceService.createInvoice(paymentOrder.id);
+            ReceiptService.generateReceiptPdf(paymentOrder.id).catch((error) => {
+              logger.error('❌ RazorpayService: Error generating receipt:', error);
+            });
+          } catch (error) {
+            logger.error('❌ RazorpayService: Error creating invoice/receipt:', error);
+          }
+        }
+      }
+
+      // Update subscription to active if not already active
+      if (subscription.status !== 'active') {
+        const now = new Date();
+        const periodEnd = new Date(now);
+        
+        // Get plan to determine interval
+        const [plan] = await db
+          .select()
+          .from(subscriptionPlans)
+          .where(eq(subscriptionPlans.id, subscription.planId))
+          .limit(1);
+        
+        if (plan?.interval === 'year') {
+          periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+        } else {
+          periodEnd.setMonth(periodEnd.getMonth() + 1);
+        }
+
+        await db
+          .update(userSubscriptions)
+          .set({
+            status: 'active',
+            currentPeriodStart: now,
+            currentPeriodEnd: periodEnd,
+            updatedAt: new Date(),
+          })
+          .where(eq(userSubscriptions.id, subscription.id));
+
+        // Add initial credits
+        await this.addSubscriptionCredits(subscription.userId, subscription.planId);
+        logger.log('✅ RazorpayService: Subscription activated and credits added');
+      }
+
+      logger.log('✅ RazorpayService: Subscription payment verified successfully');
+
+      return {
+        success: true,
+        data: {
+          subscriptionId: subscription.id,
+          userId: subscription.userId,
+          planId: subscription.planId,
+          paymentOrderId: paymentOrder?.id,
+        },
+      };
+    } catch (error) {
+      logger.error('❌ RazorpayService: Error verifying subscription payment:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to verify subscription payment',
+      };
+    }
+  }
+
+  /**
    * Add credits when subscription payment is successful
    */
   static async addSubscriptionCredits(userId: string, planId: string) {
@@ -749,7 +899,11 @@ Please verify the plan exists in Razorpay Dashboard.`;
           await this.handlePaymentFailed(payload);
           break;
         case 'subscription.activated':
+          // First payment successful - activate subscription and add initial credits
+          await this.handleSubscriptionActivated(payload);
+          break;
         case 'subscription.charged':
+          // Recurring payment successful - add monthly credits
           await this.handleSubscriptionCharged(payload);
           break;
         case 'subscription.cancelled':
@@ -823,9 +977,18 @@ Please verify the plan exists in Razorpay Dashboard.`;
       .where(eq(paymentOrders.razorpayOrderId, orderId));
   }
 
-  private static async handleSubscriptionCharged(payload: any) {
+  /**
+   * Handle subscription.activated webhook - first payment successful
+   * This activates the subscription and adds initial credits
+   */
+  private static async handleSubscriptionActivated(payload: any) {
     const subscriptionId = payload.subscription?.entity?.id;
-    if (!subscriptionId) return;
+    if (!subscriptionId) {
+      logger.warn('⚠️ RazorpayService: No subscription ID in activation payload');
+      return;
+    }
+
+    logger.log('🎉 RazorpayService: Handling subscription activation:', subscriptionId);
 
     // Find subscription
     const [subscription] = await db
@@ -834,13 +997,43 @@ Please verify the plan exists in Razorpay Dashboard.`;
       .where(eq(userSubscriptions.razorpaySubscriptionId, subscriptionId))
       .limit(1);
 
-    if (!subscription) return;
+    if (!subscription) {
+      logger.warn('⚠️ RazorpayService: Subscription not found in database:', subscriptionId);
+      return;
+    }
 
-    // Update subscription period
+    // Verify subscription status in Razorpay to ensure payment was successful
+    try {
+      const razorpay = getRazorpayInstance();
+      const razorpaySubscription = await razorpay.subscriptions.fetch(subscriptionId);
+      
+      // Only activate if subscription status is 'active' in Razorpay
+      if (razorpaySubscription.status !== 'active') {
+        logger.warn('⚠️ RazorpayService: Subscription not active in Razorpay, status:', razorpaySubscription.status);
+        return;
+      }
+    } catch (error) {
+      logger.error('❌ RazorpayService: Error fetching subscription from Razorpay:', error);
+      // Continue anyway - webhook should be trusted, but log the error
+    }
+
+    // Calculate period dates
     const now = new Date();
     const periodEnd = new Date(now);
-    periodEnd.setMonth(periodEnd.getMonth() + 1);
+    // Get plan to determine interval
+    const [plan] = await db
+      .select()
+      .from(subscriptionPlans)
+      .where(eq(subscriptionPlans.id, subscription.planId))
+      .limit(1);
+    
+    if (plan?.interval === 'year') {
+      periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+    } else {
+      periodEnd.setMonth(periodEnd.getMonth() + 1);
+    }
 
+    // Update subscription to active
     await db
       .update(userSubscriptions)
       .set({
@@ -851,8 +1044,165 @@ Please verify the plan exists in Razorpay Dashboard.`;
       })
       .where(eq(userSubscriptions.id, subscription.id));
 
-    // Add monthly credits
-    await this.addSubscriptionCredits(subscription.userId, subscription.planId);
+    // Add initial credits (always add on activation)
+    // Check if credits were already added to avoid duplicates
+    const creditsResult = await this.addSubscriptionCredits(subscription.userId, subscription.planId);
+    if (creditsResult.success) {
+      logger.log('✅ RazorpayService: Subscription activated and initial credits added. New balance:', creditsResult.newBalance);
+    } else {
+      logger.error('❌ RazorpayService: Failed to add credits on activation:', creditsResult.error);
+    }
+
+    // Generate invoice and receipt for subscription activation
+    // Find payment order for this subscription
+    const [paymentOrder] = await db
+      .select()
+      .from(paymentOrders)
+      .where(eq(paymentOrders.razorpaySubscriptionId, subscriptionId))
+      .orderBy(desc(paymentOrders.createdAt))
+      .limit(1);
+
+    if (paymentOrder && paymentOrder.status === 'completed') {
+      try {
+        await InvoiceService.createInvoice(paymentOrder.id);
+        ReceiptService.generateReceiptPdf(paymentOrder.id).catch((error) => {
+          logger.error('❌ RazorpayService: Error generating receipt in subscription activation webhook:', error);
+        });
+        logger.log('✅ RazorpayService: Invoice and receipt generated for subscription activation');
+      } catch (error) {
+        logger.error('❌ RazorpayService: Error creating invoice/receipt in subscription activation webhook:', error);
+      }
+    }
+  }
+
+  /**
+   * Handle subscription.charged webhook - recurring payment successful
+   * This adds monthly credits for existing active subscriptions
+   */
+  private static async handleSubscriptionCharged(payload: any) {
+    const subscriptionId = payload.subscription?.entity?.id;
+    if (!subscriptionId) return;
+
+    logger.log('💳 RazorpayService: Handling subscription charge:', subscriptionId);
+
+    // Find subscription
+    const [subscription] = await db
+      .select()
+      .from(userSubscriptions)
+      .where(eq(userSubscriptions.razorpaySubscriptionId, subscriptionId))
+      .limit(1);
+
+    if (!subscription) {
+      logger.warn('⚠️ RazorpayService: Subscription not found in database:', subscriptionId);
+      return;
+    }
+
+    // Verify subscription status in Razorpay to ensure payment was successful
+    try {
+      const razorpay = getRazorpayInstance();
+      const razorpaySubscription = await razorpay.subscriptions.fetch(subscriptionId);
+      
+      // Only process if subscription status is 'active' in Razorpay
+      if (razorpaySubscription.status !== 'active') {
+        logger.warn('⚠️ RazorpayService: Subscription not active in Razorpay, status:', razorpaySubscription.status);
+        return;
+      }
+    } catch (error) {
+      logger.error('❌ RazorpayService: Error fetching subscription from Razorpay:', error);
+      // Continue anyway - webhook should be trusted, but log the error
+    }
+
+    // Update subscription period
+    const now = new Date();
+    const periodEnd = new Date(now);
+    
+    // Get plan to determine interval
+    const [plan] = await db
+      .select()
+      .from(subscriptionPlans)
+      .where(eq(subscriptionPlans.id, subscription.planId))
+      .limit(1);
+    
+    if (plan?.interval === 'year') {
+      periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+    } else {
+      periodEnd.setMonth(periodEnd.getMonth() + 1);
+    }
+
+    // Update subscription period (status should already be active)
+    await db
+      .update(userSubscriptions)
+      .set({
+        status: 'active',
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+        updatedAt: new Date(),
+      })
+      .where(eq(userSubscriptions.id, subscription.id));
+
+    // Find or create payment order for this recurring charge
+    const [existingPaymentOrder] = await db
+      .select()
+      .from(paymentOrders)
+      .where(eq(paymentOrders.razorpaySubscriptionId, subscriptionId))
+      .orderBy(desc(paymentOrders.createdAt))
+      .limit(1);
+
+    // Create payment order for recurring charge if needed
+    let recurringPaymentOrder = existingPaymentOrder;
+    if (!existingPaymentOrder || existingPaymentOrder.status !== 'completed') {
+      // Get plan details
+      const [plan] = await db
+        .select()
+        .from(subscriptionPlans)
+        .where(eq(subscriptionPlans.id, subscription.planId))
+        .limit(1);
+
+      if (plan) {
+        const [newOrder] = await db.insert(paymentOrders).values({
+          userId: subscription.userId,
+          type: 'subscription',
+          referenceId: subscription.planId,
+          razorpaySubscriptionId: subscriptionId,
+          amount: plan.price.toString(),
+          currency: plan.currency,
+          status: 'completed',
+          metadata: {
+            planName: plan.name,
+            creditsPerMonth: plan.creditsPerMonth,
+            isRecurring: true,
+          },
+        }).returning();
+        recurringPaymentOrder = newOrder;
+      }
+    }
+
+    // Add monthly credits for recurring payment
+    // Only add if subscription was already active (to avoid duplicate on first payment)
+    if (subscription.status === 'active') {
+      const creditsResult = await this.addSubscriptionCredits(subscription.userId, subscription.planId);
+      if (creditsResult.success) {
+        logger.log('✅ RazorpayService: Recurring payment processed and credits added:', creditsResult.newBalance);
+      } else {
+        logger.error('❌ RazorpayService: Failed to add credits on charge:', creditsResult.error);
+      }
+    } else {
+      // If not active, this might be the first payment - let activation handler deal with it
+      logger.log('⚠️ RazorpayService: Subscription not active, skipping credit addition (activation handler should process)');
+    }
+
+    // Generate invoice and receipt for recurring charge
+    if (recurringPaymentOrder && recurringPaymentOrder.status === 'completed') {
+      try {
+        await InvoiceService.createInvoice(recurringPaymentOrder.id);
+        ReceiptService.generateReceiptPdf(recurringPaymentOrder.id).catch((error) => {
+          logger.error('❌ RazorpayService: Error generating receipt in subscription charge webhook:', error);
+        });
+        logger.log('✅ RazorpayService: Invoice and receipt generated for recurring charge');
+      } catch (error) {
+        logger.error('❌ RazorpayService: Error creating invoice/receipt in subscription charge webhook:', error);
+      }
+    }
   }
 
   private static async handleSubscriptionCancelled(payload: any) {
@@ -866,6 +1216,63 @@ Please verify the plan exists in Razorpay Dashboard.`;
         updatedAt: new Date(),
       })
       .where(eq(userSubscriptions.razorpaySubscriptionId, subscriptionId));
+  }
+
+  /**
+   * Cancel a pending subscription (e.g., when payment fails)
+   * This prevents users from being marked as pro when payment hasn't completed
+   */
+  static async cancelPendingSubscription(razorpaySubscriptionId: string) {
+    try {
+      logger.log('🚫 RazorpayService: Cancelling pending subscription:', razorpaySubscriptionId);
+
+      // Find subscription in database
+      const [subscription] = await db
+        .select()
+        .from(userSubscriptions)
+        .where(eq(userSubscriptions.razorpaySubscriptionId, razorpaySubscriptionId))
+        .limit(1);
+
+      if (!subscription) {
+        logger.warn('⚠️ RazorpayService: Subscription not found in database:', razorpaySubscriptionId);
+        return { success: false, error: 'Subscription not found' };
+      }
+
+      // Only cancel if status is pending (not already active or canceled)
+      if (subscription.status === 'pending') {
+        // Cancel in Razorpay if possible
+        try {
+          const razorpay = getRazorpayInstance();
+          await razorpay.subscriptions.cancel(razorpaySubscriptionId);
+          logger.log('✅ RazorpayService: Subscription cancelled in Razorpay');
+        } catch (error: any) {
+          // If cancellation fails in Razorpay (e.g., already cancelled), still update database
+          logger.warn('⚠️ RazorpayService: Could not cancel in Razorpay (may already be cancelled):', error.message);
+        }
+
+        // Update database status
+        await db
+          .update(userSubscriptions)
+          .set({
+            status: 'canceled',
+            canceledAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(userSubscriptions.razorpaySubscriptionId, razorpaySubscriptionId));
+
+        logger.log('✅ RazorpayService: Pending subscription cancelled in database');
+        return { success: true };
+      } else {
+        logger.log('⚠️ RazorpayService: Subscription is not pending, cannot cancel:', subscription.status);
+        return { success: false, error: `Subscription is ${subscription.status}, cannot cancel` };
+      }
+    } catch (error) {
+      logger.error('❌ RazorpayService: Error cancelling pending subscription:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to cancel subscription',
+      };
+    }
   }
 }
 

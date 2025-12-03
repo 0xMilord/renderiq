@@ -62,6 +62,7 @@ export function SubscriptionCard() {
   }
 
   const isActive = subscription.status === 'active';
+  const isPending = subscription.status === 'pending';
   const isCanceled = subscription.cancelAtPeriodEnd;
   const isPastDue = subscription.status === 'past_due';
 
@@ -73,11 +74,14 @@ export function SubscriptionCard() {
           <Badge 
             variant={
               isActive && !isCanceled ? 'default' : 
+              isPending ? 'outline' :
               isPastDue ? 'destructive' : 
               'secondary'
             }
           >
-            {subscription.status === 'active' && isCanceled ? 'Canceling' : subscription.status}
+            {subscription.status === 'active' && isCanceled ? 'Canceling' : 
+             subscription.status === 'pending' ? 'Pending Payment' :
+             subscription.status}
           </Badge>
         </CardTitle>
         <CardDescription>
@@ -122,6 +126,15 @@ export function SubscriptionCard() {
         </div>
 
         {/* Status Messages */}
+        {isPending && (
+          <div className="flex items-center space-x-2 p-3 bg-blue-100/50 dark:bg-blue-900/20 border border-blue-200/50 dark:border-blue-800/50 rounded-lg">
+            <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <p className="text-sm text-blue-800 dark:text-blue-300">
+              Payment is processing. Your subscription will be activated once payment is confirmed.
+            </p>
+          </div>
+        )}
+
         {isPastDue && (
           <div className="flex items-center space-x-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
             <AlertCircle className="h-4 w-4 text-destructive" />
@@ -142,7 +155,18 @@ export function SubscriptionCard() {
 
         {/* Actions */}
         <div className="space-y-2">
-          {isActive && !isCanceled ? (
+          {isPending ? (
+            <div className="space-y-2">
+              <Button asChild className="w-full" variant="outline">
+                <Link href="/pricing">
+                  Check Payment Status
+                </Link>
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                Your subscription is pending payment confirmation
+              </p>
+            </div>
+          ) : isActive && !isCanceled ? (
             <div className="flex space-x-2">
               <Button 
                 variant="outline" 

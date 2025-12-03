@@ -97,7 +97,7 @@ export const userSubscriptions = pgTable('user_subscriptions', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   planId: uuid('plan_id').references(() => subscriptionPlans.id).notNull(),
-  status: text('status', { enum: ['active', 'canceled', 'past_due', 'unpaid'] }).notNull(),
+  status: text('status', { enum: ['active', 'canceled', 'past_due', 'unpaid', 'pending'] }).notNull(),
   stripeSubscriptionId: text('stripe_subscription_id').unique(),
   stripeCustomerId: text('stripe_customer_id'),
   razorpaySubscriptionId: text('razorpay_subscription_id').unique(),

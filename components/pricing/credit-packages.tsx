@@ -8,6 +8,7 @@ import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
 import { useCurrency } from '@/lib/hooks/use-currency';
+import { useRazorpaySDK } from '@/lib/hooks/use-razorpay-sdk';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SUPPORTED_CURRENCIES } from '@/lib/utils/currency';
 
@@ -17,20 +18,16 @@ interface CreditPackagesProps {
   onPurchaseComplete?: () => void;
 }
 
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
-
 export function CreditPackages({ packages, userCredits, onPurchaseComplete }: CreditPackagesProps) {
   const [loading, setLoading] = useState<string | null>(null);
-  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
   const razorpayInstanceRef = useRef<any>(null);
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const { currency, currencyInfo, exchangeRate, format, changeCurrency, loading: currencyLoading } = useCurrency();
   const [convertedPrices, setConvertedPrices] = useState<Record<string, number>>({});
+  
+  // Use simplified shared Razorpay SDK loader
+  const { isLoaded: razorpayLoaded, isLoading: razorpayLoading, Razorpay } = useRazorpaySDK();
 
   // Determine if dark mode is active
   const isDarkMode = mounted && (resolvedTheme === 'dark' || theme === 'dark');
@@ -55,106 +52,6 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    // Check if Razorpay SDK is already loaded
-    if (typeof window !== 'undefined' && window.Razorpay) {
-      setRazorpayLoaded(true);
-      return;
-    }
-
-    // Check if script already exists
-    const existingScript = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
-    if (existingScript) {
-      // Script exists, wait for it to load with timeout
-      let checkCount = 0;
-      const maxChecks = 50; // 5 seconds max (50 * 100ms)
-      
-      const checkLoaded = setInterval(() => {
-        checkCount++;
-        if (typeof window !== 'undefined' && window.Razorpay) {
-          setRazorpayLoaded(true);
-          clearInterval(checkLoaded);
-        } else if (checkCount >= maxChecks) {
-          // Timeout - script might have failed to load
-          clearInterval(checkLoaded);
-          console.warn('Razorpay SDK check timeout - script may have failed to load');
-          // Don't set loaded to true on timeout - let user see error when clicking
-        }
-      }, 100);
-      
-      return () => clearInterval(checkLoaded);
-    }
-
-    // Load Razorpay SDK
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    script.id = 'razorpay-checkout-script'; // Add ID for easier tracking
-    
-    // Add error handler before appending
-    script.onerror = (error) => {
-      console.error('Failed to load Razorpay SDK:', error);
-      
-      // Check browser console for CSP violations
-      const errorDetails = {
-        message: error instanceof Error ? error.message : 'Script load failed',
-        src: script.src,
-        timestamp: new Date().toISOString(),
-      };
-      console.error('Razorpay script error details:', errorDetails);
-      
-      // Check if script was blocked
-      const scriptElement = document.getElementById('razorpay-checkout-script');
-      if (!scriptElement) {
-        console.error('Script element was removed or never added - possible CSP violation');
-      }
-      
-      toast.error('Failed to load payment gateway. Please check your internet connection and refresh the page.', {
-        duration: 5000,
-      });
-      
-      // Don't set loaded to true - buttons will be disabled
-    };
-    
-    script.onload = () => {
-      // Small delay to ensure Razorpay is initialized
-      setTimeout(() => {
-        if (typeof window !== 'undefined' && window.Razorpay) {
-          setRazorpayLoaded(true);
-          console.log('✅ Razorpay SDK loaded successfully');
-        } else {
-          // If still not available after load, there might be an issue
-          console.warn('Razorpay script loaded but window.Razorpay not available');
-          // Try to retry checking
-          setTimeout(() => {
-            if (typeof window !== 'undefined' && window.Razorpay) {
-              setRazorpayLoaded(true);
-              console.log('✅ Razorpay SDK available after retry');
-            } else {
-              console.error('❌ Razorpay SDK still not available after retry');
-            }
-          }, 1000);
-        }
-      }, 200);
-    };
-
-    // Append to head (better than body for CSP compliance)
-    try {
-      document.head.appendChild(script);
-      console.log('📦 Razorpay script element added to DOM');
-    } catch (error) {
-      console.error('Failed to append Razorpay script to DOM:', error);
-      toast.error('Failed to initialize payment gateway. Please refresh the page.', {
-        duration: 5000,
-      });
-    }
-    
-    // Cleanup function - don't remove script as it might be used by other components
-    return () => {
-      // Script stays in DOM for other components to use
-    };
-  }, []);
-
   const handlePurchase = async (packageId: string, packageData: any) => {
     // Check if Razorpay key is configured first
     const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
@@ -164,48 +61,12 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
       return;
     }
 
-    // Try to load Razorpay if not available
-    if (typeof window === 'undefined' || !window.Razorpay) {
-      // Check if script is loading
-      const existingScript = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
-      if (existingScript) {
+    // Check if Razorpay SDK is available
+    if (!Razorpay || typeof window === 'undefined') {
+      if (razorpayLoading) {
         toast.info('Payment gateway is loading, please wait a moment...', { duration: 3000 });
-        // Wait a bit and retry
-        setTimeout(() => {
-          if (typeof window !== 'undefined' && window.Razorpay) {
-            handlePurchase(packageId, packageData);
-          } else {
-            toast.error('Payment gateway failed to load. Please refresh the page.', { duration: 5000 });
-          }
-        }, 2000);
-        return;
-      }
-      
-      // Try to load it now
-      toast.info('Loading payment gateway...', { duration: 3000 });
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.async = true;
-      script.id = 'razorpay-checkout-script-retry';
-      script.onload = () => {
-        setTimeout(() => {
-          if (typeof window !== 'undefined' && window.Razorpay) {
-            setRazorpayLoaded(true);
-            handlePurchase(packageId, packageData);
-          } else {
-            toast.error('Payment gateway failed to initialize. Please refresh the page.', { duration: 5000 });
-          }
-        }, 500);
-      };
-      script.onerror = () => {
-        console.error('Retry: Failed to load Razorpay SDK');
-        toast.error('Failed to load payment gateway. Please check your internet connection and refresh the page.', { duration: 5000 });
-      };
-      try {
-        document.head.appendChild(script);
-      } catch (error) {
-        console.error('Failed to append script in retry:', error);
-        toast.error('Failed to initialize payment gateway. Please refresh the page.', { duration: 5000 });
+      } else {
+        toast.error('Payment gateway is not available. Please refresh the page.', { duration: 5000 });
       }
       return;
     }
@@ -242,7 +103,7 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
       const currencyMultiplier = finalCurrency === 'JPY' ? 1 : 100;
       
       // Verify Razorpay is available before creating instance
-      if (typeof window === 'undefined' || !window.Razorpay) {
+      if (!Razorpay || typeof window === 'undefined') {
         throw new Error('Razorpay SDK is not available. Please refresh the page.');
       }
 
@@ -329,7 +190,7 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
       };
 
       // Store Razorpay instance
-      const razorpay = new window.Razorpay(options);
+      const razorpay = new Razorpay(options);
       razorpayInstanceRef.current = razorpay;
       
       // Open Razorpay checkout
@@ -513,11 +374,11 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
                 <Button
                   className={`w-full ${isSmallPackage ? 'text-xs h-8' : 'text-sm h-9'} mt-auto`}
                   onClick={() => handlePurchase(pkg.id, pkg)}
-                  disabled={loading === pkg.id || !razorpayLoaded || !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID}
+                  disabled={loading === pkg.id || !razorpayLoaded || razorpayLoading || !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID}
                   title={
                     !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID 
                       ? 'Payment gateway not configured' 
-                      : !razorpayLoaded 
+                      : razorpayLoading || !razorpayLoaded
                         ? 'Payment gateway is loading...' 
                         : ''
                   }
@@ -527,7 +388,7 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
                       <Loader2 className={`${isSmallPackage ? 'h-3 w-3' : 'h-4 w-4'} mr-1.5 animate-spin`} />
                       <span className={isSmallPackage ? 'text-xs' : ''}>Processing...</span>
                     </>
-                  ) : !razorpayLoaded ? (
+                  ) : razorpayLoading || !razorpayLoaded ? (
                     <>
                       <Loader2 className={`${isSmallPackage ? 'h-3 w-3' : 'h-4 w-4'} mr-1.5 animate-spin`} />
                       <span className={isSmallPackage ? 'text-xs' : ''}>Loading...</span>

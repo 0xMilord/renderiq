@@ -59,11 +59,42 @@ function PaymentSuccessContent() {
     }
   };
 
-  const handleDownloadReceipt = () => {
-    if (receiptUrl) {
-      window.open(receiptUrl, '_blank');
-    } else {
-      toast.error('Receipt not available yet. Please try again later.');
+  const handleDownloadReceipt = async () => {
+    if (!paymentOrderId) {
+      toast.error('Payment order ID not found');
+      return;
+    }
+
+    try {
+      // Fetch PDF with download parameter (same as billing dashboard)
+      const response = await fetch(`/api/payments/receipt/${paymentOrderId}?download=true`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download receipt');
+      }
+
+      // Get PDF blob
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create download link
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `receipt_${paymentOrderId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up blob URL
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Receipt downloaded successfully');
+    } catch (error) {
+      console.error('Error downloading receipt:', error);
+      toast.error('Error downloading receipt. Please try again later.');
     }
   };
 
@@ -127,7 +158,7 @@ function PaymentSuccessContent() {
 
           {/* Actions */}
           <div className="flex flex-col sm:flex-row gap-4">
-            {receiptUrl && (
+            {paymentOrderId && (
               <Button onClick={handleDownloadReceipt} variant="outline" className="flex-1">
                 <Download className="h-4 w-4 mr-2" />
                 Download Receipt

@@ -14,8 +14,8 @@ import { toast } from 'sonner';
 
 export default function PaymentHistoryPage() {
   const [filters, setFilters] = useState({
-    type: '' as 'subscription' | 'credit_package' | '',
-    status: '' as 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled' | '',
+    type: 'all' as 'subscription' | 'credit_package' | 'all',
+    status: 'all' as 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'all',
     startDate: '',
     endDate: '',
   });
@@ -98,7 +98,7 @@ export default function PaymentHistoryPage() {
                   <SelectValue placeholder="Payment Type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Types</SelectItem>
+                  <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="credit_package">Credit Package</SelectItem>
                   <SelectItem value="subscription">Subscription</SelectItem>
                 </SelectContent>
@@ -112,7 +112,7 @@ export default function PaymentHistoryPage() {
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Statuses</SelectItem>
+                  <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="processing">Processing</SelectItem>

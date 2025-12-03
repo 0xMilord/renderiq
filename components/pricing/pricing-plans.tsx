@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
 import { useCurrency } from '@/lib/hooks/use-currency';
+import { useRazorpaySDK } from '@/lib/hooks/use-razorpay-sdk';
 
 const planIcons: Record<string, any> = {
   free: Zap,
@@ -31,6 +32,10 @@ export function PricingPlans({ plans, userCredits }: PricingPlansProps) {
   const isDarkMode = resolvedTheme === 'dark' || theme === 'dark';
   const { currency, currencyInfo, exchangeRate, format, convert, loading: currencyLoading } = useCurrency();
   const [convertedPrices, setConvertedPrices] = useState<Record<string, number>>({});
+  
+  // Use simplified shared Razorpay SDK loader
+  const { isLoaded: razorpayLoaded, isLoading: razorpayLoading, Razorpay } = useRazorpaySDK();
+
 
   // Convert plan prices when currency or exchange rate changes
   useEffect(() => {
@@ -79,40 +84,143 @@ export function PricingPlans({ plans, userCredits }: PricingPlansProps) {
         return;
       }
 
-      // Initialize Razorpay checkout
-      if (typeof window !== 'undefined' && (window as any).Razorpay) {
-        const Razorpay = (window as any).Razorpay;
-        
-        // Get base URL for logo
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
-                       (typeof window !== 'undefined' ? window.location.origin : 'https://renderiq.io');
-        const logoUrl = `${baseUrl}/logo.svg`; // Use SVG logo from public folder
-        
-        const options = {
-          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-          subscription_id: result.data.subscriptionId,
-          name: 'Renderiq',
-          description: 'Subscription Plan',
-          image: logoUrl, // Add logo to checkout
-          handler: async (response: any) => {
-            toast.success('Subscription activated successfully!');
-            window.location.reload();
-          },
-          prefill: {
-            email: userCredits?.email || '',
-            name: userCredits?.name || '',
-          },
-          theme: {
-            color: '#D1F24A', // Use neon green accent color
-            backdrop_color: isDarkMode ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.8)',
-          },
-        };
-
-        const razorpayInstance = new Razorpay(options);
-        razorpayInstance.open();
-      } else {
-        toast.error('Razorpay SDK not loaded');
+      // Check if Razorpay key is configured
+      const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      if (!razorpayKey) {
+        toast.error('Payment gateway is not configured. Please contact support.');
+        console.error('NEXT_PUBLIC_RAZORPAY_KEY_ID is not set');
+        setLoading(null);
+        return;
       }
+
+      // Check if Razorpay SDK is loaded
+      if (!Razorpay || typeof window === 'undefined') {
+        if (razorpayLoading) {
+          toast.info('Payment gateway is loading, please wait...', { duration: 3000 });
+        } else {
+          toast.error('Payment gateway is not available. Please refresh the page.', { duration: 5000 });
+        }
+        setLoading(null);
+        return;
+      }
+
+      // Initialize Razorpay checkout
+      
+      // Get base URL for logo
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+                     (typeof window !== 'undefined' ? window.location.origin : 'https://renderiq.io');
+      const logoUrl = `${baseUrl}/logo.svg`; // Use SVG logo from public folder
+      
+      const options = {
+        key: razorpayKey,
+        subscription_id: result.data.subscriptionId,
+        name: 'Renderiq',
+        description: 'Subscription Plan',
+        image: logoUrl, // Add logo to checkout
+        handler: async (response: any) => {
+          try {
+            setLoading(null);
+            
+            // Verify subscription payment with signature (like credit packages)
+            // Response contains: razorpay_payment_id, razorpay_subscription_id, razorpay_signature
+            toast.info('Verifying payment...', { duration: 2000 });
+            
+            const verifyResponse = await fetch('/api/payments/verify-subscription', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                subscriptionId: response.razorpay_subscription_id || result.data.subscriptionId,
+                paymentId: response.razorpay_payment_id,
+                signature: response.razorpay_signature,
+              }),
+            });
+
+            const verifyResult = await verifyResponse.json();
+
+            if (verifyResult.success) {
+              if (verifyResult.data?.activated && verifyResult.data?.creditsAdded) {
+                toast.success(`Payment successful! ${verifyResult.data.newBalance || ''} credits added.`);
+                // Redirect to success page
+                setTimeout(() => {
+                  window.location.href = `/payment/success?payment_order_id=${verifyResult.data.paymentOrderId || ''}&razorpay_subscription_id=${response.razorpay_subscription_id || result.data.subscriptionId}&razorpay_payment_id=${response.razorpay_payment_id}`;
+                }, 1500);
+              } else if (verifyResult.data?.alreadyActive) {
+                toast.success('Payment successful! Subscription is already active.');
+                setTimeout(() => {
+                  window.location.reload();
+                }, 1500);
+              } else if (verifyResult.data?.status) {
+                toast.info(verifyResult.data.message || 'Payment is processing. Credits will be added shortly.');
+                setTimeout(() => {
+                  window.location.reload();
+                }, 2000);
+              } else {
+                toast.success('Payment successful!');
+                setTimeout(() => {
+                  window.location.reload();
+                }, 1500);
+              }
+            } else {
+              toast.warning('Payment successful, but verification failed. Credits will be added via webhook shortly.');
+              setTimeout(() => {
+                window.location.reload();
+              }, 2000);
+            }
+          } catch (error: any) {
+            console.error('Error in payment success handler:', error);
+            toast.error('Payment successful but there was an error. Please refresh the page.');
+            setLoading(null);
+          }
+        },
+        prefill: {
+          email: userCredits?.email || '',
+          name: userCredits?.name || '',
+        },
+        theme: {
+          color: '#D1F24A', // Use neon green accent color
+          backdrop_color: isDarkMode ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+        },
+        modal: {
+          ondismiss: () => {
+            setLoading(null);
+            toast.info('Payment cancelled');
+          },
+          escape: true,
+          animation: true,
+        },
+      };
+
+      const razorpayInstance = new Razorpay(options);
+      
+      // CRITICAL: Add payment failure handler to prevent users being marked pro on failure
+      razorpayInstance.on('payment.failed', async (response: any) => {
+        console.error('Payment failed:', response);
+        setLoading(null);
+        const errorDescription = response.error?.description || 'Unknown error';
+        
+        // IMPORTANT: Cancel/delete the pending subscription to prevent user being marked pro
+        try {
+          const cancelResponse = await fetch('/api/payments/cancel-subscription', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              subscriptionId: result.data.subscriptionId,
+            }),
+          });
+          
+          if (!cancelResponse.ok) {
+            console.error('Failed to cancel subscription after payment failure');
+          }
+        } catch (error) {
+          console.error('Error cancelling subscription:', error);
+        }
+        
+        toast.error(`Payment failed: ${errorDescription}`);
+        // Redirect to failure page
+        window.location.href = `/payment/failure?razorpay_subscription_id=${result.data.subscriptionId}&error_description=${encodeURIComponent(errorDescription)}`;
+      });
+
+      razorpayInstance.open();
     } catch (error: any) {
       console.error('Error creating subscription:', error);
       toast.error(error.message || 'Failed to create subscription');
@@ -252,10 +360,19 @@ export function PricingPlans({ plans, userCredits }: PricingPlansProps) {
                 <Button
                   className="w-full"
                   onClick={() => handleSubscribe(plan.id)}
-                  disabled={loading === plan.id || parseFloat(plan.price) === 0}
+                  disabled={loading === plan.id || !razorpayLoaded || razorpayLoading || !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || parseFloat(plan.price) === 0}
+                  title={
+                    !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID 
+                      ? 'Payment gateway not configured' 
+                      : razorpayLoading || !razorpayLoaded
+                        ? 'Payment gateway is loading...' 
+                        : ''
+                  }
                 >
                   {loading === plan.id ? (
                     'Processing...'
+                  ) : razorpayLoading || !razorpayLoaded ? (
+                    'Loading...'
                   ) : parseFloat(plan.price) === 0 ? (
                     'Get Started'
                   ) : (

@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 
 interface PaymentHistoryFilters {
-  type?: 'subscription' | 'credit_package' | '';
-  status?: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled' | '';
+  type?: 'subscription' | 'credit_package' | 'all';
+  status?: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'all';
   startDate?: string;
   endDate?: string;
 }
@@ -33,8 +33,8 @@ export function usePaymentHistory(filters: PaymentHistoryFilters = {}) {
       const currentOffset = reset ? 0 : offset;
 
       const params = new URLSearchParams();
-      if (filters.type) params.append('type', filters.type);
-      if (filters.status) params.append('status', filters.status);
+      if (filters.type && filters.type !== 'all') params.append('type', filters.type);
+      if (filters.status && filters.status !== 'all') params.append('status', filters.status);
       if (filters.startDate) params.append('startDate', filters.startDate);
       if (filters.endDate) params.append('endDate', filters.endDate);
       params.append('limit', limit.toString());

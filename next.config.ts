@@ -112,7 +112,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https: blob: https://api.dicebear.com",
               "font-src 'self' data:",
-              "connect-src 'self' https://*.supabase.co https://*.googleapis.com https://*.googleusercontent.com https://api.dicebear.com https://vercel.live https://api.razorpay.com wss://*.supabase.co", // Razorpay API
+              "connect-src 'self' https://*.supabase.co https://*.googleapis.com https://*.googleusercontent.com https://api.dicebear.com https://vercel.live https://*.razorpay.com https://api.razorpay.com wss://*.supabase.co", // Razorpay API (allow all subdomains)
               "frame-src 'self' https://checkout.razorpay.com https://razorpay.com https://*.razorpay.com", // Razorpay checkout modal (allow all Razorpay subdomains)
               "child-src 'self' https://checkout.razorpay.com https://razorpay.com https://*.razorpay.com", // Razorpay checkout modal (alternative)
               "object-src 'none'",

@@ -5,13 +5,15 @@ import { logger } from '@/lib/utils/logger';
 
 export class BillingDAL {
   /**
-   * Get user's active subscription with plan details
+   * Get user's subscription with plan details
+   * Returns the most recent subscription (prioritizes active, then pending, then others)
    */
   static async getUserSubscription(userId: string) {
     logger.log('💳 BillingDAL: Getting user subscription:', userId);
     
     try {
-      const result = await db
+      // First try to get active subscription
+      let result = await db
         .select({
           subscription: userSubscriptions,
           plan: subscriptionPlans,
@@ -27,12 +29,47 @@ export class BillingDAL {
         .orderBy(desc(userSubscriptions.createdAt))
         .limit(1);
 
+      // If no active subscription, get pending subscription
       if (!result || result.length === 0) {
-        logger.log('❌ BillingDAL: No active subscription found');
+        logger.log('💳 BillingDAL: No active subscription, checking for pending...');
+        result = await db
+          .select({
+            subscription: userSubscriptions,
+            plan: subscriptionPlans,
+          })
+          .from(userSubscriptions)
+          .leftJoin(subscriptionPlans, eq(userSubscriptions.planId, subscriptionPlans.id))
+          .where(
+            and(
+              eq(userSubscriptions.userId, userId),
+              eq(userSubscriptions.status, 'pending')
+            )
+          )
+          .orderBy(desc(userSubscriptions.createdAt))
+          .limit(1);
+      }
+
+      // If still no subscription, get the most recent one regardless of status
+      if (!result || result.length === 0) {
+        logger.log('💳 BillingDAL: No active or pending subscription, getting most recent...');
+        result = await db
+          .select({
+            subscription: userSubscriptions,
+            plan: subscriptionPlans,
+          })
+          .from(userSubscriptions)
+          .leftJoin(subscriptionPlans, eq(userSubscriptions.planId, subscriptionPlans.id))
+          .where(eq(userSubscriptions.userId, userId))
+          .orderBy(desc(userSubscriptions.createdAt))
+          .limit(1);
+      }
+
+      if (!result || result.length === 0) {
+        logger.log('❌ BillingDAL: No subscription found');
         return null;
       }
 
-      logger.log('✅ BillingDAL: Subscription found:', result[0].plan?.name);
+      logger.log('✅ BillingDAL: Subscription found:', result[0].plan?.name, 'Status:', result[0].subscription.status);
       return {
         subscription: result[0].subscription,
         plan: result[0].plan,
