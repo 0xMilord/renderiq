@@ -5,6 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PricingPlans } from '@/components/pricing/pricing-plans';
 import { CreditPackages } from '@/components/pricing/credit-packages';
 import { getCreditPackagesAction, getSubscriptionPlansAction, getUserCreditsAction } from '@/lib/actions/pricing.actions';
+import { getUserSubscriptionAction } from '@/lib/actions/billing.actions';
+import { createClient } from '@/lib/supabase/client';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { resetCurrencyToINR } from '@/lib/utils/reset-currency-to-inr';
@@ -14,6 +16,7 @@ export default function PricingPage() {
   const [plans, setPlans] = useState<any[]>([]);
   const [creditPackages, setCreditPackages] = useState<any[]>([]);
   const [userCredits, setUserCredits] = useState<any>(null);
+  const [userSubscription, setUserSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,10 +29,15 @@ export default function PricingPage() {
     try {
       setLoading(true);
       
-      const [plansResult, packagesResult, creditsResult] = await Promise.all([
+      // Get user ID first
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const [plansResult, packagesResult, creditsResult, subscriptionResult] = await Promise.all([
         getSubscriptionPlansAction(),
         getCreditPackagesAction(),
         getUserCreditsAction(),
+        user ? getUserSubscriptionAction(user.id) : Promise.resolve({ success: true, data: null }),
       ]);
 
       if (plansResult.success) {
@@ -42,6 +50,10 @@ export default function PricingPage() {
 
       if (creditsResult.success) {
         setUserCredits(creditsResult.data);
+      }
+
+      if (subscriptionResult.success) {
+        setUserSubscription(subscriptionResult.data);
       }
     } catch (error) {
       console.error('Error loading pricing data:', error);
@@ -85,7 +97,7 @@ export default function PricingPage() {
           </TabsList>
 
           <TabsContent value="plans" className="mt-8">
-            <PricingPlans plans={plans} userCredits={userCredits} />
+            <PricingPlans plans={plans} userCredits={userCredits} userSubscription={userSubscription} />
           </TabsContent>
 
           <TabsContent value="credits" className="mt-8">

@@ -111,6 +111,7 @@ const nextConfig: NextConfig = {
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live https://checkout.razorpay.com https://*.razorpay.com https://razorpay.com", // Razorpay checkout script (explicit + wildcard for compatibility)
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https: blob: https://api.dicebear.com",
+              "media-src 'self' https: blob: data:", // Allow video/audio from any HTTPS source (Supabase storage, etc.)
               "font-src 'self' data:",
               "connect-src 'self' https://*.supabase.co https://*.googleapis.com https://*.googleusercontent.com https://api.dicebear.com https://vercel.live https://*.razorpay.com https://api.razorpay.com wss://*.supabase.co", // Razorpay API (allow all subdomains)
               "frame-src 'self' https://checkout.razorpay.com https://razorpay.com https://*.razorpay.com", // Razorpay checkout modal (allow all Razorpay subdomains)

@@ -24,9 +24,10 @@ const planIcons: Record<string, any> = {
 interface PricingPlansProps {
   plans: any[];
   userCredits?: any;
+  userSubscription?: any;
 }
 
-export function PricingPlans({ plans, userCredits }: PricingPlansProps) {
+export function PricingPlans({ plans, userCredits, userSubscription }: PricingPlansProps) {
   const [billingInterval, setBillingInterval] = useState<'month' | 'year'>('month');
   const [loading, setLoading] = useState<string | null>(null);
   const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string; planId?: string }>({ open: false, message: '' });
@@ -76,6 +77,16 @@ export function PricingPlans({ plans, userCredits }: PricingPlansProps) {
       const result = await response.json();
 
       if (!result.success) {
+        // Handle duplicate subscription error
+        if (result.hasExistingSubscription || result.hasPendingSubscription) {
+          toast.error(result.error || 'You already have a subscription');
+          // Optionally redirect to billing page
+          setTimeout(() => {
+            window.location.href = '/dashboard/billing';
+          }, 2000);
+          return;
+        }
+        
         // Show detailed error message, especially for subscriptions not enabled
         if (result.requiresRazorpaySupport) {
           // Show user-friendly error dialog
@@ -287,12 +298,34 @@ export function PricingPlans({ plans, userCredits }: PricingPlansProps) {
           const annualPrice = plan.interval === 'year' ? convertedPrice : convertedPrice * 12;
           const savings = plan.interval === 'year' ? Math.round((1 - convertedPrice / annualPrice) * 100) : 0;
 
+          // Check if this is the user's current plan
+          const isCurrentPlan = userSubscription?.subscription?.planId === plan.id;
+          const hasActiveSubscription = userSubscription?.subscription?.status === 'active';
+          const hasPendingSubscription = userSubscription?.subscription?.status === 'pending';
+          const currentPlanPrice = userSubscription?.plan ? parseFloat(userSubscription.plan.price) : 0;
+          const isUpgrade = hasActiveSubscription && !isCurrentPlan && parseFloat(plan.price) > currentPlanPrice;
+          const isDowngrade = hasActiveSubscription && !isCurrentPlan && parseFloat(plan.price) < currentPlanPrice;
+
           return (
             <Card key={plan.id} className="relative">
               {plan.isPopular && (
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
                   <Badge className="bg-primary text-primary-foreground">
                     Most Popular
+                  </Badge>
+                </div>
+              )}
+              {isCurrentPlan && (
+                <div className="absolute -top-3 right-4">
+                  <Badge className="bg-green-500 text-white">
+                    Current Plan
+                  </Badge>
+                </div>
+              )}
+              {hasPendingSubscription && isCurrentPlan && (
+                <div className="absolute -top-3 right-4">
+                  <Badge className="bg-yellow-500 text-white">
+                    Payment Pending
                   </Badge>
                 </div>
               )}
@@ -372,19 +405,40 @@ export function PricingPlans({ plans, userCredits }: PricingPlansProps) {
                 <Button
                   className="w-full"
                   onClick={() => handleSubscribe(plan.id)}
-                  disabled={loading === plan.id || !razorpayLoaded || razorpayLoading || !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || parseFloat(plan.price) === 0}
+                  disabled={
+                    loading === plan.id || 
+                    !razorpayLoaded || 
+                    razorpayLoading || 
+                    !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 
+                    parseFloat(plan.price) === 0 ||
+                    (isCurrentPlan && hasActiveSubscription) ||
+                    hasPendingSubscription
+                  }
+                  variant={isCurrentPlan && hasActiveSubscription ? 'outline' : 'default'}
                   title={
-                    !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID 
+                    isCurrentPlan && hasActiveSubscription
+                      ? 'This is your current plan'
+                      : hasPendingSubscription
+                      ? 'You have a pending subscription. Please wait for payment to complete.'
+                      : !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID 
                       ? 'Payment gateway not configured' 
                       : razorpayLoading || !razorpayLoaded
                         ? 'Payment gateway is loading...' 
-                        : ''
+                        : undefined
                   }
                 >
                   {loading === plan.id ? (
                     'Processing...'
                   ) : razorpayLoading || !razorpayLoaded ? (
                     'Loading...'
+                  ) : isCurrentPlan && hasActiveSubscription ? (
+                    'Current Plan'
+                  ) : hasPendingSubscription && isCurrentPlan ? (
+                    'Payment Pending'
+                  ) : isUpgrade ? (
+                    'Upgrade Plan'
+                  ) : isDowngrade ? (
+                    'Downgrade Plan'
                   ) : parseFloat(plan.price) === 0 ? (
                     'Get Started'
                   ) : (

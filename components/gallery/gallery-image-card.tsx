@@ -324,7 +324,7 @@ export function GalleryImageCard({
         </Button>
       </div>
 
-      {/* Image/Video Container - With Tabs if uploaded image exists (only for images, not videos) */}
+      {/* Image/Video Container - With Tabs if uploaded image exists (ONLY for images, NEVER for videos) */}
       {item.render.uploadedImageUrl && item.render.outputUrl && !isVideo ? (
         <div className="relative w-full">
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'generated' | 'comparison')} className="w-full">
@@ -353,60 +353,113 @@ export function GalleryImageCard({
                 aspectRatio: displayAspectRatio,
               }}
             >
-              {imageLoading && (
+              {imageLoading && !isVideo && (
                 <div className="absolute inset-0 flex items-center justify-center bg-muted z-10">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
               )}
               
-              {imageError || videoError ? (
+              {videoError && isVideo ? (
                 <div className="w-full h-full flex items-center justify-center bg-muted">
                   <div className="text-center">
-                    <div className="text-4xl mb-2">{isVideo ? '🎬' : '🖼️'}</div>
-                    <p className="text-muted-foreground text-sm">Failed to load</p>
+                    <div className="text-4xl mb-2">🎬</div>
+                    <p className="text-muted-foreground text-sm">Failed to load video</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setVideoError(false);
+                        setVideoLoading(true);
+                      }}
+                    >
+                      Retry
+                    </Button>
                   </div>
                 </div>
               ) : isVideo && item.render.outputUrl ? (
-                <video
-                  src={item.render.outputUrl}
-                  className={cn(
-                    "w-full h-full object-contain transition-opacity duration-300",
-                    videoLoading ? "opacity-0" : "opacity-100"
+                <>
+                  {videoLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-muted z-10">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </div>
                   )}
-                  controls={false}
-                  loop
-                  muted
-                  playsInline
-                  onLoadedMetadata={() => {
-                    setVideoLoading(false);
-                  }}
-                  onError={() => {
-                    setVideoError(true);
-                    setVideoLoading(false);
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isVideoPlaying) {
-                      e.currentTarget.play();
-                      setIsVideoPlaying(true);
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.pause();
-                    e.currentTarget.currentTime = 0;
-                    setIsVideoPlaying(false);
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const video = e.currentTarget;
-                    if (video.paused) {
-                      video.play();
-                      setIsVideoPlaying(true);
-                    } else {
-                      video.pause();
+                  <video
+                    src={item.render.outputUrl}
+                    className={cn(
+                      "w-full h-full object-contain transition-opacity duration-300",
+                      videoLoading ? "opacity-0" : "opacity-100"
+                    )}
+                    controls={false}
+                    loop
+                    muted
+                    playsInline
+                    preload="metadata"
+                    crossOrigin="anonymous"
+                    onLoadedMetadata={(e) => {
+                      console.log('Video metadata loaded:', item.render.outputUrl);
+                      setVideoLoading(false);
+                      setVideoError(false);
+                    }}
+                    onCanPlay={(e) => {
+                      console.log('Video can play:', item.render.outputUrl);
+                      setVideoLoading(false);
+                      setVideoError(false);
+                    }}
+                    onLoadedData={(e) => {
+                      console.log('Video data loaded:', item.render.outputUrl);
+                      setVideoLoading(false);
+                      setVideoError(false);
+                    }}
+                    onError={(e) => {
+                      const video = e.currentTarget;
+                      const error = video.error;
+                      console.error('Video load error:', {
+                        code: error?.code,
+                        message: error?.message,
+                        url: item.render.outputUrl,
+                        networkState: video.networkState,
+                        readyState: video.readyState
+                      });
+                      setVideoError(true);
+                      setVideoLoading(false);
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isVideoPlaying && !videoError) {
+                        e.currentTarget.play().catch((err) => {
+                          console.error('Video play error:', err);
+                        });
+                        setIsVideoPlaying(true);
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.pause();
+                      e.currentTarget.currentTime = 0;
                       setIsVideoPlaying(false);
-                    }
-                  }}
-                />
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const video = e.currentTarget;
+                      if (video.paused) {
+                        video.play().catch((err) => {
+                          console.error('Video play error:', err);
+                        });
+                        setIsVideoPlaying(true);
+                      } else {
+                        video.pause();
+                        setIsVideoPlaying(false);
+                      }
+                    }}
+                  />
+                </>
+              ) : imageError ? (
+                <div className="w-full h-full flex items-center justify-center bg-muted">
+                  <div className="text-center">
+                    <div className="text-4xl mb-2">🖼️</div>
+                    <p className="text-muted-foreground text-sm">Failed to load</p>
+                  </div>
+                </div>
               ) : item.render.outputUrl ? (
                 <>
                   {/* Use regular img tag - more reliable for external URLs */}
@@ -442,29 +495,36 @@ export function GalleryImageCard({
           </TabsContent>
           
           <TabsContent value="comparison" className="mt-0">
-            <div 
-              className="relative w-full overflow-hidden bg-muted"
-              style={{
-                aspectRatio: displayAspectRatio,
-              }}
-              onClick={(e) => {
-                // Prevent navigation when interacting with the slider
-                e.stopPropagation();
-              }}
-            >
-              <ReactBeforeSliderComponent
-                firstImage={{ imageUrl: item.render.uploadedImageUrl }}
-                secondImage={{ imageUrl: item.render.outputUrl }}
-                currentPercentPosition={75}
-              />
-              {/* Labels - Bottom corners to avoid clashing with tabs */}
-              <div className="absolute bottom-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium z-10">
-                Before
+            {/* Only show comparison for images, never for videos */}
+            {!isVideo ? (
+              <div 
+                className="relative w-full overflow-hidden bg-muted"
+                style={{
+                  aspectRatio: displayAspectRatio,
+                }}
+                onClick={(e) => {
+                  // Prevent navigation when interacting with the slider
+                  e.stopPropagation();
+                }}
+              >
+                <ReactBeforeSliderComponent
+                  firstImage={{ imageUrl: item.render.uploadedImageUrl }}
+                  secondImage={{ imageUrl: item.render.outputUrl }}
+                  currentPercentPosition={75}
+                />
+                {/* Labels - Bottom corners to avoid clashing with tabs */}
+                <div className="absolute bottom-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium z-10">
+                  Before
+                </div>
+                <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium z-10">
+                  After
+                </div>
               </div>
-              <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium z-10">
-                After
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-muted">
+                <p className="text-muted-foreground text-sm">Comparison not available for videos</p>
               </div>
-            </div>
+            )}
           </TabsContent>
           </Tabs>
         </div>
