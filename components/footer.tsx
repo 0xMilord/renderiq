@@ -10,8 +10,10 @@ import {
   FaDiscord, 
   FaReddit, 
   FaThreads,
-  FaMastodon
+  FaMastodon,
+  FaQuora
 } from 'react-icons/fa6';
+import { SiBluesky } from 'react-icons/si';
 import { Sparkles, Images, Lightbulb, Newspaper, CreditCard, Info, FileText, Mail } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { PWAInstallButton } from '@/components/pwa/install-button';
@@ -50,35 +52,35 @@ export function Footer() {
             </p>
             <div className="flex flex-col space-y-4">
               <div className="flex flex-wrap gap-4">
-                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="GitHub" target="_blank" rel="noopener noreferrer">
-                  <FaGithub className="h-5 w-5" />
+                <a href="https://bsky.app/profile/renderiq.bsky.social" className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black" title="Bluesky" target="_blank" rel="noopener noreferrer">
+                  <SiBluesky className="h-5 w-5" />
                 </a>
-                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="X (Twitter)" target="_blank" rel="noopener noreferrer">
+                <a href="https://x.com/renderiq_ai" className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black" title="X (Twitter)" target="_blank" rel="noopener noreferrer">
                   <FaXTwitter className="h-5 w-5" />
                 </a>
-                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="LinkedIn" target="_blank" rel="noopener noreferrer">
+                <a href="https://github.com/renderiq-ai" className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black" title="GitHub" target="_blank" rel="noopener noreferrer">
+                  <FaGithub className="h-5 w-5" />
+                </a>
+                <a href="https://www.linkedin.com/company/renderiq-ai" className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black" title="LinkedIn" target="_blank" rel="noopener noreferrer">
                   <FaLinkedin className="h-5 w-5" />
                 </a>
-                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="Medium" target="_blank" rel="noopener noreferrer">
-                  <FaMedium className="h-5 w-5" />
-                </a>
-                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="Bluesky" target="_blank" rel="noopener noreferrer">
-                  <FaMastodon className="h-5 w-5" />
-                </a>
-                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="Instagram" target="_blank" rel="noopener noreferrer">
+                <a href="https://www.instagram.com/renderiq.ai" className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black" title="Instagram" target="_blank" rel="noopener noreferrer">
                   <FaInstagram className="h-5 w-5" />
                 </a>
-                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="YouTube" target="_blank" rel="noopener noreferrer">
+                <a href="https://www.youtube.com/@Renderiq_ai" className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black" title="YouTube" target="_blank" rel="noopener noreferrer">
                   <FaYoutube className="h-5 w-5" />
                 </a>
-                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="Discord" target="_blank" rel="noopener noreferrer">
-                  <FaDiscord className="h-5 w-5" />
-                </a>
-                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="Reddit" target="_blank" rel="noopener noreferrer">
+                <a href="https://www.reddit.com/user/Renderiq-AI/" className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black" title="Reddit" target="_blank" rel="noopener noreferrer">
                   <FaReddit className="h-5 w-5" />
                 </a>
-                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="Threads" target="_blank" rel="noopener noreferrer">
+                <a href="https://www.threads.com/@renderiq.ai" className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black" title="Threads" target="_blank" rel="noopener noreferrer">
                   <FaThreads className="h-5 w-5" />
+                </a>
+                <a href="https://www.quora.com/profile/Renderiq" className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black" title="Quora" target="_blank" rel="noopener noreferrer">
+                  <FaQuora className="h-5 w-5" />
+                </a>
+                <a href="https://discord.gg/KADV5pX3" className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black" title="Discord" target="_blank" rel="noopener noreferrer">
+                  <FaDiscord className="h-5 w-5" />
                 </a>
               </div>
               <div className="flex items-center space-x-4">

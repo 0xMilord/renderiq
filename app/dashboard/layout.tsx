@@ -22,14 +22,23 @@ import {
   LogOut,
   BookOpen,
   HelpCircle,
-  Github,
-  Twitter,
-  MessageCircle,
   FileText,
   RefreshCw,
   Sparkles,
   Command
 } from 'lucide-react';
+import { 
+  FaGithub, 
+  FaXTwitter, 
+  FaLinkedin, 
+  FaInstagram, 
+  FaYoutube, 
+  FaReddit, 
+  FaThreads,
+  FaQuora,
+  FaDiscord
+} from 'react-icons/fa6';
+import { SiBluesky } from 'react-icons/si';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/lib/stores/auth-store';
@@ -639,33 +648,96 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <div className="h-px bg-border mb-3" />
 
               {/* Community Socials */}
-              <div className="flex items-center justify-center gap-2 mb-3">
+              <div className="flex items-center justify-center gap-2 mb-3 flex-wrap">
                 <a
-                  href="https://github.com/renderiq"
+                  href="https://bsky.app/profile/renderiq.bsky.social"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-muted-foreground hover:text-primary transition-colors p-1.5 rounded hover:bg-accent"
+                  className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
+                  title="Bluesky"
+                >
+                  <SiBluesky className="h-4 w-4" />
+                </a>
+                <a
+                  href="https://x.com/renderiq_ai"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
+                  title="X (Twitter)"
+                >
+                  <FaXTwitter className="h-4 w-4" />
+                </a>
+                <a
+                  href="https://github.com/renderiq-ai"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
                   title="GitHub"
                 >
-                  <Github className="h-4 w-4" />
+                  <FaGithub className="h-4 w-4" />
                 </a>
                 <a
-                  href="https://twitter.com/renderiq"
+                  href="https://www.linkedin.com/company/renderiq-ai"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-muted-foreground hover:text-primary transition-colors p-1.5 rounded hover:bg-accent"
-                  title="Twitter"
+                  className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
+                  title="LinkedIn"
                 >
-                  <Twitter className="h-4 w-4" />
+                  <FaLinkedin className="h-4 w-4" />
                 </a>
                 <a
-                  href="https://discord.gg/renderiq"
+                  href="https://www.instagram.com/renderiq.ai"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-muted-foreground hover:text-primary transition-colors p-1.5 rounded hover:bg-accent"
+                  className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
+                  title="Instagram"
+                >
+                  <FaInstagram className="h-4 w-4" />
+                </a>
+                <a
+                  href="https://www.youtube.com/@Renderiq_ai"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
+                  title="YouTube"
+                >
+                  <FaYoutube className="h-4 w-4" />
+                </a>
+                <a
+                  href="https://www.reddit.com/user/Renderiq-AI/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
+                  title="Reddit"
+                >
+                  <FaReddit className="h-4 w-4" />
+                </a>
+                <a
+                  href="https://www.threads.com/@renderiq.ai"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
+                  title="Threads"
+                >
+                  <FaThreads className="h-4 w-4" />
+                </a>
+                <a
+                  href="https://www.quora.com/profile/Renderiq"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
+                  title="Quora"
+                >
+                  <FaQuora className="h-4 w-4" />
+                </a>
+                <a
+                  href="https://discord.gg/KADV5pX3"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
                   title="Discord"
                 >
-                  <MessageCircle className="h-4 w-4" />
+                  <FaDiscord className="h-4 w-4" />
                 </a>
               </div>
 
@@ -754,7 +826,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="px-4 border-b shrink-0 h-16 flex items-center">
           <div className="min-w-0 flex-1 overflow-hidden flex items-center gap-3">
             <CurrentPageIcon className="h-5 w-5 text-primary shrink-0" />
-            <h2 className="text-lg font-semibold text-foreground">{currentPageDescription}</h2>
+            <h2 className="text-lg font-semibold text-foreground truncate min-w-0">{currentPageDescription}</h2>
           </div>
         </div>
 

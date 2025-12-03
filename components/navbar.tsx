@@ -15,8 +15,12 @@ import {
   FaLinkedin, 
   FaYoutube, 
   FaInstagram, 
-  FaDiscord 
+  FaDiscord,
+  FaReddit,
+  FaThreads,
+  FaQuora
 } from 'react-icons/fa6';
+import { SiBluesky } from 'react-icons/si';
 import { cn } from '@/lib/utils';
 import {
   Sheet,
@@ -275,60 +279,100 @@ export function Navbar() {
                         <h3 className="text-xs font-semibold text-foreground mb-2">Follow Us</h3>
                         <div className="flex flex-wrap gap-2">
                           <a
-                            href="https://github.com/renderiq"
+                            href="https://bsky.app/profile/renderiq.bsky.social"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-muted-foreground hover:text-primary transition-colors p-1.5"
+                            className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
+                            onClick={() => setIsOpen(false)}
+                            title="Bluesky"
+                          >
+                            <SiBluesky className="h-4 w-4" />
+                          </a>
+                          <a
+                            href="https://x.com/renderiq_ai"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
+                            onClick={() => setIsOpen(false)}
+                            title="X (Twitter)"
+                          >
+                            <FaXTwitter className="h-4 w-4" />
+                          </a>
+                          <a
+                            href="https://github.com/renderiq-ai"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
                             onClick={() => setIsOpen(false)}
                             title="GitHub"
                           >
                             <FaGithub className="h-4 w-4" />
                           </a>
                           <a
-                            href="https://twitter.com/renderiq"
+                            href="https://www.linkedin.com/company/renderiq-ai"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-muted-foreground hover:text-primary transition-colors p-1.5"
-                            onClick={() => setIsOpen(false)}
-                            title="Twitter"
-                          >
-                            <FaXTwitter className="h-4 w-4" />
-                          </a>
-                          <a
-                            href="https://linkedin.com/company/renderiq"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-muted-foreground hover:text-primary transition-colors p-1.5"
+                            className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
                             onClick={() => setIsOpen(false)}
                             title="LinkedIn"
                           >
                             <FaLinkedin className="h-4 w-4" />
                           </a>
                           <a
-                            href="https://youtube.com/@renderiq"
+                            href="https://www.instagram.com/renderiq.ai"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-muted-foreground hover:text-primary transition-colors p-1.5"
-                            onClick={() => setIsOpen(false)}
-                            title="YouTube"
-                          >
-                            <FaYoutube className="h-4 w-4" />
-                          </a>
-                          <a
-                            href="https://instagram.com/renderiq"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-muted-foreground hover:text-primary transition-colors p-1.5"
+                            className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
                             onClick={() => setIsOpen(false)}
                             title="Instagram"
                           >
                             <FaInstagram className="h-4 w-4" />
                           </a>
                           <a
-                            href="https://discord.gg/renderiq"
+                            href="https://www.youtube.com/@Renderiq_ai"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-muted-foreground hover:text-primary transition-colors p-1.5"
+                            className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
+                            onClick={() => setIsOpen(false)}
+                            title="YouTube"
+                          >
+                            <FaYoutube className="h-4 w-4" />
+                          </a>
+                          <a
+                            href="https://www.reddit.com/user/Renderiq-AI/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
+                            onClick={() => setIsOpen(false)}
+                            title="Reddit"
+                          >
+                            <FaReddit className="h-4 w-4" />
+                          </a>
+                          <a
+                            href="https://www.threads.com/@renderiq.ai"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
+                            onClick={() => setIsOpen(false)}
+                            title="Threads"
+                          >
+                            <FaThreads className="h-4 w-4" />
+                          </a>
+                          <a
+                            href="https://www.quora.com/profile/Renderiq"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
+                            onClick={() => setIsOpen(false)}
+                            title="Quora"
+                          >
+                            <FaQuora className="h-4 w-4" />
+                          </a>
+                          <a
+                            href="https://discord.gg/KADV5pX3"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
                             onClick={() => setIsOpen(false)}
                             title="Discord"
                           >

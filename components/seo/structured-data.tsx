@@ -24,9 +24,16 @@ export function StructuredData({ type, data }: StructuredDataProps) {
             "email": "support@renderiq.io"
           },
           "sameAs": [
-            "https://twitter.com/Renderiq",
-            "https://linkedin.com/company/Renderiq",
-            "https://github.com/Renderiq"
+            "https://bsky.app/profile/renderiq.bsky.social",
+            "https://x.com/renderiq_ai",
+            "https://github.com/renderiq-ai",
+            "https://www.linkedin.com/company/renderiq-ai",
+            "https://www.instagram.com/renderiq.ai",
+            "https://www.youtube.com/@Renderiq_ai",
+            "https://www.reddit.com/user/Renderiq-AI/",
+            "https://www.threads.com/@renderiq.ai",
+            "https://www.quora.com/profile/Renderiq",
+            "https://discord.gg/KADV5pX3"
           ],
           "address": {
             "@type": "PostalAddress",

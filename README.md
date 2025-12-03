@@ -257,7 +257,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-For support, email support@renderiq.io or join our Discord community.
+For support, email support@renderiq.io or join our Discord community: https://discord.gg/KADV5pX3
 
 ## Roadmap
 
