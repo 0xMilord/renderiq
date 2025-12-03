@@ -2,28 +2,41 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, MessageSquare, GalleryVertical, User, Settings } from 'lucide-react';
+import { Home, Sparkles, Images, User, Settings, CreditCard, Info, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/lib/hooks/use-auth';
 
-const navItems = [
+const publicNavItems = [
   { href: '/', icon: Home, label: 'Home' },
-  { href: '/render', icon: MessageSquare, label: 'Render' },
-  { href: '/gallery', icon: GalleryVertical, label: 'Gallery' },
+  { href: '/render', icon: Sparkles, label: 'Render' },
+  { href: '/gallery', icon: Images, label: 'Gallery' },
+  { href: '/pricing', icon: CreditCard, label: 'Pricing' },
+  { href: '/about', icon: Info, label: 'About' },
+];
+
+const authenticatedNavItems = [
+  { href: '/', icon: Home, label: 'Home' },
+  { href: '/render', icon: Sparkles, label: 'Render' },
+  { href: '/gallery', icon: Images, label: 'Gallery' },
+  { href: '/dashboard/likes', icon: Heart, label: 'Likes' },
   { href: '/dashboard/profile', icon: User, label: 'Profile' },
-  { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
+  const { user, loading } = useAuth();
 
   // Hide bottom nav on render routes and project/chain routes
   if (pathname.includes('/render') || pathname.startsWith('/project/')) {
     return null;
   }
 
+  // Use conditional nav items based on auth state
+  const navItems = user && !loading ? authenticatedNavItems : publicNavItems;
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border md:hidden z-50">
-      <div className="grid grid-cols-5 h-16">
+      <div className={cn("grid h-16", navItems.length === 5 ? "grid-cols-5" : navItems.length === 6 ? "grid-cols-6" : "grid-cols-4")}>
         {navItems.map((item) => {
           const isActive = pathname === item.href || 
             (item.href !== '/' && pathname.startsWith(item.href));

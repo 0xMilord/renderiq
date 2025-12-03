@@ -12,6 +12,7 @@ import {
   FaThreads,
   FaMastodon
 } from 'react-icons/fa6';
+import { Sparkles, Images, Lightbulb, Newspaper, CreditCard, Info, FileText, Mail } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { PWAInstallButton } from '@/components/pwa/install-button';
 
@@ -86,22 +87,26 @@ export function Footer() {
               <h3 className="font-semibold text-foreground mb-4">Product</h3>
               <ul className="space-y-2">
                 <li>
-                  <Link href="/render" className="text-muted-foreground hover:text-primary transition-colors">
+                  <Link href="/render" className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
+                    <Sparkles className="h-3.5 w-3.5" />
                     Render
                   </Link>
                 </li>
                 <li>
-                  <Link href="/gallery" className="text-muted-foreground hover:text-primary transition-colors">
+                  <Link href="/gallery" className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
+                    <Images className="h-3.5 w-3.5" />
                     Gallery
                   </Link>
                 </li>
                 <li>
-                  <Link href="/use-cases" className="text-muted-foreground hover:text-primary transition-colors">
+                  <Link href="/use-cases" className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
+                    <Lightbulb className="h-3.5 w-3.5" />
                     Use Cases
                   </Link>
                 </li>
                 <li>
-                  <Link href="/blog" className="text-muted-foreground hover:text-primary transition-colors">
+                  <Link href="/blog" className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
+                    <Newspaper className="h-3.5 w-3.5" />
                     Blog
                   </Link>
                 </li>
@@ -113,28 +118,27 @@ export function Footer() {
               <h3 className="font-semibold text-foreground mb-4">Company</h3>
               <ul className="space-y-2">
                 <li>
-                  <Link href="/about" className="text-muted-foreground hover:text-primary transition-colors">
+                  <Link href="/about" className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
+                    <Info className="h-3.5 w-3.5" />
                     About
                   </Link>
                 </li>
                 <li>
-                  <Link href="/pricing" className="text-muted-foreground hover:text-primary transition-colors">
+                  <Link href="/pricing" className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
+                    <CreditCard className="h-3.5 w-3.5" />
                     Pricing
                   </Link>
                 </li>
                 <li>
-                  <Link href="/docs" className="text-muted-foreground hover:text-primary transition-colors">
+                  <Link href="/docs" className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
+                    <FileText className="h-3.5 w-3.5" />
                     Docs
                   </Link>
                 </li>
                 <li>
-                  <Link href="/contact" className="text-muted-foreground hover:text-primary transition-colors">
+                  <Link href="/contact" className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
+                    <Mail className="h-3.5 w-3.5" />
                     Contact
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/privacy" className="text-muted-foreground hover:text-primary transition-colors">
-                    Privacy Policy
                   </Link>
                 </li>
               </ul>

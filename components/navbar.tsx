@@ -8,9 +8,25 @@ import { UserDropdown } from '@/components/user-dropdown';
 import { NavbarSelectors } from '@/components/navbar-selectors';
 import { AlphaBanner } from '@/components/alpha-banner';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Menu, X, Home, MessageSquare, GalleryVertical, BookOpen, Lightbulb, CreditCard, Info, FileText, Mail, Newspaper } from 'lucide-react';
+import { Menu, X, Home, Sparkles, Images, Lightbulb, CreditCard, Info, FileText, Mail, Newspaper } from 'lucide-react';
+import { 
+  FaGithub, 
+  FaXTwitter, 
+  FaLinkedin, 
+  FaYoutube, 
+  FaInstagram, 
+  FaDiscord 
+} from 'react-icons/fa6';
 import { cn } from '@/lib/utils';
 import { PWAInstallButton } from '@/components/pwa/install-button';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -54,7 +70,7 @@ export function Navbar() {
                   href="/render"
                   className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
                 >
-                  <MessageSquare className="h-4 w-4" />
+                  <Sparkles className="h-4 w-4" />
                   <span>Render</span>
                 </Link>
                 <Link
@@ -68,7 +84,7 @@ export function Navbar() {
                   href="/gallery"
                   className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors"
                 >
-                  <GalleryVertical className="h-4 w-4" />
+                  <Images className="h-4 w-4" />
                   <span>Gallery</span>
                 </Link>
                 <Link
@@ -137,99 +153,218 @@ export function Navbar() {
                 )}
                 
                 {/* Hamburger Menu Button - Show on desktop when authenticated, always on mobile */}
-                <button
-                  onClick={() => setIsOpen(!isOpen)}
-                  className={cn(
-                    "text-muted-foreground hover:text-primary focus:outline-none focus:text-primary",
-                    user ? "" : "md:hidden" // Hide on desktop when not authenticated
-                  )}
-                >
-                  {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-                </button>
+                <Sheet open={isOpen} onOpenChange={setIsOpen}>
+                  <SheetTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        "h-8 w-8 p-0 text-muted-foreground hover:text-primary",
+                        user ? "" : "md:hidden" // Hide on desktop when not authenticated
+                      )}
+                    >
+                      <Menu className="h-4 w-4" />
+                      <span className="sr-only">Toggle menu</span>
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent 
+                    side="right" 
+                    className="w-[280px] sm:w-[300px] p-0"
+                    onOpenAutoFocus={(e) => e.preventDefault()}
+                  >
+                    <div className="h-full flex flex-col">
+                      <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
+                        <SheetTitle>Menu</SheetTitle>
+                      </SheetHeader>
+                      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-1">
+                        <Link
+                          href="/"
+                          className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium transition-colors"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <Home className="h-4 w-4" />
+                          <span>Home</span>
+                        </Link>
+                        <Link
+                          href="/render"
+                          className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium transition-colors"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <Sparkles className="h-4 w-4" />
+                          <span>Render</span>
+                        </Link>
+                        <Link
+                          href="/use-cases"
+                          className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium transition-colors"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <Lightbulb className="h-4 w-4" />
+                          <span>Use Cases</span>
+                        </Link>
+                        <Link
+                          href="/gallery"
+                          className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium transition-colors"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <Images className="h-4 w-4" />
+                          <span>Gallery</span>
+                        </Link>
+                        <Link
+                          href="/pricing"
+                          className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium transition-colors"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <CreditCard className="h-4 w-4" />
+                          <span>Pricing</span>
+                        </Link>
+                        <Link
+                          href="/about"
+                          className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium transition-colors"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <Info className="h-4 w-4" />
+                          <span>About</span>
+                        </Link>
+                        <Link
+                          href="/blog"
+                          className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium transition-colors"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <Newspaper className="h-4 w-4" />
+                          <span>Blog</span>
+                        </Link>
+                        <Link
+                          href="/docs"
+                          className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium transition-colors"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <FileText className="h-4 w-4" />
+                          <span>Docs</span>
+                        </Link>
+                        <Link
+                          href="/contact"
+                          className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium transition-colors"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <Mail className="h-4 w-4" />
+                          <span>Contact</span>
+                        </Link>
+                      </div>
+                      
+                      {/* Social Links */}
+                      <div className="px-6 py-4 border-t shrink-0">
+                        <h3 className="text-xs font-semibold text-foreground mb-2">Follow Us</h3>
+                        <div className="flex flex-wrap gap-2">
+                          <a
+                            href="https://github.com/renderiq"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground hover:text-primary transition-colors p-1.5"
+                            onClick={() => setIsOpen(false)}
+                            title="GitHub"
+                          >
+                            <FaGithub className="h-4 w-4" />
+                          </a>
+                          <a
+                            href="https://twitter.com/renderiq"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground hover:text-primary transition-colors p-1.5"
+                            onClick={() => setIsOpen(false)}
+                            title="Twitter"
+                          >
+                            <FaXTwitter className="h-4 w-4" />
+                          </a>
+                          <a
+                            href="https://linkedin.com/company/renderiq"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground hover:text-primary transition-colors p-1.5"
+                            onClick={() => setIsOpen(false)}
+                            title="LinkedIn"
+                          >
+                            <FaLinkedin className="h-4 w-4" />
+                          </a>
+                          <a
+                            href="https://youtube.com/@renderiq"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground hover:text-primary transition-colors p-1.5"
+                            onClick={() => setIsOpen(false)}
+                            title="YouTube"
+                          >
+                            <FaYoutube className="h-4 w-4" />
+                          </a>
+                          <a
+                            href="https://instagram.com/renderiq"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground hover:text-primary transition-colors p-1.5"
+                            onClick={() => setIsOpen(false)}
+                            title="Instagram"
+                          >
+                            <FaInstagram className="h-4 w-4" />
+                          </a>
+                          <a
+                            href="https://discord.gg/renderiq"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground hover:text-primary transition-colors p-1.5"
+                            onClick={() => setIsOpen(false)}
+                            title="Discord"
+                          >
+                            <FaDiscord className="h-4 w-4" />
+                          </a>
+                        </div>
+                      </div>
+                      
+                      {/* Legal Links */}
+                      <div className="px-6 py-3 border-t shrink-0">
+                        <div className="flex flex-wrap gap-x-3 gap-y-1">
+                          <Link
+                            href="/terms"
+                            className="text-muted-foreground hover:text-primary text-[10px] transition-colors"
+                            onClick={() => setIsOpen(false)}
+                          >
+                            Terms
+                          </Link>
+                          <Link
+                            href="/privacy"
+                            className="text-muted-foreground hover:text-primary text-[10px] transition-colors"
+                            onClick={() => setIsOpen(false)}
+                          >
+                            Privacy
+                          </Link>
+                          <Link
+                            href="/refund"
+                            className="text-muted-foreground hover:text-primary text-[10px] transition-colors"
+                            onClick={() => setIsOpen(false)}
+                          >
+                            Refund
+                          </Link>
+                          <Link
+                            href="/cookies"
+                            className="text-muted-foreground hover:text-primary text-[10px] transition-colors"
+                            onClick={() => setIsOpen(false)}
+                          >
+                            Cookies
+                          </Link>
+                          <Link
+                            href="/dpa"
+                            className="text-muted-foreground hover:text-primary text-[10px] transition-colors"
+                            onClick={() => setIsOpen(false)}
+                          >
+                            DPA
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </SheetContent>
+                </Sheet>
               </>
             )}
           </div>
         </div>
-
-        {/* Hamburger Menu Navigation - Show when authenticated (desktop + mobile) or when not authenticated (mobile only) */}
-        {isOpen && (
-          <div className={user ? "" : "md:hidden"}>
-            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t">
-              <Link
-                href="/"
-                className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium"
-                onClick={() => setIsOpen(false)}
-              >
-                <Home className="h-4 w-4" />
-                <span>Home</span>
-              </Link>
-              <Link
-                href="/render"
-                className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium"
-                onClick={() => setIsOpen(false)}
-              >
-                <MessageSquare className="h-4 w-4" />
-                <span>Render</span>
-              </Link>
-              <Link
-                href="/use-cases"
-                className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium"
-                onClick={() => setIsOpen(false)}
-              >
-                <Lightbulb className="h-4 w-4" />
-                <span>Use Cases</span>
-              </Link>
-              <Link
-                href="/gallery"
-                className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium"
-                onClick={() => setIsOpen(false)}
-              >
-                <GalleryVertical className="h-4 w-4" />
-                <span>Gallery</span>
-              </Link>
-              <Link
-                href="/pricing"
-                className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium"
-                onClick={() => setIsOpen(false)}
-              >
-                <CreditCard className="h-4 w-4" />
-                <span>Pricing</span>
-              </Link>
-              <Link
-                href="/about"
-                className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium"
-                onClick={() => setIsOpen(false)}
-              >
-                <Info className="h-4 w-4" />
-                <span>About</span>
-              </Link>
-              <Link
-                href="/blog"
-                className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium"
-                onClick={() => setIsOpen(false)}
-              >
-                <Newspaper className="h-4 w-4" />
-                <span>Blog</span>
-              </Link>
-              <Link
-                href="/docs"
-                className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium"
-                onClick={() => setIsOpen(false)}
-              >
-                <FileText className="h-4 w-4" />
-                <span>Docs</span>
-              </Link>
-              <Link
-                href="/contact"
-                className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium"
-                onClick={() => setIsOpen(false)}
-              >
-                <Mail className="h-4 w-4" />
-                <span>Contact</span>
-              </Link>
-            </div>
-          </div>
-        )}
       </div>
       </nav>
     </>

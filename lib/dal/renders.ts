@@ -492,6 +492,55 @@ export class RendersDAL {
     }
   }
 
+  /**
+   * Get all gallery items liked by a user
+   */
+  static async getUserLikedItems(userId: string, limit = 100, offset = 0) {
+    logger.log('❤️ Fetching liked gallery items for user:', { userId, limit, offset });
+    
+    const items = await db
+      .select({
+        id: galleryItems.id,
+        renderId: galleryItems.renderId,
+        userId: galleryItems.userId,
+        isPublic: galleryItems.isPublic,
+        likes: galleryItems.likes,
+        views: galleryItems.views,
+        createdAt: galleryItems.createdAt,
+        render: {
+          id: renders.id,
+          type: renders.type,
+          prompt: renders.prompt,
+          settings: renders.settings,
+          outputUrl: renders.outputUrl,
+          status: renders.status,
+          processingTime: renders.processingTime,
+          uploadedImageUrl: renders.uploadedImageUrl,
+          uploadedImageKey: renders.uploadedImageKey,
+          uploadedImageId: renders.uploadedImageId,
+          projectId: renders.projectId,
+          chainId: renders.chainId,
+          createdAt: renders.createdAt,
+        },
+        user: {
+          id: users.id,
+          name: users.name,
+          avatar: users.avatar,
+        },
+      })
+      .from(userLikes)
+      .innerJoin(galleryItems, eq(userLikes.galleryItemId, galleryItems.id))
+      .innerJoin(renders, eq(galleryItems.renderId, renders.id))
+      .innerJoin(users, eq(galleryItems.userId, users.id))
+      .where(eq(userLikes.userId, userId))
+      .orderBy(desc(userLikes.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    logger.log(`✅ Found ${items.length} liked gallery items`);
+    return items;
+  }
+
   static async getGalleryItemById(itemId: string) {
     logger.log('🔍 Fetching gallery item by ID:', itemId);
     
