@@ -3,6 +3,25 @@ import { createClient } from '@/lib/supabase/server';
 import { RazorpayService } from '@/lib/services/razorpay.service';
 import { BillingDAL } from '@/lib/dal/billing';
 import { logger } from '@/lib/utils/logger';
+import { db } from '@/lib/db';
+import { userSubscriptions } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
+
+// Helper to get Razorpay instance (same as RazorpayService)
+function getRazorpayInstance() {
+  const Razorpay = require('razorpay');
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  
+  if (!keyId || !keySecret) {
+    throw new Error('Razorpay credentials are not configured');
+  }
+  
+  return new Razorpay({
+    key_id: keyId,
+    key_secret: keySecret,
+  });
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,6 +40,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { planId, upgrade = false } = body;
 
+    logger.log('📥 API: Received subscription request:', {
+      planId,
+      upgrade,
+      userId: user.id,
+    });
+
     if (!planId) {
       return NextResponse.json(
         { success: false, error: 'Plan ID is required' },
@@ -34,19 +59,29 @@ export async function POST(request: NextRequest) {
     if (existingSubscription) {
       const isActive = existingSubscription.subscription.status === 'active';
       const isPending = existingSubscription.subscription.status === 'pending';
+      const isDifferentPlan = existingSubscription.subscription.planId !== planId;
+      
+      logger.log('🔍 API: Existing subscription check:', {
+        isActive,
+        isPending,
+        isDifferentPlan,
+        existingPlanId: existingSubscription.subscription.planId,
+        newPlanId: planId,
+        upgrade,
+      });
       
       // If user already has active subscription and not upgrading
-      if (isActive && !upgrade) {
-        logger.warn('⚠️ API: User already has active subscription:', {
+      if (isActive && !upgrade && !isDifferentPlan) {
+        // Only block if it's the same plan
+        logger.warn('⚠️ API: User trying to subscribe to same plan:', {
           userId: user.id,
-          existingPlanId: existingSubscription.subscription.planId,
-          newPlanId: planId,
+          planId,
         });
         
         return NextResponse.json(
           { 
             success: false, 
-            error: 'You already have an active subscription. Please cancel your current subscription or upgrade to a different plan.',
+            error: 'You are already subscribed to this plan.',
             hasExistingSubscription: true,
             existingSubscription: {
               planId: existingSubscription.subscription.planId,
@@ -58,7 +93,13 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      // If user has pending subscription, don't allow new one
+      // If user has active subscription and selecting different plan, treat as upgrade/downgrade
+      if (isActive && isDifferentPlan && !upgrade) {
+        logger.log('🔄 API: Detected plan change but upgrade flag not set, treating as upgrade');
+        // Continue to upgrade logic below
+      }
+      
+      // If user has pending subscription, don't allow new one (unless upgrading)
       if (isPending && !upgrade) {
         logger.warn('⚠️ API: User has pending subscription:', {
           userId: user.id,
@@ -80,24 +121,63 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      // If upgrading, cancel old subscription first
-      if (upgrade && isActive) {
-        logger.log('🔄 API: Upgrading subscription - cancelling old one');
-        // TODO: Implement proper upgrade logic (cancel old, create new, handle prorating)
-        // For now, return error asking user to cancel first
+      // If user has active subscription and selecting different plan, treat as upgrade/downgrade
+      // Auto-detect upgrade if upgrade flag is not set but plan is different
+      const shouldUpgrade = upgrade || (isActive && isDifferentPlan);
+      
+      // If user already has active subscription and selecting same plan, block it
+      if (isActive && !isDifferentPlan && !upgrade) {
+        logger.warn('⚠️ API: User trying to subscribe to same plan:', {
+          userId: user.id,
+          planId,
+        });
+        
         return NextResponse.json(
           { 
             success: false, 
-            error: 'Subscription upgrades are not yet supported. Please cancel your current subscription first, then subscribe to the new plan.',
-            requiresCancellation: true,
+            error: 'You are already subscribed to this plan.',
+            hasExistingSubscription: true,
             existingSubscription: {
               planId: existingSubscription.subscription.planId,
               planName: existingSubscription.plan?.name,
-              razorpaySubscriptionId: existingSubscription.subscription.razorpaySubscriptionId,
+              status: existingSubscription.subscription.status,
             },
           },
           { status: 400 }
         );
+      }
+      
+      // If upgrading/downgrading (or auto-detected plan change), cancel old subscription first
+      if (shouldUpgrade && isActive) {
+        logger.log('🔄 API: Upgrading/downgrading subscription - cancelling old one');
+        
+        // Cancel old subscription in Razorpay
+        if (existingSubscription.subscription.razorpaySubscriptionId) {
+          try {
+            const razorpay = getRazorpayInstance();
+              
+            // Cancel the old subscription in Razorpay
+            await razorpay.subscriptions.cancel(existingSubscription.subscription.razorpaySubscriptionId);
+            logger.log('✅ API: Old subscription cancelled in Razorpay');
+          } catch (error: any) {
+            logger.warn('⚠️ API: Could not cancel old subscription in Razorpay (may already be cancelled):', error.message);
+            // Continue with upgrade even if cancellation fails
+          }
+        }
+        
+        // Mark old subscription as canceled in database
+        await db
+          .update(userSubscriptions)
+          .set({
+            status: 'canceled',
+            cancelAtPeriodEnd: false,
+            canceledAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(userSubscriptions.id, existingSubscription.subscription.id));
+        
+        logger.log('✅ API: Old subscription marked as canceled in database');
+        // Continue to create new subscription below
       }
     }
 

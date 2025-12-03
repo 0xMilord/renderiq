@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Check, Zap, Crown, Building2, Mail, ExternalLink, AlertCircle } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
 import { useCurrency } from '@/lib/hooks/use-currency';
@@ -35,6 +35,7 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
   const isDarkMode = resolvedTheme === 'dark' || theme === 'dark';
   const { currency, currencyInfo, exchangeRate, format, convert, loading: currencyLoading } = useCurrency();
   const [convertedPrices, setConvertedPrices] = useState<Record<string, number>>({});
+  const razorpayInstanceRef = useRef<any>(null); // Prevent duplicate instances
   
   // Use simplified shared Razorpay SDK loader
   const { isLoaded: razorpayLoaded, isLoading: razorpayLoading, Razorpay } = useRazorpaySDK();
@@ -55,23 +56,64 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
     setConvertedPrices(converted);
   }, [currency, exchangeRate, plans, currencyLoading]);
 
-  const filteredPlans = plans.filter((plan) => {
-    // Filter by billing interval
-    const matchesInterval = billingInterval === 'year' ? plan.interval === 'year' : plan.interval === 'month';
-    // Exclude free plans
-    const isNotFree = plan.name?.toLowerCase() !== 'free' && parseFloat(plan.price) > 0;
-    return matchesInterval && isNotFree;
-  });
+  const filteredPlans = plans
+    .filter((plan) => {
+      // Filter by billing interval
+      const matchesInterval = billingInterval === 'year' ? plan.interval === 'year' : plan.interval === 'month';
+      
+      // Exclude free plans - check both name and price
+      const planName = (plan.name || '').toLowerCase().trim();
+      const planPrice = parseFloat(plan.price || '0');
+      const isNotFree = planName !== 'free' && planPrice > 0;
+      
+      return matchesInterval && isNotFree;
+    })
+    .sort((a, b) => {
+      // Sort by price ascending (Starter, Pro, Enterprise)
+      const priceA = parseFloat(a.price || '0');
+      const priceB = parseFloat(b.price || '0');
+      return priceA - priceB;
+    });
 
   const handleSubscribe = async (planId: string) => {
     try {
       setLoading(planId);
       
-      // Create subscription via API
+      // Determine if this is a plan change (upgrade/downgrade)
+      // If user has active subscription and is selecting a different plan, it's a plan change
+      const hasActiveSubscription = userSubscription?.subscription?.status === 'active';
+      const isDifferentPlan = userSubscription?.subscription?.planId !== planId;
+      const isPlanChange = hasActiveSubscription && isDifferentPlan; // Any plan change (upgrade or downgrade)
+      
+      // Get plan details for logging
+      const newPlan = plans.find(p => p.id === planId);
+      const currentPlanPrice = parseFloat(userSubscription?.plan?.price || '0');
+      const newPlanPrice = parseFloat(newPlan?.price || '0');
+      const isUpgrade = isPlanChange && newPlanPrice > currentPlanPrice;
+      const isDowngrade = isPlanChange && newPlanPrice < currentPlanPrice;
+      
+      logger.log('🔄 Plan change detection:', {
+        hasActiveSubscription,
+        isDifferentPlan,
+        currentPlanId: userSubscription?.subscription?.planId,
+        newPlanId: planId,
+        currentPlanName: userSubscription?.plan?.name,
+        newPlanName: newPlan?.name,
+        currentPlanPrice,
+        newPlanPrice,
+        isUpgrade,
+        isDowngrade,
+        isPlanChange,
+      });
+      
+      // Create subscription via API (pass upgrade flag for any plan change)
       const response = await fetch('/api/payments/create-subscription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planId }),
+        body: JSON.stringify({ 
+          planId,
+          upgrade: isPlanChange, // Pass upgrade flag for any plan change (upgrade or downgrade)
+        }),
       });
 
       const result = await response.json();
@@ -213,12 +255,25 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
         },
       };
 
+      // CRITICAL: Prevent duplicate Razorpay instances
+      // Close any existing instance before creating a new one
+      if (razorpayInstanceRef.current) {
+        try {
+          razorpayInstanceRef.current.close();
+        } catch (e) {
+          // Ignore errors when closing
+        }
+        razorpayInstanceRef.current = null;
+      }
+
       const razorpayInstance = new Razorpay(options);
+      razorpayInstanceRef.current = razorpayInstance; // Store reference
       
       // CRITICAL: Add payment failure handler to prevent users being marked pro on failure
       razorpayInstance.on('payment.failed', async (response: any) => {
         console.error('Payment failed:', response);
         setLoading(null);
+        razorpayInstanceRef.current = null; // Clear reference
         const errorDescription = response.error?.description || 'Unknown error';
         
         // IMPORTANT: Cancel/delete the pending subscription to prevent user being marked pro
@@ -243,7 +298,53 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
         window.location.href = `/payment/failure?razorpay_subscription_id=${result.data.subscriptionId}&error_description=${encodeURIComponent(errorDescription)}`;
       });
 
+      // Open Razorpay checkout (only once)
       razorpayInstance.open();
+      
+      // Apply styling to Razorpay modal after it opens
+      setTimeout(() => {
+        const styleRazorpayModal = () => {
+          // Find Razorpay's modal overlay
+          const overlays = Array.from(document.querySelectorAll('div[style*="position: fixed"]'))
+            .filter((el: any) => {
+              const style = window.getComputedStyle(el);
+              const zIndex = parseInt(style.zIndex || '0');
+              return zIndex > 1000 && el.querySelector('iframe');
+            });
+          
+          overlays.forEach((overlay: any) => {
+            // Style overlay
+            overlay.style.backdropFilter = 'blur(8px)';
+            overlay.style.backgroundColor = isDarkMode ? 'rgba(0, 0, 0, 0.85)' : 'rgba(0, 0, 0, 0.5)';
+            
+            // Style modal container
+            const modalContainer = overlay.querySelector('div');
+            if (modalContainer) {
+              modalContainer.style.backgroundColor = isDarkMode ? 'hsl(0 0% 7%)' : 'hsl(0 0% 100%)';
+              modalContainer.style.borderRadius = '12px';
+              modalContainer.style.maxWidth = '90vw';
+              modalContainer.style.maxHeight = '90vh';
+              modalContainer.style.width = '90vw';
+              modalContainer.style.height = '90vh';
+            }
+            
+            // Style iframe
+            const iframe = overlay.querySelector('iframe');
+            if (iframe) {
+              iframe.style.borderRadius = '12px';
+              iframe.style.width = '100%';
+              iframe.style.height = '100%';
+              // Fix font issues - ensure proper font rendering
+              iframe.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+            }
+          });
+        };
+        
+        styleRazorpayModal();
+        // Re-apply styles periodically in case modal is re-rendered
+        const styleInterval = setInterval(styleRazorpayModal, 500);
+        setTimeout(() => clearInterval(styleInterval), 10000); // Stop after 10 seconds
+      }, 300);
     } catch (error: any) {
       console.error('Error creating subscription:', error);
       toast.error(error.message || 'Failed to create subscription');
@@ -450,6 +551,47 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
           );
         })}
       </div>
+
+      {/* Razorpay Modal Styling */}
+      {typeof window !== 'undefined' && (
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+              /* Style Razorpay modal overlay - target high z-index fixed elements with iframe */
+              body > div[style*="position: fixed"]:has(iframe) {
+                backdrop-filter: blur(8px) !important;
+                background-color: ${isDarkMode ? 'rgba(0, 0, 0, 0.85)' : 'rgba(0, 0, 0, 0.5)'} !important;
+              }
+              
+              /* Make Razorpay modal container theme-aware and sized to 90vw x 90vh */
+              body > div[style*="position: fixed"]:has(iframe) > div {
+                background-color: ${isDarkMode ? 'hsl(0 0% 7%)' : 'hsl(0 0% 100%)'} !important;
+                border-radius: 12px !important;
+                box-shadow: ${isDarkMode 
+                  ? '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.2)' 
+                  : '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'} !important;
+                max-width: 90vw !important;
+                max-height: 90vh !important;
+                width: 90vw !important;
+                height: 90vh !important;
+              }
+              
+              /* Style Razorpay iframe container - fix font and width issues */
+              body > div[style*="position: fixed"]:has(iframe) iframe {
+                border-radius: 12px !important;
+                width: 100% !important;
+                height: 100% !important;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+              }
+              
+              /* Fix Razorpay iframe content font rendering */
+              body > div[style*="position: fixed"]:has(iframe) iframe * {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+              }
+            `,
+          }}
+        />
+      )}
 
       {/* Error Dialog for Subscriptions Not Enabled */}
       <Dialog open={errorDialog.open} onOpenChange={(open) => setErrorDialog({ ...errorDialog, open })}>

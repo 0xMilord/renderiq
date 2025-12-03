@@ -108,17 +108,21 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live https://checkout.razorpay.com https://*.razorpay.com https://razorpay.com", // Razorpay checkout script (explicit + wildcard for compatibility)
+              // Razorpay: Completely permissive - allow all HTTPS scripts (CSP removed for Razorpay compatibility)
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https: blob: https://api.dicebear.com",
-              "media-src 'self' https: blob: data:", // Allow video/audio from any HTTPS source (Supabase storage, etc.)
+              "media-src 'self' https: blob: data:",
               "font-src 'self' data:",
-              "connect-src 'self' https://*.supabase.co https://*.googleapis.com https://*.googleusercontent.com https://api.dicebear.com https://vercel.live https://*.razorpay.com https://api.razorpay.com wss://*.supabase.co", // Razorpay API (allow all subdomains)
-              "frame-src 'self' https://checkout.razorpay.com https://razorpay.com https://*.razorpay.com", // Razorpay checkout modal (allow all Razorpay subdomains)
-              "child-src 'self' https://checkout.razorpay.com https://razorpay.com https://*.razorpay.com", // Razorpay checkout modal (alternative)
+              // Razorpay: Allow all HTTPS connections (CSP removed for Razorpay compatibility)
+              "connect-src 'self' https: wss:",
+              // Razorpay: Allow all HTTPS frames (CSP removed for Razorpay compatibility)
+              "frame-src 'self' https:",
+              "child-src 'self' https:",
               "object-src 'none'",
               "base-uri 'self'",
-              "form-action 'self' https://checkout.razorpay.com https://razorpay.com https://*.razorpay.com", // Allow form submissions to Razorpay
+              // Razorpay: Allow form submissions to any HTTPS (CSP removed for Razorpay compatibility)
+              "form-action 'self' https:",
               "frame-ancestors 'none'",
               "upgrade-insecure-requests",
             ].join('; '),
