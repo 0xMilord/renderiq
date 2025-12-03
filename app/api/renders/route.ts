@@ -169,13 +169,13 @@ export async function POST(request: NextRequest) {
 
     // Calculate credits cost FIRST
     // For videos: Based on Google Veo 3.1 pricing ($0.75/second) with 2x markup
-    // 1 credit = 5 INR, 1 USD ≈ 83 INR
-    // Cost per second: $0.75 × 2 (markup) × 83 (INR/USD) / 5 (INR/credit) = 24.9 credits/second (round to 25)
+    // 1 credit = 5 INR, 1 USD = 100 INR (updated conversion rate)
+    // Cost per second: $0.75 × 2 (markup) × 100 (INR/USD) / 5 (INR/credit) = 30 credits/second
     if (type === 'video') {
       // Veo 3.1 pricing: $0.75/second, with 2x markup = $1.50/second
-      // In INR: $1.50 × 83 = 124.5 INR/second
-      // At 5 INR/credit: 124.5 / 5 = 24.9 credits/second (round to 25)
-      const creditsPerSecond = 25;
+      // In INR: $1.50 × 100 = 150 INR/second
+      // At 5 INR/credit: 150 / 5 = 30 credits/second
+      const creditsPerSecond = 30;
       creditsCost = creditsPerSecond * videoDuration;
       logger.log('💰 Video credits cost calculation:', {
         duration: videoDuration,
@@ -184,8 +184,8 @@ export async function POST(request: NextRequest) {
       });
     } else {
       // Image generation: Based on Google Gemini 3 Pro Image Preview pricing ($0.134/image) with 2x markup
-      // 1 credit = 5 INR, 1 USD ≈ 83 INR
-      // Base cost: $0.134 × 2 (markup) × 83 (INR/USD) / 5 (INR/credit) = 4.45 credits/image (round to 5)
+      // 1 credit = 5 INR, 1 USD = 100 INR (updated conversion rate)
+      // Base cost: $0.134 × 2 (markup) × 100 (INR/USD) / 5 (INR/credit) = 5.36 credits/image (round to 5)
       const baseCreditsPerImage = 5;
       const qualityMultiplier = quality === 'high' ? 2 : quality === 'ultra' ? 3 : 1;
       creditsCost = baseCreditsPerImage * qualityMultiplier;

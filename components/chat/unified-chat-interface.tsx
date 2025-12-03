@@ -630,12 +630,13 @@ export function UnifiedChatInterface({
 
   const getCreditsCost = () => {
     // Calculate credits cost based on type and quality
+    // Updated conversion rate: 1 USD = 100 INR
     if (isVideoMode) {
-      // Video: 25 credits per second (2x markup)
-      const creditsPerSecond = 25;
+      // Video: 30 credits per second (2x markup, 100 INR/USD conversion)
+      const creditsPerSecond = 30;
       return creditsPerSecond * videoDuration;
     } else {
-      // Image: 5 credits base, multiplied by quality (2x markup)
+      // Image: 5 credits base, multiplied by quality (2x markup, 100 INR/USD conversion)
       const baseCreditsPerImage = 5;
       const qualityMultiplier = quality === 'high' ? 2 : quality === 'ultra' ? 3 : 1;
       return baseCreditsPerImage * qualityMultiplier;
@@ -2253,8 +2254,8 @@ export function UnifiedChatInterface({
                               <TooltipContent side="top" className="max-w-xs">
                                 <div className="space-y-1">
                                   <p className="font-medium">Video Quality</p>
-                                  <p className="text-xs">25 credits/second</p>
-                                  <p className="text-xs">4s: 100 | 6s: 150 | 8s: 200 credits</p>
+                                  <p className="text-xs">30 credits/second</p>
+                                  <p className="text-xs">4s: 120 | 5s: 150 | 8s: 240 credits</p>
                                   <p className="text-xs mt-2 pt-2 border-t">
                                     Current cost: {getCreditsCostText()} ({videoDuration}s)
                                   </p>

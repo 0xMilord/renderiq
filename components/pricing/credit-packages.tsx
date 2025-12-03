@@ -280,90 +280,98 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {packages.map((pkg) => {
-          const totalCredits = pkg.credits + (pkg.bonusCredits || 0);
-          const pricePerCredit = parseFloat(pkg.price) / totalCredits;
+      {/* Sort packages by display_order */}
+      {(() => {
+        const sortedPackages = [...packages].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+        
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+            {sortedPackages.map((pkg) => {
+              const totalCredits = pkg.credits + (pkg.bonusCredits || 0);
+              const pricePerCredit = parseFloat(pkg.price) / totalCredits;
+              const isSmallPackage = pkg.credits <= 50;
 
-          return (
-            <Card key={pkg.id} className={`relative ${pkg.isPopular ? 'ring-2 ring-primary' : ''}`}>
-              {pkg.isPopular && (
-                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                  <Badge className="bg-primary text-primary-foreground">
-                    Most Popular
-                  </Badge>
-                </div>
-              )}
-
-              <CardHeader className="text-center pb-4">
-                <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center mx-auto mb-4">
-                  {pkg.bonusCredits > 0 ? (
-                    <Sparkles className="h-6 w-6 text-primary" />
-                  ) : (
-                    <Coins className="h-6 w-6 text-muted-foreground" />
+              return (
+                <Card key={pkg.id} className={`relative flex flex-col ${pkg.isPopular ? 'ring-2 ring-primary' : ''} ${isSmallPackage ? 'h-full' : ''}`}>
+                  {pkg.isPopular && (
+                    <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-10">
+                      <Badge className="bg-primary text-primary-foreground text-xs px-2 py-0.5">
+                        Popular
+                      </Badge>
+                    </div>
                   )}
-                </div>
-                <CardTitle className="text-xl">{pkg.name}</CardTitle>
-                {pkg.description && (
-                  <CardDescription className="text-sm">{pkg.description}</CardDescription>
-                )}
-              </CardHeader>
 
-              <CardContent className="space-y-6">
-                {/* Credits */}
-                <div className="text-center p-4 bg-muted rounded-lg">
-                  <div className="text-3xl font-bold text-foreground">
-                    {totalCredits.toLocaleString()}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    {pkg.credits.toLocaleString()} credits
-                    {pkg.bonusCredits > 0 && (
-                      <span className="text-primary"> + {pkg.bonusCredits} bonus</span>
+                  <CardHeader className="text-center pb-2 pt-4 px-3">
+                    <div className={`${isSmallPackage ? 'w-8 h-8' : 'w-10 h-10'} bg-muted rounded-lg flex items-center justify-center mx-auto mb-2`}>
+                      {pkg.bonusCredits > 0 ? (
+                        <Sparkles className={`${isSmallPackage ? 'h-4 w-4' : 'h-5 w-5'} text-primary`} />
+                      ) : (
+                        <Coins className={`${isSmallPackage ? 'h-4 w-4' : 'h-5 w-5'} text-muted-foreground`} />
+                      )}
+                    </div>
+                    <CardTitle className={`${isSmallPackage ? 'text-sm' : 'text-base'} font-semibold leading-tight`}>{pkg.name}</CardTitle>
+                    {pkg.description && !isSmallPackage && (
+                      <CardDescription className="text-xs mt-1 line-clamp-2">{pkg.description}</CardDescription>
                     )}
-                  </div>
-                </div>
+                  </CardHeader>
 
-                {/* Pricing */}
-                <div className="text-center">
-                  <div className="flex items-baseline justify-center">
-                    <span className="text-4xl font-bold text-foreground">
-                      ₹{parseFloat(pkg.price).toLocaleString()}
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    ₹{pricePerCredit.toFixed(2)} per credit
-                  </p>
-                </div>
+                  <CardContent className="space-y-3 px-3 pb-3 flex-1 flex flex-col">
+                    {/* Credits */}
+                    <div className={`text-center ${isSmallPackage ? 'p-2' : 'p-3'} bg-muted rounded-lg`}>
+                      <div className={`${isSmallPackage ? 'text-2xl' : 'text-3xl'} font-bold text-foreground`}>
+                        {totalCredits.toLocaleString()}
+                      </div>
+                      <div className={`${isSmallPackage ? 'text-xs' : 'text-sm'} text-muted-foreground mt-0.5`}>
+                        {pkg.credits.toLocaleString()} credits
+                        {pkg.bonusCredits > 0 && (
+                          <span className="text-primary"> +{pkg.bonusCredits}</span>
+                        )}
+                      </div>
+                    </div>
 
-                {/* Value proposition */}
-                {pkg.bonusCredits > 0 && (
-                  <div className="bg-primary/10 rounded-lg p-3 text-center">
-                    <p className="text-sm font-medium text-primary">
-                      Get {pkg.bonusCredits} bonus credits!
-                    </p>
-                  </div>
-                )}
+                    {/* Pricing */}
+                    <div className="text-center">
+                      <div className="flex items-baseline justify-center">
+                        <span className={`${isSmallPackage ? 'text-2xl' : 'text-3xl'} font-bold text-foreground`}>
+                          ₹{parseFloat(pkg.price).toLocaleString()}
+                        </span>
+                      </div>
+                      <p className={`${isSmallPackage ? 'text-xs' : 'text-sm'} text-muted-foreground mt-0.5`}>
+                        ₹{pricePerCredit.toFixed(2)}/credit
+                      </p>
+                    </div>
 
-                {/* CTA Button */}
-                <Button
-                  className="w-full"
-                  onClick={() => handlePurchase(pkg.id, pkg)}
-                  disabled={loading === pkg.id || !razorpayLoaded}
-                >
-                  {loading === pkg.id ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    'Purchase Credits'
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                    {/* Value proposition */}
+                    {pkg.bonusCredits > 0 && !isSmallPackage && (
+                      <div className="bg-primary/10 rounded-lg p-2 text-center">
+                        <p className="text-xs font-medium text-primary">
+                          +{pkg.bonusCredits} bonus!
+                        </p>
+                      </div>
+                    )}
+
+                    {/* CTA Button */}
+                    <Button
+                      className={`w-full ${isSmallPackage ? 'text-xs h-8' : 'text-sm h-9'} mt-auto`}
+                      onClick={() => handlePurchase(pkg.id, pkg)}
+                      disabled={loading === pkg.id || !razorpayLoaded}
+                    >
+                      {loading === pkg.id ? (
+                        <>
+                          <Loader2 className={`${isSmallPackage ? 'h-3 w-3' : 'h-4 w-4'} mr-1.5 animate-spin`} />
+                          <span className={isSmallPackage ? 'text-xs' : ''}>Processing...</span>
+                        </>
+                      ) : (
+                        <span className={isSmallPackage ? 'text-xs' : ''}>Buy Now</span>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* Inject global styles for Razorpay modal theming */}
       {mounted && (

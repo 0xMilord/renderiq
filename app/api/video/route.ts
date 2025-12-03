@@ -56,16 +56,19 @@ export async function POST(request: NextRequest) {
     });
 
     // Calculate credits cost (video generation costs more than images)
-    const baseCost = 5; // Base cost for video generation
-    const durationMultiplier = duration / 5; // Scale based on duration
-    const modelMultiplier = model === 'veo3_fast' ? 1 : 2; // Higher quality costs more
-    const creditsCost = Math.ceil(baseCost * durationMultiplier * modelMultiplier);
+    // Based on Google Veo 3.1 pricing ($0.75/second) with 2x markup
+    // 1 credit = 5 INR, 1 USD = 100 INR (updated conversion rate)
+    // Cost per second: $0.75 × 2 (markup) × 100 (INR/USD) / 5 (INR/credit) = 30 credits/second
+    // Veo 3.1 pricing: $0.75/second, with 2x markup = $1.50/second
+    // In INR: $1.50 × 100 = 150 INR/second
+    // At 5 INR/credit: 150 / 5 = 30 credits/second
+    const creditsPerSecond = 30;
+    const creditsCost = creditsPerSecond * duration;
 
     logger.log('💰 Video API: Credits cost calculation:', {
-      baseCost,
-      durationMultiplier,
-      modelMultiplier,
-      creditsCost
+      duration,
+      creditsPerSecond,
+      totalCredits: creditsCost
     });
 
     // Check user credits

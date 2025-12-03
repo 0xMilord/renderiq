@@ -103,9 +103,19 @@ export async function createRenderAction(formData: FormData) {
     });
 
     // Calculate credits cost
-    const baseCost = type === 'video' ? 5 : 1;
-    const qualityMultiplier = quality === 'high' ? 2 : quality === 'ultra' ? 3 : 1;
-    const creditsCost = baseCost * qualityMultiplier;
+    // Image: 5 credits base (standard), 10 credits (high), 15 credits (ultra)
+    // Video: 30 credits per second (based on Veo 3.1 pricing with 2x markup and 100 INR/USD conversion)
+    if (type === 'video') {
+      // Video: 30 credits per second
+      const duration = parseInt(formData.get('duration') as string) || 5;
+      const creditsPerSecond = 30;
+      creditsCost = creditsPerSecond * duration;
+    } else {
+      // Image: 5 credits base, multiplied by quality
+      const baseCreditsPerImage = 5;
+      const qualityMultiplier = quality === 'high' ? 2 : quality === 'ultra' ? 3 : 1;
+      creditsCost = baseCreditsPerImage * qualityMultiplier;
+    }
 
     logger.log('💰 Credits cost:', creditsCost);
 
