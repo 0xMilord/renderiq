@@ -278,30 +278,43 @@ export function PricingPlans({ plans, userCredits }: PricingPlansProps) {
               <div className="w-10 h-10 bg-destructive/10 rounded-full flex items-center justify-center">
                 <AlertCircle className="h-5 w-5 text-destructive" />
               </div>
-              <DialogTitle>Subscriptions Feature Not Enabled</DialogTitle>
+              <DialogTitle>Subscription Creation Failed</DialogTitle>
             </div>
             <DialogDescription className="pt-2">
-              The Subscriptions feature needs to be enabled on your Razorpay account before you can create subscriptions.
+              Unable to create subscription. This could be due to plan not found, subscriptions feature not enabled, or account mode mismatch.
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
             <div className="bg-muted rounded-lg p-4 space-y-3">
-              <h4 className="font-semibold text-sm">Quick Fix Steps:</h4>
+              <h4 className="font-semibold text-sm">Troubleshooting Steps:</h4>
               <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
-                <li>Contact Razorpay Support to enable Subscriptions feature</li>
-                <li>Wait 24-48 hours for activation</li>
-                <li>Verify "Subscriptions" section appears in Razorpay Dashboard</li>
-                <li>Try subscribing again</li>
+                <li>
+                  <strong>Verify Plan Exists:</strong> Check Razorpay Dashboard → Products → Plans
+                  <br />
+                  <span className="text-xs">Look for Plan ID: plan_Rn3lmBVjGI02dN</span>
+                </li>
+                <li>
+                  <strong>Check Account Mode:</strong> Ensure you're using {process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.includes('rzp_test') ? 'TEST' : 'LIVE'} mode keys
+                  <br />
+                  <span className="text-xs">Plan IDs are different between test and live modes</span>
+                </li>
+                <li>
+                  <strong>Verify Subscriptions Enabled:</strong> Look for "Subscriptions" section in Dashboard
+                </li>
+                <li>
+                  <strong>Contact Support:</strong> If plan exists but still fails, contact Razorpay support
+                </li>
               </ol>
             </div>
 
             <div className="space-y-2">
               <h4 className="font-semibold text-sm">Account Details:</h4>
-              <div className="text-sm text-muted-foreground space-y-1">
+              <div className="text-sm text-muted-foreground space-y-1 font-mono text-xs bg-muted p-2 rounded">
                 <p>• Account Mode: {process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.includes('rzp_test') ? 'TEST' : 'LIVE'}</p>
                 <p>• Plan ID: plan_Rn3lmBVjGI02dN</p>
                 <p>• Plan Name: Pro</p>
+                <p>• Dashboard: {process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.includes('rzp_test') ? 'https://dashboard.razorpay.com/app/test' : 'https://dashboard.razorpay.com/app'}</p>
               </div>
             </div>
           </div>
