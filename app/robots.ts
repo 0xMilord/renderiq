@@ -13,6 +13,7 @@ export default function robots(): MetadataRoute.Robots {
           '/signup',
           '/pricing',
           '/gallery',
+          '/gallery/*',
           '/use-cases',
           '/use-cases/*',
           '/about',
@@ -36,6 +37,7 @@ export default function robots(): MetadataRoute.Robots {
           '/use-cases',
           '/use-cases/*',
           '/gallery',
+          '/gallery/*',
         ],
         disallow: [
           '/api/*',
@@ -44,7 +46,10 @@ export default function robots(): MetadataRoute.Robots {
         ],
       }
     ],
-    sitemap: `${baseUrl}/sitemap.xml`,
+    sitemap: [
+      `${baseUrl}/sitemap.xml`,
+      `${baseUrl}/sitemap-images.xml`,
+    ],
   }
 }
 

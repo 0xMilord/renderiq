@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import DotGrid from '@/components/ui/dot-grid';
 import { Eye, EyeOff, Loader2, CheckCircle, Github, Chrome } from 'lucide-react';
 import { logger } from '@/lib/utils/logger';
+import { collectDeviceFingerprint, storeFingerprintInCookie } from '@/lib/utils/client-fingerprint';
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -25,6 +26,18 @@ export default function SignupPage() {
   const [success, setSuccess] = useState(false);
   const { signUp, signInWithGoogle, signInWithGithub } = useAuth();
   const router = useRouter();
+
+  // Collect device fingerprint on page load (for email/password signup)
+  useEffect(() => {
+    try {
+      const fingerprint = collectDeviceFingerprint();
+      storeFingerprintInCookie(fingerprint);
+      logger.log('✅ Signup: Device fingerprint collected and stored');
+    } catch (error) {
+      logger.warn('⚠️ Signup: Failed to collect fingerprint:', error);
+      // Continue without fingerprint - will use minimal detection
+    }
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({

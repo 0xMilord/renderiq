@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { createUserProfileAction } from '@/lib/actions/user-onboarding.actions';
 import { logger } from '@/lib/utils/logger';
+import { collectDeviceFingerprint, storeFingerprintInCookie, getFingerprintFromCookie } from '@/lib/utils/client-fingerprint';
+import type { DeviceFingerprintInput } from '@/lib/services/sybil-detection';
 
 export function useUserOnboarding() {
   const { 
@@ -35,6 +37,24 @@ export function useUserOnboarding() {
         try {
           logger.log('👤 UserOnboarding Hook: Creating user profile for:', user.email);
           
+          // Collect device fingerprint if available
+          let deviceFingerprint: DeviceFingerprintInput | undefined;
+          try {
+            // Try to get from cookie first (set before email verification)
+            const cookieFingerprint = getFingerprintFromCookie();
+            if (cookieFingerprint) {
+              deviceFingerprint = cookieFingerprint;
+            } else {
+              // Collect fresh fingerprint
+              const fingerprint = collectDeviceFingerprint();
+              storeFingerprintInCookie(fingerprint);
+              deviceFingerprint = fingerprint;
+            }
+          } catch (error) {
+            logger.warn('⚠️ UserOnboarding Hook: Failed to collect fingerprint:', error);
+            // Continue without fingerprint - will use minimal detection
+          }
+          
           // Create user profile and initialize credits using server action
           const onboardingResult = await createUserProfileAction({
             id: user.id,
@@ -42,7 +62,7 @@ export function useUserOnboarding() {
             name: user.user_metadata?.full_name || user.user_metadata?.name || null,
             avatar: user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
             provider: user.app_metadata?.provider || 'email',
-          });
+          }, deviceFingerprint);
 
           if (onboardingResult.success && onboardingResult.data) {
             logger.log('✅ UserOnboarding Hook: User onboarding completed successfully');

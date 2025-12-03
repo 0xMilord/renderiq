@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
-import { renders, renderChains, galleryItems, users } from '@/lib/db/schema';
-import { eq, and, desc, sql, inArray } from 'drizzle-orm';
+import { renders, renderChains, galleryItems, users, userLikes } from '@/lib/db/schema';
+import { eq, and, desc, sql, inArray, ne, or, like } from 'drizzle-orm';
 import { ContextData, CreateRenderWithChainData } from '@/lib/types/render-chain';
 import { logger } from '@/lib/utils/logger';
 
@@ -313,6 +313,8 @@ export class RendersDAL {
           uploadedImageUrl: renders.uploadedImageUrl,
           uploadedImageKey: renders.uploadedImageKey,
           uploadedImageId: renders.uploadedImageId,
+          projectId: renders.projectId,
+          chainId: renders.chainId,
           createdAt: renders.createdAt,
         },
         user: {
@@ -406,23 +408,207 @@ export class RendersDAL {
     logger.log('✅ Views incremented for gallery item:', itemId);
   }
 
+  static async hasUserLiked(itemId: string, userId: string): Promise<boolean> {
+    const like = await db
+      .select()
+      .from(userLikes)
+      .where(and(
+        eq(userLikes.galleryItemId, itemId),
+        eq(userLikes.userId, userId)
+      ))
+      .limit(1);
+    
+    return like.length > 0;
+  }
+
   static async toggleLike(itemId: string, userId: string) {
     logger.log('❤️ Toggling like for gallery item:', { itemId, userId });
     
-    // For now, just increment likes - in a full implementation,
-    // you'd want to track individual user likes to prevent double-liking
-    const [updatedItem] = await db
-      .update(galleryItems)
-      .set({
-        likes: sql`${galleryItems.likes} + 1`,
-      })
-      .where(eq(galleryItems.id, itemId))
-      .returning();
+    // Check if user already liked this item
+    const alreadyLiked = await this.hasUserLiked(itemId, userId);
+    
+    if (alreadyLiked) {
+      // Unlike: remove the like record and decrement count
+      await db
+        .delete(userLikes)
+        .where(and(
+          eq(userLikes.galleryItemId, itemId),
+          eq(userLikes.userId, userId)
+        ));
+      
+      const [updatedItem] = await db
+        .update(galleryItems)
+        .set({
+          likes: sql`GREATEST(${galleryItems.likes} - 1, 0)`,
+        })
+        .where(eq(galleryItems.id, itemId))
+        .returning();
 
-    logger.log('✅ Like toggled for gallery item:', itemId);
-    return {
-      likes: updatedItem.likes,
-      liked: true, // In a real implementation, check if user already liked
-    };
+      logger.log('✅ Like removed for gallery item:', itemId);
+      return {
+        likes: updatedItem.likes,
+        liked: false,
+      };
+    } else {
+      // Like: add the like record and increment count
+      await db.insert(userLikes).values({
+        userId,
+        galleryItemId: itemId,
+      });
+      
+      const [updatedItem] = await db
+        .update(galleryItems)
+        .set({
+          likes: sql`${galleryItems.likes} + 1`,
+        })
+        .where(eq(galleryItems.id, itemId))
+        .returning();
+
+      logger.log('✅ Like added for gallery item:', itemId);
+      return {
+        likes: updatedItem.likes,
+        liked: true,
+      };
+    }
+  }
+
+  static async getGalleryItemById(itemId: string) {
+    logger.log('🔍 Fetching gallery item by ID:', itemId);
+    
+    const [item] = await db
+      .select({
+        id: galleryItems.id,
+        renderId: galleryItems.renderId,
+        userId: galleryItems.userId,
+        isPublic: galleryItems.isPublic,
+        likes: galleryItems.likes,
+        views: galleryItems.views,
+        createdAt: galleryItems.createdAt,
+        render: {
+          id: renders.id,
+          type: renders.type,
+          prompt: renders.prompt,
+          settings: renders.settings,
+          outputUrl: renders.outputUrl,
+          status: renders.status,
+          processingTime: renders.processingTime,
+          uploadedImageUrl: renders.uploadedImageUrl,
+          uploadedImageKey: renders.uploadedImageKey,
+          uploadedImageId: renders.uploadedImageId,
+          projectId: renders.projectId,
+          chainId: renders.chainId,
+          createdAt: renders.createdAt,
+        },
+        user: {
+          id: users.id,
+          name: users.name,
+          avatar: users.avatar,
+        },
+      })
+      .from(galleryItems)
+      .innerJoin(renders, eq(galleryItems.renderId, renders.id))
+      .innerJoin(users, eq(galleryItems.userId, users.id))
+      .where(and(
+        eq(galleryItems.id, itemId),
+        eq(galleryItems.isPublic, true)
+      ))
+      .limit(1);
+
+    if (!item) {
+      logger.log('❌ Gallery item not found:', itemId);
+      return null;
+    }
+
+    logger.log('✅ Gallery item found:', itemId);
+    return item;
+  }
+
+  static async getSimilarGalleryItems(
+    excludeItemId: string,
+    criteria: {
+      style?: string;
+      quality?: string;
+      aspectRatio?: string;
+      promptKeywords?: string[];
+    },
+    limit = 12
+  ) {
+    logger.log('🔍 Finding similar gallery items:', { excludeItemId, criteria });
+    
+    // Build conditions for similarity
+    const conditions = [ne(galleryItems.id, excludeItemId), eq(galleryItems.isPublic, true)];
+    
+    // Add style match condition
+    if (criteria.style) {
+      conditions.push(
+        sql`${renders.settings}->>'style' = ${criteria.style}`
+      );
+    }
+    
+    // Add quality match condition
+    if (criteria.quality) {
+      conditions.push(
+        sql`${renders.settings}->>'quality' = ${criteria.quality}`
+      );
+    }
+    
+    // Add aspect ratio match condition
+    if (criteria.aspectRatio) {
+      conditions.push(
+        sql`${renders.settings}->>'aspectRatio' = ${criteria.aspectRatio}`
+      );
+    }
+    
+    // Get items matching criteria
+    let items = await db
+      .select({
+        id: galleryItems.id,
+        renderId: galleryItems.renderId,
+        userId: galleryItems.userId,
+        isPublic: galleryItems.isPublic,
+        likes: galleryItems.likes,
+        views: galleryItems.views,
+        createdAt: galleryItems.createdAt,
+        render: {
+          id: renders.id,
+          type: renders.type,
+          prompt: renders.prompt,
+          settings: renders.settings,
+          outputUrl: renders.outputUrl,
+          status: renders.status,
+          processingTime: renders.processingTime,
+          uploadedImageUrl: renders.uploadedImageUrl,
+          uploadedImageKey: renders.uploadedImageKey,
+          uploadedImageId: renders.uploadedImageId,
+          projectId: renders.projectId,
+          chainId: renders.chainId,
+          createdAt: renders.createdAt,
+        },
+        user: {
+          id: users.id,
+          name: users.name,
+          avatar: users.avatar,
+        },
+      })
+      .from(galleryItems)
+      .innerJoin(renders, eq(galleryItems.renderId, renders.id))
+      .innerJoin(users, eq(galleryItems.userId, users.id))
+      .where(and(...conditions))
+      .orderBy(desc(sql`${galleryItems.likes} + ${galleryItems.views}`))
+      .limit(limit * 2); // Get more to filter by prompt keywords
+    
+    // Filter by prompt keywords if provided
+    if (criteria.promptKeywords && criteria.promptKeywords.length > 0) {
+      items = items.filter(item => {
+        const prompt = (item.render.prompt || '').toLowerCase();
+        return criteria.promptKeywords!.some(keyword => prompt.includes(keyword.toLowerCase()));
+      });
+    }
+    
+    // Limit to requested amount
+    items = items.slice(0, limit);
+    
+    logger.log(`✅ Found ${items.length} similar gallery items`);
+    return items;
   }
 }

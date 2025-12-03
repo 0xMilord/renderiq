@@ -289,6 +289,15 @@ export const galleryItems = pgTable('gallery_items', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+// User likes for gallery items
+// Note: Unique constraint (user_id, gallery_item_id) is enforced via migration
+export const userLikes = pgTable('user_likes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  galleryItemId: uuid('gallery_item_id').references(() => galleryItems.id, { onDelete: 'cascade' }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 // Notifications system
 export const notifications = pgTable('notifications', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -374,6 +383,67 @@ export const canvasGraphs = pgTable('canvas_graphs', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// Sybil detection tables
+export const deviceFingerprints = pgTable('device_fingerprints', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  fingerprintHash: text('fingerprint_hash').notNull(), // SHA-256 hash of device fingerprint
+  userAgent: text('user_agent'),
+  browser: text('browser'),
+  os: text('os'),
+  screenResolution: text('screen_resolution'),
+  timezone: text('timezone'),
+  language: text('language'),
+  platform: text('platform'),
+  hardwareConcurrency: integer('hardware_concurrency'),
+  deviceMemory: integer('device_memory'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const ipAddresses = pgTable('ip_addresses', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  ipAddress: text('ip_address').notNull(),
+  country: text('country'),
+  city: text('city'),
+  isp: text('isp'),
+  isProxy: boolean('is_proxy').default(false),
+  isVpn: boolean('is_vpn').default(false),
+  isTor: boolean('is_tor').default(false),
+  firstSeenAt: timestamp('first_seen_at').defaultNow().notNull(),
+  lastSeenAt: timestamp('last_seen_at').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const sybilDetections = pgTable('sybil_detections', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  riskScore: integer('risk_score').notNull(), // 0-100, higher = more suspicious
+  riskLevel: text('risk_level', { enum: ['low', 'medium', 'high', 'critical'] }).notNull(),
+  detectionReasons: jsonb('detection_reasons').$type<string[]>().notNull(), // Array of reasons
+  linkedAccounts: jsonb('linked_accounts').$type<string[]>(), // Array of user IDs linked to same device/IP
+  deviceFingerprintId: uuid('device_fingerprint_id').references(() => deviceFingerprints.id),
+  ipAddressId: uuid('ip_address_id').references(() => ipAddresses.id),
+  isBlocked: boolean('is_blocked').default(false).notNull(),
+  creditsAwarded: integer('credits_awarded').default(0).notNull(), // Reduced credits if suspicious
+  reviewedBy: uuid('reviewed_by').references(() => users.id), // Admin who reviewed
+  reviewedAt: timestamp('reviewed_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const accountActivity = pgTable('account_activity', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  eventType: text('event_type', { enum: ['signup', 'login', 'render', 'credit_purchase', 'logout'] }).notNull(),
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  deviceFingerprintId: uuid('device_fingerprint_id').references(() => deviceFingerprints.id),
+  metadata: jsonb('metadata').$type<Record<string, any>>(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 // Create Zod schemas
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
@@ -440,6 +510,18 @@ export const selectUserSettingsSchema = createSelectSchema(userSettings);
 
 export const insertCanvasGraphSchema = createInsertSchema(canvasGraphs);
 export const selectCanvasGraphSchema = createSelectSchema(canvasGraphs);
+
+export const insertDeviceFingerprintSchema = createInsertSchema(deviceFingerprints);
+export const selectDeviceFingerprintSchema = createSelectSchema(deviceFingerprints);
+
+export const insertIpAddressSchema = createInsertSchema(ipAddresses);
+export const selectIpAddressSchema = createSelectSchema(ipAddresses);
+
+export const insertSybilDetectionSchema = createInsertSchema(sybilDetections);
+export const selectSybilDetectionSchema = createSelectSchema(sybilDetections);
+
+export const insertAccountActivitySchema = createInsertSchema(accountActivity);
+export const selectAccountActivitySchema = createSelectSchema(accountActivity);
 
 // Type exports
 export type User = typeof users.$inferSelect;
@@ -510,3 +592,15 @@ export type NewPaymentOrder = typeof paymentOrders.$inferInsert;
 
 export type Invoice = typeof invoices.$inferSelect;
 export type NewInvoice = typeof invoices.$inferInsert;
+
+export type DeviceFingerprint = typeof deviceFingerprints.$inferSelect;
+export type NewDeviceFingerprint = typeof deviceFingerprints.$inferInsert;
+
+export type IpAddress = typeof ipAddresses.$inferSelect;
+export type NewIpAddress = typeof ipAddresses.$inferInsert;
+
+export type SybilDetection = typeof sybilDetections.$inferSelect;
+export type NewSybilDetection = typeof sybilDetections.$inferInsert;
+
+export type AccountActivity = typeof accountActivity.$inferSelect;
+export type NewAccountActivity = typeof accountActivity.$inferInsert;

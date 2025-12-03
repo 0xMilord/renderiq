@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { UserOnboardingService } from './user-onboarding';
+import { AuthDAL } from '@/lib/dal/auth';
 import { getOAuthCallbackUrl, getAuthRedirectUrl } from '@/lib/utils/auth-redirect';
 import { headers } from 'next/headers';
 import { z } from 'zod';
@@ -65,13 +66,19 @@ export class AuthService {
       }
 
       // Ensure user profile exists (only for verified users)
+      // Skip fingerprint for existing users signing in - they already have profile
       if (data.user) {
-        await UserOnboardingService.createUserProfile({
-          id: data.user.id,
-          email: data.user.email!,
-          name: data.user.user_metadata?.name,
-          avatar: data.user.user_metadata?.avatar_url,
-        });
+        const existingUser = await AuthDAL.getUserById(data.user.id);
+        if (!existingUser) {
+          // Only create profile if it doesn't exist (new user)
+          // Note: No fingerprint for sign-in - this is okay as they're existing users
+          await UserOnboardingService.createUserProfile({
+            id: data.user.id,
+            email: data.user.email!,
+            name: data.user.user_metadata?.name,
+            avatar: data.user.user_metadata?.avatar_url,
+          });
+        }
       }
 
       logger.log('✅ AuthService: Sign in successful:', data.user?.id);

@@ -158,3 +158,4 @@ After applying fixes:
 - Supabase Dashboard must have correct redirect URLs whitelisted
 
 
+

@@ -71,6 +71,8 @@ import { MentionTagger } from './mention-tagger';
 import type { Render } from '@/lib/types/render';
 import type { RenderChainWithRenders } from '@/lib/types/render-chain';
 import Image from 'next/image';
+import ReactBeforeSliderComponent from 'react-before-after-slider-component';
+import 'react-before-after-slider-component/dist/build.css';
 
 interface Message {
   id: string;
@@ -257,6 +259,21 @@ export function UnifiedChatInterface({
   const { profile } = useUserProfile();
   const { data: isPro, loading: proLoading } = useIsPro(profile?.id);
   const { upscaleImage, isUpscaling, upscalingResult, error: upscalingError } = useUpscaling();
+  
+  // Find previous render for before/after comparison
+  const previousRender = useMemo(() => {
+    if (!currentRender || !chain?.renders || currentRender.type === 'video') return null;
+    const currentPosition = currentRender.chainPosition ?? 0;
+    if (currentPosition === 0) return null; // No previous render if this is the first
+    
+    const prev = chain.renders.find(
+      r => r.chainPosition === currentPosition - 1 && 
+      r.status === 'completed' && 
+      r.outputUrl &&
+      r.type === 'image'
+    );
+    return prev || null;
+  }, [currentRender, chain]);
   
   // Google Generative AI hooks
   const { isGenerating: isImageGenerating } = useImageGeneration();
@@ -2915,27 +2932,54 @@ export function UnifiedChatInterface({
                             playsInline
                             onClick={() => setIsFullscreen(true)}
                           />
+                        ) : previousRender && previousRender.outputUrl ? (
+                          // Before/After Comparison Slider
+                          <div className="w-full h-full relative">
+                            <ReactBeforeSliderComponent
+                              firstImage={{ imageUrl: previousRender.outputUrl }}
+                              secondImage={{ imageUrl: currentRender.outputUrl }}
+                              currentPercentPosition={75} // 3/4 shows new (75% = new image visible)
+                              sliderLineWidth={4}
+                              sliderLineColor="hsl(var(--primary))"
+                            />
+                            {/* Labels */}
+                            <div className="absolute top-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium">
+                              Previous
+                            </div>
+                            <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium">
+                              Current
+                            </div>
+                            {/* Fullscreen Toggle */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setIsFullscreen(true)}
+                              className="absolute bottom-2 right-2 bg-black/50 hover:bg-black/70 text-white h-7 w-7 sm:h-auto sm:w-auto sm:px-3"
+                            >
+                              <Maximize className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </Button>
+                          </div>
                         ) : (
-                          <Image
-                            src={currentRender.outputUrl}
-                            alt={currentRender.prompt}
-                            fill
-                            className="object-contain cursor-pointer"
-                            sizes="100vw"
-                            onClick={() => setIsFullscreen(true)}
-                          />
+                          <>
+                            <Image
+                              src={currentRender.outputUrl}
+                              alt={currentRender.prompt}
+                              fill
+                              className="object-contain cursor-pointer"
+                              sizes="100vw"
+                              onClick={() => setIsFullscreen(true)}
+                            />
+                            {/* Fullscreen Toggle */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setIsFullscreen(true)}
+                              className="absolute top-2 sm:top-4 right-2 sm:right-4 bg-black/50 hover:bg-black/70 text-white h-7 w-7 sm:h-auto sm:w-auto sm:px-3"
+                            >
+                              <Maximize className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </Button>
+                          </>
                         )}
-                          
-                          
-                          {/* Fullscreen Toggle */}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setIsFullscreen(true)}
-                            className="absolute top-2 sm:top-4 right-2 sm:right-4 bg-black/50 hover:bg-black/70 text-white h-7 w-7 sm:h-auto sm:w-auto sm:px-3"
-                          >
-                            <Maximize className="h-3 w-3 sm:h-4 sm:w-4" />
-                          </Button>
                         </div>
                       </div>
 

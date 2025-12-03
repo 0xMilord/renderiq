@@ -1,8 +1,11 @@
 import { AuthDAL } from '@/lib/dal/auth';
 import { AvatarService } from './avatar';
 import { logger } from '@/lib/utils/logger';
+import { SybilDetectionService, DeviceFingerprintInput } from './sybil-detection';
+import { getClientIdentifier } from '@/lib/utils/rate-limit';
+import { generateFingerprintHash } from '@/lib/utils/device-fingerprint';
 
-// Maximum initial credits for new users on signup
+// Maximum initial credits for new users on signup (trusted users)
 const INITIAL_SIGNUP_CREDITS = 10;
 
 export interface UserProfile {
@@ -13,8 +16,17 @@ export interface UserProfile {
   provider?: string;
 }
 
+export interface UserOnboardingContext {
+  deviceFingerprint?: DeviceFingerprintInput;
+  request?: Request;
+  ipAddress?: string;
+}
+
 export class UserOnboardingService {
-  static async createUserProfile(userProfile: UserProfile) {
+  static async createUserProfile(
+    userProfile: UserProfile,
+    context?: UserOnboardingContext
+  ) {
     logger.log('👤 UserOnboarding: Creating user profile for:', userProfile.email);
     
     try {
@@ -24,6 +36,58 @@ export class UserOnboardingService {
       if (existingUser) {
         logger.log('✅ UserOnboarding: User already exists, skipping profile creation');
         return { success: true, data: existingUser };
+      }
+
+      // Run sybil detection if device fingerprint is available
+      let sybilResult;
+      let creditsToAward = INITIAL_SIGNUP_CREDITS;
+
+      if (context?.deviceFingerprint && context?.request) {
+        try {
+          const ipAddress = context.ipAddress || getClientIdentifier(context.request);
+          const userAgent = context.request.headers.get('user-agent') || '';
+
+          sybilResult = await SybilDetectionService.detectSybil(
+            userProfile.id,
+            userProfile.email,
+            context.deviceFingerprint,
+            ipAddress,
+            context.request.headers
+          );
+
+          // Use recommended credits from sybil detection
+          creditsToAward = sybilResult.recommendedCredits;
+        } catch (error) {
+          // If sybil detection fails, log but continue with default credits
+          logger.error('❌ UserOnboarding: Sybil detection failed, using default credits:', error);
+          creditsToAward = INITIAL_SIGNUP_CREDITS;
+        }
+
+        logger.log('🔍 UserOnboarding: Sybil detection result', {
+          riskScore: sybilResult.riskScore,
+          riskLevel: sybilResult.riskLevel,
+          creditsToAward,
+          isSuspicious: sybilResult.isSuspicious,
+        });
+
+        // Log warning for critical risk users (they get 0 credits but can still sign up)
+        if (sybilResult.riskLevel === 'critical') {
+          logger.warn('⚠️ UserOnboarding: Critical risk user - allowing signup with 0 credits', {
+            userId: userProfile.id,
+            email: userProfile.email,
+            reasons: sybilResult.reasons,
+          });
+        }
+
+        // Record signup activity
+        const fingerprintHash = generateFingerprintHash(context.deviceFingerprint);
+        await SybilDetectionService.recordActivity(
+          userProfile.id,
+          'signup',
+          ipAddress,
+          userAgent,
+          fingerprintHash
+        );
       }
 
       // Generate unique avatar if not provided
@@ -58,13 +122,17 @@ export class UserOnboardingService {
 
       logger.log('✅ UserOnboarding: User profile created:', newUser.id);
 
-      // Initialize user credits with initial signup credits (max 10)
-      await this.initializeUserCredits(userProfile.id);
+      // Initialize user credits with sybil-adjusted credits
+      await this.initializeUserCredits(userProfile.id, creditsToAward);
 
       // Create welcome transaction
-      await this.createWelcomeTransaction(userProfile.id);
+      await this.createWelcomeTransaction(userProfile.id, creditsToAward, sybilResult);
 
-      return { success: true, data: newUser };
+      return {
+        success: true,
+        data: newUser,
+        sybilDetection: sybilResult,
+      };
     } catch (error) {
       logger.error('❌ UserOnboarding: Failed to create user profile:', error);
       return { 
@@ -74,8 +142,8 @@ export class UserOnboardingService {
     }
   }
 
-  static async initializeUserCredits(userId: string) {
-    logger.log('💰 UserOnboarding: Initializing credits for user:', userId);
+  static async initializeUserCredits(userId: string, credits: number = INITIAL_SIGNUP_CREDITS) {
+    logger.log('💰 UserOnboarding: Initializing credits for user:', userId, 'Credits:', credits);
     
     try {
       // Check if user already has credits
@@ -86,8 +154,8 @@ export class UserOnboardingService {
         return { success: true };
       }
 
-      // Create user credits record with initial signup credits (max 10)
-      const userCredit = await AuthDAL.createUserCredits(userId, INITIAL_SIGNUP_CREDITS);
+      // Create user credits record with sybil-adjusted credits
+      const userCredit = await AuthDAL.createUserCredits(userId, credits);
 
       logger.log('✅ UserOnboarding: User credits initialized:', userCredit.balance);
 
@@ -101,16 +169,31 @@ export class UserOnboardingService {
     }
   }
 
-  static async createWelcomeTransaction(userId: string) {
+  static async createWelcomeTransaction(
+    userId: string,
+    credits: number = INITIAL_SIGNUP_CREDITS,
+    sybilResult?: { riskLevel: string; reasons: string[] }
+  ) {
     logger.log('🎁 UserOnboarding: Creating welcome transaction for user:', userId);
     
     try {
+      let description = `Welcome bonus - ${credits} free credits to get started!`;
+      
+      // Add note if credits were reduced due to sybil detection
+      if (sybilResult && credits < INITIAL_SIGNUP_CREDITS) {
+        if (credits === 0) {
+          description = `Account created successfully. Credits not awarded due to account verification requirements. Please contact support if you believe this is an error.`;
+        } else {
+          description += ` (Reduced due to account verification requirements)`;
+        }
+      }
+
       // Create welcome bonus transaction
       await AuthDAL.createCreditTransaction(
         userId,
-        INITIAL_SIGNUP_CREDITS,
+        credits,
         'bonus',
-        `Welcome bonus - ${INITIAL_SIGNUP_CREDITS} free credits to get started!`,
+        description,
         undefined,
         'bonus'
       );

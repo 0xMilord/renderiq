@@ -47,7 +47,28 @@ const nextConfig: NextConfig = {
     return config;
   },
   images: {
-    domains: ['renderiq.io', 'ncfgivjhkvorikuebtrl.supabase.co'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'renderiq.io',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'api.dicebear.com',
+      },
+    ],
     formats: ['image/webp', 'image/avif'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
@@ -89,9 +110,9 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live", // unsafe-eval needed for MDX
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: https: blob:",
+              "img-src 'self' data: https: blob: https://api.dicebear.com",
               "font-src 'self' data:",
-              "connect-src 'self' https://*.supabase.co https://*.googleapis.com https://*.googleusercontent.com https://vercel.live wss://*.supabase.co",
+              "connect-src 'self' https://*.supabase.co https://*.googleapis.com https://*.googleusercontent.com https://api.dicebear.com https://vercel.live wss://*.supabase.co",
               "frame-src 'none'",
               "object-src 'none'",
               "base-uri 'self'",

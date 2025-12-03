@@ -4,6 +4,8 @@ import { AvatarService } from '@/lib/services/avatar';
 import { NextResponse } from 'next/server';
 import { getPostAuthRedirectUrl } from '@/lib/utils/auth-redirect';
 import { logger } from '@/lib/utils/logger';
+import { getClientIdentifier } from '@/lib/utils/rate-limit';
+import type { DeviceFingerprintInput } from '@/lib/services/sybil-detection';
 
 export async function GET(request: Request) {
   logger.log('🔄 Auth Callback: Processing OAuth callback');
@@ -45,19 +47,82 @@ export async function GET(request: Request) {
           });
         }
         
-        // Create user profile (only for verified users)
+        // Try to get device fingerprint from cookie (set by client before OAuth)
+        let deviceFingerprint: DeviceFingerprintInput | undefined;
+        const fingerprintCookie = request.headers.get('cookie')
+          ?.split(';')
+          .find(c => c.trim().startsWith('device_fingerprint='));
+        
+        if (fingerprintCookie) {
+          try {
+            const cookieData = decodeURIComponent(fingerprintCookie.split('=')[1]);
+            const parsed = JSON.parse(cookieData);
+            deviceFingerprint = {
+              userAgent: parsed.userAgent || request.headers.get('user-agent') || '',
+              language: parsed.language || 'en',
+              timezone: parsed.timezone || 'UTC',
+              screenResolution: parsed.screenResolution,
+              colorDepth: parsed.colorDepth,
+              hardwareConcurrency: parsed.hardwareConcurrency,
+              deviceMemory: parsed.deviceMemory,
+              platform: parsed.platform || 'unknown',
+              cookieEnabled: parsed.cookieEnabled !== false,
+              doNotTrack: parsed.doNotTrack,
+              plugins: parsed.plugins,
+              canvasFingerprint: parsed.canvasFingerprint,
+            };
+          } catch (error) {
+            logger.warn('⚠️ Auth Callback: Failed to parse device fingerprint cookie:', error);
+          }
+        }
+
+        // Fallback: create minimal fingerprint from request headers
+        if (!deviceFingerprint) {
+          const userAgent = request.headers.get('user-agent') || '';
+          // Try to get timezone from cookie if available
+          const timezoneCookie = request.headers.get('cookie')
+            ?.split(';')
+            .find(c => c.trim().startsWith('timezone='));
+          const timezone = timezoneCookie 
+            ? decodeURIComponent(timezoneCookie.split('=')[1]) 
+            : 'UTC';
+          
+          deviceFingerprint = {
+            userAgent,
+            language: request.headers.get('accept-language')?.split(',')[0] || 'en',
+            timezone,
+            platform: 'unknown',
+            cookieEnabled: true,
+          };
+        }
+        
+        // Create user profile with sybil detection (only for verified users)
         logger.log('👤 Auth Callback: Creating user profile for verified user:', data.user.email);
-        const profileResult = await UserOnboardingService.createUserProfile({
-          id: data.user.id,
-          email: data.user.email!,
-          name: data.user.user_metadata?.name || data.user.user_metadata?.full_name,
-          avatar: avatarUrl,
-        });
+        const ipAddress = getClientIdentifier(request);
+        const profileResult = await UserOnboardingService.createUserProfile(
+          {
+            id: data.user.id,
+            email: data.user.email!,
+            name: data.user.user_metadata?.name || data.user.user_metadata?.full_name,
+            avatar: avatarUrl,
+          },
+          {
+            deviceFingerprint,
+            request,
+            ipAddress,
+          }
+        );
         
         if (!profileResult.success) {
           logger.error('❌ Auth Callback: Failed to create user profile:', profileResult.error);
         } else {
           logger.log('✅ Auth Callback: User profile created successfully');
+          if (profileResult.sybilDetection) {
+            logger.log('🔍 Auth Callback: Sybil detection result', {
+              riskScore: profileResult.sybilDetection.riskScore,
+              riskLevel: profileResult.sybilDetection.riskLevel,
+            });
+          }
         }
       } else {
         logger.log('⚠️ Auth Callback: Email not verified yet, profile creation skipped');

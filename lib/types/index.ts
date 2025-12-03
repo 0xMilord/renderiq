@@ -61,6 +61,8 @@ export interface GalleryItemWithDetails {
     uploadedImageUrl: string | null;
     uploadedImageKey: string | null;
     uploadedImageId: string | null;
+    projectId: string | null;
+    chainId: string | null;
     createdAt: Date;
   };
   user: {

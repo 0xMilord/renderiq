@@ -41,6 +41,12 @@ export async function GET(
       });
 
       if (!response.ok) {
+        // Handle 403 (Forbidden) and other errors gracefully
+        if (response.status === 403) {
+          logger.warn('⚠️ Twitter oEmbed API returned 403 - may be rate limited or restricted');
+          // Fall through to return fallback data
+          throw new Error('Twitter API returned 403');
+        }
         throw new Error(`Twitter API returned ${response.status}`);
       }
 
@@ -135,9 +141,17 @@ export async function GET(
         },
       });
     } catch (fetchError) {
-      logger.error('❌ Error fetching from Twitter oEmbed:', fetchError);
+      const errorMessage = fetchError instanceof Error ? fetchError.message : 'Unknown error';
+      
+      // For 403 errors, log as warning instead of error since it's expected
+      if (errorMessage.includes('403')) {
+        logger.warn('⚠️ Twitter oEmbed API access restricted (403) - using fallback data');
+      } else {
+        logger.error('❌ Error fetching from Twitter oEmbed:', fetchError);
+      }
       
       // Return structure with username from URL so fallback can be used
+      // This allows the frontend to still display the tweet card with fallback data
       return NextResponse.json({
         success: false,
         data: {
@@ -156,7 +170,9 @@ export async function GET(
             replies: 0,
           },
         },
-        error: 'Failed to fetch tweet data',
+        error: errorMessage.includes('403') 
+          ? 'Twitter API access restricted - using fallback data' 
+          : 'Failed to fetch tweet data',
       });
     }
   } catch (error) {

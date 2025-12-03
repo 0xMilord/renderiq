@@ -1,6 +1,17 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { Building2, Github, Twitter, Linkedin, Mail } from 'lucide-react';
+import { 
+  FaGithub, 
+  FaXTwitter, 
+  FaLinkedin, 
+  FaMedium, 
+  FaInstagram, 
+  FaYoutube, 
+  FaDiscord, 
+  FaReddit, 
+  FaThreads,
+  FaMastodon
+} from 'react-icons/fa6';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { PWAInstallButton } from '@/components/pwa/install-button';
 
@@ -26,25 +37,40 @@ export function Footer() {
               Professional-grade visualization tools for architects, designers, and developers.
             </p>
             <div className="flex flex-col space-y-4">
-              <div className="flex space-x-4">
-                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="GitHub">
-                  <Github className="h-5 w-5" />
+              <div className="flex flex-wrap gap-4">
+                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="GitHub" target="_blank" rel="noopener noreferrer">
+                  <FaGithub className="h-5 w-5" />
                 </a>
-                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="Twitter">
-                  <Twitter className="h-5 w-5" />
+                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="X (Twitter)" target="_blank" rel="noopener noreferrer">
+                  <FaXTwitter className="h-5 w-5" />
                 </a>
-                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="LinkedIn">
-                  <Linkedin className="h-5 w-5" />
+                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="LinkedIn" target="_blank" rel="noopener noreferrer">
+                  <FaLinkedin className="h-5 w-5" />
                 </a>
-                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="Email">
-                  <Mail className="h-5 w-5" />
+                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="Medium" target="_blank" rel="noopener noreferrer">
+                  <FaMedium className="h-5 w-5" />
+                </a>
+                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="Bluesky" target="_blank" rel="noopener noreferrer">
+                  <FaMastodon className="h-5 w-5" />
+                </a>
+                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="Instagram" target="_blank" rel="noopener noreferrer">
+                  <FaInstagram className="h-5 w-5" />
+                </a>
+                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="YouTube" target="_blank" rel="noopener noreferrer">
+                  <FaYoutube className="h-5 w-5" />
+                </a>
+                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="Discord" target="_blank" rel="noopener noreferrer">
+                  <FaDiscord className="h-5 w-5" />
+                </a>
+                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="Reddit" target="_blank" rel="noopener noreferrer">
+                  <FaReddit className="h-5 w-5" />
+                </a>
+                <a href="#" className="text-muted-foreground hover:text-primary transition-colors" title="Threads" target="_blank" rel="noopener noreferrer">
+                  <FaThreads className="h-5 w-5" />
                 </a>
               </div>
               <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-muted-foreground">Theme:</span>
-                  <ThemeToggle />
-                </div>
+                <ThemeToggle />
                 {/* PWA Install Button - Show only on mobile */}
                 <div className="md:hidden">
                   <PWAInstallButton />
@@ -53,63 +79,66 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Product */}
-          <div>
-            <h3 className="font-semibold text-foreground mb-4">Product</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/render" className="text-muted-foreground hover:text-primary transition-colors">
-                  Render
-                </Link>
-              </li>
-              <li>
-                <Link href="/gallery" className="text-muted-foreground hover:text-primary transition-colors">
-                  Gallery
-                </Link>
-              </li>
-              <li>
-                <Link href="/use-cases" className="text-muted-foreground hover:text-primary transition-colors">
-                  Use Cases
-                </Link>
-              </li>
-              <li>
-                <Link href="/blog" className="text-muted-foreground hover:text-primary transition-colors">
-                  Blog
-                </Link>
-              </li>
-            </ul>
-          </div>
+          {/* Product and Company - Side by side on mobile, separate columns on desktop */}
+          <div className="grid grid-cols-2 md:contents gap-8">
+            {/* Product */}
+            <div>
+              <h3 className="font-semibold text-foreground mb-4">Product</h3>
+              <ul className="space-y-2">
+                <li>
+                  <Link href="/render" className="text-muted-foreground hover:text-primary transition-colors">
+                    Render
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/gallery" className="text-muted-foreground hover:text-primary transition-colors">
+                    Gallery
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/use-cases" className="text-muted-foreground hover:text-primary transition-colors">
+                    Use Cases
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog" className="text-muted-foreground hover:text-primary transition-colors">
+                    Blog
+                  </Link>
+                </li>
+              </ul>
+            </div>
 
-          {/* Company */}
-          <div>
-            <h3 className="font-semibold text-foreground mb-4">Company</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/about" className="text-muted-foreground hover:text-primary transition-colors">
-                  About
-                </Link>
-              </li>
-              <li>
-                <Link href="/pricing" className="text-muted-foreground hover:text-primary transition-colors">
-                  Pricing
-                </Link>
-              </li>
-              <li>
-                <Link href="/docs" className="text-muted-foreground hover:text-primary transition-colors">
-                  Docs
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact" className="text-muted-foreground hover:text-primary transition-colors">
-                  Contact
-                </Link>
-              </li>
-              <li>
-                <Link href="/privacy" className="text-muted-foreground hover:text-primary transition-colors">
-                  Privacy Policy
-                </Link>
-              </li>
-            </ul>
+            {/* Company */}
+            <div>
+              <h3 className="font-semibold text-foreground mb-4">Company</h3>
+              <ul className="space-y-2">
+                <li>
+                  <Link href="/about" className="text-muted-foreground hover:text-primary transition-colors">
+                    About
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/pricing" className="text-muted-foreground hover:text-primary transition-colors">
+                    Pricing
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/docs" className="text-muted-foreground hover:text-primary transition-colors">
+                    Docs
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/contact" className="text-muted-foreground hover:text-primary transition-colors">
+                    Contact
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/privacy" className="text-muted-foreground hover:text-primary transition-colors">
+                    Privacy Policy
+                  </Link>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
 
