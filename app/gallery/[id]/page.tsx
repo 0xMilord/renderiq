@@ -136,6 +136,7 @@ export default async function GalleryItemPage({ params }: PageProps) {
   const imageUrl = item.render.outputUrl || '';
   const creatorName = item.user?.name || 'Anonymous';
   const createdAt = new Date(item.createdAt).toISOString();
+  const isVideo = item.render.type === 'video';
 
   // Article Schema for individual gallery item
   const articleSchema = {

@@ -29,8 +29,10 @@ export function GalleryImageCard({
 }: GalleryImageCardProps) {
   const router = useRouter();
   const [imageLoading, setImageLoading] = useState(true);
+  const [videoLoading, setVideoLoading] = useState(true);
   const [avatarError, setAvatarError] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [videoError, setVideoError] = useState(false);
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(item.likes);
@@ -39,6 +41,9 @@ export function GalleryImageCard({
   const [isPromptExpanded, setIsPromptExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'generated' | 'comparison'>('generated');
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  
+  const isVideo = item.render.type === 'video';
 
   useEffect(() => {
     setMounted(true);
@@ -51,18 +56,24 @@ export function GalleryImageCard({
   useEffect(() => {
     // Load image dimensions to maintain aspect ratio
     if (item.render.outputUrl) {
-      const img = new window.Image();
-      img.onload = () => {
-        setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight });
-        setImageLoading(false);
-      };
-      img.onerror = () => {
-        setImageError(true);
-        setImageLoading(false);
-      };
-      img.src = item.render.outputUrl;
+      if (isVideo) {
+        // For videos, set default dimensions (16:9) and mark as loaded when metadata loads
+        setImageDimensions({ width: 1920, height: 1080 });
+        setVideoLoading(true);
+      } else {
+        const img = new window.Image();
+        img.onload = () => {
+          setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight });
+          setImageLoading(false);
+        };
+        img.onerror = () => {
+          setImageError(true);
+          setImageLoading(false);
+        };
+        img.src = item.render.outputUrl;
+      }
     }
-  }, [item.render.outputUrl]);
+  }, [item.render.outputUrl, isVideo]);
 
   useEffect(() => {
     // Check if user has liked this item
@@ -269,8 +280,8 @@ export function GalleryImageCard({
         </button>
       </div>
 
-      {/* Image Container - With Tabs if uploaded image exists */}
-      {item.render.uploadedImageUrl && item.render.outputUrl ? (
+      {/* Image/Video Container - With Tabs if uploaded image exists (only for images, not videos) */}
+      {item.render.uploadedImageUrl && item.render.outputUrl && !isVideo ? (
         <div className="relative w-full">
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'generated' | 'comparison')} className="w-full">
             <TabsList className="absolute top-2 left-2 z-20 grid w-auto grid-cols-2 bg-black/70 text-white">
@@ -304,13 +315,54 @@ export function GalleryImageCard({
                 </div>
               )}
               
-              {imageError ? (
+              {imageError || videoError ? (
                 <div className="w-full h-full flex items-center justify-center bg-muted">
                   <div className="text-center">
-                    <div className="text-4xl mb-2">🖼️</div>
+                    <div className="text-4xl mb-2">{isVideo ? '🎬' : '🖼️'}</div>
                     <p className="text-muted-foreground text-sm">Failed to load</p>
                   </div>
                 </div>
+              ) : item.render.outputUrl && isVideo ? (
+                <video
+                  src={item.render.outputUrl}
+                  className={cn(
+                    "w-full h-full object-contain transition-opacity duration-300",
+                    videoLoading ? "opacity-0" : "opacity-100"
+                  )}
+                  controls={false}
+                  loop
+                  muted
+                  playsInline
+                  onLoadedMetadata={() => {
+                    setVideoLoading(false);
+                  }}
+                  onError={() => {
+                    setVideoError(true);
+                    setVideoLoading(false);
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isVideoPlaying) {
+                      e.currentTarget.play();
+                      setIsVideoPlaying(true);
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.pause();
+                    e.currentTarget.currentTime = 0;
+                    setIsVideoPlaying(false);
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const video = e.currentTarget;
+                    if (video.paused) {
+                      video.play();
+                      setIsVideoPlaying(true);
+                    } else {
+                      video.pause();
+                      setIsVideoPlaying(false);
+                    }
+                  }}
+                />
               ) : item.render.outputUrl && (
                 <Image
                   src={item.render.outputUrl}
@@ -369,19 +421,72 @@ export function GalleryImageCard({
             aspectRatio: displayAspectRatio,
           }}
         >
-          {imageLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-muted">
+          {(imageLoading || videoLoading) && (
+            <div className="absolute inset-0 flex items-center justify-center bg-muted z-10">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           )}
           
-          {imageError ? (
+          {imageError || videoError ? (
             <div className="w-full h-full flex items-center justify-center bg-muted">
               <div className="text-center">
-                <div className="text-4xl mb-2">🖼️</div>
+                <div className="text-4xl mb-2">{isVideo ? '🎬' : '🖼️'}</div>
                 <p className="text-muted-foreground text-sm">Failed to load</p>
               </div>
             </div>
+          ) : item.render.outputUrl && isVideo ? (
+            <>
+              <video
+                src={item.render.outputUrl}
+                className={cn(
+                  "w-full h-full object-contain transition-opacity duration-300",
+                  videoLoading ? "opacity-0" : "opacity-100"
+                )}
+                controls={false}
+                loop
+                muted
+                playsInline
+                onLoadedMetadata={() => {
+                  setVideoLoading(false);
+                }}
+                onError={() => {
+                  setVideoError(true);
+                  setVideoLoading(false);
+                }}
+                onMouseEnter={(e) => {
+                  if (!isVideoPlaying) {
+                    e.currentTarget.play();
+                    setIsVideoPlaying(true);
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.pause();
+                  e.currentTarget.currentTime = 0;
+                  setIsVideoPlaying(false);
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const video = e.currentTarget;
+                  if (video.paused) {
+                    video.play();
+                    setIsVideoPlaying(true);
+                  } else {
+                    video.pause();
+                    setIsVideoPlaying(false);
+                  }
+                }}
+              />
+              {/* Video play indicator */}
+              {!isVideoPlaying && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="bg-black/50 rounded-full p-3">
+                    <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                    </svg>
+                  </div>
+                </div>
+              )}
+            </>
           ) : item.render.outputUrl && (
             <Image
               src={item.render.outputUrl}
@@ -490,6 +595,11 @@ export function GalleryImageCard({
         {/* Metadata as Tags */}
         <div className="flex items-center justify-between gap-2 pt-1">
           <div className="flex flex-wrap gap-2">
+            {isVideo && (
+              <Badge variant="default" className="text-xs bg-primary text-primary-foreground">
+                🎬 Video
+              </Badge>
+            )}
             {item.render.settings?.style && (
               <Badge variant="secondary" className="text-xs capitalize">
                 {item.render.settings.style}
