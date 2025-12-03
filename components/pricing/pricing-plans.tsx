@@ -73,8 +73,6 @@ export function PricingPlans({ plans, userCredits }: PricingPlansProps) {
             message: result.error || 'Subscriptions feature is not enabled on your Razorpay account.',
             planId: planId
           });
-          // Also log the full error for debugging
-          console.error('Subscription creation failed:', result.error);
         } else {
           toast.error(result.error || 'Failed to create subscription');
         }
