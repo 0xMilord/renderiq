@@ -589,12 +589,45 @@ export async function POST(request: NextRequest) {
         }, { status: statusCode });
       }
 
-      logger.log('✅ Generation successful, uploading to storage');
+      logger.log('✅ Generation successful, processing and uploading to storage');
+
+      // Process image with watermark for free users, no watermark for paid users
+      let processedImageData: string | undefined = undefined;
+      
+      if (type === 'image' && result.data.imageData) {
+        // Only watermark images, not videos
+        if (!isPro) {
+          // Free users: Add watermark
+          logger.log('🎨 Adding watermark for free user');
+          const { WatermarkService } = await import('@/lib/services/watermark');
+          processedImageData = await WatermarkService.addWatermark(result.data.imageData, {
+            text: 'Renderiq',
+            position: 'bottom-right',
+            opacity: 0.7
+          });
+        } else {
+          // Paid users: No watermark
+          logger.log('✅ Paid user - no watermark applied');
+          processedImageData = result.data.imageData;
+        }
+      }
 
       // Upload generated image/video to storage
       let uploadResult;
-      if (result.data.imageData) {
-        // Use base64 data directly
+      if (processedImageData) {
+        // Use processed base64 data (with or without watermark)
+        const fileExtension = 'png';
+        logger.log(`📤 Uploading processed ${type} data to storage`);
+        const buffer = Buffer.from(processedImageData, 'base64');
+        uploadResult = await StorageService.uploadFile(
+          buffer,
+          'renders',
+          user.id,
+          `render_${render.id}.${fileExtension}`,
+          project.slug
+        );
+      } else if (result.data.imageData) {
+        // Use base64 data directly (for videos or if processing skipped)
         const fileExtension = type === 'video' ? 'mp4' : 'png';
         logger.log(`📤 Uploading base64 ${type} data to storage`);
         const buffer = Buffer.from(result.data.imageData, 'base64');

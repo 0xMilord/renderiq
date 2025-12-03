@@ -72,10 +72,8 @@ export function Footer() {
               </div>
               <div className="flex items-center space-x-4">
                 <ThemeToggle />
-                {/* PWA Install Button - Show only on mobile */}
-                <div className="md:hidden">
-                  <PWAInstallButton />
-                </div>
+                {/* PWA Install Button - Show on all devices */}
+                <PWAInstallButton />
               </div>
             </div>
           </div>

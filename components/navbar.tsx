@@ -8,7 +8,7 @@ import { UserDropdown } from '@/components/user-dropdown';
 import { NavbarSelectors } from '@/components/navbar-selectors';
 import { AlphaBanner } from '@/components/alpha-banner';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Menu, X, Home, Sparkles, Images, Lightbulb, CreditCard, Info, FileText, Mail, Newspaper } from 'lucide-react';
+import { Menu, X, Home, Sparkles, Images, Lightbulb, CreditCard, Info, FileText, Mail, Newspaper, Play } from 'lucide-react';
 import { 
   FaGithub, 
   FaXTwitter, 
@@ -18,7 +18,6 @@ import {
   FaDiscord 
 } from 'react-icons/fa6';
 import { cn } from '@/lib/utils';
-import { PWAInstallButton } from '@/components/pwa/install-button';
 import {
   Sheet,
   SheetContent,
@@ -126,16 +125,25 @@ export function Navbar() {
             </div>
           )}
 
-          {/* Right Section: User Dropdown, Install Button, and Hamburger Menu */}
+          {/* Right Section: Start Creating Button, User Dropdown, and Hamburger Menu */}
           <div className="flex items-center flex-shrink-0 gap-2">
             {loading ? (
               <Skeleton className="w-8 h-8 rounded-full" />
             ) : (
               <>
-                {/* PWA Install Button - Show only on desktop */}
-                <div className="hidden md:flex">
-                  <PWAInstallButton />
-                </div>
+                {/* Start Creating Button - Show when authenticated */}
+                {user && (
+                  <Link href="/render">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="gap-2 hidden md:flex"
+                    >
+                      <Play className="h-4 w-4" />
+                      Start creating
+                    </Button>
+                  </Link>
+                )}
                 
                 {/* User Dropdown - Always show on desktop, and on mobile when authenticated */}
                 <div className={cn(
@@ -177,6 +185,17 @@ export function Navbar() {
                         <SheetTitle>Menu</SheetTitle>
                       </SheetHeader>
                       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-1">
+                        {/* Start Creating Button - Show when authenticated */}
+                        {user && (
+                          <Link
+                            href="/render"
+                            className="flex items-center space-x-2 bg-primary text-primary-foreground hover:bg-primary/90 block px-3 py-2 rounded-md text-base font-medium transition-colors mb-4"
+                            onClick={() => setIsOpen(false)}
+                          >
+                            <Play className="h-4 w-4" />
+                            <span>Start creating</span>
+                          </Link>
+                        )}
                         <Link
                           href="/"
                           className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium transition-colors"

@@ -31,15 +31,19 @@ const nextConfig: NextConfig = {
         'contentlayer2/generated': path.resolve(__dirname, '.contentlayer/generated/index.mjs'),
       };
     } else {
-      // Exclude pdfkit from client-side bundle (server-only library)
+      // Exclude server-only modules from client-side bundle
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,
         path: false,
         crypto: false,
+        net: false,
+        tls: false,
+        dns: false,
+        child_process: false,
       };
     }
-    // Exclude pdfkit from client bundle
+    // Exclude server-only packages from client bundle
     config.externals = config.externals || [];
     if (!isServer) {
       config.externals.push('pdfkit');

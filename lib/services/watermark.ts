@@ -251,106 +251,15 @@ export class WatermarkService {
 
   /**
    * Remove Gemini AI watermark from image data
-   * For server-side: Uses Sharp for cropping and processing
-   * For browser: Advanced pixel processing
+   * Note: No longer crops images - just returns original image
+   * Cropping was removed as per requirements
    */
   static async removeGeminiWatermark(base64Data: string): Promise<string> {
-    logger.log('🧹 Removing Gemini watermark');
+    logger.log('🧹 Processing image (no cropping applied)');
     
-    if (!isBrowser) {
-      // Server-side: Use Sharp for watermark removal
-      try {
-        logger.log('🔧 Using Sharp for server-side watermark removal');
-        
-        // Convert base64 to buffer
-        const imageBuffer = Buffer.from(base64Data, 'base64');
-        
-        // Get image metadata
-        const metadata = await sharp(imageBuffer).metadata();
-        const { width, height } = metadata;
-        
-        if (!width || !height) {
-          throw new Error('Could not get image dimensions');
-        }
-        
-        // Crop out the bottom-right corner where Gemini watermarks typically appear
-        // Remove bottom 8% and right 8% of the image
-        const cropBottom = Math.floor(height * 0.08);
-        const cropRight = Math.floor(width * 0.08);
-        
-        // Crop the image to remove watermark areas
-        const croppedImage = await sharp(imageBuffer)
-          .extract({
-            left: 0,
-            top: 0,
-            width: width - cropRight,
-            height: height - cropBottom
-          })
-          .png()
-          .toBuffer();
-        
-        // Convert back to base64
-        const result = croppedImage.toString('base64');
-        logger.log('✅ Gemini watermark removed using Sharp');
-        
-        return result;
-      } catch (error) {
-        logger.error('❌ Error removing Gemini watermark with Sharp:', error);
-        // Return original data if processing fails
-        return base64Data;
-      }
-    }
-    
-    try {
-      // Browser-side: Use Canvas API for advanced processing
-      const imageData = await base64ToImageData(base64Data);
-      const { data, width, height } = imageData;
-      
-      // Create a copy of the image data
-      const newData = new Uint8ClampedArray(data);
-      
-      // Gemini watermarks are typically in the bottom-right corner
-      // We'll process the bottom 10% and right 10% where watermarks usually appear
-      const cropBottom = Math.floor(height * 0.1);
-      const cropRight = Math.floor(width * 0.1);
-      
-      // Process the image to remove watermark areas
-      for (let y = height - cropBottom; y < height; y++) {
-        for (let x = width - cropRight; x < width; x++) {
-          const index = (y * width + x) * 4;
-          
-          // Check if this pixel is likely part of a watermark
-          // Watermarks are usually semi-transparent white/gray text
-          const r = data[index];
-          const g = data[index + 1];
-          const b = data[index + 2];
-          const a = data[index + 3];
-          
-          // Detect watermark-like pixels (high brightness, low alpha)
-          const brightness = (r + g + b) / 3;
-          const isWatermark = brightness > 200 && a < 200;
-          
-          if (isWatermark) {
-            // Replace with surrounding pixels or make transparent
-            // For now, we'll make it transparent
-            newData[index + 3] = 0; // Set alpha to 0
-          }
-        }
-      }
-      
-      // Create new ImageData with processed data
-      const processedImageData = new ImageData(newData, width, height);
-      
-      // Convert back to base64
-      const result = imageDataToBase64(processedImageData);
-      logger.log('✅ Gemini watermark removal completed');
-      
-      return result;
-    } catch (error) {
-      logger.error('❌ Error removing Gemini watermark:', error);
-      // Return original data if processing fails
-      return base64Data;
-    }
+    // Simply return the original image without cropping
+    // The AI provider watermark removal is handled by the provider itself
+    return base64Data;
   }
 
   /**

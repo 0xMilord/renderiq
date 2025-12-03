@@ -66,6 +66,8 @@ import { UploadModal } from './upload-modal';
 import { GalleryModal } from './gallery-modal';
 import { ProjectRulesModal } from './project-rules-modal';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
+import { Lock, Globe } from 'lucide-react';
 import { logger } from '@/lib/utils/logger';
 import { MentionTagger } from './mention-tagger';
 import type { Render } from '@/lib/types/render';
@@ -220,6 +222,10 @@ export function UnifiedChatInterface({
   const [videoKeyframes, setVideoKeyframes] = useState<Array<{ id: string; imageData: string; imageType: string; timestamp?: number }>>([]);
   const [videoLastFrame, setVideoLastFrame] = useState<{ imageData: string; imageType: string } | null>(null);
   
+  // Render visibility - Free users default to public, Pro users default to private
+  const [isPublic, setIsPublic] = useState(true); // Will be updated based on isPro
+  const [isUpgradeDialogOpen, setIsUpgradeDialogOpen] = useState(false);
+  
   // Modal states
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isLowBalanceModalOpen, setIsLowBalanceModalOpen] = useState(false);
@@ -259,6 +265,13 @@ export function UnifiedChatInterface({
   const { profile } = useUserProfile();
   const { data: isPro, loading: proLoading } = useIsPro(profile?.id);
   const { upscaleImage, isUpscaling, upscalingResult, error: upscalingError } = useUpscaling();
+  
+  // Update isPublic based on pro status: Free users = public (true), Pro users = private (false)
+  useEffect(() => {
+    if (!proLoading) {
+      setIsPublic(!isPro); // Free users are public, Pro users are private by default
+    }
+  }, [isPro, proLoading]);
   
   // Find previous render for before/after comparison
   const previousRender = useMemo(() => {
@@ -1030,7 +1043,7 @@ export function UnifiedChatInterface({
          if (chainId) fd.append('chainId', chainId);
          if (referenceRenderId) fd.append('referenceRenderId', referenceRenderId);
          if (versionContext) fd.append('versionContext', JSON.stringify(versionContext));
-         fd.append('isPublic', 'true');
+         fd.append('isPublic', isPublic.toString());
          if (environment && environment !== 'none') fd.append('environment', environment);
          if (effect && effect !== 'none') fd.append('effect', effect);
          if (uploadedImageBase64) {
@@ -2018,9 +2031,50 @@ export function UnifiedChatInterface({
             )}
             
             <div>
+              {/* Video Mode Badge and Private/Public Toggle - Above prompt box */}
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <div className="flex items-center gap-2">
+                  {isVideoMode && (
+                    <Badge variant="secondary" className="text-[10px] px-2 py-0.5 flex items-center gap-1">
+                      <Video className="h-3 w-3" />
+                      Video Mode
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="privacy-toggle" className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1.5 cursor-pointer">
+                    {isPublic ? (
+                      <>
+                        <Globe className="h-3 w-3" />
+                        <span className="hidden sm:inline">Public</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="h-3 w-3" />
+                        <span className="hidden sm:inline">Private</span>
+                      </>
+                    )}
+                  </Label>
+                  <Switch
+                    id="privacy-toggle"
+                    checked={!isPublic}
+                    onCheckedChange={(checked) => {
+                      if (!isPro && checked) {
+                        // Free user trying to make private - show upgrade dialog
+                        setIsUpgradeDialogOpen(true);
+                      } else {
+                        // Pro user or making public - allow toggle
+                        setIsPublic(!checked);
+                      }
+                    }}
+                    disabled={!isPro && !isPublic} // Free users can't turn off public
+                  />
+                </div>
+              </div>
+              
               {/* Detected Mentions */}
               {inputValue.includes('@') && (
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1 mb-1.5">
                   {inputValue.match(/@[\w\s]+/g)?.map((mention, idx) => (
                     <Badge 
                       key={idx} 
@@ -2037,32 +2091,22 @@ export function UnifiedChatInterface({
               
               <div className="flex gap-1 sm:gap-2">
                 <div className="relative flex-1">
-                  <div className="relative">
-                    {isVideoMode && (
-                      <div className="absolute top-2 left-2 z-10">
-                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5 flex items-center gap-1">
-                          <Video className="h-3 w-3" />
-                          Video Mode
-                        </Badge>
-                      </div>
+                  <Textarea
+                    ref={textareaRef}
+                    value={inputValue}
+                    onChange={handleInputChange}
+                    onKeyPress={handleKeyPress}
+                    placeholder={
+                      isVideoMode 
+                        ? "Describe how you want to animate this image..." 
+                        : "Describe your vision..."
+                    }
+                    className={cn(
+                      "h-[60px] sm:h-[70px] resize-none w-full text-xs sm:text-sm",
+                      isVideoMode && "border-primary/50 bg-primary/5"
                     )}
-                    <Textarea
-                      ref={textareaRef}
-                      value={inputValue}
-                      onChange={handleInputChange}
-                      onKeyPress={handleKeyPress}
-                      placeholder={
-                        isVideoMode 
-                          ? "Describe how you want to animate this image..." 
-                          : "Describe your vision..."
-                      }
-                      className={cn(
-                        "h-[60px] sm:h-[70px] resize-none w-full text-xs sm:text-sm",
-                        isVideoMode && "border-primary/50 bg-primary/5"
-                      )}
-                      disabled={isGenerating}
-                    />
-                  </div>
+                    disabled={isGenerating}
+                  />
                   <MentionTagger
                     isOpen={isMentionTaggerOpen}
                     onClose={handleMentionTaggerClose}
@@ -3084,6 +3128,62 @@ export function UnifiedChatInterface({
               }}
             >
               Top up Credits
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upgrade to Premium Dialog for Private Renders */}
+      <Dialog open={isUpgradeDialogOpen} onOpenChange={setIsUpgradeDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                <Lock className="h-5 w-5 text-primary" />
+              </div>
+              <DialogTitle>Upgrade to Premium</DialogTitle>
+            </div>
+            <DialogDescription className="pt-2">
+              Private renders are a premium feature. Upgrade to Pro to keep your renders private and exclusive.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-2">
+            <div className="flex items-start gap-3">
+              <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center mt-0.5 shrink-0">
+                <Lock className="h-3 w-3 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Private Renders</p>
+                <p className="text-xs text-muted-foreground">Keep your renders exclusive and not visible in the public gallery</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center mt-0.5 shrink-0">
+                <Zap className="h-3 w-3 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">More Credits</p>
+                <p className="text-xs text-muted-foreground">Get 100 credits per month with Pro subscription</p>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => setIsUpgradeDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="default"
+              className="w-full sm:w-auto"
+              onClick={() => {
+                setIsUpgradeDialogOpen(false);
+                window.open('/pricing', '_blank');
+              }}
+            >
+              Upgrade to Pro
             </Button>
           </DialogFooter>
         </DialogContent>

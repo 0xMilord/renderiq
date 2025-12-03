@@ -92,13 +92,15 @@ export class AISDKService {
       throw new Error('GEMINI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, or GOOGLE_AI_API_KEY environment variable is required');
     }
     
-    // Use the new @google/genai SDK for all operations
+    // Use the new @google/genai SDK for all operations (including Veo 3.1 video generation)
     // According to docs: new GoogleGenAI({}) reads from GEMINI_API_KEY automatically
     // But we'll pass it explicitly to ensure it works
     this.genAI = new GoogleGenAI({ apiKey });
+    
     logger.log('✅ AISDKService initialized with Google Generative AI SDK (@google/genai)', {
       apiKeyPresent: !!apiKey,
-      apiKeyPrefix: apiKey.substring(0, 10) + '...'
+      apiKeyPrefix: apiKey.substring(0, 10) + '...',
+      isServer: typeof window === 'undefined'
     });
   }
 
@@ -430,16 +432,10 @@ Original prompt: "${originalPrompt}"`;
   }
 
   /**
-   * Generate videos using Google Generative AI
+   * Generate videos using Veo 3.1 via Gemini API
    * 
-   * NOTE: Gemini API can understand videos but doesn't generate them.
-   * For actual video generation, you need Veo API (Google Cloud Vertex AI).
-   * This implementation uses Gemini's multimodal API as a placeholder.
-   * 
-   * To use Veo:
-   * 1. Set up Google Cloud Vertex AI
-   * 2. Enable Veo API
-   * 3. Replace this implementation with Veo API calls
+   * Veo 3.1 is accessed through the @google/genai SDK using generateVideos()
+   * This is an async operation that requires polling until completion.
    */
   async generateVideo(request: {
     prompt: string;
@@ -448,7 +444,7 @@ Original prompt: "${originalPrompt}"`;
     uploadedImageData?: string;
     uploadedImageType?: string;
   }): Promise<{ success: boolean; data?: VideoGenerationResult; error?: string }> {
-    logger.log('🎬 AISDKService: Starting video generation', {
+    logger.log('🎬 AISDKService: Starting Veo 3.1 video generation', {
       prompt: request.prompt,
       duration: request.duration,
       aspectRatio: request.aspectRatio,
@@ -460,40 +456,228 @@ Original prompt: "${originalPrompt}"`;
     try {
       // Build clean, structured prompt following best practices
       let enhancedPrompt = request.prompt.trim();
-      const promptLower = enhancedPrompt.toLowerCase();
       
-      // Add aspect ratio if not already mentioned
-      if (request.aspectRatio && !promptLower.includes('aspect ratio') && !promptLower.includes(request.aspectRatio.replace(':', ':'))) {
-        enhancedPrompt += `, ${request.aspectRatio} aspect ratio`;
-      }
-      
-      // Add duration if not already mentioned
-      if (request.duration && !promptLower.includes('duration') && !promptLower.includes(`${request.duration} second`)) {
-        enhancedPrompt += `, ${request.duration} seconds`;
+      // Prepare image for image-to-video if provided
+      let imageInput: { imageBytes: string; mimeType: string } | undefined;
+      if (request.uploadedImageData) {
+        imageInput = {
+          imageBytes: request.uploadedImageData,
+          mimeType: request.uploadedImageType || 'image/png',
+        };
+        logger.log('🎬 Veo: Using image-to-video mode');
+      } else {
+        logger.log('🎬 Veo: Using text-to-video mode');
       }
 
-      // IMPORTANT: Gemini API does not generate videos - it only understands them
-      // This is a placeholder implementation that will need to be replaced with Veo API
-      // For now, we'll return an informative error
+      // Prepare config for Veo 3.1
+      // According to API: durationSeconds must be a number (4, 6, or 8)
+      // resolution: "720p" (default) or "1080p" (8s duration only, 16:9 only)
+      // Ensure duration is valid (4, 6, or 8)
+      const validDuration = request.duration === 4 || request.duration === 6 || request.duration === 8 
+        ? request.duration 
+        : 8; // Default to 8 if invalid
       
-      logger.warn('⚠️ AISDKService: Video generation requested but Gemini API does not support video generation');
-      logger.warn('⚠️ To enable video generation, integrate with Veo API (Google Cloud Vertex AI)');
-      
-      return {
-        success: false,
-        error: 'Video generation requires Veo API (Google Cloud Vertex AI). Gemini API can understand videos but does not generate them. Please configure Veo API access or use an alternative video generation service.'
+      const config: any = {
+        aspectRatio: request.aspectRatio,
+        durationSeconds: validDuration, // Must be a number: 4, 6, or 8
+        resolution: (validDuration === 8 && request.aspectRatio === '16:9') ? '1080p' : '720p',
       };
 
-      // TODO: Implement Veo API integration
-      // Example structure for Veo integration:
-      // 1. Upload image to Google Cloud Storage (if using image-to-video)
-      // 2. Call Veo API with prompt and image reference
-      // 3. Poll for completion
-      // 4. Download generated video
-      // 5. Return video URL or base64 data
+      logger.log('🎬 Veo: Calling generateVideos API...', {
+        model: 'veo-3.1-generate-preview',
+        config,
+        hasImage: !!imageInput
+      });
+
+      // Call Veo 3.1 API - this returns an operation that needs polling
+      // According to docs: ai.models.generateVideos() returns an operation object
+      let operation: any = await (this.genAI.models as any).generateVideos({
+        model: 'veo-3.1-generate-preview',
+        prompt: enhancedPrompt,
+        image: imageInput,
+        config,
+      });
+
+      logger.log('✅ Veo: Operation started', {
+        operationName: operation.name,
+        done: operation.done
+      });
+
+      // Poll the operation until video is ready (max 6 minutes based on docs)
+      const maxWaitTime = 6 * 60 * 1000; // 6 minutes in milliseconds
+      const pollInterval = 10000; // 10 seconds
+      const startPollTime = Date.now();
+
+      while (!operation.done) {
+        const elapsed = Date.now() - startPollTime;
+        if (elapsed > maxWaitTime) {
+          logger.error('❌ Veo: Operation timeout after 6 minutes');
+          return {
+            success: false,
+            error: 'Video generation timed out after 6 minutes. Please try again.'
+          };
+        }
+
+        logger.log('⏳ Veo: Polling operation status...', {
+          elapsed: Math.round(elapsed / 1000) + 's'
+        });
+
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        
+        // Get updated operation status
+        // According to docs: ai.operations.getVideosOperation() polls the operation
+        operation = await (this.genAI.operations as any).getVideosOperation({
+          operation: operation,
+        });
+      }
+
+      logger.log('✅ Veo: Operation completed');
+
+      // Extract video from response
+      // According to docs: operation.response.generatedVideos[0].video contains the video file
+      const generatedVideos = operation.response?.generatedVideos || operation.response?.generateVideoResponse?.generatedSamples;
+      
+      if (!generatedVideos || generatedVideos.length === 0) {
+        logger.error('❌ Veo: No videos in response', {
+          responseKeys: Object.keys(operation.response || {}),
+          hasResponse: !!operation.response
+        });
+        return {
+          success: false,
+          error: 'Video generation completed but no videos were returned'
+        };
+      }
+
+      const videoFile = generatedVideos[0].video;
+      if (!videoFile) {
+        logger.error('❌ Veo: No video file in response', {
+          generatedVideoKeys: Object.keys(generatedVideos[0] || {})
+        });
+        return {
+          success: false,
+          error: 'Video generation completed but no video file was returned'
+        };
+      }
+
+      logger.log('✅ Veo: Video file received', {
+        uri: videoFile.uri,
+        mimeType: videoFile.mimeType,
+        fileKeys: Object.keys(videoFile)
+      });
+
+      // Download video from URI
+      let videoData: string;
+      let videoUrl: string | undefined;
+
+      if (videoFile.uri) {
+        videoUrl = videoFile.uri;
+        
+        try {
+          // Download video using the Files API
+          // According to docs: ai.files.download() downloads the file
+          const downloadedFile = await (this.genAI.files as any).download({
+            file: videoFile,
+          });
+
+          // Convert to base64
+          // The downloaded file may have videoBytes or we need to fetch from URI
+          if (downloadedFile?.videoBytes) {
+            videoData = Buffer.from(downloadedFile.videoBytes).toString('base64');
+            logger.log('✅ Veo: Video downloaded successfully via Files API', {
+              size: videoData.length
+            });
+          } else if (downloadedFile?.video) {
+            // Handle nested video object
+            const videoBytes = downloadedFile.video.videoBytes || downloadedFile.video.bytes;
+            if (videoBytes) {
+              videoData = Buffer.from(videoBytes).toString('base64');
+              logger.log('✅ Veo: Video downloaded successfully (nested video object)');
+            } else {
+              throw new Error('No videoBytes in downloaded file');
+            }
+          } else {
+            // Fallback: fetch from URI with API key
+            logger.log('⚠️ Veo: videoBytes not available, fetching from URI...');
+            const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || '';
+            const videoResponse = await fetch(videoUrl, {
+              headers: {
+                'x-goog-api-key': apiKey
+              }
+            });
+            
+            if (!videoResponse.ok) {
+              throw new Error(`Failed to fetch video: ${videoResponse.statusText} (${videoResponse.status})`);
+            }
+            
+            const videoBlob = await videoResponse.blob();
+            const arrayBuffer = await videoBlob.arrayBuffer();
+            videoData = Buffer.from(arrayBuffer).toString('base64');
+            logger.log('✅ Veo: Video downloaded from URI');
+          }
+        } catch (downloadError) {
+          logger.error('❌ Veo: Failed to download video:', downloadError);
+          return {
+            success: false,
+            error: `Failed to download generated video: ${downloadError instanceof Error ? downloadError.message : 'Unknown error'}`
+          };
+        }
+      } else {
+        logger.error('❌ Veo: No video URI available', {
+          videoFileKeys: Object.keys(videoFile)
+        });
+        return {
+          success: false,
+          error: 'Video generated but no download URI was provided'
+        };
+      }
+
+      const processingTime = Date.now() - startTime;
+      logger.log('✅ Veo: Video generation successful', {
+        processingTime,
+        videoSize: videoData.length,
+        hasUrl: !!videoUrl
+      });
+
+      return {
+        success: true,
+        data: {
+          videoData,
+          videoUrl,
+          processingTime,
+          provider: 'veo-3.1',
+          metadata: {
+            prompt: enhancedPrompt,
+            duration: request.duration,
+            aspectRatio: request.aspectRatio,
+          },
+        },
+      };
 
     } catch (error) {
-      logger.error('❌ AISDKService: Video generation failed', error);
+      logger.error('❌ Veo: Video generation failed:', error);
+      
+      // Provide helpful error messages
+      if (error instanceof Error) {
+        const errorMsg = error.message.toLowerCase();
+        
+        if (errorMsg.includes('quota') || errorMsg.includes('limit')) {
+          return {
+            success: false,
+            error: 'Veo API quota exceeded. Please check your API quota limits.'
+          };
+        } else if (errorMsg.includes('invalid') || errorMsg.includes('bad request')) {
+          return {
+            success: false,
+            error: `Invalid request to Veo API: ${error.message}. Please check your request parameters.`
+          };
+        } else if (errorMsg.includes('not found') || errorMsg.includes('404')) {
+          return {
+            success: false,
+            error: 'Veo 3.1 model not found. Please ensure you have access to Veo 3.1 preview.'
+          };
+        }
+      }
+      
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Video generation failed'
@@ -504,7 +688,7 @@ Original prompt: "${originalPrompt}"`;
   /**
    * Stream text generation for real-time responses
    */
-  async *streamTextGeneration(prompt: string) {
+  async *streamTextGeneration(prompt: string): AsyncGenerator<string, void, unknown> {
     logger.log('📝 AISDKService: Starting text streaming', {
       prompt: prompt.substring(0, 100) + '...'
     });
@@ -610,7 +794,7 @@ Original prompt: "${originalPrompt}"`;
   /**
    * Stream chat messages
    */
-  async *streamChat(messages: Array<{ role: 'user' | 'assistant'; content: string }>) {
+  async *streamChat(messages: Array<{ role: 'user' | 'assistant'; content: string }>): AsyncGenerator<string, void, unknown> {
     try {
       // Use the new @google/genai SDK API
       // Convert messages to the new format

@@ -408,9 +408,46 @@ async function processRenderAsync(
       throw new Error('Project not found');
     }
 
+    // Check if user has pro subscription for watermarking
+    const isPro = await BillingDAL.isUserPro(renderData.userId);
+
+    // Process image with watermark for free users, no watermark for paid users
+    let processedImageData: string | undefined = undefined;
+    
+    if (renderData.type === 'image' && result.data.imageData) {
+      // Only watermark images, not videos
+      if (!isPro) {
+        // Free users: Add watermark
+        logger.log('🎨 Adding watermark for free user');
+        const { WatermarkService } = await import('@/lib/services/watermark');
+        processedImageData = await WatermarkService.addWatermark(result.data.imageData, {
+          text: 'Renderiq',
+          position: 'bottom-right',
+          opacity: 0.7
+        });
+      } else {
+        // Paid users: No watermark
+        logger.log('✅ Paid user - no watermark applied');
+        processedImageData = result.data.imageData;
+      }
+    }
+
     // Upload generated image/video to storage
     let uploadResult;
-    if (result.data.imageData) {
+    if (processedImageData) {
+      // Use processed base64 data (with or without watermark)
+      const fileExtension = 'png';
+      logger.log(`📤 Uploading processed ${renderData.type} data to storage`);
+      const buffer = Buffer.from(processedImageData, 'base64');
+      uploadResult = await StorageService.uploadFile(
+        buffer,
+        'renders',
+        renderData.userId,
+        `render_${renderId}.${fileExtension}`,
+        project.slug
+      );
+    } else if (result.data.imageData) {
+      // Use base64 data directly (for videos or if processing skipped)
       const fileExtension = renderData.type === 'video' ? 'mp4' : 'png';
       const buffer = Buffer.from(result.data.imageData, 'base64');
       uploadResult = await StorageService.uploadFile(
