@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { AISDKService } from '@/lib/services/ai-sdk-service';
 import { addCredits, deductCredits } from '@/lib/actions/billing.actions';
+import { BillingDAL } from '@/lib/dal/billing';
 import { ProjectsDAL } from '@/lib/dal/projects';
 import { RendersDAL } from '@/lib/dal/renders';
 import { RenderChainsDAL } from '@/lib/dal/render-chains';
@@ -69,7 +70,13 @@ export async function createRenderAction(formData: FormData) {
     const referenceRenderId = formData.get('referenceRenderId') as string | null;
     const negativePrompt = formData.get('negativePrompt') as string | null;
     const imageType = formData.get('imageType') as string | null;
-    const isPublic = formData.get('isPublic') === 'true';
+    
+    // Check if user has pro subscription
+    // Free users: renders are public (added to gallery)
+    // Pro users: renders are private (not added to gallery)
+    const isPro = await BillingDAL.isUserPro(user.id);
+    const isPublic = !isPro; // Free users = public, Pro users = private
+    logger.log(`📸 Render visibility: ${isPublic ? 'PUBLIC' : 'PRIVATE'} (User is ${isPro ? 'PRO' : 'FREE'})`);
     const seedParam = formData.get('seed') as string | null;
     const seed = seedParam ? parseInt(seedParam) : undefined;
     const versionContextData = formData.get('versionContext') as string | null;

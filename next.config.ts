@@ -108,15 +108,16 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live", // unsafe-eval needed for MDX
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live https://checkout.razorpay.com", // Razorpay checkout script
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https: blob: https://api.dicebear.com",
               "font-src 'self' data:",
-              "connect-src 'self' https://*.supabase.co https://*.googleapis.com https://*.googleusercontent.com https://api.dicebear.com https://vercel.live wss://*.supabase.co",
-              "frame-src 'none'",
+              "connect-src 'self' https://*.supabase.co https://*.googleapis.com https://*.googleusercontent.com https://api.dicebear.com https://vercel.live https://api.razorpay.com wss://*.supabase.co", // Razorpay API
+              "frame-src 'self' https://checkout.razorpay.com https://razorpay.com https://*.razorpay.com", // Razorpay checkout modal (allow all Razorpay subdomains)
+              "child-src 'self' https://checkout.razorpay.com https://razorpay.com https://*.razorpay.com", // Razorpay checkout modal (alternative)
               "object-src 'none'",
               "base-uri 'self'",
-              "form-action 'self'",
+              "form-action 'self' https://checkout.razorpay.com https://razorpay.com https://*.razorpay.com", // Allow form submissions to Razorpay
               "frame-ancestors 'none'",
               "upgrade-insecure-requests",
             ].join('; '),

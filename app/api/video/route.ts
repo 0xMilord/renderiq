@@ -245,6 +245,20 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      // Check if user has pro subscription
+      // Free users: renders are public (added to gallery)
+      // Pro users: renders are private (not added to gallery)
+      const isPro = await BillingDAL.isUserPro(user.id);
+      const isPublic = !isPro; // Free users = public, Pro users = private
+      
+      // Add to gallery if public
+      if (isPublic) {
+        logger.log(`📸 Video API: Adding video to public gallery (User is ${isPro ? 'PRO' : 'FREE'})`);
+        await RendersDAL.addToGallery(render.id, user.id, true);
+      } else {
+        logger.log(`🔒 Video API: Video is private (User is PRO)`);
+      }
+
       logger.log('✅ Video API: Video generation completed successfully');
 
       return NextResponse.json({

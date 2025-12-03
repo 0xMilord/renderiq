@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Check, Zap, Crown, Building2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useTheme } from 'next-themes';
 
 const planIcons: Record<string, any> = {
   free: Zap,
@@ -23,6 +24,8 @@ interface PricingPlansProps {
 export function PricingPlans({ plans, userCredits }: PricingPlansProps) {
   const [billingInterval, setBillingInterval] = useState<'month' | 'year'>('month');
   const [loading, setLoading] = useState<string | null>(null);
+  const { theme, resolvedTheme } = useTheme();
+  const isDarkMode = resolvedTheme === 'dark' || theme === 'dark';
 
   const filteredPlans = plans.filter((plan) =>
     billingInterval === 'year' ? plan.interval === 'year' : plan.interval === 'month'
@@ -48,11 +51,18 @@ export function PricingPlans({ plans, userCredits }: PricingPlansProps) {
       // Initialize Razorpay checkout
       if (typeof window !== 'undefined' && (window as any).Razorpay) {
         const Razorpay = (window as any).Razorpay;
+        
+        // Get base URL for logo
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+                       (typeof window !== 'undefined' ? window.location.origin : 'https://renderiq.io');
+        const logoUrl = `${baseUrl}/logo.svg`; // Use SVG logo from public folder
+        
         const options = {
           key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
           subscription_id: result.data.subscriptionId,
           name: 'Renderiq',
           description: 'Subscription Plan',
+          image: logoUrl, // Add logo to checkout
           handler: async (response: any) => {
             toast.success('Subscription activated successfully!');
             window.location.reload();
@@ -62,7 +72,8 @@ export function PricingPlans({ plans, userCredits }: PricingPlansProps) {
             name: userCredits?.name || '',
           },
           theme: {
-            color: '#000000',
+            color: '#D1F24A', // Use neon green accent color
+            backdrop_color: isDarkMode ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.8)',
           },
         };
 

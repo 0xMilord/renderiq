@@ -53,10 +53,16 @@ export class RazorpayService {
       }
 
       // Create order in Razorpay
+      // Receipt must be max 40 characters (Razorpay requirement)
+      // Format: pkg_<first8ofUUID>_<timestamp>
+      const shortPackageId = creditPackageId.substring(0, 8);
+      const shortTimestamp = Date.now().toString().slice(-8); // Last 8 digits of timestamp
+      const receipt = `pkg_${shortPackageId}_${shortTimestamp}`; // Max length: 3 + 1 + 8 + 1 + 8 = 21 chars
+      
       const orderOptions = {
         amount: Math.round(amount * 100), // Convert to paise
         currency: currency,
-        receipt: `credit_package_${creditPackageId}_${Date.now()}`,
+        receipt: receipt, // Max 40 characters as per Razorpay API
         notes: {
           userId,
           creditPackageId,

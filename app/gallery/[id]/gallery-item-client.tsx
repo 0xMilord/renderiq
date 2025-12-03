@@ -57,19 +57,19 @@ export function GalleryItemPageClient({ item, similarItems }: GalleryItemPageCli
     };
     fetchLikeStatus();
 
-    // Load image dimensions
-    if (item.render.outputUrl) {
-      const img = new window.Image();
-      img.onload = () => {
-        setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight });
-        setImageLoading(false);
-      };
-      img.onerror = () => {
-        setImageError(true);
-        setImageLoading(false);
-      };
-      img.src = item.render.outputUrl;
-    }
+    // Reset loading states when item changes
+    setImageLoading(true);
+    setImageError(false);
+    
+    // Set default dimensions (16:9)
+    setImageDimensions({ width: 1920, height: 1080 });
+
+    // Timeout fallback - force hide loader after 15 seconds
+    const timeoutId = setTimeout(() => {
+      setImageLoading(false);
+    }, 15000);
+
+    return () => clearTimeout(timeoutId);
   }, [item.id, item.render.outputUrl]);
 
   const handleLike = async () => {
@@ -250,26 +250,54 @@ export function GalleryItemPageClient({ item, similarItems }: GalleryItemPageCli
                   After (Generated)
                 </div>
               </div>
-            ) : item.render.outputUrl && imageDimensions ? (
+            ) : item.render.outputUrl ? (
               // Regular Image Display (no uploaded image)
-              <div className="relative w-full" style={{ aspectRatio: imageDimensions.width / imageDimensions.height }}>
-                <Image
-                  src={item.render.outputUrl}
-                  alt={item.render.prompt || 'AI-generated architectural render'}
-                  fill
-                  className={cn(
-                    "object-contain transition-opacity duration-300",
-                    imageLoading ? "opacity-0" : "opacity-100"
-                  )}
-                  priority
-                  sizes="(max-width: 1024px) 100vw, 80vw"
-                  onLoad={() => setImageLoading(false)}
-                  onError={() => {
-                    setImageError(true);
-                    setImageLoading(false);
-                  }}
-                  itemProp="image"
-                />
+              <div className="relative w-full" style={{ aspectRatio: imageDimensions ? imageDimensions.width / imageDimensions.height : 16/9 }}>
+                {imageLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-muted z-10">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+                {!imageError ? (
+                  <Image
+                    src={item.render.outputUrl}
+                    alt={item.render.prompt || 'AI-generated architectural render'}
+                    fill
+                    className={cn(
+                      "object-contain transition-opacity duration-300",
+                      imageLoading ? "opacity-0" : "opacity-100"
+                    )}
+                    priority
+                    sizes="(max-width: 1024px) 100vw, 80vw"
+                    unoptimized={false}
+                    onLoad={() => {
+                      setImageLoading(false);
+                    }}
+                    onLoadingComplete={() => {
+                      setImageLoading(false);
+                    }}
+                    onError={() => {
+                      setImageError(true);
+                      setImageLoading(false);
+                    }}
+                    itemProp="image"
+                  />
+                ) : (
+                  // Fallback to regular img tag if Next.js Image fails
+                  <img
+                    src={item.render.outputUrl}
+                    alt={item.render.prompt || 'AI-generated architectural render'}
+                    className="w-full h-full object-contain"
+                    onLoad={() => {
+                      setImageError(false);
+                      setImageLoading(false);
+                    }}
+                    onError={() => {
+                      setImageError(true);
+                      setImageLoading(false);
+                    }}
+                  />
+                )}
               </div>
             ) : null}
           </div>

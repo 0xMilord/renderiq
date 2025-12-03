@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -42,8 +42,35 @@ export function GalleryImageCard({
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'generated' | 'comparison'>('generated');
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const imageRef = useRef<HTMLImageElement | null>(null);
+  const nextImageRef = useRef<HTMLDivElement | null>(null);
   
-  const isVideo = item.render.type === 'video';
+  // Robust video type detection - check both string and type
+  const isVideo = item.render.type === 'video' || 
+                  (typeof item.render.type === 'string' && item.render.type.toLowerCase() === 'video') ||
+                  (item.render.outputUrl && (
+                    item.render.outputUrl.toLowerCase().endsWith('.mp4') ||
+                    item.render.outputUrl.toLowerCase().endsWith('.webm') ||
+                    item.render.outputUrl.toLowerCase().endsWith('.mov')
+                  ));
+  
+  // Debug logging for video detection
+  useEffect(() => {
+    if (item.render.type === 'video' || isVideo) {
+      console.log('GalleryImageCard: Video detected', {
+        itemId: item.id,
+        type: item.render.type,
+        outputUrl: item.render.outputUrl,
+        isVideo
+      });
+    }
+  }, [item.id, item.render.type, item.render.outputUrl, isVideo]);
+  
+  // Check if URL is from Supabase or external domain
+  const isExternalUrl = item.render.outputUrl 
+    ? (item.render.outputUrl.includes('supabase.co') || 
+       item.render.outputUrl.includes('http') && !item.render.outputUrl.includes(process.env.NEXT_PUBLIC_SITE_URL || 'renderiq.io'))
+    : false;
 
   useEffect(() => {
     setMounted(true);
@@ -54,25 +81,29 @@ export function GalleryImageCard({
   const shouldShowMoreButton = item.render.prompt.length > 150;
 
   useEffect(() => {
-    // Load image dimensions to maintain aspect ratio
-    if (item.render.outputUrl) {
-      if (isVideo) {
-        // For videos, set default dimensions (16:9) and mark as loaded when metadata loads
-        setImageDimensions({ width: 1920, height: 1080 });
-        setVideoLoading(true);
-      } else {
-        const img = new window.Image();
-        img.onload = () => {
-          setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight });
-          setImageLoading(false);
-        };
-        img.onerror = () => {
-          setImageError(true);
-          setImageLoading(false);
-        };
-        img.src = item.render.outputUrl;
-      }
+    // Reset loading states when URL changes
+    if (!item.render.outputUrl) {
+      setImageLoading(false);
+      setImageError(true);
+      return;
     }
+
+    setImageLoading(true);
+    setImageError(false);
+    setVideoLoading(true);
+    setVideoError(false);
+    
+    // Set default dimensions (16:9)
+    setImageDimensions({ width: 1920, height: 1080 });
+
+    // Aggressive timeout - force show image after 2 seconds regardless
+    // This prevents perpetual loading states
+    const timeoutId = setTimeout(() => {
+      setImageLoading(false);
+      setVideoLoading(false);
+    }, 2000);
+
+    return () => clearTimeout(timeoutId);
   }, [item.render.outputUrl, isVideo]);
 
   useEffect(() => {
@@ -185,7 +216,7 @@ export function GalleryImageCard({
       {/* Header - User info */}
       <div className="px-4 py-3 flex items-center justify-between border-b border-border">
         {item.user && (
-          <div className="relative">
+          <div className="relative flex-1">
             <Link
               href={getUsernameUrl()}
               onClick={handleUserClick}
@@ -273,11 +304,24 @@ export function GalleryImageCard({
           )}
           </div>
         )}
-        <button className="text-foreground hover:opacity-70">
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-          </svg>
-        </button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-xs border-primary text-primary hover:bg-primary hover:text-primary-foreground shrink-0"
+          data-view-image
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const url = `/gallery/${item.id}`;
+            router.push(url);
+            if (onView) {
+              onView(item.id);
+            }
+          }}
+        >
+          <Eye className="h-3 w-3 mr-1.5 shrink-0" />
+          View Image
+        </Button>
       </div>
 
       {/* Image/Video Container - With Tabs if uploaded image exists (only for images, not videos) */}
@@ -322,7 +366,7 @@ export function GalleryImageCard({
                     <p className="text-muted-foreground text-sm">Failed to load</p>
                   </div>
                 </div>
-              ) : item.render.outputUrl && isVideo ? (
+              ) : isVideo && item.render.outputUrl ? (
                 <video
                   src={item.render.outputUrl}
                   className={cn(
@@ -363,23 +407,36 @@ export function GalleryImageCard({
                     }
                   }}
                 />
-              ) : item.render.outputUrl && (
-                <Image
-                  src={item.render.outputUrl}
-                  alt={item.render.prompt || 'AI-generated architectural render'}
-                  fill
-                  className={cn(
-                    "object-contain transition-opacity duration-300",
-                    imageLoading ? "opacity-0" : "opacity-100"
-                  )}
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  priority={priority}
-                  onLoad={() => setImageLoading(false)}
-                  onError={() => {
-                    setImageError(true);
-                    setImageLoading(false);
-                  }}
-                />
+              ) : item.render.outputUrl ? (
+                <>
+                  {/* Use regular img tag - more reliable for external URLs */}
+                  <img
+                    ref={imageRef}
+                    src={item.render.outputUrl}
+                    alt={item.render.prompt || 'AI-generated architectural render'}
+                    className={cn(
+                      "w-full h-full object-contain transition-opacity duration-300",
+                      imageLoading ? "opacity-0" : "opacity-100"
+                    )}
+                    onLoad={() => {
+                      setImageLoading(false);
+                      setImageError(false);
+                    }}
+                    onError={() => {
+                      setImageError(true);
+                      setImageLoading(false);
+                    }}
+                    loading={priority ? "eager" : "lazy"}
+                  />
+                </>
+              ) : (
+                // No outputUrl - show placeholder
+                <div className="w-full h-full flex items-center justify-center bg-muted">
+                  <div className="text-center">
+                    <div className="text-4xl mb-2">🖼️</div>
+                    <p className="text-muted-foreground text-sm">No image available</p>
+                  </div>
+                </div>
               )}
             </div>
           </TabsContent>
@@ -434,7 +491,7 @@ export function GalleryImageCard({
                 <p className="text-muted-foreground text-sm">Failed to load</p>
               </div>
             </div>
-          ) : item.render.outputUrl && isVideo ? (
+          ) : isVideo && item.render.outputUrl ? (
             <>
               <video
                 src={item.render.outputUrl}
@@ -487,23 +544,36 @@ export function GalleryImageCard({
                 </div>
               )}
             </>
-          ) : item.render.outputUrl && (
-            <Image
-              src={item.render.outputUrl}
-              alt={item.render.prompt || 'AI-generated architectural render'}
-              fill
-              className={cn(
-                "object-contain transition-opacity duration-300",
-                imageLoading ? "opacity-0" : "opacity-100"
-              )}
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              priority={priority}
-              onLoad={() => setImageLoading(false)}
-              onError={() => {
-                setImageError(true);
-                setImageLoading(false);
-              }}
-            />
+          ) : item.render.outputUrl ? (
+            <>
+              {/* Always use regular img tag for Supabase/external URLs - more reliable */}
+              <img
+                ref={imageRef}
+                src={item.render.outputUrl}
+                alt={item.render.prompt || 'AI-generated architectural render'}
+                className={cn(
+                  "w-full h-full object-contain transition-opacity duration-300",
+                  imageLoading ? "opacity-0" : "opacity-100"
+                )}
+                onLoad={() => {
+                  setImageLoading(false);
+                  setImageError(false);
+                }}
+                onError={() => {
+                  setImageError(true);
+                  setImageLoading(false);
+                }}
+                loading={priority ? "eager" : "lazy"}
+              />
+            </>
+          ) : (
+            // No outputUrl - show placeholder
+            <div className="w-full h-full flex items-center justify-center bg-muted">
+              <div className="text-center">
+                <div className="text-4xl mb-2">🖼️</div>
+                <p className="text-muted-foreground text-sm">No image available</p>
+              </div>
+            </div>
           )}
         </div>
       )}
@@ -593,47 +663,27 @@ export function GalleryImageCard({
         </div>
 
         {/* Metadata as Tags */}
-        <div className="flex items-center justify-between gap-2 pt-1">
-          <div className="flex flex-wrap gap-2">
-            {isVideo && (
-              <Badge variant="default" className="text-xs bg-primary text-primary-foreground">
-                🎬 Video
-              </Badge>
-            )}
-            {item.render.settings?.style && (
-              <Badge variant="secondary" className="text-xs capitalize">
-                {item.render.settings.style}
-              </Badge>
-            )}
-            {item.render.settings?.quality && (
-              <Badge variant="secondary" className="text-xs capitalize">
-                {item.render.settings.quality}
-              </Badge>
-            )}
-            {item.render.settings?.aspectRatio && (
-              <Badge variant="secondary" className="text-xs">
-                {item.render.settings.aspectRatio}
-              </Badge>
-            )}
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-            data-view-image
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              const url = `/gallery/${item.id}`;
-              router.push(url);
-              if (onView) {
-                onView(item.id);
-              }
-            }}
-          >
-            <Eye className="h-3 w-3 mr-1 shrink-0" />
-            View Image
-          </Button>
+        <div className="flex flex-wrap gap-2 pt-1">
+          {isVideo && (
+            <Badge variant="default" className="text-xs bg-primary text-primary-foreground">
+              🎬 Video
+            </Badge>
+          )}
+          {item.render.settings?.style && (
+            <Badge variant="secondary" className="text-xs capitalize">
+              {item.render.settings.style}
+            </Badge>
+          )}
+          {item.render.settings?.quality && (
+            <Badge variant="secondary" className="text-xs capitalize">
+              {item.render.settings.quality}
+            </Badge>
+          )}
+          {item.render.settings?.aspectRatio && (
+            <Badge variant="secondary" className="text-xs">
+              {item.render.settings.aspectRatio}
+            </Badge>
+          )}
         </div>
 
         {/* Timestamp */}

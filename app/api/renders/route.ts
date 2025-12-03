@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { AISDKService } from '@/lib/services/ai-sdk-service';
 import { addCredits, deductCredits } from '@/lib/actions/billing.actions';
+import { BillingDAL } from '@/lib/dal/billing';
 import { ProjectsDAL } from '@/lib/dal/projects';
 import { RendersDAL } from '@/lib/dal/renders';
 import { RenderChainsDAL } from '@/lib/dal/render-chains';
@@ -105,7 +106,13 @@ export async function POST(request: NextRequest) {
     const negativePrompt = negativePromptRaw ? sanitizeInput(negativePromptRaw) : null;
     
     const imageType = sanitizeInput(formData.get('imageType') as string | null);
-    const isPublic = formData.get('isPublic') === 'true';
+    
+    // Check if user has pro subscription
+    // Free users: renders are public (added to gallery)
+    // Pro users: renders are private (not added to gallery)
+    const isPro = await BillingDAL.isUserPro(user.id);
+    const isPublic = !isPro; // Free users = public, Pro users = private
+    logger.log(`📸 Render visibility: ${isPublic ? 'PUBLIC' : 'PRIVATE'} (User is ${isPro ? 'PRO' : 'FREE'})`);
     
     const seedParam = formData.get('seed') as string | null;
     const seed = seedParam ? parseInt(seedParam) : undefined;
@@ -191,7 +198,6 @@ export async function POST(request: NextRequest) {
     }
 
     // CRITICAL: Check balance BEFORE attempting deduction to prevent any leakage
-    const { BillingDAL } = await import('@/lib/dal/billing');
     const userCredits = await BillingDAL.getUserCreditsWithReset(user.id);
     
     if (!userCredits || userCredits.balance < creditsCost) {

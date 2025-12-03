@@ -86,43 +86,91 @@ export default function GalleryPage() {
     setFilters({ ...filters, aspectRatio: newRatios });
   };
 
+  const handleContentTypeChange = (contentType: 'image' | 'video' | 'both') => {
+    setFilters({ ...filters, contentType });
+  };
+
   const activeFilterCount = 
     (filters.style?.length || 0) + 
     (filters.quality?.length || 0) + 
-    (filters.aspectRatio?.length || 0);
+    (filters.aspectRatio?.length || 0) +
+    (filters.contentType && filters.contentType !== 'both' ? 1 : 0);
 
   // Filter and sort items
   const filteredAndSortedItems = useMemo(() => {
     let result = [...items];
 
+    // Debug logging
+    console.log('Gallery filtering:', {
+      totalItems: items.length,
+      searchQuery,
+      filters,
+      sortBy,
+      initialResultCount: result.length
+    });
+
     // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
+      const beforeSearch = result.length;
       result = result.filter(item =>
         item.render.prompt.toLowerCase().includes(query) ||
         item.user.name?.toLowerCase().includes(query)
       );
+      console.log('Search filter:', { beforeSearch, afterSearch: result.length, query });
     }
 
-    // Style filter
+    // Style filter - case-insensitive, only filter if item has style setting
     if (filters.style && filters.style.length > 0) {
-      result = result.filter(item =>
-        item.render.settings?.style && filters.style!.includes(item.render.settings.style)
-      );
+      result = result.filter(item => {
+        const itemStyle = item.render.settings?.style;
+        // If item doesn't have style setting, include it (don't filter out)
+        if (!itemStyle) return true;
+        // If item has style, check if it matches any filter
+        return filters.style!.some(filterStyle => 
+          String(itemStyle).toLowerCase() === String(filterStyle).toLowerCase()
+        );
+      });
     }
 
-    // Quality filter
+    // Quality filter - case-insensitive, only filter if item has quality setting
     if (filters.quality && filters.quality.length > 0) {
-      result = result.filter(item =>
-        item.render.settings?.quality && filters.quality!.includes(item.render.settings.quality)
-      );
+      result = result.filter(item => {
+        const itemQuality = item.render.settings?.quality;
+        // If item doesn't have quality setting, include it (don't filter out)
+        if (!itemQuality) return true;
+        // If item has quality, check if it matches any filter
+        return filters.quality!.some(filterQuality => 
+          String(itemQuality).toLowerCase() === String(filterQuality).toLowerCase()
+        );
+      });
     }
 
-    // Aspect ratio filter
+    // Aspect ratio filter - handle different formats (16:9 vs 16/9)
     if (filters.aspectRatio && filters.aspectRatio.length > 0) {
-      result = result.filter(item =>
-        item.render.settings?.aspectRatio && filters.aspectRatio!.includes(item.render.settings.aspectRatio)
-      );
+      result = result.filter(item => {
+        const itemRatio = item.render.settings?.aspectRatio;
+        // If item doesn't have aspect ratio setting, include it (don't filter out)
+        if (!itemRatio) return true;
+        // Normalize ratios (16:9, 16/9, etc.)
+        const normalizeRatio = (ratio: string) => String(ratio).replace(/[:\/]/g, ':');
+        const normalizedItemRatio = normalizeRatio(String(itemRatio));
+        return filters.aspectRatio!.some(filterRatio => 
+          normalizeRatio(String(filterRatio)) === normalizedItemRatio
+        );
+      });
+    }
+
+    // Content type filter (image/video/both)
+    if (filters.contentType && filters.contentType !== 'both') {
+      result = result.filter(item => {
+        if (filters.contentType === 'image') {
+          return item.render.type === 'image';
+        } else if (filters.contentType === 'video') {
+          return item.render.type === 'video';
+        }
+        return true;
+      });
     }
 
     // Sort
@@ -146,8 +194,9 @@ export default function GalleryPage() {
       }
     });
 
+    console.log('Final filtered result:', { count: result.length, hasFilters: activeFilterCount > 0 });
     return result;
-  }, [items, searchQuery, filters, sortBy]);
+  }, [items, searchQuery, filters, sortBy, activeFilterCount]);
 
   return (
     <main className="min-h-screen bg-background">
@@ -209,6 +258,24 @@ export default function GalleryPage() {
                         <SelectItem value="most_liked">Most Liked</SelectItem>
                         <SelectItem value="most_viewed">Most Viewed</SelectItem>
                         <SelectItem value="trending">Trending</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Content Type Filter */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Content Type</Label>
+                    <Select 
+                      value={filters.contentType || 'both'} 
+                      onValueChange={(value) => handleContentTypeChange(value as 'image' | 'video' | 'both')}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="both">Both</SelectItem>
+                        <SelectItem value="image">Images Only</SelectItem>
+                        <SelectItem value="video">Videos Only</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -345,6 +412,16 @@ export default function GalleryPage() {
                   <X className="h-3 w-3 ml-1" />
                 </Badge>
               ))}
+              {filters.contentType && filters.contentType !== 'both' && (
+                <Badge
+                  variant="secondary"
+                  className="cursor-pointer text-xs"
+                  onClick={() => handleContentTypeChange('both')}
+                >
+                  {filters.contentType === 'image' ? 'Images Only' : 'Videos Only'}
+                  <X className="h-3 w-3 ml-1" />
+                </Badge>
+              )}
             </div>
           )}
         </div>

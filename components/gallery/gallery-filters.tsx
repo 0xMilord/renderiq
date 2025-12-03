@@ -24,6 +24,7 @@ export type FilterOption = {
   style?: string[];
   quality?: string[];
   aspectRatio?: string[];
+  contentType?: 'image' | 'video' | 'both';
 };
 
 interface GalleryFiltersProps {

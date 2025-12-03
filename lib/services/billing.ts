@@ -1,33 +1,27 @@
-import Stripe from 'stripe';
 import { db } from '@/lib/db';
 import { userSubscriptions, subscriptionPlans, userCredits, creditTransactions } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { RazorpayService } from './razorpay.service';
+import { logger } from '@/lib/utils/logger';
 
 // Maximum initial credits for new users on signup
 const INITIAL_SIGNUP_CREDITS = 10;
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-02-24.acacia',
-});
-
 export class BillingService {
+  /**
+   * NOTE: Subscription management is now handled by RazorpayService
+   * This class only handles credit management (add/deduct/get)
+   * For subscriptions, use RazorpayService.createSubscription() instead
+   */
+  
   static async createCustomer(userId: string, email: string, name?: string) {
-    try {
-      const customer = await stripe.customers.create({
-        email,
-        name,
-        metadata: {
-          userId,
-        },
-      });
-
-      return { success: true, customerId: customer.id };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to create customer',
-      };
-    }
+    // Customer creation is handled by RazorpayService.createSubscription()
+    // This method is kept for backward compatibility but delegates to RazorpayService
+    logger.log('⚠️ BillingService.createCustomer: Use RazorpayService.createSubscription() instead');
+    return {
+      success: false,
+      error: 'Use RazorpayService.createSubscription() for customer and subscription creation',
+    };
   }
 
   static async createSubscription(
@@ -36,85 +30,27 @@ export class BillingService {
     customerId: string,
     paymentMethodId?: string
   ) {
-    try {
-      const plan = await db.select().from(subscriptionPlans).where(eq(subscriptionPlans.id, planId)).limit(1);
-      if (!plan[0]) {
-        return { success: false, error: 'Plan not found' };
-      }
-
-      // Create product first
-      const product = await stripe.products.create({
-        name: plan[0].name,
-        description: plan[0].description || undefined,
-      });
-
-      const subscriptionData: Stripe.SubscriptionCreateParams = {
-        customer: customerId,
-        items: [
-          {
-            price_data: {
-              currency: plan[0].currency.toLowerCase(),
-              product: product.id,
-              unit_amount: Math.round(parseFloat(plan[0].price) * 100),
-              recurring: {
-                interval: plan[0].interval,
-              },
-            },
-          },
-        ],
-        metadata: {
-          userId,
-          planId,
-        },
-        expand: ['latest_invoice.payment_intent'],
-      };
-
-      if (paymentMethodId) {
-        subscriptionData.default_payment_method = paymentMethodId;
-      }
-
-      const subscription = await stripe.subscriptions.create(subscriptionData);
-
-      // Create subscription record in database
-      const now = new Date();
-      const periodEnd = new Date(now);
-      periodEnd.setMonth(periodEnd.getMonth() + (plan[0].interval === 'year' ? 12 : 1));
-
-      await db.insert(userSubscriptions).values({
-        userId,
-        planId,
-        status: 'active',
-        stripeSubscriptionId: subscription.id,
-        stripeCustomerId: customerId,
-        currentPeriodStart: new Date(subscription.current_period_start * 1000),
-        currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-      });
-
-      // Add credits to user account
-      await this.addCredits(userId, plan[0].creditsPerMonth, 'earned', `Monthly credits for ${plan[0].name} plan`);
-
-      return { success: true, subscriptionId: subscription.id };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to create subscription',
-      };
-    }
+    // Subscription creation is handled by RazorpayService
+    logger.log('⚠️ BillingService.createSubscription: Use RazorpayService.createSubscription() instead');
+    return {
+      success: false,
+      error: 'Use RazorpayService.createSubscription() for subscription creation',
+    };
   }
 
   static async cancelSubscription(subscriptionId: string) {
+    // Subscription cancellation should be handled via RazorpayService webhooks
+    // For manual cancellation, update the database directly
     try {
-      await stripe.subscriptions.update(subscriptionId, {
-        cancel_at_period_end: true,
-      });
-
       await db
         .update(userSubscriptions)
         .set({ 
           cancelAtPeriodEnd: true,
+          status: 'canceled',
+          canceledAt: new Date(),
           updatedAt: new Date(),
         })
-        .where(eq(userSubscriptions.stripeSubscriptionId, subscriptionId));
+        .where(eq(userSubscriptions.razorpaySubscriptionId, subscriptionId));
 
       return { success: true };
     } catch (error) {
@@ -126,8 +62,18 @@ export class BillingService {
   }
 
   static async getSubscription(subscriptionId: string) {
+    // Get subscription from database instead of Razorpay API
     try {
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      const [subscription] = await db
+        .select()
+        .from(userSubscriptions)
+        .where(eq(userSubscriptions.razorpaySubscriptionId, subscriptionId))
+        .limit(1);
+
+      if (!subscription) {
+        return { success: false, error: 'Subscription not found' };
+      }
+
       return { success: true, subscription };
     } catch (error) {
       return {
@@ -252,88 +198,12 @@ export class BillingService {
     }
   }
 
-  static async handleWebhook(event: Stripe.Event) {
-    try {
-      switch (event.type) {
-        case 'invoice.payment_succeeded':
-          await this.handlePaymentSucceeded(event.data.object as Stripe.Invoice);
-          break;
-        case 'invoice.payment_failed':
-          await this.handlePaymentFailed(event.data.object as Stripe.Invoice);
-          break;
-        case 'customer.subscription.updated':
-          await this.handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
-          break;
-        case 'customer.subscription.deleted':
-          await this.handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
-          break;
-      }
-      return { success: true };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Webhook handling failed',
-      };
-    }
-  }
-
-  private static async handlePaymentSucceeded(invoice: Stripe.Invoice) {
-    if (invoice.subscription) {
-      const subscription = await db
-        .select()
-        .from(userSubscriptions)
-        .where(eq(userSubscriptions.stripeSubscriptionId, invoice.subscription as string))
-        .limit(1);
-
-      if (subscription[0]) {
-        // Add monthly credits
-        const plan = await db
-          .select()
-          .from(subscriptionPlans)
-          .where(eq(subscriptionPlans.id, subscription[0].planId))
-          .limit(1);
-
-        if (plan[0]) {
-          await this.addCredits(
-            subscription[0].userId,
-            plan[0].creditsPerMonth,
-            'earned',
-            `Monthly credits for ${plan[0].name} plan`
-          );
-        }
-      }
-    }
-  }
-
-  private static async handlePaymentFailed(invoice: Stripe.Invoice) {
-    if (invoice.subscription) {
-      await db
-        .update(userSubscriptions)
-        .set({ status: 'past_due', updatedAt: new Date() })
-        .where(eq(userSubscriptions.stripeSubscriptionId, invoice.subscription as string));
-    }
-  }
-
-  private static async handleSubscriptionUpdated(subscription: Stripe.Subscription) {
-    await db
-      .update(userSubscriptions)
-      .set({
-        status: subscription.status as any,
-        currentPeriodStart: new Date(subscription.current_period_start * 1000),
-        currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-        updatedAt: new Date(),
-      })
-      .where(eq(userSubscriptions.stripeSubscriptionId, subscription.id));
-  }
-
-  private static async handleSubscriptionDeleted(subscription: Stripe.Subscription) {
-    await db
-      .update(userSubscriptions)
-      .set({
-        status: 'canceled',
-        canceledAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(userSubscriptions.stripeSubscriptionId, subscription.id));
+  /**
+   * Webhook handling is now done by RazorpayService.handleWebhook()
+   * This method is kept for backward compatibility but delegates to RazorpayService
+   */
+  static async handleWebhook(event: any, signature: string) {
+    logger.log('⚠️ BillingService.handleWebhook: Use RazorpayService.handleWebhook() instead');
+    return RazorpayService.handleWebhook(event, signature);
   }
 }
