@@ -7,7 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { useSubscription } from '@/lib/hooks/use-subscription';
 import { useCredits } from '@/lib/hooks/use-credits';
 import { useAuth } from '@/lib/hooks/use-auth';
-import { CreditCard, Zap, Calendar, Coins, AlertCircle, History, Plus, Settings } from 'lucide-react';
+import { CreditCard, Zap, Calendar, Coins, AlertCircle, History, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
@@ -19,7 +19,7 @@ export function PlanTicketCard() {
   if (subscriptionLoading || creditsLoading) {
     return (
       <Card className="relative overflow-hidden">
-        <CardContent className="p-6">
+        <CardContent>
           <div className="space-y-4">
             <Skeleton className="h-8 w-48" />
             <Skeleton className="h-4 w-32" />
@@ -33,12 +33,12 @@ export function PlanTicketCard() {
     );
   }
 
-  const isActive = subscription?.status === 'active';
-  const isPending = subscription?.status === 'pending';
-  const isCanceled = subscription?.cancelAtPeriodEnd;
-  const isPastDue = subscription?.status === 'past_due';
+  const isActive = subscription?.subscription?.status === 'active';
+  const isPending = subscription?.subscription?.status === 'pending';
+  const isCanceled = subscription?.subscription?.cancelAtPeriodEnd;
+  const isPastDue = subscription?.subscription?.status === 'past_due';
   const isPro = isActive && !isCanceled;
-  const planName = subscription?.plan?.name || 'Free';
+  const planName = (isActive && subscription?.plan?.name) ? subscription.plan.name : 'Free';
   const planPrice = subscription?.plan?.price || '0';
   const planInterval = subscription?.plan?.interval || 'month';
   const creditsBalance = credits?.balance || 0;
@@ -50,8 +50,8 @@ export function PlanTicketCard() {
   const monthlyPercentage = monthlyEarned > 0 ? (monthlySpent / monthlyEarned) * 100 : 0;
   const isLowCredits = creditsBalance < 5;
   const creditsPerMonth = subscription?.plan?.creditsPerMonth || 0;
-  const nextBilling = subscription?.currentPeriodEnd 
-    ? new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const nextBilling = subscription?.subscription?.currentPeriodEnd 
+    ? new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : null;
 
   return (
@@ -60,7 +60,7 @@ export function PlanTicketCard() {
       <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 blur-2xl" />
       <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary/5 rounded-full -ml-12 -mb-12 blur-2xl" />
 
-      <CardContent className="p-6 relative z-10 flex-1 flex flex-col">
+      <CardContent className="relative z-10 flex-1 flex flex-col">
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Left side - Plan Info */}
           <div className="flex-1 space-y-4">
@@ -80,9 +80,10 @@ export function PlanTicketCard() {
                     }
                     className="text-sm font-semibold px-3 py-1"
                   >
-                    {subscription?.status === 'active' && isCanceled ? 'Canceling' : 
-                     subscription?.status === 'pending' ? 'Pending Payment' :
-                     subscription?.status || 'Free'}
+                    {subscription?.subscription?.status === 'active' && isCanceled ? 'Canceling' : 
+                     subscription?.subscription?.status === 'pending' ? 'Pending Payment' :
+                     subscription?.subscription?.status === 'active' ? planName :
+                     subscription?.subscription?.status || 'Free'}
                   </Badge>
                   {isLowCredits && (
                     <Badge variant="destructive" className="text-xs">
@@ -120,14 +121,34 @@ export function PlanTicketCard() {
                     </p>
                   </div>
                 </div>
-                {isPro && (
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">Payment Method</p>
-                      <p className="text-muted-foreground">•••• 4242</p>
-                    </div>
-                  </div>
+              </div>
+
+              {/* Action Buttons - 3 columns below Next Billing */}
+              <div className="grid grid-cols-3 gap-2 mt-4">
+                <Button asChild size="sm" className="w-full">
+                  <Link href="/pricing">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Buy Credits
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild className="w-full">
+                  <Link href="/dashboard/billing/history">
+                    <History className="h-4 w-4 mr-2" />
+                    View History
+                  </Link>
+                </Button>
+                {!isPro ? (
+                  <Button size="sm" asChild className="w-full">
+                    <Link href="/pricing">
+                      Upgrade to Pro
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button variant="outline" size="sm" asChild className="w-full">
+                    <Link href="/pricing">
+                      Change Plan
+                    </Link>
+                  </Button>
                 )}
               </div>
             </div>
@@ -151,23 +172,15 @@ export function PlanTicketCard() {
               </div>
             )}
 
-            {isCanceled && subscription?.currentPeriodEnd && (
+            {isCanceled && subscription?.subscription?.currentPeriodEnd && (
               <div className="flex items-center gap-2 p-3 bg-yellow-100/50 dark:bg-yellow-900/20 border border-yellow-200/50 dark:border-yellow-800/50 rounded-lg">
                 <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
                 <p className="text-sm text-yellow-800 dark:text-yellow-300">
-                  Your subscription will end on {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+                  Your subscription will end on {new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString()}
                 </p>
               </div>
             )}
 
-            {isLowCredits && (
-              <div className="flex items-center gap-2 p-3 bg-yellow-100/50 dark:bg-yellow-900/20 border border-yellow-200/50 dark:border-yellow-800/50 rounded-lg">
-                <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-                <p className="text-sm text-yellow-800 dark:text-yellow-300">
-                  You&apos;re running low on credits. Consider upgrading your plan or purchasing more credits.
-                </p>
-              </div>
-            )}
           </div>
 
           {/* Right side - Credits Info (2 columns) */}
@@ -237,53 +250,6 @@ export function PlanTicketCard() {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Bottom action bar */}
-        <div className="mt-6 pt-4 border-t border-border/50 flex flex-wrap gap-2">
-          <Button asChild size="sm">
-            <Link href="/pricing">
-              <Plus className="h-4 w-4 mr-2" />
-              Buy Credits
-            </Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/dashboard/billing/history">
-              <History className="h-4 w-4 mr-2" />
-              View History
-            </Link>
-          </Button>
-          {isPending ? (
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/pricing">
-                Check Payment Status
-              </Link>
-            </Button>
-          ) : isActive && !isCanceled ? (
-            <>
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/pricing">
-                  Change Plan
-                </Link>
-              </Button>
-              <Button variant="ghost" size="sm">
-                <Settings className="h-4 w-4 mr-2" />
-                Manage Billing
-              </Button>
-            </>
-          ) : isCanceled ? (
-            <Button size="sm" asChild>
-              <Link href="/dashboard/billing">
-                Reactivate Subscription
-              </Link>
-            </Button>
-          ) : !isPro ? (
-            <Button size="sm" asChild>
-              <Link href="/pricing">
-                Upgrade to Pro
-              </Link>
-            </Button>
-          ) : null}
         </div>
       </CardContent>
     </Card>

@@ -78,45 +78,61 @@ export function BillingOverview() {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">Current Plan</span>
-            <Badge variant={subscription?.status === 'active' ? 'default' : 'secondary'}>
-              {subscription?.status || 'Free'}
-            </Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            {subscription?.plan?.name || 'Free Plan'}
+            {subscription?.subscription?.status === 'active' && subscription?.plan?.name 
+              ? subscription.plan.name 
+              : subscription?.subscription?.status === 'pending' && subscription?.plan?.name
+              ? `${subscription.plan.name} (Pending)`
+              : 'Free Plan'}
           </p>
         </div>
 
         {/* Next Billing Date */}
-        {subscription?.currentPeriodEnd && (
+        {subscription?.subscription?.status === 'active' && subscription?.subscription?.currentPeriodEnd && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Next Billing</span>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </div>
           <p className="text-sm text-muted-foreground">
-            {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+            {new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString()}
           </p>
           </div>
         )}
 
-        {/* Payment Method */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Payment Method</span>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
+        {/* Payment Method - Only show if subscription is active and we have payment method info */}
+        {subscription?.subscription?.status === 'active' && subscription?.paymentMethod && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Payment Method</span>
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {subscription.paymentMethod.method === 'card' && subscription.paymentMethod.card?.last4
+                ? `Card ending in ${subscription.paymentMethod.card.last4}`
+                : subscription.paymentMethod.method === 'upi' && subscription.paymentMethod.vpa
+                ? `UPI: ${subscription.paymentMethod.vpa}`
+                : subscription.paymentMethod.method === 'wallet' && subscription.paymentMethod.wallet
+                ? `Wallet: ${subscription.paymentMethod.wallet}`
+                : subscription.paymentMethod.method === 'netbanking' && subscription.paymentMethod.bank
+                ? `Net Banking: ${subscription.paymentMethod.bank}`
+                : subscription.paymentMethod.method
+                ? subscription.paymentMethod.method.charAt(0).toUpperCase() + subscription.paymentMethod.method.slice(1)
+                : 'Managed by Razorpay'}
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground">
-            {subscription ? 'Managed by Razorpay' : 'No payment method'}
-          </p>
-          {!subscription && (
-            <Button asChild variant="outline" size="sm" className="w-full mt-2">
-              <Link href="/pricing">
-                Add Payment Method
-              </Link>
-            </Button>
-          )}
-        </div>
+        )}
+
+        {/* Low Credits Warning */}
+        {creditsBalance < 5 && (
+          <div className="flex items-center gap-2 p-3 bg-yellow-100/50 dark:bg-yellow-900/20 border border-yellow-200/50 dark:border-yellow-800/50 rounded-lg">
+            <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+            <p className="text-sm text-yellow-800 dark:text-yellow-300">
+              You&apos;re running low on credits. Consider upgrading your plan or purchasing more credits.
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

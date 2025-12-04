@@ -231,12 +231,38 @@ export class RazorpayService {
         return { success: false, error: `Payment not fully completed. Status: ${payment.status}. Please wait for payment to be captured.` };
       }
 
+      // Extract payment method information from Razorpay payment object
+      const paymentMethod = payment.method || 'unknown';
+      const paymentMethodDetails: any = {
+        method: paymentMethod,
+      };
+
+      // Add method-specific details
+      if (paymentMethod === 'card' && payment.card) {
+        paymentMethodDetails.card = {
+          last4: payment.card.last4,
+          network: payment.card.network,
+          type: payment.card.type,
+        };
+      } else if (paymentMethod === 'upi' && payment.vpa) {
+        paymentMethodDetails.vpa = payment.vpa;
+      } else if (paymentMethod === 'wallet' && payment.wallet) {
+        paymentMethodDetails.wallet = payment.wallet;
+      } else if (paymentMethod === 'netbanking' && payment.bank) {
+        paymentMethodDetails.bank = payment.bank;
+      }
+
       // Update payment order status to completed (payment is fully captured)
+      // Also store payment method in metadata
       await db
         .update(paymentOrders)
         .set({
           razorpayPaymentId: razorpayPaymentId,
           status: 'completed',
+          metadata: {
+            ...(paymentOrder.metadata || {}),
+            paymentMethod: paymentMethodDetails,
+          },
           updatedAt: new Date(),
         })
         .where(eq(paymentOrders.id, paymentOrder.id));
@@ -822,6 +848,27 @@ Please verify the plan exists in Razorpay Dashboard.`;
         return { success: false, error: `Subscription not active. Status: ${razorpaySubscription.status}` };
       }
 
+      // Extract payment method information from Razorpay payment object
+      const paymentMethod = payment.method || 'unknown';
+      const paymentMethodDetails: any = {
+        method: paymentMethod,
+      };
+
+      // Add method-specific details
+      if (paymentMethod === 'card' && payment.card) {
+        paymentMethodDetails.card = {
+          last4: payment.card.last4,
+          network: payment.card.network,
+          type: payment.card.type,
+        };
+      } else if (paymentMethod === 'upi' && payment.vpa) {
+        paymentMethodDetails.vpa = payment.vpa;
+      } else if (paymentMethod === 'wallet' && payment.wallet) {
+        paymentMethodDetails.wallet = payment.wallet;
+      } else if (paymentMethod === 'netbanking' && payment.bank) {
+        paymentMethodDetails.bank = payment.bank;
+      }
+
       // Find or create payment order for this subscription
       let [paymentOrder] = await db
         .select()
@@ -860,6 +907,7 @@ Please verify the plan exists in Razorpay Dashboard.`;
             metadata: {
               planName: plan.name,
               creditsPerMonth: plan.creditsPerMonth,
+              paymentMethod: paymentMethodDetails,
             },
           })
           .returning();
@@ -872,6 +920,10 @@ Please verify the plan exists in Razorpay Dashboard.`;
           .set({
             razorpayPaymentId: razorpayPaymentId,
             status: 'completed', // Payment is captured, so it's completed
+            metadata: {
+              ...(paymentOrder.metadata || {}),
+              paymentMethod: paymentMethodDetails,
+            },
             updatedAt: new Date(),
           })
           .where(eq(paymentOrders.id, paymentOrder.id));
@@ -1105,12 +1157,41 @@ Please verify the plan exists in Razorpay Dashboard.`;
 
     if (!paymentOrder || paymentOrder.type !== 'credit_package') return;
 
+    // Fetch payment details to get payment method
+    const razorpay = getRazorpayInstance();
+    const payment = await razorpay.payments.fetch(paymentId);
+    
+    // Extract payment method information
+    const paymentMethod = payment.method || 'unknown';
+    const paymentMethodDetails: any = {
+      method: paymentMethod,
+    };
+
+    // Add method-specific details
+    if (paymentMethod === 'card' && payment.card) {
+      paymentMethodDetails.card = {
+        last4: payment.card.last4,
+        network: payment.card.network,
+        type: payment.card.type,
+      };
+    } else if (paymentMethod === 'upi' && payment.vpa) {
+      paymentMethodDetails.vpa = payment.vpa;
+    } else if (paymentMethod === 'wallet' && payment.wallet) {
+      paymentMethodDetails.wallet = payment.wallet;
+    } else if (paymentMethod === 'netbanking' && payment.bank) {
+      paymentMethodDetails.bank = payment.bank;
+    }
+
     // Update payment order status
     await db
       .update(paymentOrders)
       .set({
         razorpayPaymentId: paymentId,
         status: 'completed',
+        metadata: {
+          ...(paymentOrder.metadata || {}),
+          paymentMethod: paymentMethodDetails,
+        },
         updatedAt: new Date(),
       })
       .where(eq(paymentOrders.id, paymentOrder.id));
@@ -1220,6 +1301,39 @@ Please verify the plan exists in Razorpay Dashboard.`;
       logger.error('❌ RazorpayService: Failed to add credits on activation:', creditsResult.error);
     }
 
+    // Get payment ID from webhook payload and fetch payment method
+    const paymentId = payload.payment?.entity?.id;
+    let paymentMethodDetails: any = null;
+    
+    if (paymentId) {
+      try {
+        const razorpay = getRazorpayInstance();
+        const payment = await razorpay.payments.fetch(paymentId);
+        
+        const paymentMethod = payment.method || 'unknown';
+        paymentMethodDetails = {
+          method: paymentMethod,
+        };
+
+        // Add method-specific details
+        if (paymentMethod === 'card' && payment.card) {
+          paymentMethodDetails.card = {
+            last4: payment.card.last4,
+            network: payment.card.network,
+            type: payment.card.type,
+          };
+        } else if (paymentMethod === 'upi' && payment.vpa) {
+          paymentMethodDetails.vpa = payment.vpa;
+        } else if (paymentMethod === 'wallet' && payment.wallet) {
+          paymentMethodDetails.wallet = payment.wallet;
+        } else if (paymentMethod === 'netbanking' && payment.bank) {
+          paymentMethodDetails.bank = payment.bank;
+        }
+      } catch (error) {
+        logger.error('❌ RazorpayService: Error fetching payment method in subscription activation webhook:', error);
+      }
+    }
+
     // Generate invoice and receipt for subscription activation
     // Find payment order for this subscription
     const [paymentOrder] = await db
@@ -1228,6 +1342,21 @@ Please verify the plan exists in Razorpay Dashboard.`;
       .where(eq(paymentOrders.razorpaySubscriptionId, subscriptionId))
       .orderBy(desc(paymentOrders.createdAt))
       .limit(1);
+
+    // Update payment order with payment method if we have it
+    if (paymentOrder && paymentMethodDetails) {
+      await db
+        .update(paymentOrders)
+        .set({
+          razorpayPaymentId: paymentId || paymentOrder.razorpayPaymentId,
+          metadata: {
+            ...(paymentOrder.metadata || {}),
+            paymentMethod: paymentMethodDetails,
+          },
+          updatedAt: new Date(),
+        })
+        .where(eq(paymentOrders.id, paymentOrder.id));
+    }
 
     if (paymentOrder && paymentOrder.status === 'completed') {
       try {
@@ -1307,6 +1436,40 @@ Please verify the plan exists in Razorpay Dashboard.`;
       })
       .where(eq(userSubscriptions.id, subscription.id));
 
+    // Get payment ID from webhook payload
+    const paymentId = payload.payment?.entity?.id;
+    
+    // Fetch payment details to get payment method if payment ID is available
+    let paymentMethodDetails: any = null;
+    if (paymentId) {
+      try {
+        const razorpay = getRazorpayInstance();
+        const payment = await razorpay.payments.fetch(paymentId);
+        
+        const paymentMethod = payment.method || 'unknown';
+        paymentMethodDetails = {
+          method: paymentMethod,
+        };
+
+        // Add method-specific details
+        if (paymentMethod === 'card' && payment.card) {
+          paymentMethodDetails.card = {
+            last4: payment.card.last4,
+            network: payment.card.network,
+            type: payment.card.type,
+          };
+        } else if (paymentMethod === 'upi' && payment.vpa) {
+          paymentMethodDetails.vpa = payment.vpa;
+        } else if (paymentMethod === 'wallet' && payment.wallet) {
+          paymentMethodDetails.wallet = payment.wallet;
+        } else if (paymentMethod === 'netbanking' && payment.bank) {
+          paymentMethodDetails.bank = payment.bank;
+        }
+      } catch (error) {
+        logger.error('❌ RazorpayService: Error fetching payment method in subscription charged webhook:', error);
+      }
+    }
+
     // Find or create payment order for this recurring charge
     const [existingPaymentOrder] = await db
       .select()
@@ -1331,6 +1494,7 @@ Please verify the plan exists in Razorpay Dashboard.`;
           type: 'subscription',
           referenceId: subscription.planId,
           razorpaySubscriptionId: subscriptionId,
+          razorpayPaymentId: paymentId || null,
           amount: plan.price.toString(),
           currency: plan.currency,
           status: 'completed',
@@ -1338,10 +1502,24 @@ Please verify the plan exists in Razorpay Dashboard.`;
             planName: plan.name,
             creditsPerMonth: plan.creditsPerMonth,
             isRecurring: true,
+            paymentMethod: paymentMethodDetails,
           },
         }).returning();
         recurringPaymentOrder = newOrder;
       }
+    } else if (paymentMethodDetails && existingPaymentOrder) {
+      // Update existing payment order with payment method if we have it
+      await db
+        .update(paymentOrders)
+        .set({
+          razorpayPaymentId: paymentId || existingPaymentOrder.razorpayPaymentId,
+          metadata: {
+            ...(existingPaymentOrder.metadata || {}),
+            paymentMethod: paymentMethodDetails,
+          },
+          updatedAt: new Date(),
+        })
+        .where(eq(paymentOrders.id, existingPaymentOrder.id));
     }
 
     // Add monthly credits for recurring payment

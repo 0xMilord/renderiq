@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { userSubscriptions, subscriptionPlans, userCredits, creditTransactions } from '@/lib/db/schema';
+import { userSubscriptions, subscriptionPlans, userCredits, creditTransactions, paymentOrders } from '@/lib/db/schema';
 import { eq, and, desc, gte, lte, sql } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
 
@@ -70,9 +70,32 @@ export class BillingDAL {
       }
 
       logger.log('✅ BillingDAL: Subscription found:', result[0].plan?.name, 'Status:', result[0].subscription.status);
+      
+      // Get payment method from most recent completed payment order for this subscription
+      let paymentMethod = null;
+      if (result[0].subscription.razorpaySubscriptionId) {
+        const [paymentOrder] = await db
+          .select()
+          .from(paymentOrders)
+          .where(
+            and(
+              eq(paymentOrders.userId, userId),
+              eq(paymentOrders.razorpaySubscriptionId, result[0].subscription.razorpaySubscriptionId),
+              eq(paymentOrders.status, 'completed')
+            )
+          )
+          .orderBy(desc(paymentOrders.createdAt))
+          .limit(1);
+        
+        if (paymentOrder?.metadata?.paymentMethod) {
+          paymentMethod = paymentOrder.metadata.paymentMethod;
+        }
+      }
+      
       return {
         subscription: result[0].subscription,
         plan: result[0].plan,
+        paymentMethod,
       };
     } catch (error) {
       console.error('❌ BillingDAL: Error getting subscription:', error);
