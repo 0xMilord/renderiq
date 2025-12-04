@@ -29,96 +29,98 @@ function PaymentSuccessContent() {
       return;
     }
 
-    // If verification is pending, show verification message and poll for status
-    if (verification === 'pending') {
-      // Poll for payment verification status
-      pollPaymentStatus();
+    // If verification is pending, check subscription status once (webhook will handle the rest)
+    if (verification === 'pending' && razorpaySubscriptionId) {
+      // Check subscription status once - webhook will handle activation
+      checkSubscriptionStatus();
     } else {
       // Fetch payment details and receipt
       fetchPaymentDetails();
     }
   }, [paymentOrderId, razorpayOrderId, razorpaySubscriptionId, razorpayPaymentId, verification]);
 
-  const pollPaymentStatus = async () => {
-    // Poll for payment status every 2 seconds, max 10 attempts (20 seconds)
-    let attempts = 0;
-    const maxAttempts = 10;
-    
-    const poll = async () => {
-      try {
-        attempts++;
-        
-        // Try to verify subscription payment if we have subscription ID
-        if (razorpaySubscriptionId && razorpayPaymentId) {
-          const verifyResponse = await fetch('/api/payments/verify-subscription', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              subscriptionId: razorpaySubscriptionId,
-              paymentId: razorpayPaymentId,
-            }),
-          });
-          
-          const verifyResult = await verifyResponse.json();
-          if (verifyResult.success && verifyResult.data?.paymentOrderId) {
-            // Payment verified, update URL and fetch details
-            const newUrl = new URL(window.location.href);
-            newUrl.searchParams.set('payment_order_id', verifyResult.data.paymentOrderId);
-            newUrl.searchParams.delete('verification');
-            window.history.replaceState({}, '', newUrl.toString());
-            fetchPaymentDetails();
-            return;
+  const checkSubscriptionStatus = async () => {
+    try {
+      // Check subscription status once - webhook will handle activation
+      const verifyResponse = await fetch('/api/payments/verify-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscriptionId: razorpaySubscriptionId,
+        }),
+      });
+      
+      const verifyResult = await verifyResponse.json();
+      
+      // If subscription is already active, show success
+      if (verifyResult.success && (verifyResult.data?.alreadyActive || verifyResult.data?.activated)) {
+        // Try to get payment order ID from subscription
+        if (razorpaySubscriptionId) {
+          // Fetch payment history to find payment order
+          const historyResponse = await fetch('/api/payments/history?limit=1');
+          if (historyResponse.ok) {
+            const historyData = await historyResponse.json();
+            if (historyData.success && historyData.data?.payments?.[0]) {
+              const payment = historyData.data.payments[0];
+              if (payment.id) {
+                const newUrl = new URL(window.location.href);
+                newUrl.searchParams.set('payment_order_id', payment.id);
+                newUrl.searchParams.delete('verification');
+                window.history.replaceState({}, '', newUrl.toString());
+                fetchPaymentDetails();
+                return;
+              }
+            }
           }
         }
-        
-        // Try to verify regular payment if we have order ID
-        if (razorpayOrderId && razorpayPaymentId) {
-          const verifyResponse = await fetch('/api/payments/verify-payment', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              razorpay_order_id: razorpayOrderId,
-              razorpay_payment_id: razorpayPaymentId,
-              razorpay_signature: '', // Will fail signature but may still work
-            }),
-          });
-          
-          const verifyResult = await verifyResponse.json();
-          if (verifyResult.success && verifyResult.data?.paymentOrderId) {
-            // Payment verified, update URL and fetch details
-            const newUrl = new URL(window.location.href);
-            newUrl.searchParams.set('payment_order_id', verifyResult.data.paymentOrderId);
-            newUrl.searchParams.delete('verification');
-            window.history.replaceState({}, '', newUrl.toString());
-            fetchPaymentDetails();
-            return;
-          }
-        }
-        
-        // If max attempts reached, just show the page with available info
-        if (attempts >= maxAttempts) {
-          fetchPaymentDetails();
-          return;
-        }
-        
-        // Continue polling
-        setTimeout(poll, 2000);
-      } catch (error) {
-        console.error('Error polling payment status:', error);
-        if (attempts >= maxAttempts) {
-          fetchPaymentDetails();
-        } else {
-          setTimeout(poll, 2000);
-        }
+        // If we can't get payment order, just show success without receipt
+        setLoading(false);
+        return;
       }
-    };
-    
-    poll();
+      
+      // If not active yet, webhook will handle it - show message
+      setLoading(false);
+    } catch (error) {
+      console.error('Error checking subscription status:', error);
+      setLoading(false);
+    }
   };
 
   const fetchPaymentDetails = async () => {
     try {
       setLoading(true);
+
+      // If we have subscription ID but no payment order ID, try to find it
+      if (!paymentOrderId && razorpaySubscriptionId) {
+        const historyResponse = await fetch('/api/payments/history?limit=10');
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json();
+          if (historyData.success && historyData.data?.payments) {
+            const payment = historyData.data.payments.find((p: any) => 
+              p.razorpaySubscriptionId === razorpaySubscriptionId || 
+              (p.type === 'subscription' && p.status === 'completed')
+            );
+            if (payment?.id) {
+              // Update URL with payment order ID
+              const newUrl = new URL(window.location.href);
+              newUrl.searchParams.set('payment_order_id', payment.id);
+              newUrl.searchParams.delete('verification');
+              window.history.replaceState({}, '', newUrl.toString());
+              // Continue with payment order ID
+              const receiptResponse = await fetch(`/api/payments/receipt/${payment.id}`);
+              if (receiptResponse.ok) {
+                const receiptData = await receiptResponse.json();
+                if (receiptData.success && receiptData.data?.receiptUrl) {
+                  setReceiptUrl(receiptData.data.receiptUrl);
+                }
+              }
+              setPaymentData(payment);
+              setLoading(false);
+              return;
+            }
+          }
+        }
+      }
 
       // Only fetch receipt if we have paymentOrderId
       if (paymentOrderId) {
@@ -132,11 +134,37 @@ function PaymentSuccessContent() {
         }
 
         // Get payment history to find this payment
-        const historyResponse = await fetch('/api/payments/history?limit=1');
+        const historyResponse = await fetch('/api/payments/history?limit=10');
         if (historyResponse.ok) {
           const historyData = await historyResponse.json();
-          if (historyData.success && historyData.data?.payments?.[0]) {
-            setPaymentData(historyData.data.payments[0]);
+          if (historyData.success && historyData.data?.payments) {
+            // Find the specific payment order
+            const payment = historyData.data.payments.find((p: any) => p.id === paymentOrderId) || historyData.data.payments[0];
+            if (payment) {
+              setPaymentData(payment);
+            }
+          }
+        }
+      } else if (razorpaySubscriptionId) {
+        // Try to find payment order by subscription ID
+        const historyResponse = await fetch('/api/payments/history?limit=10');
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json();
+          if (historyData.success && historyData.data?.payments) {
+            const payment = historyData.data.payments.find((p: any) => 
+              p.razorpaySubscriptionId === razorpaySubscriptionId || 
+              (p.type === 'subscription' && p.status === 'completed')
+            );
+            if (payment) {
+              setPaymentData(payment);
+              // Update URL with payment order ID if found
+              if (payment.id) {
+                const newUrl = new URL(window.location.href);
+                newUrl.searchParams.set('payment_order_id', payment.id);
+                newUrl.searchParams.delete('verification');
+                window.history.replaceState({}, '', newUrl.toString());
+              }
+            }
           }
         }
       }
@@ -216,20 +244,19 @@ function PaymentSuccessContent() {
     }
   };
 
-  if (loading || verification === 'pending') {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
           <p className="text-muted-foreground">
-            {verification === 'pending' 
-              ? 'We are verifying your payment. Please wait...' 
-              : 'Loading payment details...'}
+            Loading payment details...
           </p>
         </div>
       </div>
     );
   }
+  
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">

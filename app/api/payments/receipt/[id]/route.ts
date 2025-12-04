@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { ReceiptService } from '@/lib/services/receipt.service';
 import { db } from '@/lib/db';
 import { paymentOrders } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
 
 // Force Node.js runtime for pdfkit (requires Node.js APIs)
@@ -27,12 +27,37 @@ export async function GET(
       );
     }
 
-    // Get payment order
-    const [paymentOrder] = await db
-      .select()
-      .from(paymentOrders)
-      .where(eq(paymentOrders.id, id))
-      .limit(1);
+    // Check if id is a UUID (payment order ID) or Razorpay subscription ID
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    
+    let paymentOrder;
+    let paymentOrderId: string;
+    
+    if (isUUID) {
+      // It's a payment order ID
+      const [order] = await db
+        .select()
+        .from(paymentOrders)
+        .where(eq(paymentOrders.id, id))
+        .limit(1);
+      paymentOrder = order;
+      paymentOrderId = id;
+    } else if (id.startsWith('sub_')) {
+      // It's a Razorpay subscription ID - find the most recent payment order for this subscription
+      const [order] = await db
+        .select()
+        .from(paymentOrders)
+        .where(eq(paymentOrders.razorpaySubscriptionId, id))
+        .orderBy(desc(paymentOrders.createdAt))
+        .limit(1);
+      paymentOrder = order;
+      paymentOrderId = order?.id || '';
+    } else {
+      return NextResponse.json(
+        { success: false, error: 'Invalid payment order or subscription ID' },
+        { status: 400 }
+      );
+    }
 
     if (!paymentOrder) {
       return NextResponse.json(
@@ -51,7 +76,7 @@ export async function GET(
 
     // Generate receipt if not already generated
     if (!paymentOrder.receiptPdfUrl) {
-      const receiptResult = await ReceiptService.generateReceiptPdf(id);
+      const receiptResult = await ReceiptService.generateReceiptPdf(paymentOrderId);
       if (!receiptResult.success) {
         return NextResponse.json(
           { success: false, error: receiptResult.error },
@@ -64,7 +89,7 @@ export async function GET(
     const [updatedOrder] = await db
       .select()
       .from(paymentOrders)
-      .where(eq(paymentOrders.id, id))
+      .where(eq(paymentOrders.id, paymentOrderId))
       .limit(1);
 
     if (!updatedOrder?.receiptPdfUrl) {
@@ -149,12 +174,37 @@ export async function POST(
       );
     }
 
-    // Get payment order
-    const [paymentOrder] = await db
-      .select()
-      .from(paymentOrders)
-      .where(eq(paymentOrders.id, id))
-      .limit(1);
+    // Check if id is a UUID (payment order ID) or Razorpay subscription ID
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    
+    let paymentOrder;
+    let paymentOrderId: string;
+    
+    if (isUUID) {
+      // It's a payment order ID
+      const [order] = await db
+        .select()
+        .from(paymentOrders)
+        .where(eq(paymentOrders.id, id))
+        .limit(1);
+      paymentOrder = order;
+      paymentOrderId = id;
+    } else if (id.startsWith('sub_')) {
+      // It's a Razorpay subscription ID - find the most recent payment order for this subscription
+      const [order] = await db
+        .select()
+        .from(paymentOrders)
+        .where(eq(paymentOrders.razorpaySubscriptionId, id))
+        .orderBy(desc(paymentOrders.createdAt))
+        .limit(1);
+      paymentOrder = order;
+      paymentOrderId = order?.id || '';
+    } else {
+      return NextResponse.json(
+        { success: false, error: 'Invalid payment order or subscription ID' },
+        { status: 400 }
+      );
+    }
 
     if (!paymentOrder) {
       return NextResponse.json(
@@ -172,7 +222,7 @@ export async function POST(
     }
 
     // Generate receipt
-    const receiptResult = await ReceiptService.generateReceiptPdf(id);
+    const receiptResult = await ReceiptService.generateReceiptPdf(paymentOrderId);
 
     if (!receiptResult.success) {
       return NextResponse.json(
