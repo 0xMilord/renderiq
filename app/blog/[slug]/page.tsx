@@ -9,6 +9,10 @@ import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { JsonLd } from '@/components/seo/json-ld';
 import { BlogCard } from '@/components/blog/blog-card';
+import { getBlogAuthorAvatar } from '@/lib/utils/blog-author-avatar';
+import { BlogTableOfContents } from '@/components/blog/blog-table-of-contents';
+import { BlogHeaderMobile } from '@/components/blog/blog-header-mobile';
+import { getSmartRecommendations } from '@/lib/utils/blog-recommendations';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -133,19 +137,9 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   // Generate structured data
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
   
-  // Get related blogs (same tags or recent)
+  // Get smart recommendations: 50% related + 50% diverse/random
   const allBlogs = getAllBlogs();
-  const relatedBlogs = allBlogs
-    .filter((b) => {
-      if (b.slug === blog.slug) return false;
-      // Match by tags or category
-      const blogTags = blog.tags || [];
-      const bTags = b.tags || [];
-      const hasCommonTag = blogTags.some((tag: string) => bTags.includes(tag));
-      const sameCategory = (blog.category || blog.collection) === (b.category || b.collection);
-      return hasCommonTag || sameCategory;
-    })
-    .slice(0, 3);
+  const relatedBlogs = getSmartRecommendations(blog, allBlogs, 4);
 
   // Related Articles ItemList Schema
   const relatedArticlesSchema = relatedBlogs.length > 0 ? {
@@ -321,126 +315,126 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
 
       <div className="min-h-screen bg-background">
         {/* Header */}
-      <div className="border-b bg-muted/30">
-        <div className="container mx-auto max-w-7xl px-4 py-4">
-          <Button variant="ghost" asChild>
-            <Link href="/blog" className="inline-flex items-center text-sm">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Blog
-            </Link>
-          </Button>
-        </div>
-      </div>
+        <BlogHeaderMobile />
 
       {/* Article */}
-      <article className="py-20 px-4">
-        <div className="container mx-auto max-w-4xl">
-          {/* Cover Image */}
-          {blog.coverImage && (
-            <div className="relative w-full h-64 md:h-96 mb-8 rounded-lg overflow-hidden bg-muted">
-              <Image
-                src={blog.coverImage}
-                alt={blog.title}
-                fill
-                className="object-cover"
-                priority
-                sizes="(max-width: 768px) 100vw, 896px"
-              />
-            </div>
-          )}
-
-          {/* Header */}
-          <header className="mb-8">
-            {blog.tags && blog.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-4">
-                {blog.tags.map((tag: string) => (
-                  <Badge key={tag} variant="secondary">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            )}
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">{blog.title}</h1>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                <time dateTime={blog.publishedAt}>
-                  {blog.publishedAt ? format(new Date(blog.publishedAt), 'MMMM d, yyyy') : ''}
-                </time>
-              </div>
-              {blog.readingTime && (
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  <span>{blog.readingTime} min read</span>
+      <article className="py-4 px-4 sm:py-5 sm:px-6 lg:px-8 lg:ml-0 ml-12 lg:pt-0 pt-10">
+        <div className="w-full">
+          <div className="flex gap-6 lg:gap-8">
+            {/* Main Content - Full width on mobile, flex-1 on desktop to fill remaining space */}
+            <div className="w-full lg:flex-1 min-w-0">
+              {/* Cover Image */}
+              {blog.coverImage && (
+                <div className="relative w-full mb-2 rounded-lg overflow-hidden bg-muted" style={{ aspectRatio: '1200 / 748' }}>
+                  <Image
+                    src={blog.coverImage}
+                    alt={blog.title}
+                    fill
+                    className="object-cover"
+                    priority
+                    sizes="(max-width: 768px) 100vw, 896px"
+                  />
                 </div>
               )}
-              {(blog.authorName || blog.author) && (
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  <span>By {blog.authorName || blog.author}</span>
-                </div>
-              )}
-            </div>
-          </header>
 
-          {/* Author Bio */}
-          {(blog.authorName || blog.authorBio) && (
-            <div className="mb-8 p-6 bg-muted/50 rounded-lg border-l-4 border-primary">
-              <div className="flex items-start gap-4">
-                {blog.authorImage && (
-                  <div className="relative w-16 h-16 rounded-full overflow-hidden bg-muted shrink-0">
-                    <Image
-                      src={blog.authorImage}
-                      alt={blog.authorName || blog.author || 'Author'}
-                      fill
-                      className="object-cover"
-                      sizes="64px"
-                    />
+              {/* Header */}
+              <header className="mb-2">
+                <h1 className="text-4xl md:text-5xl font-bold mb-1">{blog.title}</h1>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap mb-2">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    <time dateTime={blog.publishedAt}>
+                      {blog.publishedAt ? format(new Date(blog.publishedAt), 'MMMM d, yyyy') : ''}
+                    </time>
                   </div>
-                )}
-                <div>
-                  <h3 className="font-semibold mb-1">{blog.authorName || blog.author}</h3>
-                  {blog.authorBio && (
-                    <p className="text-sm text-muted-foreground">{blog.authorBio}</p>
+                  {blog.readingTime && (
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      <span>{blog.readingTime} min read</span>
+                    </div>
                   )}
                 </div>
+              </header>
+
+              {/* Excerpt */}
+              {blog.excerpt && (
+                <div className="mb-4 p-2 bg-muted/50 rounded-lg border-l-4 border-primary">
+                  <p className="text-lg text-muted-foreground">{blog.excerpt}</p>
+                </div>
+              )}
+
+              {/* Content */}
+              <div className="prose prose-slate dark:prose-invert max-w-none">
+                <Mdx code={blog.body.code} />
+              </div>
+
+              {/* Footer */}
+              <div className="mt-8 pt-4 border-t">
+                <Button variant="outline" asChild>
+                  <Link href="/blog">
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Back to Blog
+                  </Link>
+                </Button>
+              </div>
+
+              {/* Author Bio, Tags, and Related Posts - Bottom Section */}
+              <div className="mt-8 space-y-6">
+                {/* Tags */}
+                {blog.tags && blog.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    <span className="text-sm font-semibold text-muted-foreground mr-2">Tags:</span>
+                    {blog.tags.map((tag: string) => (
+                      <Badge key={tag} variant="secondary">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
+                {/* Author Bio */}
+                {(blog.authorName || blog.author) && (
+                  <div className="p-4 bg-muted/50 rounded-lg border-l-4 border-primary">
+                    <div className="flex items-start gap-4">
+                      <div className="relative w-16 h-16 rounded-full overflow-hidden bg-muted shrink-0">
+                        <Image
+                          src={getBlogAuthorAvatar(blog.authorName || blog.author)}
+                          alt={blog.authorName || blog.author || 'Author'}
+                          fill
+                          className="object-cover"
+                          sizes="64px"
+                          unoptimized
+                        />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold mb-1">{blog.authorName || blog.author}</h3>
+                        {blog.authorBio && (
+                          <p className="text-sm text-muted-foreground">{blog.authorBio}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Related Posts */}
+                {relatedBlogs.length > 0 && (
+                  <div>
+                    <h2 className="text-2xl font-bold mb-4">Related Articles</h2>
+                    <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+                      {relatedBlogs.map((relatedBlog: any) => (
+                        <BlogCard key={relatedBlog.slug} blog={relatedBlog} />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          )}
 
-          {/* Excerpt */}
-          {blog.excerpt && (
-            <div className="mb-8 p-6 bg-muted/50 rounded-lg border-l-4 border-primary">
-              <p className="text-lg text-muted-foreground">{blog.excerpt}</p>
-            </div>
-          )}
-
-          {/* Content */}
-          <div className="prose prose-slate dark:prose-invert max-w-none">
-            <Mdx code={blog.body.code} />
+            {/* Table of Contents - Right Sidebar - 1/4 width */}
+            <aside>
+              <BlogTableOfContents />
+            </aside>
           </div>
-
-          {/* Footer */}
-          <div className="mt-16 pt-8 border-t">
-            <Button variant="outline" asChild>
-              <Link href="/blog">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Blog
-              </Link>
-            </Button>
-          </div>
-
-          {/* Related Posts */}
-          {relatedBlogs.length > 0 && (
-            <div className="mt-16">
-              <h2 className="text-2xl font-bold mb-6">Related Articles</h2>
-              <div className="grid gap-6 md:grid-cols-3">
-                {relatedBlogs.map((relatedBlog: any) => (
-                  <BlogCard key={relatedBlog.slug} blog={relatedBlog} />
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </article>
       </div>

@@ -230,7 +230,7 @@ export default async function CategoryPage({
       <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="border-b bg-muted/30">
-        <div className="container mx-auto max-w-7xl px-4 py-4">
+        <div className="container mx-auto max-w-7xl px-1 py-1">
           <Button variant="ghost" asChild>
             <Link href="/blog" className="inline-flex items-center text-sm">
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -241,13 +241,13 @@ export default async function CategoryPage({
       </div>
 
       {/* Hero */}
-      <section className="border-b bg-muted/30 py-20 px-4">
+      <section className="border-b bg-muted/30 py-5 px-1">
         <div className="container mx-auto max-w-7xl">
           <div className="max-w-3xl">
-            <Badge variant="secondary" className="mb-4">
+            <Badge variant="secondary" className="mb-1">
               {categoryName}
             </Badge>
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
+            <h1 className="text-4xl md:text-5xl font-bold mb-2">
               {categoryName} Articles
             </h1>
             <p className="text-xl text-muted-foreground">
@@ -258,10 +258,10 @@ export default async function CategoryPage({
       </section>
 
       {/* Blog List */}
-      <section className="py-20 px-4">
+      <section className="py-5 px-1">
         <div className="container mx-auto max-w-7xl">
           {filteredBlogs.length === 0 ? (
-            <div className="text-center py-20">
+            <div className="text-center py-5">
               <p className="text-muted-foreground">No blog posts found in this category.</p>
             </div>
           ) : (
@@ -276,7 +276,7 @@ export default async function CategoryPage({
 
       {/* Categories Navigation */}
       {categories.length > 0 && (
-        <section className="py-12 px-4 border-t bg-muted/30">
+        <section className="py-3 px-1 border-t bg-muted/30">
           <div className="container mx-auto max-w-7xl">
             <h2 className="text-2xl font-bold mb-6">Browse by Category</h2>
             <div className="flex flex-wrap gap-3">

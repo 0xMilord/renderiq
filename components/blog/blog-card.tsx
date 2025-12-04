@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { getBlogAuthorAvatar } from '@/lib/utils/blog-author-avatar';
 
 interface BlogCardProps {
   blog: {
@@ -29,6 +30,7 @@ interface BlogCardProps {
 }
 
 export function BlogCard({ blog, className }: BlogCardProps) {
+
   const handleShare = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -64,7 +66,7 @@ export function BlogCard({ blog, className }: BlogCardProps) {
         {/* Cover Image - Clickable */}
         <Link href={blog.url} className="block">
           {blog.coverImage ? (
-            <div className="relative w-full h-48 bg-muted overflow-hidden">
+            <div className="relative w-full bg-muted overflow-hidden" style={{ aspectRatio: '1200 / 748' }}>
               <Image
                 src={blog.coverImage}
                 alt={blog.title}
@@ -79,7 +81,7 @@ export function BlogCard({ blog, className }: BlogCardProps) {
               )}
             </div>
           ) : (
-            <div className="relative w-full h-48 bg-muted flex items-center justify-center">
+            <div className="relative w-full bg-muted flex items-center justify-center" style={{ aspectRatio: '1200 / 748' }}>
               <div className="w-16 h-16 opacity-20">
                 <Image
                   src="/logo.svg"
@@ -99,16 +101,17 @@ export function BlogCard({ blog, className }: BlogCardProps) {
         </Link>
 
         <CardHeader className="flex flex-col space-y-3 px-6 pt-6">
-          {/* Author with Logo */}
+          {/* Author with Avatar */}
           {(blog.authorName || blog.author) && (
             <div className="flex items-center gap-2">
               <div className="relative w-6 h-6 rounded-full overflow-hidden bg-muted flex-shrink-0">
                 <Image
-                  src="/logo.svg"
+                  src={getBlogAuthorAvatar(blog.authorName || blog.author)}
                   alt={blog.authorName || blog.author || 'Author'}
                   width={24}
                   height={24}
                   className="w-full h-full object-cover"
+                  unoptimized
                 />
               </div>
               <span className="text-sm text-muted-foreground font-medium">

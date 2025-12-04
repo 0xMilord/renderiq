@@ -179,13 +179,13 @@ export default function BlogPage() {
       />
       <div className="min-h-screen bg-background">
       {/* Hero */}
-      <section className="border-b bg-muted/30 py-20 px-4">
+      <section className="border-b bg-muted/30 py-5 px-1">
         <div className="container mx-auto max-w-7xl">
           <div className="max-w-3xl">
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
+            <h1 className="text-4xl md:text-5xl font-bold mb-2">
               Renderiq Blog
             </h1>
-            <p className="text-xl text-muted-foreground mb-8">
+            <p className="text-xl text-muted-foreground mb-2">
               Insights, tutorials, and guides on AI-powered architectural rendering, 
               visualization tools, and design workflows for architects and designers.
             </p>
@@ -218,10 +218,10 @@ export default function BlogPage() {
       </section>
 
       {/* Blog List */}
-      <section className="py-20 px-4">
+      <section className="py-5 px-1">
         <div className="container mx-auto max-w-7xl">
           {blogs.length === 0 ? (
-            <div className="text-center py-20">
+            <div className="text-center py-5">
               <p className="text-muted-foreground">No blog posts yet. Check back soon!</p>
             </div>
           ) : (

@@ -12,7 +12,8 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx scripts/seed-pricing.ts",
     "contentlayer": "contentlayer dev",
-    "pwa:icons": "tsx scripts/generate-pwa-icons.ts"
+    "pwa:icons": "tsx scripts/generate-pwa-icons.ts",
+    "download-author-avatars": "tsx scripts/download-author-avatars.ts"
   },
   "dependencies": {
     "@dicebear/collection": "^9.2.4",

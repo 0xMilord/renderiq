@@ -7,17 +7,51 @@ import { useMDXComponents as useMDXComponentsBase } from '@mdx-js/react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CodeBlock } from '@/components/docs/code-block';
+import { HeadingWithCopy } from '@/components/blog/heading-with-copy';
 import { useMemo } from 'react';
 import * as React from 'react';
 import * as runtime from 'react/jsx-runtime';
 
+// Helper to extract text from React nodes for ID generation
+function extractText(node: React.ReactNode): string {
+  if (typeof node === 'string') return node;
+  if (typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(extractText).join('');
+  if (React.isValidElement(node) && node.props.children) {
+    return extractText(node.props.children);
+  }
+  return '';
+}
+
 export function useMDXComponents(components: MDXComponents): MDXComponents {
+  const generateId = (children: React.ReactNode): string => {
+    const text = extractText(children);
+    return text
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .substring(0, 50) || `heading-${Math.random().toString(36).substr(2, 9)}`;
+  };
+
   return {
     ...components,
-    h1: ({ children }) => <h1 className="text-4xl font-bold tracking-tight mt-8 mb-4">{children}</h1>,
-    h2: ({ children }) => <h2 className="text-3xl font-semibold tracking-tight mt-8 mb-4 scroll-mt-20">{children}</h2>,
-    h3: ({ children }) => <h3 className="text-2xl font-semibold tracking-tight mt-6 mb-3 scroll-mt-20">{children}</h3>,
-    h4: ({ children }) => <h4 className="text-xl font-semibold tracking-tight mt-4 mb-2">{children}</h4>,
+    h1: ({ children, id }: { children: React.ReactNode; id?: string }) => {
+      const headingId = id || generateId(children);
+      return <HeadingWithCopy id={headingId} level={1}>{children}</HeadingWithCopy>;
+    },
+    h2: ({ children, id }: { children: React.ReactNode; id?: string }) => {
+      const headingId = id || generateId(children);
+      return <HeadingWithCopy id={headingId} level={2}>{children}</HeadingWithCopy>;
+    },
+    h3: ({ children, id }: { children: React.ReactNode; id?: string }) => {
+      const headingId = id || generateId(children);
+      return <HeadingWithCopy id={headingId} level={3}>{children}</HeadingWithCopy>;
+    },
+    h4: ({ children, id }: { children: React.ReactNode; id?: string }) => {
+      const headingId = id || generateId(children);
+      return <HeadingWithCopy id={headingId} level={4}>{children}</HeadingWithCopy>;
+    },
     p: ({ children }) => <p className="leading-7 mb-4">{children}</p>,
     a: ({ href, children }) => (
       <Link href={href || '#'} className="text-primary hover:underline underline-offset-4">
