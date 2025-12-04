@@ -59,6 +59,7 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
   const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string; planId?: string }>({ open: false, message: '' });
   const [processingDialog, setProcessingDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
   const [verificationDialog, setVerificationDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
+  const [razorpayOpen, setRazorpayOpen] = useState(false); // Track if Razorpay iframe is open
   const { theme, resolvedTheme } = useTheme();
   const isDarkMode = resolvedTheme === 'dark' || theme === 'dark';
   const { currency, currencyInfo, exchangeRate, format, convert, loading: currencyLoading } = useCurrency();
@@ -83,6 +84,67 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
     }
     setConvertedPrices(converted);
   }, [currency, exchangeRate, plans, currencyLoading]);
+
+  // Monitor for Razorpay iframe and disable dialogs when it's open
+  useEffect(() => {
+    const checkRazorpayOpen = () => {
+      // Check for Razorpay iframe by looking for fixed position divs with iframes
+      const fixedDivs = Array.from(document.querySelectorAll('body > div[style*="position: fixed"]'));
+      const razorpayIframe = fixedDivs.find((div: any) => {
+        const iframe = div.querySelector('iframe');
+        if (!iframe) return false;
+        const style = window.getComputedStyle(div);
+        const zIndex = parseInt(style.zIndex || '0');
+        return zIndex > 1000; // Razorpay uses high z-index
+      });
+      
+      const isOpen = !!razorpayIframe;
+      setRazorpayOpen(isOpen);
+
+      // Disable pointer events on all dialog overlays when Razorpay is open
+      if (isOpen) {
+        const dialogOverlays = document.querySelectorAll('[data-slot="dialog-overlay"]');
+        const dialogContents = document.querySelectorAll('[data-slot="dialog-content"]');
+        
+        dialogOverlays.forEach((overlay: any) => {
+          overlay.style.pointerEvents = 'none';
+          overlay.style.zIndex = '1';
+        });
+        
+        dialogContents.forEach((content: any) => {
+          content.style.pointerEvents = 'none';
+          content.style.zIndex = '1';
+        });
+      } else {
+        // Re-enable pointer events when Razorpay closes
+        const dialogOverlays = document.querySelectorAll('[data-slot="dialog-overlay"]');
+        const dialogContents = document.querySelectorAll('[data-slot="dialog-content"]');
+        
+        dialogOverlays.forEach((overlay: any) => {
+          overlay.style.pointerEvents = '';
+          overlay.style.zIndex = '';
+        });
+        
+        dialogContents.forEach((content: any) => {
+          content.style.pointerEvents = '';
+          content.style.zIndex = '';
+        });
+      }
+    };
+
+    // Check immediately and then periodically
+    checkRazorpayOpen();
+    const interval = setInterval(checkRazorpayOpen, 500);
+
+    // Also watch for mutations (when Razorpay iframe is added/removed)
+    const observer = new MutationObserver(checkRazorpayOpen);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      clearInterval(interval);
+      observer.disconnect();
+    };
+  }, []);
 
   const filteredPlans = plans
     .filter((plan) => {
@@ -321,6 +383,10 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
       const razorpayInstance = new Razorpay(options);
       razorpayInstanceRef.current = razorpayInstance; // Store reference
       
+      // CRITICAL: Close processing dialog BEFORE opening Razorpay iframe
+      // This prevents dialog from blocking interaction with Razorpay
+      setProcessingDialog({ open: false, message: '' });
+      
       // Payment failure handler
       razorpayInstance.on('payment.failed', async (response: any) => {
         console.error('Payment failed:', response);
@@ -336,8 +402,11 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
         window.location.href = `/payment/failure?razorpay_subscription_id=${result.data.subscriptionId}&error_description=${encodeURIComponent(errorDescription)}`;
       });
 
-      // Open Razorpay checkout (only once)
-      razorpayInstance.open();
+      // Small delay to ensure dialog closes before opening Razorpay iframe
+      setTimeout(() => {
+        // Open Razorpay checkout (only once)
+        razorpayInstance.open();
+      }, 100);
       
       // Apply styling to Razorpay modal after it opens
       setTimeout(() => {
@@ -588,6 +657,19 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
               body > div[style*="position: fixed"]:has(iframe) {
                 backdrop-filter: blur(8px) !important;
                 background-color: ${isDarkMode ? 'rgba(0, 0, 0, 0.85)' : 'rgba(0, 0, 0, 0.5)'} !important;
+                z-index: 10000 !important;
+              }
+              
+              /* CRITICAL: Disable pointer events on dialog overlays when Razorpay is open */
+              body:has(div[style*="position: fixed"]:has(iframe)) [data-slot="dialog-overlay"] {
+                pointer-events: none !important;
+                z-index: 1 !important;
+              }
+              
+              /* CRITICAL: Disable pointer events on dialog content when Razorpay is open */
+              body:has(div[style*="position: fixed"]:has(iframe)) [data-slot="dialog-content"] {
+                pointer-events: none !important;
+                z-index: 1 !important;
               }
               
               /* Make Razorpay modal container theme-aware and sized to 90vw x 90vh */
@@ -707,8 +789,8 @@ Thank you!`);
         </DialogContent>
       </Dialog>
 
-      {/* Processing Dialog */}
-      <Dialog open={processingDialog.open} onOpenChange={(open) => !open && setProcessingDialog({ open: false, message: '' })}>
+      {/* Processing Dialog - disabled when Razorpay is open */}
+      <Dialog open={processingDialog.open && !razorpayOpen} onOpenChange={(open) => !open && setProcessingDialog({ open: false, message: '' })}>
         <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Processing Payment</DialogTitle>
@@ -722,8 +804,8 @@ Thank you!`);
         </DialogContent>
       </Dialog>
 
-      {/* Verification Dialog */}
-      <Dialog open={verificationDialog.open} onOpenChange={(open) => !open && setVerificationDialog({ open: false, message: '' })}>
+      {/* Verification Dialog - disabled when Razorpay is open */}
+      <Dialog open={verificationDialog.open && !razorpayOpen} onOpenChange={(open) => !open && setVerificationDialog({ open: false, message: '' })}>
         <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Verifying Payment</DialogTitle>
