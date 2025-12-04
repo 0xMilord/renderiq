@@ -92,25 +92,24 @@ export function Slide3ChatInterface({ galleryRenders = [], longestChains = [] }:
   }, [chainsWithRenders.length]);
 
   // Optimized smooth slider animation using requestAnimationFrame
-  // Synced with slide duration: 30 seconds = 30000ms
-  // Target: 4 complete cycles (0-100%) during the slide duration for dynamic effect
+  // Only one pass (0-100%), no looping
+  // Animation duration: 8 seconds for smooth transition
   useEffect(() => {
     if (chainsWithRenders.length === 0) return;
 
     let animationFrameId: number;
     let lastTime = performance.now();
-    const slideDuration = 30000; // 30 seconds (CHAT_SLIDE_DURATION)
-    const cyclesPerSlide = 4; // Number of complete 0-100% cycles during slide
+    const animationDuration = 8000; // 8 seconds for one complete pass (0-100%)
     const targetFPS = 60;
     const frameTime = 1000 / targetFPS;
-    // Calculate speed: (cycles * 100%) / (duration in seconds * fps)
-    // 4 cycles * 100% = 400% total movement
-    // 30 seconds * 60 fps = 1800 frames
-    // 400 / 1800 = 0.222% per frame
-    const animationSpeed = (cyclesPerSlide * 100) / ((slideDuration / 1000) * targetFPS);
+    // Calculate speed: 100% / (duration in seconds * fps)
+    // 100% / (8 seconds * 60 fps) = 100 / 480 = 0.208% per frame
+    const animationSpeed = 100 / ((animationDuration / 1000) * targetFPS);
+    const startTime = performance.now();
 
     const animate = (currentTime: number) => {
       const deltaTime = currentTime - lastTime;
+      const elapsed = currentTime - startTime;
       
       // Only update if enough time has passed (throttle to ~60fps)
       if (deltaTime >= frameTime) {
@@ -120,12 +119,14 @@ export function Slide3ChatInterface({ galleryRenders = [], longestChains = [] }:
 
           chainsWithRenders.forEach(({ chain }) => {
             const currentPos = updated[chain.id] ?? 0;
-            if (currentPos >= 100) {
-              // Reset to start (left) when reaching 100%
-              updated[chain.id] = 0;
-              hasChanges = true;
-            } else {
-              // Smoothly move right - increased speed for faster animation
+            if (elapsed >= animationDuration) {
+              // Animation complete - stay at 100%
+              if (currentPos < 100) {
+                updated[chain.id] = 100;
+                hasChanges = true;
+              }
+            } else if (currentPos < 100) {
+              // Smoothly move right - only one pass, no reset
               const newPos = Math.min(100, currentPos + animationSpeed);
               updated[chain.id] = newPos;
               hasChanges = true;
@@ -138,7 +139,10 @@ export function Slide3ChatInterface({ galleryRenders = [], longestChains = [] }:
         lastTime = currentTime - (deltaTime % frameTime);
       }
 
-      animationFrameId = requestAnimationFrame(animate);
+      // Continue animation until complete
+      if (elapsed < animationDuration) {
+        animationFrameId = requestAnimationFrame(animate);
+      }
     };
 
     animationFrameId = requestAnimationFrame(animate);

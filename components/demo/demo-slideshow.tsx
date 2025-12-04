@@ -18,17 +18,19 @@ const SLIDE_1_DURATION = 4000; // 4 seconds for first slide (hero)
 const CHAT_SLIDE_DURATION = 60000; // 60 seconds for chat interface (slowed down 50% - 12s per image × 5 images)
 const SLIDE_2_DURATION = 50000; // 50 seconds for slide 2 (before/after comparison) - increased to show more images
 const SLIDE_21_DURATION = 15000; // 15 seconds for slide 2.1 (video generation)
+const SLIDE_3_CHAT_INTERFACE_DURATION = 10000; // 10 seconds: 8s for slider animation + 2s extra
+const SLIDE_7_PRICING_DURATION = 20000; // 20 seconds for pricing slide (10 seconds longer for customer capture)
 
 const slides = [
   { id: 0, component: Slide1Hero, duration: SLIDE_1_DURATION },
   { id: 1, component: Slide2Problem, duration: SLIDE_2_DURATION },
   { id: 2, component: Slide21Video, duration: SLIDE_21_DURATION },
   { id: 3, component: Slide3UnifiedChat, duration: CHAT_SLIDE_DURATION },
-  { id: 4, component: Slide3ChatInterface, duration: CHAT_SLIDE_DURATION },
+  { id: 4, component: Slide3ChatInterface, duration: SLIDE_3_CHAT_INTERFACE_DURATION },
   { id: 5, component: Slide4RenderChains, duration: SLIDE_DURATION },
   { id: 6, component: Slide5CanvasEditor, duration: SLIDE_DURATION },
   { id: 7, component: Slide6AECFinetunes, duration: SLIDE_DURATION },
-  { id: 8, component: Slide7Pricing, duration: SLIDE_DURATION },
+  { id: 8, component: Slide7Pricing, duration: SLIDE_7_PRICING_DURATION },
 ];
 
 interface DemoSlideshowProps {

@@ -61,6 +61,21 @@ export function Slide21Video({ galleryRenders = [], onVideoComplete }: Slide21Vi
     return text.substring(0, lastPeriodIndex + 1);
   };
 
+  // Helper function to get text that fits in 3 lines (approximately 120-150 characters)
+  const getTextForThreeLines = (text: string): string => {
+    // Approximate: 3 lines * ~40-50 chars per line = ~120-150 chars
+    // Find the last space before 120 chars to avoid breaking words
+    const maxChars = 120;
+    if (text.length <= maxChars) return text;
+    
+    const truncated = text.substring(0, maxChars);
+    const lastSpace = truncated.lastIndexOf(' ');
+    if (lastSpace > 80) {
+      return truncated.substring(0, lastSpace) + '...';
+    }
+    return truncated.substring(0, maxChars) + '...';
+  };
+
   // Auto-type prompt when component mounts
   useEffect(() => {
     if (!currentPrompt || !latestVideo) return;
@@ -69,16 +84,19 @@ export function Slide21Video({ galleryRenders = [], onVideoComplete }: Slide21Vi
     setMessages([]);
     setShowShimmer(false);
     
-    // Truncate prompt at last period
-    const truncatedPrompt = truncateAtLastPeriod(currentPrompt);
+    // Truncate prompt at last period for full message
+    const fullPrompt = truncateAtLastPeriod(currentPrompt);
+    // Get text for 3 lines in textarea (limited display)
+    const textForTextarea = getTextForThreeLines(fullPrompt);
     
     setIsTyping(true);
     setTypingText('');
     let charIndex = 0;
     
     const typingInterval = setInterval(() => {
-      if (charIndex < truncatedPrompt.length) {
-        setTypingText(truncatedPrompt.substring(0, charIndex + 1));
+      // Only type up to 3 lines worth in the textarea
+      if (charIndex < textForTextarea.length) {
+        setTypingText(textForTextarea.substring(0, charIndex + 1));
         charIndex++;
         // Show shimmer placeholder while typing
         if (charIndex > 5) {
@@ -86,13 +104,13 @@ export function Slide21Video({ galleryRenders = [], onVideoComplete }: Slide21Vi
         }
       } else {
         clearInterval(typingInterval);
-        // After typing completes, send as user message and show video immediately
+        // After typing 3 lines, immediately send full prompt as message
         setTimeout(() => {
           setIsTyping(false);
           setShowShimmer(false);
           setMessages([{
             id: `user-msg-${Date.now()}`,
-            text: truncatedPrompt,
+            text: fullPrompt, // Full prompt in message bubble
             type: 'user',
             uploadedImageUrl: latestVideo?.render?.uploadedImageUrl
           }]);

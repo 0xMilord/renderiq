@@ -5,9 +5,9 @@ import { getProject } from '@/lib/actions/projects.actions';
 import type { Project } from '@/lib/db/schema';
 import type { RenderChainWithRenders } from '@/lib/types/render-chain';
 
-// Cache demo page for 5 minutes (300 seconds)
-// This prevents excessive database calls while still showing relatively fresh content
-export const revalidate = 300;
+// Force dynamic rendering - demo page uses cookies for Supabase client
+// This prevents static generation errors when accessing user-specific data
+export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Renderiq Demo - Transform Sketches into Photorealistic Renders',

@@ -4,12 +4,80 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle, Sparkles, Users, Coins, Gift, Zap } from 'lucide-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import { TwitterTestimonial } from '@/components/home/twitter-testimonial';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import { useState } from 'react';
+import Autoplay from 'embla-carousel-autoplay';
 
 const QRCodeSVG = dynamic(() => import('qrcode.react').then((mod) => mod.QRCodeSVG), {
   ssr: false,
 });
 
+// Twitter testimonial URLs - Same as homepage
+const twitterTestimonials = [
+  {
+    url: 'https://x.com/CasshyapSa79802/status/1995905411946611051',
+    fallback: {
+      text: 'Renderiq has completely transformed how we present designs to clients. The AI renders are incredibly realistic and save us hours of work.',
+      author: 'CasshyapSa79802',
+      username: 'CasshyapSa79802',
+    },
+  },
+  {
+    url: 'https://x.com/0xmilords/status/1995907216311025866',
+    fallback: {
+      text: 'Amazing AI rendering tool for architecture!',
+      author: '0xmilords',
+      username: '0xmilords',
+    },
+  },
+  {
+    url: 'https://x.com/titanidex/status/1995907578480787870',
+    fallback: {
+      text: 'Renderiq is a game-changer for architectural visualization.',
+      author: 'titanidex',
+      username: 'titanidex',
+    },
+  },
+  {
+    url: 'https://x.com/mogisterate/status/1995907751596490837',
+    fallback: {
+      text: 'Love using Renderiq for my design projects!',
+      author: 'mogisterate',
+      username: 'mogisterate',
+    },
+  },
+  {
+    url: 'https://x.com/retrobrah/status/1995908179365105973',
+    fallback: {
+      text: 'Best AI rendering tool I\'ve tried. Highly recommend!',
+      author: 'retrobrah',
+      username: 'retrobrah',
+    },
+  },
+  {
+    url: 'https://x.com/spymilking/status/1995908547490840802',
+    fallback: {
+      text: 'Renderiq makes architectural rendering so easy and fast.',
+      author: 'spymilking',
+      username: 'spymilking',
+    },
+  },
+  {
+    url: 'https://x.com/0xK4471L/status/1995908727111909851',
+    fallback: {
+      text: 'Incredible results with Renderiq! The quality is outstanding.',
+      author: '0xK4471L',
+      username: '0xK4471L',
+    },
+  },
+];
+
 export function Slide7Pricing() {
+  const [autoplayPlugin] = useState(() => 
+    Autoplay({ delay: 2000, stopOnInteraction: false, stopOnMouseEnter: false })
+  );
+
   return (
     <div className="relative w-full h-full flex flex-col bg-gradient-to-br from-background via-primary/10 to-primary/5 overflow-hidden">
       {/* Header - Upper Left */}
@@ -122,15 +190,15 @@ export function Slide7Pricing() {
             </div>
 
             {/* QR Code */}
-            <div className="flex flex-col items-center justify-center bg-card/60 backdrop-blur-sm rounded-xl border border-border p-6">
-              <div className="bg-white p-6 rounded-xl mb-3 shadow-lg border-2 border-primary/30">
+            <div className="flex flex-col items-center justify-center bg-card/60 backdrop-blur-sm rounded-xl border border-border p-6 mb-4">
+              <div className="bg-foreground/90 p-6 rounded-xl mb-3 shadow-lg border-2 border-primary/30">
                 <QRCodeSVG
                   value={`${typeof window !== 'undefined' ? window.location.origin : ''}/signup`}
                   size={352}
                   level="H"
                   includeMargin={true}
                   fgColor="hsl(var(--primary))"
-                  bgColor="transparent"
+                  bgColor="hsl(var(--foreground))"
                   imageSettings={{
                     src: '/logo.svg',
                     height: 60,
@@ -142,6 +210,34 @@ export function Slide7Pricing() {
               <p className="text-xs text-muted-foreground text-center font-medium">
                 Scan to sign up instantly
               </p>
+            </div>
+
+            {/* Testimonials Carousel */}
+            <div className="bg-card/60 backdrop-blur-sm rounded-xl border border-border p-4">
+              <h4 className="text-sm font-semibold text-foreground mb-3 text-center">What Our Users Say</h4>
+              <Carousel
+                opts={{
+                  align: 'start',
+                  loop: true,
+                }}
+                plugins={[autoplayPlugin]}
+                className="w-full"
+              >
+                <CarouselContent className="-ml-2 md:-ml-4">
+                  {twitterTestimonials.map((testimonial, index) => (
+                    <CarouselItem key={index} className="pl-2 md:pl-4 basis-full">
+                      <div className="h-full">
+                        <TwitterTestimonial
+                          tweetUrl={testimonial.url}
+                          fallback={testimonial.fallback}
+                        />
+                      </div>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                <CarouselPrevious className="left-2" />
+                <CarouselNext className="right-2" />
+              </Carousel>
             </div>
           </div>
         </div>

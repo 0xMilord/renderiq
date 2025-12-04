@@ -48,6 +48,7 @@ export function Slide3UnifiedChat({ galleryRenders = [], longestChains = [] }: S
 
   // Build a chain with only the top 5 images for demo
   // Ensure each render has the correct uploadedImageUrl from the gallery item
+  // Set all chainPositions to 0 to prevent before/after sliders in demo
   const demoChainWithTop5: RenderChainWithRenders | undefined = demoChain ? {
     ...demoChain,
     renders: top5Images
@@ -56,9 +57,10 @@ export function Slide3UnifiedChat({ galleryRenders = [], longestChains = [] }: S
         const chainRender = demoChain.renders?.find(r => r.id === img.renderId);
         if (chainRender) {
           // Always use the uploadedImageUrl from the gallery item to ensure sync
+          // Set chainPosition to 0 to prevent before/after comparison sliders in demo
           return {
             ...chainRender,
-            chainPosition: index, // Ensure correct position
+            chainPosition: 0, // Set to 0 to prevent previous render detection
             uploadedImageUrl: img.render.uploadedImageUrl || chainRender.uploadedImageUrl || undefined,
             outputUrl: img.render.outputUrl || chainRender.outputUrl || '',
             prompt: img.render.prompt || chainRender.prompt || '',
@@ -69,7 +71,7 @@ export function Slide3UnifiedChat({ galleryRenders = [], longestChains = [] }: S
           id: img.renderId,
           projectId: img.render.projectId || '',
           chainId: demoChain.id,
-          chainPosition: index,
+          chainPosition: 0, // Set to 0 to prevent previous render detection
           prompt: img.render.prompt || '',
           type: 'image' as const,
           status: 'completed' as const,
@@ -213,6 +215,16 @@ export function Slide3UnifiedChat({ galleryRenders = [], longestChains = [] }: S
         }
         .demo-unified-chat-container > div[style*="height"] {
           height: 100% !important;
+        }
+        /* Hide before/after compare sliders in demo */
+        .demo-unified-chat-container .react-before-after-slider-container,
+        .demo-unified-chat-container [class*="react-before-after"],
+        .demo-unified-chat-container [class*="before-after"] {
+          display: none !important;
+        }
+        /* Hide the container div that wraps the slider */
+        .demo-unified-chat-container > div > div > div > div > div > div > div:has([class*="react-before-after"]) {
+          display: none !important;
         }
       `}} />
       <div className="relative w-full h-full flex flex-col bg-gradient-to-br from-background via-primary/5 to-background overflow-hidden">
