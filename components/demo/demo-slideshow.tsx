@@ -11,20 +11,16 @@ import { Slide5CanvasEditor } from './slides/slide-5-canvas-editor';
 import { Slide6AECFinetunes } from './slides/slide-6-aec-finetunes';
 import { Slide7Pricing } from './slides/slide-7-pricing';
 import { DemoControls } from './demo-controls';
-import dynamic from 'next/dynamic';
 import type { GalleryItemWithDetails } from '@/lib/types';
 
-const QRCodeSVG = dynamic(() => import('qrcode.react').then((mod) => mod.QRCodeSVG), {
-  ssr: false,
-});
-
 const SLIDE_DURATION = 10000; // 10 seconds per slide
-const CHAT_SLIDE_DURATION = 30000; // 30 seconds for chat interface (longer demo)
+const SLIDE_1_DURATION = 4000; // 4 seconds for first slide (hero)
+const CHAT_SLIDE_DURATION = 60000; // 60 seconds for chat interface (slowed down 50% - 12s per image × 5 images)
 const SLIDE_2_DURATION = 50000; // 50 seconds for slide 2 (before/after comparison) - increased to show more images
 const SLIDE_21_DURATION = 15000; // 15 seconds for slide 2.1 (video generation)
 
 const slides = [
-  { id: 0, component: Slide1Hero, duration: SLIDE_DURATION },
+  { id: 0, component: Slide1Hero, duration: SLIDE_1_DURATION },
   { id: 1, component: Slide2Problem, duration: SLIDE_2_DURATION },
   { id: 2, component: Slide21Video, duration: SLIDE_21_DURATION },
   { id: 3, component: Slide3UnifiedChat, duration: CHAT_SLIDE_DURATION },
@@ -147,7 +143,7 @@ export function DemoSlideshow({ galleryRenders = [], longestChains = [] }: DemoS
 
   const restart = useCallback(() => {
     setCurrentSlide(0);
-    setTimeRemaining(slides[0]?.duration || SLIDE_DURATION);
+    setTimeRemaining(SLIDE_1_DURATION);
     setIsPlaying(true);
   }, []);
 
@@ -200,6 +196,19 @@ export function DemoSlideshow({ galleryRenders = [], longestChains = [] }: DemoS
         .demo-slideshow-container .demo-chat-fullscreen > div > div {
           height: 100vh !important;
         }
+        /* Override UnifiedChatInterface height calculation in demo - use container height instead of calc(100vh-2.75rem) */
+        .demo-slideshow-container .demo-unified-chat-container > div {
+          height: 100% !important;
+          max-height: 100% !important;
+        }
+        .demo-slideshow-container .demo-unified-chat-container > div > div {
+          height: 100% !important;
+          max-height: 100% !important;
+        }
+        /* Override the calc(100vh-2.75rem) height class */
+        .demo-slideshow-container .demo-unified-chat-container > div[class*="h-\\[calc\\(100vh"] {
+          height: 100% !important;
+        }
         /* Hide back button and mobile header in demo */
         .demo-slideshow-container .lg\\:hidden.border-b {
           display: none !important;
@@ -219,28 +228,6 @@ export function DemoSlideshow({ galleryRenders = [], longestChains = [] }: DemoS
           {slides[currentSlide]?.id === 6 && <Slide5CanvasEditor galleryRenders={galleryRenders} />}
           {![1, 2, 3, 4, 5, 6].includes(slides[currentSlide]?.id || -1) && CurrentSlideComponent && <CurrentSlideComponent {...getSlideProps()} />}
         </div>
-
-        {/* QR Code Card - Show on all slides except first (0) and last (8) */}
-        {currentSlide > 0 && currentSlide < slides.length - 1 && (
-          <div className="absolute top-4 right-4 z-50 bg-card/95 backdrop-blur-sm rounded-lg border-2 border-primary shadow-2xl p-2.5 max-w-[126px]">
-            <div className="flex flex-col items-center gap-2">
-              <div className="p-1.5 bg-primary/10 rounded-lg border border-primary/30">
-                <QRCodeSVG
-                  value="https://renderiq.io/api/qr-signup"
-                  size={98}
-                  level="H"
-                  includeMargin={false}
-                  className="rounded"
-                  fgColor="hsl(var(--primary))"
-                  bgColor="transparent"
-                />
-              </div>
-              <p className="text-[9px] text-center text-primary font-semibold leading-tight w-[98px]">
-                Visualize UniAcoustics products on Renderiq!
-              </p>
-            </div>
-          </div>
-        )}
 
         {/* Controls */}
         <DemoControls

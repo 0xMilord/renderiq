@@ -8,6 +8,11 @@ import Image from 'next/image';
 import { useDemoData } from '@/components/demo/demo-data-context';
 import type { GalleryItemWithDetails } from '@/lib/types';
 import type { RenderChainWithRenders } from '@/lib/types/render-chain';
+import dynamic from 'next/dynamic';
+
+const QRCodeSVG = dynamic(() => import('qrcode.react').then((mod) => mod.QRCodeSVG), {
+  ssr: false,
+});
 
 interface Slide3ChatInterfaceProps {
   galleryRenders?: GalleryItemWithDetails[];
@@ -171,16 +176,40 @@ export function Slide3ChatInterface({ galleryRenders = [], longestChains = [] }:
       `}} />
       
       {/* Header - Upper Left */}
-      <div className="absolute top-4 left-4 z-10 flex items-center gap-3 flex-shrink-0">
-        <h2 className="text-xl sm:text-2xl font-extrabold text-foreground">
-          Multiple Projects & Chains
-        </h2>
-        <div className="h-6 w-px bg-border"></div>
-        <p className="text-xs sm:text-sm text-muted-foreground max-w-[250px]">
-          Manage multiple projects and render chains simultaneously. Compare side by side.
-        </p>
+      <div className="flex-shrink-0 px-4 pt-3 pb-3 border-b border-border">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <FolderOpen className="h-5 w-5 text-primary" />
+              <h2 className="text-xl sm:text-2xl font-extrabold text-foreground">
+                Multiple Projects & Chains
+              </h2>
+            </div>
+            <div className="h-6 w-px bg-border"></div>
+            <p className="text-xs sm:text-sm text-muted-foreground max-w-[400px]">
+              Manage multiple projects and render chains simultaneously. Compare side by side.
+            </p>
+          </div>
+          {/* QR Code - Right Edge */}
+          <div className="flex-shrink-0 flex flex-row items-center gap-1.5">
+            <div className="p-0.5 bg-primary/10 rounded border border-primary/30 flex-shrink-0">
+              <QRCodeSVG
+                value="https://renderiq.io/api/qr-signup"
+                size={50}
+                level="M"
+                includeMargin={false}
+                className="rounded"
+                fgColor="hsl(var(--primary))"
+                bgColor="transparent"
+              />
+            </div>
+            <p className="text-[12px] text-primary font-semibold leading-tight max-w-[100px]">
+              Visualize UniAcoustics products on Renderiq!
+            </p>
+          </div>
+        </div>
       </div>
-      <div className="container mx-auto px-8 py-12 h-full flex flex-col pt-20">
+      <div className="container mx-auto px-8 py-12 flex-1 flex flex-col min-h-0">
 
         {/* Chains Grid */}
         <div className="flex-1 overflow-y-auto">

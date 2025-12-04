@@ -6,6 +6,11 @@ import { UnifiedChatInterface } from '@/components/chat/unified-chat-interface';
 import { Sparkles } from 'lucide-react';
 import type { GalleryItemWithDetails } from '@/lib/types';
 import type { RenderChainWithRenders } from '@/lib/types/render-chain';
+import dynamic from 'next/dynamic';
+
+const QRCodeSVG = dynamic(() => import('qrcode.react').then((mod) => mod.QRCodeSVG), {
+  ssr: false,
+});
 import type { Render } from '@/lib/types/render';
 
 interface Slide3UnifiedChatProps {
@@ -42,19 +47,29 @@ export function Slide3UnifiedChat({ galleryRenders = [], longestChains = [] }: S
   ) || longestChains.find(chain => chain.projectId === demoProjectId) || longestChains[0];
 
   // Build a chain with only the top 5 images for demo
+  // Ensure each render has the correct uploadedImageUrl from the gallery item
   const demoChainWithTop5: RenderChainWithRenders | undefined = demoChain ? {
     ...demoChain,
     renders: top5Images
-      .map(img => {
+      .map((img, index) => {
         // Find the render in the chain or create a mock render
         const chainRender = demoChain.renders?.find(r => r.id === img.renderId);
-        if (chainRender) return chainRender;
+        if (chainRender) {
+          // Always use the uploadedImageUrl from the gallery item to ensure sync
+          return {
+            ...chainRender,
+            chainPosition: index, // Ensure correct position
+            uploadedImageUrl: img.render.uploadedImageUrl || chainRender.uploadedImageUrl || undefined,
+            outputUrl: img.render.outputUrl || chainRender.outputUrl || '',
+            prompt: img.render.prompt || chainRender.prompt || '',
+          };
+        }
         // If not found, create a mock render from the gallery item
         return {
           id: img.renderId,
           projectId: img.render.projectId || '',
           chainId: demoChain.id,
-          chainPosition: top5Images.indexOf(img),
+          chainPosition: index,
           prompt: img.render.prompt || '',
           type: 'image' as const,
           status: 'completed' as const,
@@ -67,68 +82,106 @@ export function Slide3UnifiedChat({ galleryRenders = [], longestChains = [] }: S
       .filter(Boolean) as Render[],
   } : undefined;
 
-  // Autopilot: Cycle through top 5 images
+  // Autopilot: Cycle through top 5 images sequentially
+  // Slide duration: 30 seconds, so 12 seconds per image (60s / 5 = 12s) - slowed down 50%
+  // Sequence: User message (0s) -> Bot thinking (2s) -> Image render (6s) -> Next (12s) = 12s per image
   useEffect(() => {
     if (top5Images.length === 0 || !demoChainWithTop5) return;
+
+    // Clear any existing timeouts
+    const allTimeouts: NodeJS.Timeout[] = [];
 
     // Reset state
     setCurrentImageIndex(0);
     setIsShowingThinking(false);
     setHasShownImage(false);
 
-    // Start autopilot cycle
-    const cycleImages = () => {
-      // For each image: show thinking, then show image after 2 seconds
-      let imageIdx = 0;
-      
-      const showNextImage = () => {
-        if (imageIdx >= top5Images.length) {
-          // Restart cycle
-          imageIdx = 0;
-        }
-        
-        setCurrentImageIndex(imageIdx);
+    let imageIdx = 0;
+
+    const processNextImage = () => {
+      if (imageIdx >= top5Images.length) {
+        // All images processed, restart from beginning
+        imageIdx = 0;
+        setCurrentImageIndex(0);
+        setIsShowingThinking(false);
+        setHasShownImage(false);
+        // Restart after a brief pause
+        const restartTimeout = setTimeout(() => {
+          processNextImage();
+        }, 2000);
+        allTimeouts.push(restartTimeout);
+        return;
+      }
+
+      // Step 1: Show user message with attached image (if available)
+      // This happens immediately when we set the index
+      setCurrentImageIndex(imageIdx);
+      setIsShowingThinking(false);
+      setHasShownImage(false);
+
+      // Step 2: After 2 seconds (slowed down 50%), show bot thinking state
+      const thinkingTimeout = setTimeout(() => {
         setIsShowingThinking(true);
         setHasShownImage(false);
+      }, 2000);
+      allTimeouts.push(thinkingTimeout);
 
-        // After 2 seconds, show the image
-        autopilotRef.current = setTimeout(() => {
-          setIsShowingThinking(false);
-          setHasShownImage(true);
-          
-          // After showing image, move to next after a delay
-          autopilotRef.current = setTimeout(() => {
-            imageIdx++;
-            if (imageIdx < top5Images.length) {
-              showNextImage();
-            } else {
-              // Restart cycle
-              imageIdx = 0;
-              setTimeout(showNextImage, 1000);
-            }
-          }, 3000); // Show image for 3 seconds
-        }, 2000); // Show thinking for 2 seconds
-      };
+      // Step 3: After 6 seconds total (2s user message + 4s thinking), show the rendered image
+      const showImageTimeout = setTimeout(() => {
+        setIsShowingThinking(false);
+        setHasShownImage(true);
+      }, 6000);
+      allTimeouts.push(showImageTimeout);
 
-      showNextImage();
+      // Step 4: After 12 seconds total (slowed down 50%), move to next image
+      const nextImageTimeout = setTimeout(() => {
+        imageIdx++;
+        processNextImage();
+      }, 12000);
+      allTimeouts.push(nextImageTimeout);
     };
 
-    cycleImages();
+    // Start the sequence
+    processNextImage();
 
     return () => {
-      if (autopilotRef.current) {
-        clearTimeout(autopilotRef.current);
-      }
+      allTimeouts.forEach(timeout => clearTimeout(timeout));
     };
   }, [top5Images.length, demoChainWithTop5?.id]);
 
   // Create a filtered chain that only shows renders up to current index
+  // Show renders progressively: user message (with uploaded image) -> thinking -> rendered image
   const filteredChain: RenderChainWithRenders | undefined = demoChainWithTop5 ? {
     ...demoChainWithTop5,
     renders: demoChainWithTop5.renders
-      .slice(0, currentImageIndex + (hasShownImage ? 1 : 0))
+      .map((render, originalIdx) => {
+        // Only include renders up to and including current index
+        if (originalIdx > currentImageIndex) {
+          return null; // Exclude future renders
+        }
+        
+        // For the current render, control its status based on state
+        if (originalIdx === currentImageIndex) {
+          if (hasShownImage) {
+            // Image has been rendered - show completed render
+            return { ...render, status: 'completed' as const };
+          } else if (isShowingThinking) {
+            // Bot is thinking - show render but it will appear as processing
+            return { ...render, status: 'processing' as const };
+          } else {
+            // User message phase - show render with uploaded image
+            return { ...render, status: 'processing' as const };
+          }
+        }
+        // Previous renders are always completed
+        return { ...render, status: 'completed' as const };
+      })
+      .filter((render): render is Render => render !== null)
       .sort((a, b) => (a.chainPosition || 0) - (b.chainPosition || 0)),
   } : undefined;
+
+  // Get the current render being processed
+  const currentRender = top5Images[currentImageIndex];
 
   if (!demoProjectId || !demoChainWithTop5 || top5Images.length === 0) {
     return (
@@ -142,34 +195,77 @@ export function Slide3UnifiedChat({ galleryRenders = [], longestChains = [] }: S
   }
 
   return (
-    <div className="relative w-full h-full bg-gradient-to-br from-background via-primary/5 to-background overflow-hidden">
-      {/* Header - Upper Left */}
-      <div className="absolute top-4 left-4 z-10 flex items-center gap-3 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-primary" />
-          <h2 className="text-xl sm:text-2xl font-extrabold text-foreground">
-            Unified Chat Interface
-          </h2>
+    <>
+      <style dangerouslySetInnerHTML={{ __html: `
+        /* Override UnifiedChatInterface height in demo to use container height */
+        /* Target the root UnifiedChatInterface div which has h-[calc(100vh-2.75rem)] */
+        .demo-unified-chat-container > div {
+          height: 100% !important;
+          max-height: 100% !important;
+        }
+        .demo-unified-chat-container > div > div {
+          height: 100% !important;
+          max-height: 100% !important;
+        }
+        /* Override any calc-based height within the demo container */
+        .demo-unified-chat-container * {
+          max-height: none !important;
+        }
+        .demo-unified-chat-container > div[style*="height"] {
+          height: 100% !important;
+        }
+      `}} />
+      <div className="relative w-full h-full flex flex-col bg-gradient-to-br from-background via-primary/5 to-background overflow-hidden">
+        {/* Header - Upper Left */}
+        <div className="flex-shrink-0 px-4 pt-3 pb-3 border-b border-border">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                <h2 className="text-xl sm:text-2xl font-extrabold text-foreground">
+                  Unified Chat Interface
+                </h2>
+              </div>
+              <div className="h-6 w-px bg-border"></div>
+              <p className="text-xs sm:text-sm text-muted-foreground max-w-[400px]">
+                Chat naturally with AI to generate renders. See your conversation and results in real-time.
+              </p>
+            </div>
+            {/* QR Code - Right Edge */}
+            <div className="flex-shrink-0 flex flex-row items-center gap-1.5">
+              <div className="p-0.5 bg-primary/10 rounded border border-primary/30 flex-shrink-0">
+                <QRCodeSVG
+                  value="https://renderiq.io/api/qr-signup"
+                  size={50}
+                  level="M"
+                  includeMargin={false}
+                  className="rounded"
+                  fgColor="hsl(var(--primary))"
+                  bgColor="transparent"
+                />
+              </div>
+              <p className="text-[12px] text-primary font-semibold leading-tight max-w-[100px]">
+                Visualize UniAcoustics products on Renderiq!
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="h-6 w-px bg-border"></div>
-        <p className="text-xs sm:text-sm text-muted-foreground max-w-[250px]">
-          Chat naturally with AI to generate renders. See your conversation and results in real-time.
-        </p>
-      </div>
 
-      {/* Actual Unified Chat Interface - Full Width */}
-      <div className="w-full h-full pt-20">
-        {filteredChain && (
-          <UnifiedChatInterface
-            projectId={demoProjectId}
-            chainId={filteredChain.id}
-            chain={filteredChain}
-            projectName={demoProject?.name || 'Demo Project'}
-            chainName={filteredChain.name || 'Demo Chain'}
-            onBackToProjects={() => {}}
-          />
-        )}
+        {/* Actual Unified Chat Interface - Full Width */}
+        <div className="flex-1 w-full min-h-0 overflow-hidden demo-unified-chat-container">
+          {filteredChain && (
+            <UnifiedChatInterface
+              key={`demo-chat-${currentImageIndex}-${hasShownImage ? 'shown' : 'thinking'}`}
+              projectId={demoProjectId}
+              chainId={filteredChain.id}
+              chain={filteredChain}
+              projectName={demoProject?.name || 'Demo Project'}
+              chainName={filteredChain.name || 'Demo Chain'}
+              onBackToProjects={() => {}}
+            />
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

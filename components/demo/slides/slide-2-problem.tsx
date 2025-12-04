@@ -14,6 +14,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import type { GalleryItemWithDetails } from '@/lib/types';
+import dynamic from 'next/dynamic';
+
+const QRCodeSVG = dynamic(() => import('qrcode.react').then((mod) => mod.QRCodeSVG), {
+  ssr: false,
+});
 
 interface Slide2ProblemProps {
   galleryRenders?: GalleryItemWithDetails[];
@@ -25,6 +30,7 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
   const [typingText, setTypingText] = useState('');
   const [messages, setMessages] = useState<Array<{ id: string; text: string; type: 'user'; uploadedImageUrl?: string }>>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
   
   // Demo state for input controls
   const [isVideoMode, setIsVideoMode] = useState(false);
@@ -33,6 +39,18 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
   const [temperature, setTemperature] = useState('0.5');
   const [quality, setQuality] = useState('standard');
   const [isPublic, setIsPublic] = useState(true);
+
+  const toggleMessageExpand = (messageId: string) => {
+    setExpandedMessages(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(messageId)) {
+        newSet.delete(messageId);
+      } else {
+        newSet.add(messageId);
+      }
+      return newSet;
+    });
+  };
 
   // Use most popular gallery items (already sorted by popularity from demo page)
   // Filter for images with both uploaded and output URLs
@@ -167,22 +185,46 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
   };
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-r from-background via-primary/5 to-background overflow-hidden">
+    <div className="relative w-full h-full flex flex-col bg-gradient-to-r from-background via-primary/5 to-background overflow-hidden">
       {/* Header - Upper Left */}
-      <div className="absolute top-4 left-4 z-10 flex items-center gap-3 flex-shrink-0">
-        <h2 className="text-xl sm:text-2xl font-extrabold text-foreground">
-          Generate Approval-Ready Renders
-        </h2>
-        <div className="h-6 w-px bg-border"></div>
-        <p className="text-xs sm:text-sm text-muted-foreground max-w-[250px]">
-          Generate approval-ready renders in seconds, not days. No 3D modeling or technical skills required.
-        </p>
+      <div className="flex-shrink-0 px-4 pt-3 pb-3 border-b border-border">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-primary" />
+              <h2 className="text-xl sm:text-2xl font-extrabold text-foreground">
+                Generate Approval-Ready Renders
+              </h2>
+            </div>
+            <div className="h-6 w-px bg-border"></div>
+            <p className="text-xs sm:text-sm text-muted-foreground max-w-[400px]">
+              Generate approval-ready renders in seconds, not days. No 3D modeling or technical skills required.
+            </p>
+          </div>
+          {/* QR Code - Right Edge */}
+          <div className="flex-shrink-0 flex flex-row items-center gap-1.5">
+            <div className="p-0.5 bg-primary/10 rounded border border-primary/30 flex-shrink-0">
+              <QRCodeSVG
+                value="https://renderiq.io/api/qr-signup"
+                size={50}
+                level="M"
+                includeMargin={false}
+                className="rounded"
+                fgColor="hsl(var(--primary))"
+                bgColor="transparent"
+              />
+            </div>
+            <p className="text-[12px] text-primary font-semibold leading-tight max-w-[100px]">
+              Visualize UniAcoustics products on Renderiq!
+            </p>
+          </div>
+        </div>
       </div>
-      <div className="container mx-auto px-8 relative z-10 h-full flex flex-col">
+      <div className="container mx-auto px-8 relative z-10 flex-1 flex flex-col min-h-0">
         {/* Main Content - 2 Column Layout: Chat on Left, Slideshow on Right */}
         <div className="flex-1 flex items-center gap-8 min-h-0 py-8">
           {/* Left Column - Chat Interface Simulation */}
-          <div className="flex-1 flex flex-col h-full max-w-md">
+          <div className="flex-[1] flex flex-col h-full w-full">
             <div className="bg-card rounded-lg border border-border shadow-lg h-full flex flex-col overflow-hidden">
               {/* Chat Header */}
               <div className="p-4 border-b border-border flex items-center gap-2">
@@ -199,31 +241,52 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
 
               {/* Chat Messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {messages.map((msg) => (
-                  <div key={msg.id} className="flex justify-end">
-                    <div className="bg-primary text-primary-foreground rounded-lg px-4 py-3 max-w-[80%] space-y-2">
-                      {/* Show uploaded image as attachment if available */}
-                      {msg.uploadedImageUrl && (
-                        <div className="relative w-full max-w-[200px] rounded-lg overflow-hidden border-2 border-primary-foreground/20 mb-2">
-                          <div className="relative aspect-square w-full">
-                            <Image
-                              src={msg.uploadedImageUrl}
-                              alt="Uploaded image"
-                              fill
-                              className="object-cover"
-                              sizes="200px"
-                            />
+                {messages.map((msg) => {
+                  const isExpanded = expandedMessages.has(msg.id);
+                  // Check if text is long enough to need truncation (roughly 4 lines)
+                  const shouldTruncate = msg.text.length > 150;
+                  
+                  return (
+                    <div key={msg.id} className="flex justify-end">
+                      <div className="bg-primary text-primary-foreground rounded-lg px-4 py-3 max-w-[85%] space-y-2">
+                        {/* Show uploaded image as attachment if available */}
+                        {msg.uploadedImageUrl && (
+                          <div className="relative w-full max-w-[200px] rounded-lg overflow-hidden border-2 border-primary-foreground/20 mb-2">
+                            <div className="relative aspect-square w-full">
+                              <Image
+                                src={msg.uploadedImageUrl}
+                                alt="Uploaded image"
+                                fill
+                                className="object-cover"
+                                sizes="200px"
+                              />
+                            </div>
+                            <div className="absolute top-1 right-1 bg-primary-foreground/80 text-primary px-1.5 py-0.5 rounded text-[8px] font-medium flex items-center gap-1">
+                              <ImageIcon className="h-2.5 w-2.5" />
+                              <span>Image</span>
+                            </div>
                           </div>
-                          <div className="absolute top-1 right-1 bg-primary-foreground/80 text-primary px-1.5 py-0.5 rounded text-[8px] font-medium flex items-center gap-1">
-                            <ImageIcon className="h-2.5 w-2.5" />
-                            <span>Image</span>
-                          </div>
+                        )}
+                        <div className="space-y-1">
+                          <p className={cn(
+                            "text-sm sm:text-base break-words",
+                            isExpanded ? "whitespace-pre-wrap" : "line-clamp-4"
+                          )}>
+                            {msg.text}
+                          </p>
+                          {shouldTruncate && (
+                            <button
+                              onClick={() => toggleMessageExpand(msg.id)}
+                              className="text-xs text-primary-foreground/80 hover:text-primary-foreground underline font-medium"
+                            >
+                              {isExpanded ? 'Show less' : 'Show more'}
+                            </button>
+                          )}
                         </div>
-                      )}
-                      <p className="text-sm sm:text-base whitespace-pre-wrap break-words">{msg.text}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Input Area - Matching Unified Chat Interface */}
@@ -495,7 +558,7 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
           </div>
 
           {/* Right Column - Before/After Slider */}
-          <div className="flex-1 flex items-center justify-center min-h-0">
+          <div className="flex-[3] flex items-center justify-center min-h-0">
           {currentPair && currentPair.render.uploadedImageUrl && currentPair.render.outputUrl ? (
             <>
               <style dangerouslySetInnerHTML={{ __html: `

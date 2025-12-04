@@ -18,6 +18,11 @@ import Image from 'next/image';
 import { useDemoData } from '@/components/demo/demo-data-context';
 import type { GalleryItemWithDetails } from '@/lib/types';
 import { Sparkles, ImageIcon, Wand2, Layers } from 'lucide-react';
+import dynamic from 'next/dynamic';
+
+const QRCodeSVG = dynamic(() => import('qrcode.react').then((mod) => mod.QRCodeSVG), {
+  ssr: false,
+});
 
 interface Slide5CanvasEditorProps {
   galleryRenders?: GalleryItemWithDetails[];
@@ -231,23 +236,44 @@ export function Slide5CanvasEditor({ galleryRenders = [] }: Slide5CanvasEditorPr
   }, [renderNodesCount, setEdges]);
 
   return (
-    <div className="relative w-full h-full bg-gradient-to-br from-background via-primary/5 to-background flex flex-col items-center justify-center p-8 overflow-hidden">
+    <div className="relative w-full h-full flex flex-col bg-gradient-to-br from-background via-primary/5 to-background overflow-hidden">
       {/* Header - Upper Left */}
-      <div className="absolute top-4 left-4 z-20 flex items-center gap-3 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <Layers className="h-5 w-5 text-primary" />
-          <h2 className="text-xl sm:text-2xl font-extrabold text-foreground">
-            Visual Workflow Canvas
-          </h2>
+      <div className="flex-shrink-0 px-4 pt-3 pb-3 border-b border-border z-20">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Layers className="h-5 w-5 text-primary" />
+              <h2 className="text-xl sm:text-2xl font-extrabold text-foreground">
+                Visual Workflow Canvas
+              </h2>
+            </div>
+            <div className="h-6 w-px bg-border"></div>
+            <p className="text-xs sm:text-sm text-muted-foreground max-w-[400px]">
+              Connect nodes to create complex rendering workflows. Visualize your entire process.
+            </p>
+          </div>
+              {/* QR Code - Right Edge */}
+              <div className="flex-shrink-0 flex flex-row items-center gap-1.5">
+                <div className="p-0.5 bg-primary/10 rounded border border-primary/30 flex-shrink-0">
+                  <QRCodeSVG
+                    value="https://renderiq.io/api/qr-signup"
+                    size={50}
+                    level="M"
+                    includeMargin={false}
+                    className="rounded"
+                    fgColor="hsl(var(--primary))"
+                    bgColor="transparent"
+                  />
+                </div>
+                <p className="text-[12px] text-primary font-semibold leading-tight max-w-[100px]">
+                  Visualize UniAcoustics products on Renderiq!
+                </p>
+              </div>
         </div>
-        <div className="h-6 w-px bg-border"></div>
-        <p className="text-xs sm:text-sm text-muted-foreground max-w-[250px]">
-          Connect nodes to create complex rendering workflows. Visualize your entire process.
-        </p>
       </div>
 
       {/* React Flow Canvas */}
-      <div className="w-full h-full pt-20">
+      <div className="flex-1 w-full min-h-0 p-8">
         <ReactFlowProvider>
           <ReactFlow
             nodes={nodes}
