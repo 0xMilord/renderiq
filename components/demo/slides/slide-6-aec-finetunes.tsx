@@ -125,13 +125,13 @@ export function Slide6AECFinetunes() {
   const renderCell = (value: boolean | string, isRenderiq: boolean = false) => {
     if (typeof value === 'boolean') {
       return value ? (
-        <CheckCircle2 className={`h-5 w-5 sm:h-6 sm:w-6 ${isRenderiq ? 'text-primary' : 'text-green-500'}`} />
+        <CheckCircle2 className={`h-4 w-4 sm:h-5 sm:w-5 ${isRenderiq ? 'text-primary' : 'text-green-500'}`} />
       ) : (
-        <XCircle className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground/40" />
+        <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground/40" />
       );
     }
     return (
-      <span className={`text-xs sm:text-sm font-medium ${isRenderiq ? 'text-primary' : 'text-foreground'}`}>
+      <span className={`text-[10px] sm:text-xs font-medium ${isRenderiq ? 'text-primary' : 'text-foreground'}`}>
         {value}
       </span>
     );
