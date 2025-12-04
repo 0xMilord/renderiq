@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Navbar } from "@/components/navbar";
+import { ConditionalNavbar } from "@/components/conditional-navbar";
 import { BottomNav } from "@/components/bottom-nav";
 import { ConditionalFooter } from "@/components/conditional-footer";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -156,7 +156,7 @@ export default function RootLayout({
         >
           <AuthProvider>
             <UserOnboardingProvider>
-              <Navbar />
+              <ConditionalNavbar />
               <main>
                 {children}
               </main>

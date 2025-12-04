@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { UnifiedChatInterface } from '@/components/chat/unified-chat-interface';
-import { useRenderChain } from '@/lib/hooks/use-render-chain';
-import { Loader2, MessageSquare, Image as ImageIcon, Sparkles, Zap } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Loader2, FolderOpen, Sparkles } from 'lucide-react';
+import ReactBeforeSliderComponent from 'react-before-after-slider-component';
+import 'react-before-after-slider-component/dist/build.css';
+import Image from 'next/image';
 import type { GalleryItemWithDetails } from '@/lib/types';
 import type { RenderChainWithRenders } from '@/lib/types/render-chain';
 
@@ -14,164 +14,202 @@ interface Slide3ChatInterfaceProps {
 }
 
 export function Slide3ChatInterface({ galleryRenders = [], longestChains = [] }: Slide3ChatInterfaceProps) {
-  const [showTooltips, setShowTooltips] = useState(true);
-  const [tooltipIndex, setTooltipIndex] = useState(0);
-  
-  // Find the longest chain from gallery renders or longestChains
-  let demoChain: RenderChainWithRenders | null = null;
-  let demoRender: GalleryItemWithDetails | undefined;
-  
-  if (longestChains.length > 0) {
-    // Use the longest chain (first one has most renders)
-    demoChain = longestChains[0];
-    demoRender = galleryRenders.find(r => r.render.chainId === demoChain?.id);
-  } else {
-    // Fallback to finding chain from gallery renders
-    demoRender = galleryRenders.find(r => r.render.projectId && r.render.chainId);
-  }
-  
-  const projectId = demoChain?.projectId || demoRender?.render.projectId || '';
-  const chainId = demoChain?.id || demoRender?.render.chainId || '';
-  
-  // Fetch chain data if we have a chainId
-  const { chain, loading } = useRenderChain(chainId || null);
-  const finalChain = chain || demoChain;
+  const [sliderPositions, setSliderPositions] = useState<Record<string, number>>({});
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
 
-  // Cycle through tooltips
+  // Debug logging
   useEffect(() => {
-    if (!showTooltips) return;
+    console.log('📊 Slide3: Received chains:', longestChains.length);
+    console.log('📊 Slide3: Received gallery renders:', galleryRenders.length);
+    longestChains.forEach((chain, idx) => {
+      console.log(`  Chain ${idx + 1}: ${chain.name || 'Untitled'} - ${chain.renders?.length || 0} renders`);
+      chain.renders?.forEach((render, rIdx) => {
+        console.log(`    Render ${rIdx + 1}: status=${render.status}, type=${render.type}, hasOutput=${!!render.outputUrl}, hasUploaded=${!!render.uploadedImageUrl}`);
+      });
+    });
+  }, [longestChains, galleryRenders]);
+
+  // Get chains with 1-2 renders (short chains) - prefer short chains but fallback to any chains
+  const shortChains = longestChains.filter(chain => 
+    chain.renders && chain.renders.length >= 1 && chain.renders.length <= 2
+  );
+  
+  // If no short chains, use any chains with renders (up to 6 renders max for demo)
+  const chainsToUse = shortChains.length > 0 
+    ? shortChains.slice(0, 6)
+    : longestChains.filter(chain => chain.renders && chain.renders.length >= 1 && chain.renders.length <= 6).slice(0, 6);
+  
+  console.log(`📊 Slide3: Filtered to ${chainsToUse.length} chains to use`);
+
+  // Get chains with renders - prefer before/after pairs, but fallback to any completed image render
+  const chainsWithRenders = chainsToUse.map(chain => {
+    // First try to find a render with both uploaded image and output (before/after)
+    let render = chain.renders?.find(r => 
+      r.uploadedImageUrl && r.outputUrl && r.status === 'completed' && r.type === 'image'
+    );
     
-    const tooltips = [
-      { id: 'input', label: 'User Input', desc: 'Type your prompt here to generate renders' },
-      { id: 'chat', label: 'Chat History', desc: 'View your conversation and render history' },
-      { id: 'render', label: 'Rendered Output', desc: 'See your photorealistic renders appear here' },
-      { id: 'settings', label: 'Settings', desc: 'Adjust quality, style, and other options' },
-    ];
+    // If no before/after pair, use any completed image render with output
+    if (!render) {
+      render = chain.renders?.find(r => 
+        r.outputUrl && r.status === 'completed' && r.type === 'image'
+      );
+    }
     
+    return render ? { chain, render } : null;
+  }).filter(Boolean) as Array<{ chain: RenderChainWithRenders; render: any }>;
+
+  // Initialize slider positions and loading states
+  useEffect(() => {
+    const initialPositions: Record<string, number> = {};
+    const initialLoading: Record<string, boolean> = {};
+    chainsWithRenders.forEach(({ chain }) => {
+      initialPositions[chain.id] = 50;
+      initialLoading[chain.id] = true;
+    });
+    setSliderPositions(initialPositions);
+    setLoadingStates(initialLoading);
+
+    // Simulate loading for each chain
+    chainsWithRenders.forEach(({ chain }, index) => {
+      setTimeout(() => {
+        setLoadingStates((prev) => ({ ...prev, [chain.id]: false }));
+      }, index * 500); // Stagger loading animations
+    });
+  }, [chainsWithRenders.length]);
+
+  // Auto-animate slider positions for all chains (left to right end to end)
+  useEffect(() => {
     const interval = setInterval(() => {
-      setTooltipIndex((prev) => (prev + 1) % tooltips.length);
-    }, 5000); // Change tooltip every 5 seconds
-    
+      setSliderPositions((prev) => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach((chainId) => {
+          if (updated[chainId] >= 100) {
+            updated[chainId] = 0; // Reset to start (left)
+          } else {
+            updated[chainId] = (updated[chainId] || 50) + 0.5; // Move right
+          }
+        });
+        return updated;
+      });
+    }, 50); // Update every 50ms for smooth animation
     return () => clearInterval(interval);
-  }, [showTooltips]);
-
-  // Hide tooltips after 20 seconds
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowTooltips(false);
-    }, 20000);
-    return () => clearTimeout(timer);
   }, []);
 
-  // If no demo data available, show a message
-  if (!demoRender && !demoChain) {
+  if (chainsWithRenders.length === 0) {
     return (
       <div className="relative w-full h-full bg-gradient-to-br from-background via-primary/5 to-background flex items-center justify-center p-8 overflow-hidden">
         <div className="text-center">
-          <h2 className="text-4xl font-bold text-foreground mb-4">Unified Chat Interface</h2>
+          <h2 className="text-4xl font-bold text-foreground mb-4">Multiple Projects & Chains</h2>
           <p className="text-muted-foreground">No demo data available. Please add renders to the gallery.</p>
         </div>
       </div>
     );
   }
 
-  if (loading && !demoChain) {
-    return (
-      <div className="relative w-full h-full bg-gradient-to-br from-background via-primary/5 to-background flex items-center justify-center p-8 overflow-hidden">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-xl text-foreground">Loading chat interface...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const tooltips = [
-    { id: 'input', label: 'User Input', desc: 'Type your prompt here to generate renders', position: 'bottom' },
-    { id: 'chat', label: 'Chat History', desc: 'View your conversation and render history', position: 'right' },
-    { id: 'render', label: 'Rendered Output', desc: 'See your photorealistic renders appear here', position: 'left' },
-    { id: 'settings', label: 'Settings', desc: 'Adjust quality, style, and other options', position: 'top' },
-  ];
-
-  const currentTooltip = tooltips[tooltipIndex];
-
   return (
-    <div className="relative w-full h-full bg-background overflow-hidden">
+    <div className="relative w-full h-full bg-gradient-to-br from-background via-primary/5 to-background overflow-hidden">
       <style dangerouslySetInnerHTML={{ __html: `
-        /* Override UnifiedChatInterface height for full screen demo */
-        .demo-chat-fullscreen > div {
-          height: 100vh !important;
+        .slide-3-slider-wrapper .react-before-after-slider-container {
+          width: 100% !important;
+          height: 100% !important;
         }
-        .demo-chat-fullscreen > div > div {
-          height: 100vh !important;
-        }
-        /* Hide back button and mobile header in demo */
-        .demo-chat-fullscreen .lg\\:hidden.border-b {
-          display: none !important;
+        .slide-3-slider-wrapper .react-before-after-slider-container img {
+          width: 100% !important;
+          height: 100% !important;
+          object-fit: cover !important;
         }
       `}} />
       
-      {/* Tooltip Overlay */}
-      {showTooltips && (
-        <TooltipProvider>
-          <div className="absolute inset-0 z-50 pointer-events-none">
-            {tooltips.map((tooltip, index) => (
-              <Tooltip key={tooltip.id} open={index === tooltipIndex}>
-                <TooltipTrigger asChild>
-                  <div 
-                    className={`absolute ${
-                      tooltip.id === 'input' ? 'bottom-20 left-1/2 -translate-x-1/2' :
-                      tooltip.id === 'chat' ? 'left-4 top-1/2 -translate-y-1/2' :
-                      tooltip.id === 'render' ? 'right-4 top-1/2 -translate-y-1/2' :
-                      'top-4 left-1/2 -translate-x-1/2'
-                    } w-64 h-16 pointer-events-auto`}
-                  />
-                </TooltipTrigger>
-                <TooltipContent 
-                  side={tooltip.position as any}
-                  className="bg-primary text-primary-foreground p-4 text-lg max-w-xs border-2 border-primary/50 shadow-2xl z-50"
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    {tooltip.id === 'input' && <MessageSquare className="h-6 w-6" />}
-                    {tooltip.id === 'chat' && <MessageSquare className="h-6 w-6" />}
-                    {tooltip.id === 'render' && <ImageIcon className="h-6 w-6" />}
-                    {tooltip.id === 'settings' && <Zap className="h-6 w-6" />}
-                    <h3 className="font-bold text-lg">{tooltip.label}</h3>
-                  </div>
-                  <p className="text-sm opacity-90">{tooltip.desc}</p>
-                </TooltipContent>
-              </Tooltip>
-            ))}
-          </div>
-        </TooltipProvider>
-      )}
+      <div className="container mx-auto px-8 py-12 h-full flex flex-col">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h2 className="text-4xl md:text-5xl font-extrabold text-foreground mb-4">
+            Multiple Projects & Chains
+          </h2>
+          <p className="text-lg text-muted-foreground">
+            Manage multiple projects and render chains simultaneously
+          </p>
+        </div>
 
-      {/* Demo Flow Indicator */}
-      {showTooltips && finalChain && finalChain.renders && finalChain.renders.length > 0 && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-card/90 backdrop-blur-sm px-6 py-3 rounded-lg border-2 border-primary shadow-lg">
-          <div className="flex items-center gap-3">
-            <Sparkles className="h-5 w-5 text-primary animate-pulse" />
-            <div>
-              <p className="text-sm font-semibold text-foreground">
-                Demo: {finalChain.renders.length} renders in conversation
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Showing real user workflow with {finalChain.renders.length} iterations
-              </p>
-            </div>
+        {/* Chains Grid */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {chainsWithRenders.map(({ chain, render }) => {
+              const isLoading = loadingStates[chain.id] ?? true;
+              const sliderPosition = sliderPositions[chain.id] ?? 50;
+              const hasBeforeAfter = render.uploadedImageUrl && render.outputUrl;
+
+              return (
+                <div
+                  key={chain.id}
+                  className="bg-card rounded-lg border border-border overflow-hidden shadow-lg hover:shadow-xl transition-shadow"
+                >
+                  {/* Project/Chain Header */}
+                  <div className="p-4 border-b border-border">
+                    <div className="flex items-center gap-2 mb-2">
+                      <FolderOpen className="h-4 w-4 text-primary" />
+                      <h3 className="font-semibold text-sm truncate">{chain.name || 'Untitled Chain'}</h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">
+                        {chain.renders?.length || 0} render{chain.renders?.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Before/After Slider or Single Image */}
+                  <div className="relative w-full slide-3-slider-wrapper" style={{ aspectRatio: '16/9' }}>
+                    {isLoading ? (
+                      <div className="w-full h-full flex items-center justify-center bg-muted">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    ) : hasBeforeAfter ? (
+                      <>
+                        <div className="relative w-full h-full overflow-hidden">
+                          <ReactBeforeSliderComponent
+                            firstImage={{ imageUrl: render.uploadedImageUrl }}
+                            secondImage={{ imageUrl: render.outputUrl }}
+                            currentPercentPosition={sliderPosition}
+                          />
+                          {/* Smaller Labels Over Image - Inverted positions */}
+                          <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-0.5 rounded text-[10px] font-medium z-10">
+                            Before
+                          </div>
+                          <div className="absolute top-2 left-2 bg-black/70 text-white px-2 py-0.5 rounded text-[10px] font-medium z-10">
+                            After
+                          </div>
+                        </div>
+                      </>
+                    ) : render.outputUrl ? (
+                      <div className="relative w-full h-full overflow-hidden">
+                        <Image
+                          src={render.outputUrl}
+                          alt={render.prompt || 'Generated render'}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-muted">
+                        <p className="text-muted-foreground text-sm">No image available</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Chain Info Footer */}
+                  {render.prompt && (
+                    <div className="p-3 bg-muted/50">
+                      <p className="text-xs text-muted-foreground line-clamp-2 truncate">
+                        {render.prompt}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
-      )}
-
-      <div className="w-full h-full relative z-10 demo-chat-fullscreen">
-        <UnifiedChatInterface
-          projectId={projectId}
-          chainId={chainId}
-          chain={finalChain || undefined}
-          projectName={demoRender?.user.name || "Demo Project"}
-          chainName={finalChain?.name || "Demo Chain"}
-          onBackToProjects={() => {}}
-        />
       </div>
     </div>
   );

@@ -2,9 +2,9 @@
 
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Footer } from '@/components/footer';
+import { Navbar } from '@/components/navbar';
 
-export function ConditionalFooter() {
+export function ConditionalNavbar() {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   
@@ -17,16 +17,11 @@ export function ConditionalFooter() {
     return null;
   }
   
-  // Hide footer on render routes, project/chain routes, dashboard routes, and demo route
-  if (
-    pathname?.includes('/render') || 
-    pathname?.startsWith('/project/') ||
-    pathname?.startsWith('/dashboard') ||
-    pathname?.startsWith('/demo')
-  ) {
+  // Hide navbar on demo route
+  if (pathname?.startsWith('/demo')) {
     return null;
   }
   
-  return <Footer />;
+  return <Navbar />;
 }
 

@@ -3,7 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Slide1Hero } from './slides/slide-1-hero';
 import { Slide2Problem } from './slides/slide-2-problem';
+import { Slide21Video } from './slides/slide-2-1-video';
 import { Slide3ChatInterface } from './slides/slide-3-chat-interface';
+import { Slide3UnifiedChat } from './slides/slide-3-unified-chat';
 import { Slide4RenderChains } from './slides/slide-4-render-chains';
 import { Slide5CanvasEditor } from './slides/slide-5-canvas-editor';
 import { Slide6AECFinetunes } from './slides/slide-6-aec-finetunes';
@@ -13,15 +15,19 @@ import type { GalleryItemWithDetails } from '@/lib/types';
 
 const SLIDE_DURATION = 10000; // 10 seconds per slide
 const CHAT_SLIDE_DURATION = 30000; // 30 seconds for chat interface (longer demo)
+const SLIDE_2_DURATION = 50000; // 50 seconds for slide 2 (before/after comparison) - increased to show more images
+const SLIDE_21_DURATION = 15000; // 15 seconds for slide 2.1 (video generation)
 
 const slides = [
-  { id: 1, component: Slide1Hero, duration: SLIDE_DURATION },
-  { id: 2, component: Slide2Problem, duration: SLIDE_DURATION },
-  { id: 3, component: Slide3ChatInterface, duration: CHAT_SLIDE_DURATION },
-  { id: 4, component: Slide4RenderChains, duration: SLIDE_DURATION },
-  { id: 5, component: Slide5CanvasEditor, duration: SLIDE_DURATION },
-  { id: 6, component: Slide6AECFinetunes, duration: SLIDE_DURATION },
-  { id: 7, component: Slide7Pricing, duration: SLIDE_DURATION },
+  { id: 0, component: Slide1Hero, duration: SLIDE_DURATION },
+  { id: 1, component: Slide2Problem, duration: SLIDE_2_DURATION },
+  { id: 2, component: Slide21Video, duration: SLIDE_21_DURATION },
+  { id: 3, component: Slide3UnifiedChat, duration: CHAT_SLIDE_DURATION },
+  { id: 4, component: Slide3ChatInterface, duration: CHAT_SLIDE_DURATION },
+  { id: 5, component: Slide4RenderChains, duration: SLIDE_DURATION },
+  { id: 6, component: Slide5CanvasEditor, duration: SLIDE_DURATION },
+  { id: 7, component: Slide6AECFinetunes, duration: SLIDE_DURATION },
+  { id: 8, component: Slide7Pricing, duration: SLIDE_DURATION },
 ];
 
 interface DemoSlideshowProps {
@@ -35,6 +41,13 @@ export function DemoSlideshow({ galleryRenders = [], longestChains = [] }: DemoS
   const [isFullscreen, setIsFullscreen] = useState(false);
   const currentSlideDuration = slides[currentSlide]?.duration || SLIDE_DURATION;
   const [timeRemaining, setTimeRemaining] = useState(currentSlideDuration);
+
+  const handleVideoComplete = () => {
+    // Auto-advance to next slide when video completes
+    const nextSlide = (currentSlide + 1) % slides.length;
+    setCurrentSlide(nextSlide);
+    setTimeRemaining(slides[nextSlide]?.duration || SLIDE_DURATION);
+  };
 
   // Update time remaining when slide changes
   useEffect(() => {
@@ -149,8 +162,23 @@ export function DemoSlideshow({ galleryRenders = [], longestChains = [] }: DemoS
     }
   }, []);
 
-  const CurrentSlideComponent = slides[currentSlide].component;
+  const CurrentSlideComponent = slides[currentSlide]?.component;
   const progress = ((currentSlideDuration - timeRemaining) / currentSlideDuration) * 100;
+
+  // Get slide component props
+  const getSlideProps = useCallback(() => {
+    const slideId = slides[currentSlide]?.id;
+    if (slideId === 0) return {};
+    if (slideId === 1) return { galleryRenders };
+    if (slideId === 2) return { galleryRenders, onVideoComplete: handleVideoComplete };
+    if (slideId === 3) return { galleryRenders, longestChains };
+    if (slideId === 4) return { galleryRenders, longestChains };
+    if (slideId === 5) return {};
+    if (slideId === 6) return { galleryRenders };
+    if (slideId === 7) return {};
+    if (slideId === 8) return {};
+    return {};
+  }, [currentSlide, galleryRenders, longestChains, handleVideoComplete]);
 
   const goToSlide = useCallback((index: number) => {
     setCurrentSlide(index);
@@ -178,10 +206,12 @@ export function DemoSlideshow({ galleryRenders = [], longestChains = [] }: DemoS
       <div className="fixed inset-0 bg-background overflow-hidden demo-slideshow-container">
         {/* Slide Content */}
         <div className="absolute inset-0">
-          {currentSlide === 1 && <Slide2Problem galleryRenders={galleryRenders} />}
-          {currentSlide === 2 && <Slide3ChatInterface galleryRenders={galleryRenders} longestChains={longestChains} />}
-          {currentSlide === 4 && <Slide5CanvasEditor galleryRenders={galleryRenders} />}
-          {currentSlide !== 1 && currentSlide !== 2 && currentSlide !== 4 && <CurrentSlideComponent />}
+          {slides[currentSlide]?.id === 1 && <Slide2Problem galleryRenders={galleryRenders} />}
+          {slides[currentSlide]?.id === 2 && <Slide21Video galleryRenders={galleryRenders} onVideoComplete={handleVideoComplete} />}
+          {slides[currentSlide]?.id === 3 && <Slide3UnifiedChat galleryRenders={galleryRenders} longestChains={longestChains} />}
+          {slides[currentSlide]?.id === 4 && <Slide3ChatInterface galleryRenders={galleryRenders} longestChains={longestChains} />}
+          {slides[currentSlide]?.id === 6 && <Slide5CanvasEditor galleryRenders={galleryRenders} />}
+          {![1, 2, 3, 4, 6].includes(slides[currentSlide]?.id || -1) && CurrentSlideComponent && <CurrentSlideComponent {...getSlideProps()} />}
         </div>
 
         {/* Controls */}

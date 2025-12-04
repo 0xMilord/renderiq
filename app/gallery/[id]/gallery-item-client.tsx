@@ -240,11 +240,11 @@ export function GalleryItemPageClient({ item, similarItems }: GalleryItemPageCli
                   secondImage={{ imageUrl: item.render.outputUrl }}
                   currentPercentPosition={75} // 75% shows more of the generated image
                 />
-                {/* Labels - Bottom corners */}
-                <div className="absolute bottom-4 left-4 bg-black/70 text-white px-3 py-1.5 rounded-md text-sm font-medium z-10">
+                {/* Labels - Bottom corners - Inverted positions */}
+                <div className="absolute bottom-4 right-4 bg-black/70 text-white px-3 py-1.5 rounded-md text-sm font-medium z-10">
                   Before (Uploaded)
                 </div>
-                <div className="absolute bottom-4 right-4 bg-black/70 text-white px-3 py-1.5 rounded-md text-sm font-medium z-10">
+                <div className="absolute bottom-4 left-4 bg-black/70 text-white px-3 py-1.5 rounded-md text-sm font-medium z-10">
                   After (Generated)
                 </div>
               </div>

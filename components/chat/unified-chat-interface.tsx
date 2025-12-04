@@ -2072,25 +2072,24 @@ export function UnifiedChatInterface({
                 </div>
               </div>
               
-              {/* Detected Mentions */}
-              {inputValue.includes('@') && (
-                <div className="flex flex-wrap gap-1 mb-1.5">
-                  {inputValue.match(/@[\w\s]+/g)?.map((mention, idx) => (
-                    <Badge 
-                      key={idx} 
-                      variant="secondary" 
-                      className="text-[10px] sm:text-xs flex items-center gap-0.5 sm:gap-1 bg-primary/10 text-primary border border-primary/20 px-1.5 sm:px-2 py-0.5"
-                    >
-                      <Sparkles className="h-2 w-2 sm:h-3 sm:w-3" />
-                      {mention}
-                      <span className="text-[8px] sm:text-[10px] opacity-70">(context)</span>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              
               <div className="flex gap-1 sm:gap-2">
-                <div className="relative flex-1">
+                <div className="relative flex-1 flex flex-col">
+                  {/* Detected Mentions - Inside textarea container */}
+                  {inputValue.includes('@') && (
+                    <div className="flex flex-wrap gap-1 mb-1.5">
+                      {inputValue.match(/@[\w\s]+/g)?.map((mention, idx) => (
+                        <Badge 
+                          key={idx} 
+                          variant="secondary" 
+                          className="text-[10px] sm:text-xs flex items-center gap-0.5 sm:gap-1 bg-primary/10 text-primary border border-primary/20 px-1.5 sm:px-2 py-0.5"
+                        >
+                          <Sparkles className="h-2 w-2 sm:h-3 sm:w-3" />
+                          {mention}
+                          <span className="text-[8px] sm:text-[10px] opacity-70">(context)</span>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                   <Textarea
                     ref={textareaRef}
                     value={inputValue}

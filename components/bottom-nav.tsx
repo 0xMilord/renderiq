@@ -26,11 +26,12 @@ export function BottomNav() {
   const pathname = usePathname();
   const { user, loading } = useAuth();
 
-  // Hide bottom nav on render routes, project/chain routes, and dashboard routes
+  // Hide bottom nav on render routes, project/chain routes, dashboard routes, and demo route
   if (
     pathname.includes('/render') || 
     pathname.startsWith('/project/') ||
-    pathname?.startsWith('/dashboard')
+    pathname?.startsWith('/dashboard') ||
+    pathname?.startsWith('/demo')
   ) {
     return null;
   }

@@ -41,8 +41,8 @@ export function DemoControls({
         />
       </div>
 
-      {/* Controls Overlay */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 z-50">
+      {/* Controls Overlay - Bottom Left */}
+      <div className="absolute bottom-4 left-4 flex items-center gap-2 z-50">
         <Button
           variant="ghost"
           size="sm"
@@ -77,8 +77,8 @@ export function DemoControls({
         </Button>
       </div>
 
-      {/* Slide Indicator */}
-      <div className="absolute bottom-16 left-1/2 -translate-x-1/2 flex items-center gap-2 z-50">
+      {/* Slide Indicator - Bottom Left */}
+      <div className="absolute bottom-16 left-4 flex items-center gap-2 z-50">
         {Array.from({ length: totalSlides }).map((_, index) => (
           <button
             key={index}

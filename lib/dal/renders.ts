@@ -327,11 +327,11 @@ export class RendersDAL {
       .innerJoin(renders, eq(galleryItems.renderId, renders.id))
       .innerJoin(users, eq(galleryItems.userId, users.id))
       .where(eq(galleryItems.isPublic, true))
-      .orderBy(desc(galleryItems.createdAt))
+      .orderBy(desc(sql`COALESCE(${galleryItems.likes}, 0) + COALESCE(${galleryItems.views}, 0)`), desc(galleryItems.createdAt))
       .limit(limit)
       .offset(offset);
 
-    logger.log(`✅ Found ${items.length} public gallery items`);
+    logger.log(`✅ Found ${items.length} public gallery items (sorted by popularity)`);
     return items;
   }
 

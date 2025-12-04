@@ -12,9 +12,16 @@ import type { GalleryItemWithDetails } from '@/lib/types';
 export async function getPublicGallery(page = 1, limit = 20) {
   try {
     const offset = (page - 1) * limit;
-    const galleryItems = await RendersDAL.getPublicGallery(limit, offset);
+    // Get all items first, then sort by popularity (likes + views)
+    const allItems = await RendersDAL.getPublicGallery(limit * 10, 0); // Get more to sort properly
+    const sortedItems = allItems.sort((a, b) => {
+      const aPopularity = (a.likes || 0) + (a.views || 0);
+      const bPopularity = (b.likes || 0) + (b.views || 0);
+      return bPopularity - aPopularity; // Descending order
+    });
+    const paginatedItems = sortedItems.slice(offset, offset + limit);
     
-    return { success: true, data: galleryItems };
+    return { success: true, data: paginatedItems };
   } catch (error) {
     return {
       success: false,
@@ -25,31 +32,101 @@ export async function getPublicGallery(page = 1, limit = 20) {
 
 export async function getLongestChains(limit = 5) {
   try {
-    // Get chains with most renders, ordered by render count
+    // Get chains with most PUBLIC renders (from gallery), ordered by popularity (likes + views)
+    // Only get renders that are:
+    // 1. Completed
+    // 2. In the public gallery (isPublic = true)
+    // 3. Have a chainId
     const chainsWithCounts = await db
       .select({
         chainId: renders.chainId,
         renderCount: sql<number>`count(*)::int`.as('render_count'),
+        totalLikes: sql<number>`COALESCE(SUM(${galleryItems.likes}), 0)::int`.as('total_likes'),
+        totalViews: sql<number>`COALESCE(SUM(${galleryItems.views}), 0)::int`.as('total_views'),
       })
       .from(renders)
-      .where(isNotNull(renders.chainId))
+      .innerJoin(galleryItems, eq(galleryItems.renderId, renders.id))
+      .where(
+        and(
+          isNotNull(renders.chainId),
+          eq(renders.status, 'completed'),
+          eq(galleryItems.isPublic, true)
+        )
+      )
       .groupBy(renders.chainId)
-      .orderBy(desc(sql`count(*)`))
-      .limit(limit);
+      .orderBy(desc(sql`COALESCE(SUM(${galleryItems.likes}), 0) + COALESCE(SUM(${galleryItems.views}), 0)`))
+      .limit(limit * 5); // Get more chains to filter down (increased from 3 to 5)
 
-    // Fetch full chain details with renders
+    if (chainsWithCounts.length === 0) {
+      console.log('⚠️ No chains with public renders found');
+      return { success: true, data: [] };
+    }
+
+    console.log(`✅ Found ${chainsWithCounts.length} chains with public renders`);
+
+    // Fetch full chain details with renders (only public ones)
     const chains = await Promise.all(
       chainsWithCounts.map(async ({ chainId }) => {
         if (!chainId) return null;
-        return await RenderChainService.getChain(chainId);
+        try {
+          const chain = await RenderChainService.getChain(chainId);
+          if (!chain) {
+            console.log(`⚠️ Chain ${chainId} not found`);
+            return null;
+          }
+          
+          // Get all public render IDs for this chain from gallery
+          const publicRenderIds = await db
+            .select({ renderId: galleryItems.renderId })
+            .from(galleryItems)
+            .innerJoin(renders, eq(renders.id, galleryItems.renderId))
+            .where(
+              and(
+                eq(renders.chainId, chainId),
+                eq(renders.status, 'completed'),
+                eq(galleryItems.isPublic, true)
+              )
+            );
+          
+          const publicRenderIdSet = new Set(publicRenderIds.map(r => r.renderId));
+          
+          // Filter renders to only include public, completed ones
+          const publicRenders = chain.renders?.filter(render => {
+            return render.status === 'completed' && 
+                   render.outputUrl && 
+                   publicRenderIdSet.has(render.id);
+          }) || [];
+          
+          console.log(`  Chain ${chain.name || chainId}: ${chain.renders?.length || 0} total renders, ${publicRenders.length} public renders`);
+          
+          if (publicRenders.length === 0) {
+            return null;
+          }
+          
+          // Return chain with filtered renders
+          return {
+            ...chain,
+            renders: publicRenders
+          };
+        } catch (error) {
+          console.error(`❌ Error fetching chain ${chainId}:`, error);
+          return null;
+        }
       })
     );
 
-    return { success: true, data: chains.filter(Boolean) };
+    const validChains = chains.filter(Boolean) as any[];
+    console.log(`✅ Returning ${validChains.length} valid chains with public renders`);
+    
+    // Chains are already sorted by popularity (likes + views) from the SQL query
+    // Just return top chains
+    return { success: true, data: validChains.slice(0, limit) };
   } catch (error) {
+    console.error('❌ Error in getLongestChains:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get longest chains',
+      data: [],
     };
   }
 }

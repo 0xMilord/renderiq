@@ -512,11 +512,11 @@ export function GalleryImageCard({
                   secondImage={{ imageUrl: item.render.outputUrl }}
                   currentPercentPosition={75}
                 />
-                {/* Labels - Bottom corners to avoid clashing with tabs */}
-                <div className="absolute bottom-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium z-10">
+                {/* Labels - Bottom corners to avoid clashing with tabs - Inverted positions */}
+                <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium z-10">
                   Before
                 </div>
-                <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium z-10">
+                <div className="absolute bottom-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium z-10">
                   After
                 </div>
               </div>
