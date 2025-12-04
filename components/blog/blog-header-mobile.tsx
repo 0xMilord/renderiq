@@ -67,9 +67,9 @@ export function BlogHeaderMobile() {
         style={{ top: `${navbarHeight}px` }}
       >
         <div className="px-4 py-2 h-10 flex items-center">
-          <div className="p-[3px] border-[0.25px] border-primary rounded-lg bg-background">
-            <Button variant="ghost" asChild className="flex-1 justify-start h-8">
-              <Link href="/blog" className="inline-flex items-center text-sm">
+          <div className="p-[3px] border-[0.25px] border-primary rounded-lg bg-background flex-1">
+            <Button variant="ghost" asChild className="w-full justify-start h-8">
+              <Link href="/blog" className="inline-flex items-center text-sm w-full">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Blog
               </Link>
