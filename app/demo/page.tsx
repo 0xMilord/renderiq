@@ -68,7 +68,8 @@ export default async function DemoPage() {
     const projectsMap: Record<string, Project> = {};
     projectsData.forEach(result => {
       if (result.status === 'fulfilled' && result.value) {
-        const [id, project] = result.value;
+        const tuple = result.value as [string, Project];
+        const [id, project] = tuple;
         projectsMap[id] = project;
       }
     });

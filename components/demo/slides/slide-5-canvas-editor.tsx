@@ -171,8 +171,8 @@ export function Slide5CanvasEditor({ galleryRenders = [] }: Slide5CanvasEditorPr
   }, [demoData]);
 
   // Initialize nodes directly in useNodesState - this prevents infinite loops
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node[]>(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [currentStep, setCurrentStep] = useState(0);
 
   // Animate connections step by step: prompt -> image-node -> renders

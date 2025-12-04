@@ -169,8 +169,8 @@ export class RazorpayService {
         
         // Extract metadata from Razorpay order notes
         const notes = razorpayOrder.notes || {};
-        const userId = notes.userId;
-        const creditPackageId = notes.creditPackageId;
+        const userId: string = String(notes.userId || '');
+        const creditPackageId: string = String(notes.creditPackageId || '');
         
         if (!userId || !creditPackageId) {
           return { success: false, error: 'Missing order metadata. Cannot create payment order.' };
@@ -712,8 +712,8 @@ Please verify the plan exists in Razorpay Dashboard.`;
         
         // Extract metadata from Razorpay subscription notes
         const notes = razorpaySubscription.notes || {};
-        const userId = notes.userId;
-        const planId = notes.planId;
+        const userId: string = String(notes.userId || '');
+        const planId: string = String(notes.planId || '');
         
         if (!userId || !planId) {
           return { success: false, error: 'Missing subscription metadata. Cannot create subscription record.' };
