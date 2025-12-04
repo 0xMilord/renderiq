@@ -93,24 +93,37 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
   // Track when slider cycle completes to trigger prompt change
   const [sliderCycleComplete, setSliderCycleComplete] = useState(true); // Start as true to trigger first prompt
   const [lastTypedIndex, setLastTypedIndex] = useState(-1);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Auto-animate slider position (left to right) - doubled speed
   useEffect(() => {
     const interval = setInterval(() => {
       setSliderPosition((prev) => {
         if (prev >= 100) {
-          // Slider completed - mark as complete
-          setSliderCycleComplete(true);
+          // Slider completed - prevent new typing during transition
+          setIsTransitioning(true);
+          setSliderCycleComplete(false); // Reset before transition
+          
           // Advance to next image after a brief delay
           if (beforeAfterPairs.length > 1) {
             setTimeout(() => {
-              setCurrentIndex((prevIndex) => (prevIndex + 1) % beforeAfterPairs.length);
+              const nextIndex = (currentIndex + 1) % beforeAfterPairs.length;
+              setCurrentIndex(nextIndex);
               setSliderPosition(0); // Reset slider position
+              setLastTypedIndex(-1); // Reset typed index to allow new typing
+              // Mark as complete AFTER index has changed
+              setTimeout(() => {
+                setSliderCycleComplete(true);
+                setIsTransitioning(false);
+              }, 100); // Small delay to ensure state is updated
             }, 500);
           } else {
             // If only one image, reset after delay
             setTimeout(() => {
               setSliderPosition(0);
+              setLastTypedIndex(-1);
+              setSliderCycleComplete(true);
+              setIsTransitioning(false);
             }, 500);
           }
           return 0; // Reset to start (left)
@@ -119,16 +132,21 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
       });
     }, 50); // Update every 50ms for smooth animation
     return () => clearInterval(interval);
-  }, [beforeAfterPairs.length]);
+  }, [beforeAfterPairs.length, currentIndex]);
 
   // Auto-type prompt when image changes (only after slider cycle completes)
   useEffect(() => {
     // Only trigger when:
     // 1. We have a prompt
     // 2. Slider cycle is complete
-    // 3. We haven't typed for this index yet
-    if (!currentPrompt || !sliderCycleComplete) return;
+    // 3. Not currently transitioning
+    // 4. We haven't typed for this index yet
+    if (!currentPrompt || !sliderCycleComplete || isTransitioning) return;
     if (lastTypedIndex === currentIndex) return;
+    
+    // Capture the current pair data at the start of typing to ensure sync
+    const pairForThisMessage = beforeAfterPairs[currentIndex];
+    if (!pairForThisMessage) return;
     
     // Mark this index as typed
     setLastTypedIndex(currentIndex);
@@ -137,8 +155,8 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
     setMessages([]);
     setTypingText('');
     
-    // Get full prompt for message bubble
-    const fullPrompt = truncateAtLastPeriod(currentPrompt);
+    // Get full prompt for message bubble from the captured pair
+    const fullPrompt = truncateAtLastPeriod(pairForThisMessage.render?.prompt || '');
     // Get text for 3 lines in textarea (limited display)
     const textForTextarea = getTextForThreeLines(fullPrompt);
     
@@ -155,13 +173,14 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
         } else {
           clearInterval(typingInterval);
           // After typing 3 lines, immediately send full prompt as message
+          // Use the captured pair data to ensure correct image URL
           setTimeout(() => {
             setIsTyping(false);
             setMessages([{
               id: `msg-${currentIndex}-${Date.now()}`,
               text: fullPrompt, // Full prompt in message bubble
               type: 'user' as const,
-              uploadedImageUrl: currentPair?.render?.uploadedImageUrl
+              uploadedImageUrl: pairForThisMessage.render?.uploadedImageUrl
             }]);
             setTypingText('');
             // Reset cycle complete flag after message is sent
@@ -172,16 +191,32 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
     }, 300);
 
     // No cleanup needed - we want the typing to complete
-  }, [currentIndex, currentPrompt, sliderCycleComplete, lastTypedIndex]);
+  }, [currentIndex, currentPrompt, sliderCycleComplete, lastTypedIndex, isTransitioning, beforeAfterPairs]);
 
   const handlePrev = () => {
-    setCurrentIndex((prev) => (prev - 1 + beforeAfterPairs.length) % beforeAfterPairs.length);
+    setIsTransitioning(true);
+    setSliderCycleComplete(false);
+    const newIndex = (currentIndex - 1 + beforeAfterPairs.length) % beforeAfterPairs.length;
+    setCurrentIndex(newIndex);
     setSliderPosition(0); // Reset to start (left)
+    setLastTypedIndex(-1); // Reset typed index
+    setTimeout(() => {
+      setSliderCycleComplete(true);
+      setIsTransitioning(false);
+    }, 100);
   };
 
   const handleNext = () => {
-    setCurrentIndex((prev) => (prev + 1) % beforeAfterPairs.length);
+    setIsTransitioning(true);
+    setSliderCycleComplete(false);
+    const newIndex = (currentIndex + 1) % beforeAfterPairs.length;
+    setCurrentIndex(newIndex);
     setSliderPosition(0); // Reset to start (left)
+    setLastTypedIndex(-1); // Reset typed index
+    setTimeout(() => {
+      setSliderCycleComplete(true);
+      setIsTransitioning(false);
+    }, 100);
   };
 
   return (

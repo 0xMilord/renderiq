@@ -19,13 +19,15 @@ interface GalleryImageCardProps {
   onLike?: (itemId: string) => Promise<{ success: boolean; data?: { likes: number; liked: boolean }; error?: string }>;
   onView?: (itemId: string) => void;
   priority?: boolean;
+  hideOwnerInfo?: boolean; // Hide user info when viewing owner's profile
 }
 
 export function GalleryImageCard({ 
   item, 
   onLike, 
   onView,
-  priority = false 
+  priority = false,
+  hideOwnerInfo = false
 }: GalleryImageCardProps) {
   const router = useRouter();
   const [imageLoading, setImageLoading] = useState(true);
@@ -213,132 +215,134 @@ export function GalleryImageCard({
 
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-300">
-      {/* Header - User info */}
-      <div className="px-4 py-3 flex items-center justify-between border-b border-border">
-        {item.user && (
-          <div className="relative flex-1">
-            <Link
-              href={getUsernameUrl()}
-              onClick={handleUserClick}
-              className="flex items-center gap-3 hover:opacity-80 transition-opacity"
-              onMouseEnter={() => setShowUserCard(true)}
-              onMouseLeave={() => setShowUserCard(false)}
-            >
-            {item.user.avatar && !avatarError ? (
-              <div className="relative w-8 h-8 shrink-0 max-w-[32px] max-h-[32px] overflow-hidden rounded-full">
-                <Image
-                  src={item.user.avatar}
-                  alt={item.user.name || 'User'}
-                  width={32}
-                  height={32}
-                  className="rounded-full object-cover w-full h-full"
-                  style={{ maxWidth: '32px', maxHeight: '32px' }}
-                  unoptimized={item.user.avatar.includes('dicebear.com')}
-                  onError={() => setAvatarError(true)}
-                />
-              </div>
-            ) : (
-              <div className="w-8 h-8 shrink-0 max-w-[32px] max-h-[32px] rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-xs">
-                {getUserInitials()}
-              </div>
-            )}
-            <span className="text-sm font-semibold text-foreground">
-              {item.user.name || 'Anonymous'}
-            </span>
-          </Link>
-          
-          {/* User Info Card - Positioned relative to link, stays visible when hovering over it */}
-          {showUserCard && (
-            <div 
-              className="absolute top-full left-0 mt-2 z-50 w-72 bg-card border border-border rounded-lg shadow-xl p-4 pointer-events-auto"
-              onMouseEnter={() => setShowUserCard(true)}
-              onMouseLeave={() => setShowUserCard(false)}
-            >
-              <div className="flex items-start gap-3 mb-3">
+      {/* Header - User info (hidden when hideOwnerInfo is true) */}
+      {!hideOwnerInfo && (
+        <div className="px-4 py-3 flex items-center justify-between border-b border-border">
+          {item.user && (
+            <div className="relative flex-1">
+              <Link
+                href={getUsernameUrl()}
+                onClick={handleUserClick}
+                className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                onMouseEnter={() => setShowUserCard(true)}
+                onMouseLeave={() => setShowUserCard(false)}
+              >
                 {item.user.avatar && !avatarError ? (
-                  <div className="relative w-12 h-12 shrink-0 max-w-[48px] max-h-[48px] overflow-hidden rounded-full ring-2 ring-primary/20">
+                  <div className="relative w-8 h-8 shrink-0 max-w-[32px] max-h-[32px] overflow-hidden rounded-full">
                     <Image
                       src={item.user.avatar}
                       alt={item.user.name || 'User'}
-                      width={48}
-                      height={48}
+                      width={32}
+                      height={32}
                       className="rounded-full object-cover w-full h-full"
-                      style={{ maxWidth: '48px', maxHeight: '48px' }}
+                      style={{ maxWidth: '32px', maxHeight: '32px' }}
                       unoptimized={item.user.avatar.includes('dicebear.com')}
                       onError={() => setAvatarError(true)}
                     />
                   </div>
                 ) : (
-                  <div className="w-12 h-12 shrink-0 max-w-[48px] max-h-[48px] rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-base ring-2 ring-primary/20">
+                  <div className="w-8 h-8 shrink-0 max-w-[32px] max-h-[32px] rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-xs">
                     {getUserInitials()}
                   </div>
                 )}
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-base mb-1 truncate">{item.user.name || 'Anonymous'}</p>
-                  <p className="text-xs text-muted-foreground mb-2">@{getUsernameUrl().replace('/', '')}</p>
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Eye className="h-3 w-3" />
-                      <span>{item.views} views</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Heart className="h-3 w-3" />
-                      <span>{item.likes} likes</span>
+                <span className="text-sm font-semibold text-foreground">
+                  {item.user.name || 'Anonymous'}
+                </span>
+              </Link>
+              
+              {/* User Info Card - Positioned relative to link, stays visible when hovering over it */}
+              {showUserCard && (
+                <div 
+                  className="absolute top-full left-0 mt-2 z-50 w-72 bg-card border border-border rounded-lg shadow-xl p-4 pointer-events-auto"
+                  onMouseEnter={() => setShowUserCard(true)}
+                  onMouseLeave={() => setShowUserCard(false)}
+                >
+                  <div className="flex items-start gap-3 mb-3">
+                    {item.user.avatar && !avatarError ? (
+                      <div className="relative w-12 h-12 shrink-0 max-w-[48px] max-h-[48px] overflow-hidden rounded-full ring-2 ring-primary/20">
+                        <Image
+                          src={item.user.avatar}
+                          alt={item.user.name || 'User'}
+                          width={48}
+                          height={48}
+                          className="rounded-full object-cover w-full h-full"
+                          style={{ maxWidth: '48px', maxHeight: '48px' }}
+                          unoptimized={item.user.avatar.includes('dicebear.com')}
+                          onError={() => setAvatarError(true)}
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-12 h-12 shrink-0 max-w-[48px] max-h-[48px] rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-base ring-2 ring-primary/20">
+                        {getUserInitials()}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-base mb-1 truncate">{item.user.name || 'Anonymous'}</p>
+                      <p className="text-xs text-muted-foreground mb-2">@{getUsernameUrl().replace('/', '')}</p>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Eye className="h-3 w-3" />
+                          <span>{item.views} views</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Heart className="h-3 w-3" />
+                          <span>{item.likes} likes</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
+                  <div className="pt-3 border-t border-border">
+                    <Link
+                      href={getUsernameUrl()}
+                      onClick={handleUserClick}
+                      className="text-sm text-primary hover:text-primary/80 font-medium flex items-center gap-1 transition-colors"
+                    >
+                      View full profile
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
                 </div>
-              </div>
-              <div className="pt-3 border-t border-border">
-                <Link
-                  href={getUsernameUrl()}
-                  onClick={handleUserClick}
-                  className="text-sm text-primary hover:text-primary/80 font-medium flex items-center gap-1 transition-colors"
-                >
-                  View full profile
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </Link>
-              </div>
+              )}
             </div>
           )}
-          </div>
-        )}
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 text-xs border-primary text-primary hover:bg-primary hover:text-primary-foreground shrink-0"
-          data-view-image
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const url = `/gallery/${item.id}`;
-            router.push(url);
-            if (onView) {
-              onView(item.id);
-            }
-          }}
-        >
-          <Eye className="h-3 w-3 mr-1.5 shrink-0" />
-          View Image
-        </Button>
-      </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs border-primary text-primary hover:bg-primary hover:text-primary-foreground shrink-0"
+            data-view-image
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const url = `/gallery/${item.id}`;
+              router.push(url);
+              if (onView) {
+                onView(item.id);
+              }
+            }}
+          >
+            <Eye className="h-3 w-3 mr-1.5 shrink-0" />
+            View Image
+          </Button>
+        </div>
+      )}
 
       {/* Image/Video Container - With Tabs if uploaded image exists (ONLY for images, NEVER for videos) */}
       {item.render.uploadedImageUrl && item.render.outputUrl && !isVideo ? (
         <div className="relative w-full">
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'generated' | 'comparison')} className="w-full">
-            <TabsList className="absolute top-2 left-2 z-20 grid w-auto grid-cols-2 bg-black/70 text-white">
+            <TabsList className="absolute top-2 left-2 z-20 grid w-auto grid-cols-2 bg-background/90 backdrop-blur-sm border border-border text-foreground">
               <TabsTrigger 
                 value="generated" 
-                className="data-[state=active]:bg-white/20 text-xs px-2 py-1"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs px-2 py-1"
                 onClick={(e) => e.stopPropagation()}
               >
                 Generated
               </TabsTrigger>
               <TabsTrigger 
                 value="comparison" 
-                className="data-[state=active]:bg-white/20 text-xs px-2 py-1"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs px-2 py-1"
                 onClick={(e) => e.stopPropagation()}
               >
                 Compare
@@ -508,16 +512,16 @@ export function GalleryImageCard({
                 }}
               >
                 <ReactBeforeSliderComponent
-                  firstImage={{ imageUrl: item.render.uploadedImageUrl }}
-                  secondImage={{ imageUrl: item.render.outputUrl }}
+                  firstImage={{ imageUrl: item.render.outputUrl }}
+                  secondImage={{ imageUrl: item.render.uploadedImageUrl }}
                   currentPercentPosition={75}
                 />
-                {/* Labels - Bottom corners to avoid clashing with tabs - Inverted positions */}
-                <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium z-10">
-                  Before
-                </div>
-                <div className="absolute bottom-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium z-10">
+                {/* Labels - Bottom corners: After on left (generated image), Before on right (uploaded image) */}
+                <div className="absolute bottom-2 left-2 bg-background/90 backdrop-blur-sm border border-border text-foreground px-2 py-1 rounded text-xs font-medium z-10">
                   After
+                </div>
+                <div className="absolute bottom-2 right-2 bg-background/90 backdrop-blur-sm border border-border text-foreground px-2 py-1 rounded text-xs font-medium z-10">
+                  Before
                 </div>
               </div>
             ) : (
@@ -640,41 +644,80 @@ export function GalleryImageCard({
       <div className="px-4 py-3 space-y-2">
         {/* Action Buttons */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleLike}
-              className={cn(
-                "transition-colors",
-                isLiked ? "text-red-500" : "text-foreground hover:text-red-500"
-              )}
-            >
-              <Heart className={cn(
-                "h-6 w-6",
-                isLiked && "fill-current"
-              )} />
-            </button>
-            <button className="text-foreground hover:text-muted-foreground transition-colors">
-              <Share2 className="h-6 w-6" />
-            </button>
-          </div>
-          <button 
-            onClick={handleCardClick}
-            className="text-foreground hover:text-muted-foreground transition-colors flex items-center gap-1"
-            title={`${item.views} views`}
-          >
-            <Eye className="h-6 w-6" />
-            <span className="text-sm font-medium">{item.views}</span>
-          </button>
+          {hideOwnerInfo ? (
+            // Owner view: Like button next to view count
+            <>
+              <div className="flex items-center gap-4">
+                <button className="text-foreground hover:text-muted-foreground transition-colors">
+                  <Share2 className="h-6 w-6" />
+                </button>
+              </div>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={handleLike}
+                  className={cn(
+                    "transition-colors flex items-center gap-1",
+                    isLiked ? "text-red-500" : "text-foreground hover:text-red-500"
+                  )}
+                >
+                  <Heart className={cn(
+                    "h-6 w-6",
+                    isLiked && "fill-current"
+                  )} />
+                  <span className="text-sm font-medium">{likesCount}</span>
+                </button>
+                <button 
+                  onClick={handleCardClick}
+                  className="text-foreground hover:text-muted-foreground transition-colors flex items-center gap-1"
+                  title={`${item.views} views`}
+                >
+                  <Eye className="h-6 w-6" />
+                  <span className="text-sm font-medium">{item.views}</span>
+                </button>
+              </div>
+            </>
+          ) : (
+            // Regular view: Like button on left, view count on right
+            <>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={handleLike}
+                  className={cn(
+                    "transition-colors",
+                    isLiked ? "text-red-500" : "text-foreground hover:text-red-500"
+                  )}
+                >
+                  <Heart className={cn(
+                    "h-6 w-6",
+                    isLiked && "fill-current"
+                  )} />
+                </button>
+                <button className="text-foreground hover:text-muted-foreground transition-colors">
+                  <Share2 className="h-6 w-6" />
+                </button>
+              </div>
+              <button 
+                onClick={handleCardClick}
+                className="text-foreground hover:text-muted-foreground transition-colors flex items-center gap-1"
+                title={`${item.views} views`}
+              >
+                <Eye className="h-6 w-6" />
+                <span className="text-sm font-medium">{item.views}</span>
+              </button>
+            </>
+          )}
         </div>
 
-        {/* Likes Count */}
-        <div className="text-sm font-semibold text-foreground">
-          {likesCount.toLocaleString()} {likesCount === 1 ? 'like' : 'likes'}
-        </div>
+        {/* Likes Count (hidden in owner view since it's shown next to view count) */}
+        {!hideOwnerInfo && (
+          <div className="text-sm font-semibold text-foreground">
+            {likesCount.toLocaleString()} {likesCount === 1 ? 'like' : 'likes'}
+          </div>
+        )}
 
         {/* Caption */}
         <div className="text-sm">
-          {item.user && (
+          {!hideOwnerInfo && item.user && (
             <Link
               href={getUsernameUrl()}
               onClick={handleUserClick}

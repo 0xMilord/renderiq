@@ -140,14 +140,19 @@ export async function getLongestChains(limit = 5) {
 
 export async function viewGalleryItem(itemId: string) {
   try {
-    await RendersDAL.incrementViews(itemId);
+    // Fire and forget - don't block the response
+    // Views are not critical for page functionality
+    RendersDAL.incrementViews(itemId).catch(() => {
+      // Silently fail - view increment is not critical
+    });
+    
+    // Revalidate in the background (non-blocking)
     revalidatePath('/gallery');
+    
     return { success: true };
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to record view',
-    };
+    // Return success even on error - view tracking shouldn't break the page
+    return { success: true };
   }
 }
 
@@ -205,20 +210,24 @@ export async function getPublicGalleryItem(itemId: string) {
   }
 }
 
-export async function getSimilarGalleryItems(itemId: string, limit = 12) {
+export async function getSimilarGalleryItems(itemId: string, limit = 12, currentItem?: GalleryItemWithDetails) {
   try {
-    // Get the current item to find similar ones
-    const currentItem = await RendersDAL.getGalleryItemById(itemId);
+    let item = currentItem;
     
-    if (!currentItem) {
-      return { success: false, error: 'Gallery item not found' };
+    // Only fetch if not provided (optimization: avoid redundant query)
+    if (!item) {
+      const itemResult = await RendersDAL.getGalleryItemById(itemId);
+      if (!itemResult) {
+        return { success: false, error: 'Gallery item not found' };
+      }
+      item = itemResult;
     }
 
-    const currentSettings = (currentItem.render.settings || {}) as Record<string, any>;
+    const currentSettings = (item.render.settings || {}) as Record<string, any>;
     const currentStyle = currentSettings.style as string | undefined;
     const currentQuality = currentSettings.quality as string | undefined;
     const currentAspectRatio = currentSettings.aspectRatio as string | undefined;
-    const currentPrompt = currentItem.render.prompt?.toLowerCase() || '';
+    const currentPrompt = item.render.prompt?.toLowerCase() || '';
 
     // Extract keywords from prompt (simple approach)
     const promptWords = currentPrompt.split(/\s+/).filter(w => w.length > 3);

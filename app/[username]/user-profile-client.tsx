@@ -97,6 +97,7 @@ export function UserProfilePageClient({ user, galleryItems }: UserProfilePageCli
             onLike={handleLike}
             onView={handleView}
             columns={3}
+            hideOwnerInfo={true}
           />
         ) : (
           <div className="text-center py-12">

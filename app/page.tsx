@@ -10,6 +10,7 @@ import { FAQSection } from '@/components/home/faq-section';
 import { ComparisonSection } from '@/components/home/comparison-section';
 import { TrustBadges } from '@/components/home/trust-badges';
 import { HomepagePricing } from '@/components/home/homepage-pricing';
+import { HomepageGallery } from '@/components/home/homepage-gallery';
 import { 
   Wand2, 
   Upload, 
@@ -497,65 +498,8 @@ export default async function Home() {
           </div>
 
           {/* Actual Gallery Items */}
-          {galleryItems.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-              {galleryItems.map((item) => (
-                <div key={item.id} className="group relative">
-                  <div className="transition-transform duration-200 group-hover:scale-[1.02]">
-                    <div className="bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden">
-                      <div className="relative">
-                        {item.render.status === 'completed' && item.render.outputUrl ? (
-                          item.render.type === 'video' ? (
-                            <video
-                              src={item.render.outputUrl}
-                              className="w-full h-64 object-cover"
-                              controls
-                              loop
-                            />
-                          ) : (
-                            <Image
-                              src={item.render.outputUrl}
-                              alt={item.render.prompt}
-                              width={400}
-                              height={256}
-                              className="w-full h-64 object-cover"
-                            />
-                          )
-                        ) : (
-                          <div className="h-64 flex items-center justify-center bg-muted/50">
-                            <div className="text-center">
-                              <Building2 className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                              <p className="text-muted-foreground font-medium">Render in progress...</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-4">
-                        <h3 className="font-semibold text-card-foreground mb-2 line-clamp-2">
-                          {item.render.prompt}
-                        </h3>
-                        <div className="flex items-center justify-between text-sm text-muted-foreground">
-                          <div className="flex items-center space-x-4">
-                            <span className="flex items-center space-x-1">
-                              <Heart className="h-4 w-4" />
-                              <span className="font-medium">{item.likes}</span>
-                            </span>
-                            <span className="flex items-center space-x-1">
-                              <Eye className="h-4 w-4" />
-                              <span className="font-medium">{item.views}</span>
-                            </span>
-                          </div>
-                          <span className="text-xs truncate max-w-[120px]">
-                            by {item.user.name || 'Anonymous'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
+          <HomepageGallery items={galleryItems} />
+          {galleryItems.length === 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <div key={i} className="group relative overflow-hidden rounded-lg bg-card border border-border aspect-square hover:shadow-lg transition-all duration-300">

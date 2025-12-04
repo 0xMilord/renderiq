@@ -4,11 +4,17 @@ import { GalleryItemPageClient } from './gallery-item-client';
 import { Metadata } from 'next';
 import { getPublicGalleryItem, getSimilarGalleryItems } from '@/lib/actions/gallery.actions';
 import Script from 'next/script';
+import { cache } from 'react';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
 
 // ISR: Revalidate every 60 seconds (1 minute)
 export const revalidate = 60;
+
+// Cache the gallery item fetch to avoid duplicate queries between generateMetadata and page component
+const getCachedGalleryItem = cache(async (id: string) => {
+  return await getPublicGalleryItem(id);
+});
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -31,7 +37,7 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const result = await getPublicGalleryItem(id);
+  const result = await getCachedGalleryItem(id);
   
   if (!result.success || !result.data) {
     return {
@@ -121,7 +127,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function GalleryItemPage({ params }: PageProps) {
   const { id } = await params;
   
-  const result = await getPublicGalleryItem(id);
+  // Use cached result (shared with generateMetadata)
+  const result = await getCachedGalleryItem(id);
   
   if (!result.success || !result.data) {
     notFound();
@@ -129,8 +136,9 @@ export default async function GalleryItemPage({ params }: PageProps) {
 
   const item = result.data;
   
-  // Get similar items for "More like this" section (fetch more for scroll)
-  const similarResult = await getSimilarGalleryItems(id, 18);
+  // Get similar items for "More like this" section - pass current item to avoid redundant query
+  // Run in parallel with the cached item fetch (though it's already cached, this optimizes the similar items query)
+  const similarResult = await getSimilarGalleryItems(id, 18, item);
 
   const pageUrl = `${siteUrl}/gallery/${id}`;
   const imageUrl = item.render.outputUrl || '';

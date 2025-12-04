@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { ConditionalNavbar } from "@/components/conditional-navbar";
 import { BottomNav } from "@/components/bottom-nav";
@@ -139,6 +140,19 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-y-auto`}
       >
+        {/* Google tag (gtag.js) */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-Z8NSF00GYD"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-Z8NSF00GYD');
+          `}
+        </Script>
         <JsonLd data={organizationSchema} />
         <JsonLd data={softwareSchema} />
         <JsonLd data={websiteSchema} />

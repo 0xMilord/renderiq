@@ -18,6 +18,7 @@ interface MasonryFeedProps {
   totalPages?: number;
   onPageChange?: (page: number) => void;
   showPagination?: boolean;
+  hideOwnerInfo?: boolean; // Hide user info when viewing owner's profile
 }
 
 export function MasonryFeed({
@@ -31,7 +32,8 @@ export function MasonryFeed({
   currentPage,
   totalPages,
   onPageChange,
-  showPagination = false
+  showPagination = false,
+  hideOwnerInfo = false
 }: MasonryFeedProps) {
   const observerTarget = useRef<HTMLDivElement>(null);
   
@@ -136,6 +138,7 @@ export function MasonryFeed({
                 onLike={onLike}
                 onView={onView}
                 priority={colIndex === 0 && itemIndex < 3}
+                hideOwnerInfo={hideOwnerInfo}
               />
             ))}
           </div>

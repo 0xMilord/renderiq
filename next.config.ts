@@ -113,13 +113,15 @@ const nextConfig: NextConfig = {
             value: [
               "default-src 'self'",
               // Razorpay: Allow all HTTPS scripts (required for Razorpay checkout)
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
+              // Google Analytics & Tag Manager: Allow scripts from Google domains
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: https://www.googletagmanager.com https://*.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://www.google.com https://*.google.com",
               "style-src 'self' 'unsafe-inline' https:",
-              "img-src 'self' data: https: blob:",
+              "img-src 'self' data: https: blob: https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com https://*.googletagmanager.com",
               "media-src 'self' https: blob: data:",
               "font-src 'self' data: https:",
               // Razorpay: Allow all HTTPS connections (required for payment processing)
-              "connect-src 'self' https: wss:",
+              // Google Analytics & Tag Manager: Allow connections to Google domains
+              "connect-src 'self' https: wss: https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com https://*.googletagmanager.com https://www.google.com https://*.google.com https://www.googleapis.com https://*.googleapis.com",
               // Razorpay: Allow all HTTPS frames (required for payment modal)
               "frame-src 'self' https:",
               "child-src 'self' https:",
