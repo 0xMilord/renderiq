@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     siteName: "Renderiq",
     images: [
       {
-        url: `${siteUrl}/og-image.jpg`,
+        url: `${siteUrl}/og/use-cases-massing-testing.jpg`,
         width: 1200,
         height: 630,
         alt: "Massing Testing - Renderiq",
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Massing Testing | Renderiq",
     description: "Test different building massing options quickly. Generate multiple massing studies to explore form and scale.",
-    images: [`${siteUrl}/og-image.jpg`],
+    images: [`${siteUrl}/og/use-cases-massing-testing.jpg`],
     creator: "@Renderiq",
   },
   robots: {

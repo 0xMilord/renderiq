@@ -4,10 +4,35 @@ import { ArrowLeft, HelpCircle, Mail, MessageSquare, Clock, CheckCircle, AlertCi
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
+
 export const metadata: Metadata = {
   title: "Support Policy | Renderiq - AI Architectural Visualization",
   description: "Learn about Renderiq's support policy, response times, support channels, and how we help you succeed with our platform.",
-  robots: "index, follow"
+  robots: "index, follow",
+  openGraph: {
+    title: "Support Policy | Renderiq - AI Architectural Visualization",
+    description: "Learn about Renderiq's support policy, response times, support channels, and how we help you succeed with our platform.",
+    type: "website",
+    url: `${siteUrl}/support`,
+    siteName: "Renderiq",
+    images: [
+      {
+        url: `${siteUrl}/og/support.jpg`,
+        width: 1200,
+        height: 630,
+        alt: "Support Policy - Renderiq",
+      },
+    ],
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Support Policy | Renderiq",
+    description: "Learn about Renderiq's support policy, response times, and support channels.",
+    images: [`${siteUrl}/og/support.jpg`],
+    creator: "@Renderiq",
+  },
 };
 
 const supportChannels = [

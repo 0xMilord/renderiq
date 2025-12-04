@@ -280,15 +280,15 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
                   const isExpanded = expandedMessages.has(msg.id);
                   // Check if text is long enough to need truncation (roughly 4 lines)
                   const shouldTruncate = msg.text.length > 150;
-                  
-                  return (
+
+  return (
                     <div key={msg.id} className="flex justify-end">
                       <div className="bg-primary text-primary-foreground rounded-lg px-4 py-3 max-w-[85%] space-y-2">
                         {/* Show uploaded image as attachment if available */}
                         {msg.uploadedImageUrl && (
                           <div className="relative w-full max-w-[200px] rounded-lg overflow-hidden border-2 border-primary-foreground/20 mb-2">
                             <div className="relative aspect-square w-full">
-                              <Image
+                <Image
                                 src={msg.uploadedImageUrl}
                                 alt="Uploaded image"
                                 fill
@@ -300,8 +300,8 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
                               <ImageIcon className="h-2.5 w-2.5" />
                               <span>Image</span>
                             </div>
-                          </div>
-                        )}
+                </div>
+              )}
                         <div className="space-y-1">
                           <p className={cn(
                             "text-sm sm:text-base break-words",
@@ -621,8 +621,8 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
                   <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-0.5 rounded text-[10px] font-medium z-10">
                     Before
                   </div>
-                </div>
-              
+          </div>
+
               {/* Slideshow Navigation */}
               {beforeAfterPairs.length > 1 && (
                 <>
@@ -667,12 +667,12 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
             <div className="text-center">
               <div className="text-6xl mb-4">✏️ → 🏢</div>
               <p className="text-2xl font-semibold text-foreground">From Sketch to Photorealistic Render</p>
-            </div>
-          )}
+                </div>
+            )}
           </div>
         </div>
-
-        {/* Feature Pills */}
+          
+          {/* Feature Pills */}
         <div className="text-center pb-8">
           <div className="flex items-center justify-center gap-4 flex-wrap">
             {[

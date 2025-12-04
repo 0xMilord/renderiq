@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     siteName: "Renderiq",
     images: [
       {
-        url: `${siteUrl}/og-image.jpg`,
+        url: `${siteUrl}/og/use-cases-presentation-ready-graphics.jpg`,
         width: 1200,
         height: 630,
         alt: "Presentation Ready Graphics - Renderiq",
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Presentation Ready Graphics | Renderiq",
     description: "Generate high-quality, presentation-ready architectural graphics suitable for client meetings and professional portfolios.",
-    images: [`${siteUrl}/og-image.jpg`],
+    images: [`${siteUrl}/og/use-cases-presentation-ready-graphics.jpg`],
     creator: "@Renderiq",
   },
   robots: {

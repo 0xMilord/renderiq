@@ -5,10 +5,35 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
+
 export const metadata: Metadata = {
   title: "Cookie Policy | Renderiq - AI Architectural Visualization",
   description: "Learn about how Renderiq uses cookies and similar technologies to enhance your experience and improve our services.",
-  robots: "index, follow"
+  robots: "index, follow",
+  openGraph: {
+    title: "Cookie Policy | Renderiq - AI Architectural Visualization",
+    description: "Learn about how Renderiq uses cookies and similar technologies to enhance your experience and improve our services.",
+    type: "website",
+    url: `${siteUrl}/cookies`,
+    siteName: "Renderiq",
+    images: [
+      {
+        url: `${siteUrl}/og/cookies.jpg`,
+        width: 1200,
+        height: 630,
+        alt: "Cookie Policy - Renderiq",
+      },
+    ],
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Cookie Policy | Renderiq",
+    description: "Learn about how Renderiq uses cookies and similar technologies.",
+    images: [`${siteUrl}/og/cookies.jpg`],
+    creator: "@Renderiq",
+  },
 };
 
 const cookieCategories = [

@@ -11,8 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from 'sonner';
 import { submitContactForm } from '@/lib/actions/contact.actions';
+import { Metadata } from 'next';
 
-// Note: Metadata cannot be exported from client components, so we'll handle SEO differently
+// Note: Metadata is handled in layout.tsx for client components
 const contactMethods = [
   {
     icon: Mail,

@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     siteName: "Renderiq",
     images: [
       {
-        url: `${siteUrl}/og-image.jpg`,
+        url: `${siteUrl}/og/use-cases-style-testing-white-renders.jpg`,
         width: 1200,
         height: 630,
         alt: "Style Testing with White Renders - Renderiq",
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Style Testing with White Renders | Renderiq",
     description: "Create clean, neutral white renders to test different architectural styles and forms without material distractions.",
-    images: [`${siteUrl}/og-image.jpg`],
+    images: [`${siteUrl}/og/use-cases-style-testing-white-renders.jpg`],
     creator: "@Renderiq",
   },
   robots: {

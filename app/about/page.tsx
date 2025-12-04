@@ -4,10 +4,35 @@ import Image from "next/image";
 import { ArrowLeft, Building2, Users, Target, Zap, Shield, Globe, Sparkles, Code, Lightbulb } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
+
 export const metadata: Metadata = {
   title: "About Us | Renderiq - AI Architectural Visualization Platform",
   description: "Learn about Renderiq's mission to revolutionize architectural visualization with AI. Our team, vision, and commitment to empowering architects and designers.",
-  robots: "index, follow"
+  robots: "index, follow",
+  openGraph: {
+    title: "About Us | Renderiq - AI Architectural Visualization Platform",
+    description: "Learn about Renderiq's mission to revolutionize architectural visualization with AI. Our team, vision, and commitment to empowering architects and designers.",
+    type: "website",
+    url: `${siteUrl}/about`,
+    siteName: "Renderiq",
+    images: [
+      {
+        url: `${siteUrl}/og/about.jpg`,
+        width: 1200,
+        height: 630,
+        alt: "About Renderiq - AI Architectural Visualization Platform",
+      },
+    ],
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "About Us | Renderiq - AI Architectural Visualization Platform",
+    description: "Learn about Renderiq's mission to revolutionize architectural visualization with AI.",
+    images: [`${siteUrl}/og/about.jpg`],
+    creator: "@Renderiq",
+  },
 };
 
 const values = [

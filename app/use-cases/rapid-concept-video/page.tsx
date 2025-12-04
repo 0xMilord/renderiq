@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     siteName: "Renderiq",
     images: [
       {
-        url: `${siteUrl}/og-image.jpg`,
+        url: `${siteUrl}/og/use-cases-rapid-concept-video.jpg`,
         width: 1200,
         height: 630,
         alt: "Rapid Concept Video Generation - Renderiq",
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Rapid Concept Video Generation | Renderiq",
     description: "Transform static renders into dynamic concept videos in minutes. Generate walkthrough animations and time-lapse sequences.",
-    images: [`${siteUrl}/og-image.jpg`],
+    images: [`${siteUrl}/og/use-cases-rapid-concept-video.jpg`],
     creator: "@Renderiq",
   },
   robots: {

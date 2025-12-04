@@ -4,10 +4,35 @@ import { ArrowLeft, Shield, Lock, Eye, Database, UserCheck, Mail, Globe, FileTex
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
+
 export const metadata: Metadata = {
   title: "Privacy Policy | Renderiq - AI Architectural Visualization",
   description: "Learn how Renderiq protects your data and privacy. Our comprehensive privacy policy covering data collection, usage, security, and your rights under GDPR, CCPA, and other data protection laws.",
-  robots: "index, follow"
+  robots: "index, follow",
+  openGraph: {
+    title: "Privacy Policy | Renderiq - AI Architectural Visualization",
+    description: "Learn how Renderiq protects your data and privacy. Our comprehensive privacy policy covering data collection, usage, security, and your rights under GDPR, CCPA, and other data protection laws.",
+    type: "website",
+    url: `${siteUrl}/privacy`,
+    siteName: "Renderiq",
+    images: [
+      {
+        url: `${siteUrl}/og/privacy.jpg`,
+        width: 1200,
+        height: 630,
+        alt: "Privacy Policy - Renderiq",
+      },
+    ],
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Privacy Policy | Renderiq",
+    description: "Learn how Renderiq protects your data and privacy. GDPR, CCPA compliant.",
+    images: [`${siteUrl}/og/privacy.jpg`],
+    creator: "@Renderiq",
+  },
 };
 
 const sections = [

@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     siteName: "Renderiq",
     images: [
       {
-        url: `${siteUrl}/og-image.jpg`,
+        url: `${siteUrl}/og/use-cases-2d-elevations-from-images.jpg`,
         width: 1200,
         height: 630,
         alt: "2D Elevations from Images - Renderiq",
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "2D Elevations from Images | Renderiq",
     description: "Transform photographs or sketches of building facades into clean, professional 2D elevation drawings.",
-    images: [`${siteUrl}/og-image.jpg`],
+    images: [`${siteUrl}/og/use-cases-2d-elevations-from-images.jpg`],
     creator: "@Renderiq",
   },
   robots: {

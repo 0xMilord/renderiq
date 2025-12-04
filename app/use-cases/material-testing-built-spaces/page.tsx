@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     siteName: "Renderiq",
     images: [
       {
-        url: `${siteUrl}/og-image.jpg`,
+        url: `${siteUrl}/og/use-cases-material-testing-built-spaces.jpg`,
         width: 1200,
         height: 630,
         alt: "Material Testing in Built Spaces - Renderiq",
@@ -48,7 +48,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Material Testing in Built Spaces | Renderiq",
     description: "Test how materials look in actual built environments. Upload photos and experiment with different material combinations.",
-    images: [`${siteUrl}/og-image.jpg`],
+    images: [`${siteUrl}/og/use-cases-material-testing-built-spaces.jpg`],
     creator: "@Renderiq",
   },
   robots: {

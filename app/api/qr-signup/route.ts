@@ -19,15 +19,68 @@ import { logger } from '@/lib/utils/logger';
  * Usage:
  * - Generate QR code with URL: https://yourdomain.com/api/qr-signup
  * - Works for both new signups and existing users
+ * 
+ * Note: This route includes OG metadata in the HTML for social media sharing,
+ * but immediately redirects users to OAuth for seamless signup.
  */
 export async function GET(request: Request) {
   logger.log('📱 QR Signup: Processing QR signup request');
   
   try {
     const { origin } = new URL(request.url);
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || origin;
     const supabase = await createClient();
     
-    // Check if user is already authenticated
+    // Check user agent to detect social media crawlers (for OG metadata)
+    const userAgent = request.headers.get('user-agent') || '';
+    const isSocialCrawler = /facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Slackbot|SkypeUriPreview|Applebot|Googlebot/i.test(userAgent);
+    
+    // If it's a social media crawler, return HTML with OG metadata
+    if (isSocialCrawler) {
+      const ogHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign Up with Renderiq | QR Code Signup - AI Architectural Visualization</title>
+  <meta name="description" content="Scan the QR code to sign up for Renderiq instantly. Join thousands of architects using AI-powered visualization to transform their design workflow. Free tier available.">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="${siteUrl}/api/qr-signup">
+  <meta property="og:title" content="Sign Up with Renderiq | QR Code Signup - AI Architectural Visualization">
+  <meta property="og:description" content="Scan the QR code to sign up for Renderiq instantly. Join thousands of architects using AI-powered visualization. Free tier available.">
+  <meta property="og:image" content="${siteUrl}/og/qr-signup.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="Renderiq">
+  <meta property="og:locale" content="en_US">
+  
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:url" content="${siteUrl}/api/qr-signup">
+  <meta name="twitter:title" content="Sign Up with Renderiq | QR Code Signup">
+  <meta name="twitter:description" content="Scan the QR code to sign up for Renderiq instantly. Join thousands of architects using AI-powered visualization.">
+  <meta name="twitter:image" content="${siteUrl}/og/qr-signup.jpg">
+  <meta name="twitter:creator" content="@Renderiq">
+  
+  <!-- Redirect for crawlers after they read metadata -->
+  <meta http-equiv="refresh" content="0;url=${siteUrl}/api/qr-signup">
+</head>
+<body>
+  <script>window.location.href = '${siteUrl}/api/qr-signup';</script>
+  <p>Redirecting to signup...</p>
+</body>
+</html>`;
+      
+      return new NextResponse(ogHtml, {
+        headers: {
+          'Content-Type': 'text/html',
+        },
+      });
+    }
+    
+    // Regular user flow - check if already authenticated
     const { data: { user } } = await supabase.auth.getUser();
     
     if (user) {

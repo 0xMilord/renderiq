@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     siteName: "Renderiq",
     images: [
       {
-        url: `${siteUrl}/og-image.jpg`,
+        url: `${siteUrl}/og/use-cases-instant-floor-plan-renders.jpg`,
         width: 1200,
         height: 630,
         alt: "Instant Floor Plan Renders - Renderiq",
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Instant Floor Plan Renders | Renderiq",
     description: "Convert 2D floor plans into stunning 3D visualizations instantly. Generate photorealistic renders in under a minute.",
-    images: [`${siteUrl}/og-image.jpg`],
+    images: [`${siteUrl}/og/use-cases-instant-floor-plan-renders.jpg`],
     creator: "@Renderiq",
   },
   robots: {

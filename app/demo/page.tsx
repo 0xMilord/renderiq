@@ -9,9 +9,34 @@ import type { RenderChainWithRenders } from '@/lib/types/render-chain';
 // This prevents static generation errors when accessing user-specific data
 export const dynamic = 'force-dynamic';
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
+
 export const metadata = {
   title: 'Renderiq Demo - Transform Sketches into Photorealistic Renders',
   description: 'Experience Renderiq\'s AI-powered architectural visualization platform. See how we transform sketches into photorealistic renders using Google Gemini 3 Pro and Veo 3.1.',
+  openGraph: {
+    title: 'Renderiq Demo - Transform Sketches into Photorealistic Renders',
+    description: 'Experience Renderiq\'s AI-powered architectural visualization platform. See how we transform sketches into photorealistic renders using Google Gemini 3 Pro and Veo 3.1.',
+    type: 'website',
+    url: `${siteUrl}/demo`,
+    siteName: 'Renderiq',
+    images: [
+      {
+        url: `${siteUrl}/og/demo.jpg`,
+        width: 1200,
+        height: 630,
+        alt: 'Renderiq Demo - AI Architectural Visualization',
+      },
+    ],
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Renderiq Demo - Transform Sketches into Photorealistic Renders',
+    description: 'Experience Renderiq\'s AI-powered architectural visualization platform.',
+    images: [`${siteUrl}/og/demo.jpg`],
+    creator: '@Renderiq',
+  },
 };
 
 export default async function DemoPage() {

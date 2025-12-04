@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     siteName: "Renderiq",
     images: [
       {
-        url: `${siteUrl}/og-image.jpg`,
+        url: `${siteUrl}/og/use-cases-matching-render-mood.jpg`,
         width: 1200,
         height: 630,
         alt: "Matching Render Mood to References - Renderiq",
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Matching Render Mood to References | Renderiq",
     description: "Use reference images to match specific moods, styles, or atmospheres in your renders.",
-    images: [`${siteUrl}/og-image.jpg`],
+    images: [`${siteUrl}/og/use-cases-matching-render-mood.jpg`],
     creator: "@Renderiq",
   },
   robots: {

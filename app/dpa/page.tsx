@@ -4,10 +4,35 @@ import { ArrowLeft, FileCheck, Shield, Database, Lock, Users } from "lucide-reac
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
+
 export const metadata: Metadata = {
   title: "Data Processing Agreement | Renderiq - AI Architectural Visualization",
   description: "Data Processing Agreement (DPA) for Renderiq's AI architectural visualization platform. GDPR-compliant data processing terms for enterprise customers.",
-  robots: "index, follow"
+  robots: "index, follow",
+  openGraph: {
+    title: "Data Processing Agreement | Renderiq - AI Architectural Visualization",
+    description: "Data Processing Agreement (DPA) for Renderiq's AI architectural visualization platform. GDPR-compliant data processing terms for enterprise customers.",
+    type: "website",
+    url: `${siteUrl}/dpa`,
+    siteName: "Renderiq",
+    images: [
+      {
+        url: `${siteUrl}/og/dpa.jpg`,
+        width: 1200,
+        height: 630,
+        alt: "Data Processing Agreement - Renderiq",
+      },
+    ],
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Data Processing Agreement | Renderiq",
+    description: "GDPR-compliant data processing terms for enterprise customers.",
+    images: [`${siteUrl}/og/dpa.jpg`],
+    creator: "@Renderiq",
+  },
 };
 
 const dpaSections = [

@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     siteName: 'Renderiq',
     images: [
       {
-        url: `${siteUrl}/og-blog.jpg`,
+        url: `${siteUrl}/og/blog.jpg`,
         width: 1200,
         height: 630,
         alt: 'Renderiq Blog - AI Architectural Rendering',
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Blog | Renderiq - AI Architectural Rendering Insights',
     description: 'Learn about AI rendering tools, architectural visualization, and best practices.',
-    images: [`${siteUrl}/og-blog.jpg`],
+    images: [`${siteUrl}/og/blog.jpg`],
     creator: '@Renderiq',
   },
   robots: {

@@ -4,6 +4,8 @@ import { ArrowLeft, Zap, Layers, Users, Clock, CheckCircle2, TrendingUp } from "
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
+
 export const metadata: Metadata = {
   title: "AI Rapid Prototyping for Architecture | Initial Design Concepts | Renderiq",
   description: "Generate multiple architectural design concepts in minutes with AI. Rapid prototyping for architects enables faster design exploration, early stakeholder feedback, and reduces design time by 80%.",
@@ -18,7 +20,47 @@ export const metadata: Metadata = {
     "architectural design automation",
     "concept development AI",
     "early stage design AI"
-  ]
+  ],
+  authors: [{ name: 'Renderiq' }],
+  creator: 'Renderiq',
+  publisher: 'Renderiq',
+  alternates: {
+    canonical: `${siteUrl}/use-cases/initial-prototyping`,
+  },
+  openGraph: {
+    title: "AI Rapid Prototyping for Architecture | Initial Design Concepts | Renderiq",
+    description: "Generate multiple architectural design concepts in minutes with AI. Rapid prototyping enables faster design exploration and reduces design time by 80%.",
+    type: "website",
+    url: `${siteUrl}/use-cases/initial-prototyping`,
+    siteName: "Renderiq",
+    images: [
+      {
+        url: `${siteUrl}/og/use-cases-initial-prototyping.jpg`,
+        width: 1200,
+        height: 630,
+        alt: "AI Rapid Prototyping for Architecture - Renderiq",
+      },
+    ],
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AI Rapid Prototyping for Architecture | Renderiq",
+    description: "Generate multiple architectural design concepts in minutes with AI. Rapid prototyping reduces design time by 80%.",
+    images: [`${siteUrl}/og/use-cases-initial-prototyping.jpg`],
+    creator: "@Renderiq",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
 };
 
 const benefits = [

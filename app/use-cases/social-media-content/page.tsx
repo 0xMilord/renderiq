@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     siteName: "Renderiq",
     images: [
       {
-        url: `${siteUrl}/og-image.jpg`,
+        url: `${siteUrl}/og/use-cases-social-media-content.jpg`,
         width: 1200,
         height: 630,
         alt: "Social Media Content - Renderiq",
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Social Media Content | Renderiq",
     description: "Create engaging architectural content for social media platforms. Optimized for Instagram, LinkedIn, Twitter, and more.",
-    images: [`${siteUrl}/og-image.jpg`],
+    images: [`${siteUrl}/og/use-cases-social-media-content.jpg`],
     creator: "@Renderiq",
   },
   robots: {

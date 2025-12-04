@@ -4,10 +4,35 @@ import { ArrowLeft, FileText, Scale, AlertCircle, Shield, Ban, Copyright, Credit
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
+
 export const metadata: Metadata = {
   title: "Terms of Service | Renderiq - AI Architectural Visualization",
   description: "Read the comprehensive terms and conditions for using Renderiq's AI architectural visualization and rendering platform. Legally binding terms covering usage, payments, intellectual property, and more.",
-  robots: "index, follow"
+  robots: "index, follow",
+  openGraph: {
+    title: "Terms of Service | Renderiq - AI Architectural Visualization",
+    description: "Read the comprehensive terms and conditions for using Renderiq's AI architectural visualization and rendering platform. Legally binding terms covering usage, payments, intellectual property, and more.",
+    type: "website",
+    url: `${siteUrl}/terms`,
+    siteName: "Renderiq",
+    images: [
+      {
+        url: `${siteUrl}/og/terms.jpg`,
+        width: 1200,
+        height: 630,
+        alt: "Terms of Service - Renderiq",
+      },
+    ],
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Terms of Service | Renderiq",
+    description: "Read the comprehensive terms and conditions for using Renderiq's AI architectural visualization platform.",
+    images: [`${siteUrl}/og/terms.jpg`],
+    creator: "@Renderiq",
+  },
 };
 
 const sections = [

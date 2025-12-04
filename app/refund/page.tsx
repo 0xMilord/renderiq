@@ -5,10 +5,35 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
+
 export const metadata: Metadata = {
   title: "Refund Policy | Renderiq - AI Architectural Visualization",
   description: "Learn about Renderiq's refund policy for subscriptions, credit packages, and services. Understand your rights and our refund process.",
-  robots: "index, follow"
+  robots: "index, follow",
+  openGraph: {
+    title: "Refund Policy | Renderiq - AI Architectural Visualization",
+    description: "Learn about Renderiq's refund policy for subscriptions, credit packages, and services. Understand your rights and our refund process.",
+    type: "website",
+    url: `${siteUrl}/refund`,
+    siteName: "Renderiq",
+    images: [
+      {
+        url: `${siteUrl}/og/refund.jpg`,
+        width: 1200,
+        height: 630,
+        alt: "Refund Policy - Renderiq",
+      },
+    ],
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Refund Policy | Renderiq",
+    description: "Learn about Renderiq's refund policy for subscriptions, credit packages, and services.",
+    images: [`${siteUrl}/og/refund.jpg`],
+    creator: "@Renderiq",
+  },
 };
 
 const refundScenarios = [

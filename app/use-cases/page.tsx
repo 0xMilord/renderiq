@@ -66,7 +66,7 @@ export const metadata: Metadata = {
     siteName: "Renderiq",
     images: [
       {
-        url: `${process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io'}/og-image.jpg`,
+        url: `${process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io'}/og/use-cases.jpg`,
         width: 1200,
         height: 630,
         alt: "AI Architecture Use Cases - Renderiq",
@@ -78,7 +78,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "AI Architecture Use Cases - Transform Your Design Workflow",
     description: "Discover 10 powerful AI architecture use cases: concept renders, material testing, floor plan visualization, and more.",
-    images: [`${process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io'}/og-image.jpg`],
+    images: [`${process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io'}/og/use-cases.jpg`],
     creator: "@Renderiq",
   },
   robots: {

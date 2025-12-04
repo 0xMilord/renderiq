@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import { Metadata } from 'next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CreditCard } from 'lucide-react';
@@ -9,6 +10,36 @@ import { RecentTransactionsPaginated } from '@/components/billing/recent-transac
 import { RecentPaymentsPaginated } from '@/components/billing/recent-payments-paginated';
 import { BillingHistoryTable } from '@/components/billing/billing-history-table';
 import { InvoicesList } from '@/components/billing/invoices-list';
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
+
+export const metadata: Metadata = {
+  title: "Billing & Subscription | Renderiq - Manage Your Plan & Credits",
+  description: "Manage your Renderiq subscription, view billing history, track credit usage, and download invoices. Manage your plan and payment methods.",
+  openGraph: {
+    title: "Billing & Subscription | Renderiq - Manage Your Plan & Credits",
+    description: "Manage your Renderiq subscription, view billing history, track credit usage, and download invoices.",
+    type: "website",
+    url: `${siteUrl}/dashboard/billing`,
+    siteName: "Renderiq",
+    images: [
+      {
+        url: `${siteUrl}/og/billing.jpg`,
+        width: 1200,
+        height: 630,
+        alt: "Billing & Subscription - Renderiq",
+      },
+    ],
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Billing & Subscription | Renderiq",
+    description: "Manage your Renderiq subscription, view billing history, and track credit usage.",
+    images: [`${siteUrl}/og/billing.jpg`],
+    creator: "@Renderiq",
+  },
+};
 
 export default function BillingPage() {
   return (
