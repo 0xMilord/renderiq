@@ -1,93 +1,266 @@
 'use client';
 
-import { GitBranch, History, RefreshCw, Link2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { GitBranch, MessageSquare, User, Bot, Sparkles } from 'lucide-react';
+import { useDemoData } from '@/components/demo/demo-data-context';
+import Image from 'next/image';
+import type { RenderChainWithRenders } from '@/lib/types/render-chain';
 
-const versions = [
-  { id: 'v1', label: 'v1', title: 'Initial Render', color: 'from-blue-500/30 to-blue-600/40', icon: '🏗️' },
-  { id: 'v2', label: 'v2', title: 'Refined Render', color: 'from-primary/30 to-primary/50', icon: '✨' },
-  { id: 'v3', label: 'v3', title: 'Final Render', color: 'from-primary/30 to-primary/50', icon: '🎯' },
-];
+interface ChatMessage {
+  id: string;
+  type: 'user' | 'assistant';
+  text: string;
+  version?: string;
+  renderId?: string;
+  renderUrl?: string;
+  timestamp: Date;
+}
 
 export function Slide4RenderChains() {
+  const { longestChains } = useDemoData();
+  const [visibleMessages, setVisibleMessages] = useState(0);
+  const [highlightedVersion, setHighlightedVersion] = useState<string | null>(null);
+
+  // Get longest chain for demo
+  const longestChain = longestChains.length > 0 
+    ? longestChains.reduce((longest, chain) => 
+        (chain.renders?.length || 0) > (longest.renders?.length || 0) ? chain : longest
+      )
+    : null;
+
+  // Convert chain renders to chat messages
+  const chatMessages = longestChain?.renders?.map((render, index) => {
+    const version = `v${index + 1}`;
+    return [
+      {
+        id: `user-${render.id}`,
+        type: 'user' as const,
+        text: render.prompt || 'Generate a render',
+        version,
+        timestamp: render.createdAt || new Date(),
+      },
+      {
+        id: `assistant-${render.id}`,
+        type: 'assistant' as const,
+        text: `Here's your ${version} render!`,
+        version,
+        renderId: render.id,
+        renderUrl: render.outputUrl || undefined,
+        timestamp: render.createdAt || new Date(),
+      },
+    ];
+  }).flat() || [];
+
+  // Animate messages appearing sequentially
+  useEffect(() => {
+    if (chatMessages.length === 0) return;
+
+    const interval = setInterval(() => {
+      setVisibleMessages((prev) => {
+        if (prev >= chatMessages.length) {
+          // Reset after showing all messages
+          setTimeout(() => {
+            setVisibleMessages(0);
+            setHighlightedVersion(null);
+          }, 3000);
+          return prev;
+        }
+        
+        const nextMessage = chatMessages[prev];
+        if (nextMessage?.version) {
+          setHighlightedVersion(nextMessage.version);
+        }
+        
+        return prev + 1;
+      });
+    }, 1500); // Show next message every 1.5 seconds
+
+    return () => clearInterval(interval);
+  }, [chatMessages.length]);
+
+  // Git graph layout for versions
+  const versions = longestChain?.renders?.slice(0, 6).map((render, index) => ({
+    id: `v${index + 1}`,
+    label: `v${index + 1}`,
+    render,
+    position: index,
+  })) || [];
+
   return (
-    <div className="relative w-full h-full bg-gradient-to-br from-background via-primary/5 to-background flex items-center justify-center p-8 overflow-hidden">
-      <div className="container mx-auto max-w-6xl relative z-10">
+    <div className="relative w-full h-full bg-gradient-to-br from-background via-primary/5 to-background flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+      <div className="container mx-auto max-w-[95vw] h-full flex flex-col">
         {/* Header */}
-        <div className="text-center mb-12">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <GitBranch className="h-10 w-10 text-primary" />
-            <h2 className="text-4xl md:text-6xl font-extrabold text-foreground">
+        <div className="text-center mb-4 sm:mb-6 flex-shrink-0">
+          <div className="flex items-center justify-center gap-3 mb-2 sm:mb-3">
+            <GitBranch className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground">
               Render Chains & Version Control
             </h2>
           </div>
-          <p className="text-xl text-muted-foreground">
+          <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground">
             Iterate with Context - Reference Any Version
           </p>
         </div>
 
-        {/* Timeline */}
-        <div className="relative mb-12">
-          {/* Connection Line */}
-          <div className="absolute top-1/2 left-0 right-0 h-1 transform -translate-y-1/2 overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-primary/50 via-primary to-primary/80 w-full" />
-          </div>
-
-          {/* Version Cards */}
-          <div className="relative flex items-center justify-between gap-6">
-            {versions.map((version) => (
-              <div key={version.id} className="flex-1">
-                <div className={`bg-gradient-to-br ${version.color} rounded-xl p-6 border-2 border-primary/30 relative overflow-hidden`}>
-                  {/* Version Badge */}
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground px-4 py-1.5 rounded-full text-sm font-bold shadow-lg">
-                    {version.label}
-                  </div>
-
-                  {/* Render Preview */}
-                  <div className="aspect-video bg-background/60 rounded-lg mb-4 flex items-center justify-center border-2 border-border relative overflow-hidden">
-                    <div className="text-5xl">
-                      {version.icon}
-                    </div>
-                  </div>
-
-                  {/* Title */}
-                  <h3 className="text-lg font-bold text-foreground text-center mb-3">
-                    {version.title}
-                  </h3>
-
-                  {/* Reference Example */}
-                  <div className="bg-background/40 rounded-lg px-4 py-2 text-center border border-border">
-                    <code className="text-xs font-mono text-foreground font-semibold">
-                      @{version.label.toLowerCase()}
-                    </code>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Features */}
-        <div className="grid md:grid-cols-3 gap-4 mb-8">
-          {[
-            { icon: History, title: 'Complete History', desc: 'Every render saved automatically', color: 'text-blue-500' },
-            { icon: RefreshCw, title: 'Easy Iteration', desc: 'Build on previous versions', color: 'text-primary' },
-            { icon: Link2, title: 'Version References', desc: 'Use @v1, @v2, @latest', color: 'text-primary' },
-          ].map((feature, index) => (
-            <div key={index} className="text-center p-5 bg-card/80 backdrop-blur-sm rounded-xl border-2 border-border shadow-lg">
-              <div className="mb-3">
-                <feature.icon className={`h-8 w-8 ${feature.color} mx-auto`} />
-              </div>
-              <h3 className="font-bold text-foreground mb-2">{feature.title}</h3>
-              <p className="text-sm text-muted-foreground">{feature.desc}</p>
+        {/* Main Content - 2 Column Layout */}
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-h-0">
+          {/* Left Column - Chat Interface */}
+          <div className="bg-card/90 backdrop-blur-md rounded-xl border-2 border-border shadow-xl flex flex-col overflow-hidden">
+            <div className="p-3 sm:p-4 border-b border-border flex items-center gap-2 bg-muted/50">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              <h3 className="text-lg sm:text-xl font-bold text-foreground">Chat History</h3>
             </div>
-          ))}
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
+              {chatMessages.length === 0 ? (
+                <div className="text-center text-muted-foreground py-8">
+                  No chat history available
+                </div>
+              ) : (
+                chatMessages.slice(0, visibleMessages).map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex gap-3 animate-in fade-in slide-in-from-bottom-2 ${
+                      message.type === 'user' ? 'justify-end' : 'justify-start'
+                    }`}
+                  >
+                    {message.type === 'assistant' && (
+                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                        <Bot className="h-5 w-5 text-primary" />
+                      </div>
+                    )}
+                    <div
+                      className={`rounded-lg p-3 sm:p-4 max-w-[80%] ${
+                        message.type === 'user'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-foreground'
+                      } ${
+                        highlightedVersion === message.version
+                          ? 'ring-2 ring-primary ring-offset-2'
+                          : ''
+                      }`}
+                    >
+                      {message.version && (
+                        <div className="text-xs font-bold mb-1 opacity-80">
+                          Version {message.version}
+                        </div>
+                      )}
+                      <p className="text-sm sm:text-base">{message.text}</p>
+                      {message.renderUrl && (
+                        <div className="mt-2 rounded overflow-hidden border border-border/50">
+                          <Image
+                            src={message.renderUrl}
+                            alt={`Render ${message.version}`}
+                            width={200}
+                            height={150}
+                            className="w-full h-auto object-cover"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    {message.type === 'user' && (
+                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                        <User className="h-5 w-5 text-primary" />
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Right Column - Git Graph Layout */}
+          <div className="bg-card/90 backdrop-blur-md rounded-xl border-2 border-border shadow-xl flex flex-col overflow-hidden">
+            <div className="p-3 sm:p-4 border-b border-border flex items-center gap-2 bg-muted/50">
+              <GitBranch className="h-5 w-5 text-primary" />
+              <h3 className="text-lg sm:text-xl font-bold text-foreground">Version Graph</h3>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              {versions.length === 0 ? (
+                <div className="text-center text-muted-foreground py-8">
+                  No versions available
+                </div>
+              ) : (
+                <div className="relative">
+                  {/* Vertical line connecting versions */}
+                  <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-primary/30" />
+                  
+                  {versions.map((version, index) => (
+                    <div
+                      key={version.id}
+                      className={`relative mb-6 sm:mb-8 transition-all duration-500 ${
+                        highlightedVersion === version.id
+                          ? 'scale-105 opacity-100'
+                          : 'opacity-70'
+                      }`}
+                    >
+                      {/* Version node */}
+                      <div className="flex items-start gap-4">
+                        {/* Git graph node */}
+                        <div className="relative z-10">
+                          <div
+                            className={`w-16 h-16 rounded-full border-4 flex items-center justify-center text-lg sm:text-xl font-bold transition-all duration-300 ${
+                              highlightedVersion === version.id
+                                ? 'bg-primary border-primary text-primary-foreground scale-110 shadow-lg'
+                                : 'bg-card border-primary/50 text-primary'
+                            }`}
+                          >
+                            {version.label}
+                          </div>
+                          {/* Connection line to next version */}
+                          {index < versions.length - 1 && (
+                            <div className="absolute left-1/2 top-full w-0.5 h-6 sm:h-8 bg-primary/30 transform -translate-x-1/2" />
+                          )}
+                        </div>
+
+                        {/* Version card */}
+                        <div
+                          className={`flex-1 bg-muted/50 rounded-lg p-3 sm:p-4 border-2 transition-all duration-300 ${
+                            highlightedVersion === version.id
+                              ? 'border-primary shadow-lg'
+                              : 'border-border'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm sm:text-base font-bold text-foreground">
+                              {version.label}
+                            </span>
+                            <code className="text-xs sm:text-sm text-muted-foreground bg-background/50 px-2 py-1 rounded">
+                              @{version.label.toLowerCase()}
+                            </code>
+                          </div>
+                          {version.render?.outputUrl && (
+                            <div className="rounded overflow-hidden border border-border">
+                              <Image
+                                src={version.render.outputUrl}
+                                alt={version.label}
+                                width={300}
+                                height={200}
+                                className="w-full h-auto object-cover"
+                              />
+                            </div>
+                          )}
+                          {version.render?.prompt && (
+                            <p className="text-xs sm:text-sm text-muted-foreground mt-2 line-clamp-2">
+                              {version.render.prompt}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Example Usage */}
-        <div className="text-center">
-          <div className="inline-block bg-gradient-to-r from-muted/80 to-muted/60 rounded-xl px-8 py-4 border-2 border-primary/30 shadow-xl">
-            <p className="text-sm text-muted-foreground mb-2 font-medium">Example:</p>
-            <code className="text-foreground font-mono text-lg font-semibold block text-primary">
+        {/* Footer - Example Usage */}
+        <div className="mt-4 sm:mt-6 text-center flex-shrink-0">
+          <div className="inline-block bg-gradient-to-r from-muted/80 to-muted/60 rounded-xl px-4 sm:px-6 py-3 sm:py-4 border-2 border-primary/30 shadow-xl">
+            <p className="text-xs sm:text-sm text-muted-foreground mb-1 sm:mb-2 font-medium">
+              Example:
+            </p>
+            <code className="text-sm sm:text-base md:text-lg font-mono font-semibold block text-primary">
               "Make @v2 more modern with glass windows"
             </code>
           </div>

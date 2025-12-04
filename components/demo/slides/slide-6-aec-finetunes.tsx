@@ -1,99 +1,215 @@
 'use client';
 
-import { CheckCircle2, XCircle, Ruler, Building2, Target, Award } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { CheckCircle2, XCircle, Sparkles, Box, ImageIcon, Zap, Building2, Award } from 'lucide-react';
 
-const comparisons = [
-  { aspect: 'Scale & Proportions', generic: false, renderiq: true },
-  { aspect: 'Material Accuracy', generic: false, renderiq: true },
-  { aspect: 'Structural Integrity', generic: false, renderiq: true },
-  { aspect: 'AEC Standards', generic: false, renderiq: true },
+interface ComparisonRow {
+  feature: string;
+  renderiq: boolean | string;
+  traditional3d: boolean | string;
+  midjourney: boolean | string;
+  gemini: boolean | string;
+  openai: boolean | string;
+}
+
+const comparisonData: ComparisonRow[] = [
+  {
+    feature: 'AEC-Specific Training',
+    renderiq: true,
+    traditional3d: false,
+    midjourney: false,
+    gemini: false,
+    openai: false,
+  },
+  {
+    feature: 'Scale & Proportions Accuracy',
+    renderiq: true,
+    traditional3d: true,
+    midjourney: false,
+    gemini: false,
+    openai: false,
+  },
+  {
+    feature: 'Material Accuracy',
+    renderiq: true,
+    traditional3d: true,
+    midjourney: false,
+    gemini: false,
+    openai: false,
+  },
+  {
+    feature: 'Structural Integrity',
+    renderiq: true,
+    traditional3d: true,
+    midjourney: false,
+    gemini: false,
+    openai: false,
+  },
+  {
+    feature: 'Speed (Generation Time)',
+    renderiq: '< 30s',
+    traditional3d: 'Hours/Days',
+    midjourney: '1-2 min',
+    gemini: '30-60s',
+    openai: '30-60s',
+  },
+  {
+    feature: 'Ease of Use',
+    renderiq: true,
+    traditional3d: false,
+    midjourney: true,
+    gemini: true,
+    openai: true,
+  },
+  {
+    feature: 'Cost Efficiency',
+    renderiq: 'Low',
+    traditional3d: 'High',
+    midjourney: 'Medium',
+    gemini: 'Medium',
+    openai: 'Medium',
+  },
+  {
+    feature: 'Version Control',
+    renderiq: true,
+    traditional3d: false,
+    midjourney: false,
+    gemini: false,
+    openai: false,
+  },
+  {
+    feature: 'Reference Previous Renders',
+    renderiq: true,
+    traditional3d: false,
+    midjourney: false,
+    gemini: false,
+    openai: false,
+  },
+  {
+    feature: 'Video Generation',
+    renderiq: true,
+    traditional3d: true,
+    midjourney: false,
+    gemini: false,
+    openai: false,
+  },
+];
+
+const platforms = [
+  { name: 'Renderiq', icon: Sparkles, color: 'text-primary', bgColor: 'bg-primary/20', borderColor: 'border-primary', textColor: 'text-primary' },
+  { name: 'Traditional 3D', icon: Box, color: 'text-blue-500', bgColor: 'bg-blue-500/20', borderColor: 'border-blue-500', textColor: 'text-blue-500' },
+  { name: 'Midjourney', icon: ImageIcon, color: 'text-purple-500', bgColor: 'bg-purple-500/20', borderColor: 'border-purple-500', textColor: 'text-purple-500' },
+  { name: 'Gemini', icon: Zap, color: 'text-orange-500', bgColor: 'bg-orange-500/20', borderColor: 'border-orange-500', textColor: 'text-orange-500' },
+  { name: 'OpenAI', icon: Building2, color: 'text-green-500', bgColor: 'bg-green-500/20', borderColor: 'border-green-500', textColor: 'text-green-500' },
 ];
 
 export function Slide6AECFinetunes() {
+  const [visibleRows, setVisibleRows] = useState(0);
+
+  useEffect(() => {
+    // Show one row at a time with animation
+    const interval = setInterval(() => {
+      setVisibleRows((prev) => {
+        if (prev >= comparisonData.length) {
+          // Reset after showing all rows
+          setTimeout(() => setVisibleRows(0), 3000);
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, 1000); // Show next row every 1 second
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const renderCell = (value: boolean | string, isRenderiq: boolean = false) => {
+    if (typeof value === 'boolean') {
+      return value ? (
+        <CheckCircle2 className={`h-5 w-5 sm:h-6 sm:w-6 ${isRenderiq ? 'text-primary' : 'text-green-500'}`} />
+      ) : (
+        <XCircle className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground/40" />
+      );
+    }
+    return (
+      <span className={`text-xs sm:text-sm font-medium ${isRenderiq ? 'text-primary' : 'text-foreground'}`}>
+        {value}
+      </span>
+    );
+  };
+
   return (
-    <div className="relative w-full h-full bg-gradient-to-br from-background via-primary/5 to-background flex items-center justify-center p-8 overflow-hidden">
-      <div className="container mx-auto max-w-6xl relative z-10">
+    <div className="relative w-full h-full bg-gradient-to-br from-background via-primary/5 to-background flex items-center justify-center p-2 sm:p-4 overflow-hidden">
+      <div className="w-full max-w-[98vw] relative z-10 h-full flex flex-col">
         {/* Header */}
-        <div className="text-center mb-12">
-          <div className="mb-4">
-            <Award className="h-12 w-12 text-primary mx-auto" />
+        <div className="text-center mb-2 sm:mb-3 flex-shrink-0">
+          <div className="mb-1 sm:mb-2">
+            <Award className="h-8 w-8 sm:h-10 sm:w-10 text-primary mx-auto" />
           </div>
-          <h2 className="text-4xl md:text-6xl font-extrabold text-foreground mb-4">
-            AEC Finetunes & Technical Accuracy
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-foreground mb-1 sm:mb-2">
+            Renderiq vs. The Competition
           </h2>
-          <p className="text-xl text-muted-foreground">
-            Technically Correct Renders for AEC Professionals
+          <p className="text-sm sm:text-base md:text-lg text-muted-foreground font-medium">
+            See why Renderiq is the best choice for AEC professionals
           </p>
         </div>
 
-        {/* Comparison */}
-        <div className="grid md:grid-cols-2 gap-8 mb-12">
-          {/* Generic AI */}
-          <div className="text-center">
-            <div className="bg-muted/50 rounded-xl p-8 mb-4 aspect-video flex items-center justify-center border-2 border-dashed border-destructive/50 relative overflow-hidden">
-              <div className="text-center z-10">
-                <div className="text-5xl mb-3">⚠️</div>
-                <p className="text-muted-foreground text-lg font-semibold">Generic AI Render</p>
-              </div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <XCircle className="h-32 w-32 text-destructive/60" />
-              </div>
+        {/* Comparison Table */}
+        <div className="bg-card/95 backdrop-blur-md rounded-xl border-2 border-border shadow-2xl overflow-hidden flex-1 flex flex-col min-h-0">
+          {/* Table Header */}
+          <div className="grid grid-cols-6 gap-2 sm:gap-3 p-2 sm:p-3 bg-muted/60 border-b-2 border-border flex-shrink-0">
+            <div className="text-xs sm:text-sm md:text-base font-bold text-foreground flex items-center">
+              Feature
             </div>
-            <h3 className="text-2xl font-bold text-muted-foreground mb-4">Generic AI</h3>
-            <div className="space-y-3">
-              {comparisons.map((comp, index) => (
+            {platforms.map((platform, index) => (
+              <div
+                key={index}
+                className={`flex flex-col items-center justify-center gap-1 p-1 sm:p-2 rounded-lg ${platform.bgColor} ${platform.borderColor} border-2`}
+              >
+                <platform.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${platform.color}`} />
+                <span className={`font-semibold text-foreground text-[10px] sm:text-xs md:text-sm text-center ${platform.textColor}`}>
+                  {platform.name}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Table Rows - All Visible */}
+          <div className="divide-y divide-border flex-1 overflow-hidden">
+            <div className="h-full flex flex-col">
+              {comparisonData.map((row, rowIndex) => (
                 <div
-                  key={index}
-                  className="flex items-center justify-center gap-3 bg-destructive/10 rounded-lg px-4 py-2 border border-destructive/20"
+                  key={rowIndex}
+                  className={`grid grid-cols-6 gap-2 sm:gap-3 p-2 sm:p-3 flex-shrink-0 transition-all duration-700 ease-out ${
+                    rowIndex < visibleRows
+                      ? 'opacity-100 translate-y-0 scale-100'
+                      : 'opacity-0 -translate-y-8 scale-95 pointer-events-none'
+                  }`}
+                  style={{
+                    transitionDelay: `${rowIndex * 100}ms`,
+                  }}
                 >
-                  <XCircle className="h-6 w-6 text-destructive shrink-0" />
-                  <span className="text-sm font-medium text-muted-foreground">{comp.aspect}</span>
+                  <div className="text-xs sm:text-sm md:text-base font-semibold text-foreground flex items-center">
+                    {row.feature}
+                  </div>
+                  <div className="flex items-center justify-center">
+                    {renderCell(row.renderiq, true)}
+                  </div>
+                  <div className="flex items-center justify-center">
+                    {renderCell(row.traditional3d)}
+                  </div>
+                  <div className="flex items-center justify-center">
+                    {renderCell(row.midjourney)}
+                  </div>
+                  <div className="flex items-center justify-center">
+                    {renderCell(row.gemini)}
+                  </div>
+                  <div className="flex items-center justify-center">
+                    {renderCell(row.openai)}
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-
-          {/* Renderiq */}
-          <div className="text-center">
-            <div className="bg-gradient-to-br from-primary/30 via-green-500/30 to-primary/30 rounded-xl p-8 mb-4 aspect-video flex items-center justify-center border-2 border-primary/50 relative overflow-hidden shadow-2xl">
-              <div className="text-center z-10">
-                <div className="text-6xl mb-3">✅</div>
-                <p className="text-foreground text-xl font-bold">Renderiq Render</p>
-              </div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <CheckCircle2 className="h-32 w-32 text-primary/60" />
-              </div>
-            </div>
-            <h3 className="text-2xl font-bold text-foreground mb-4">Renderiq</h3>
-            <div className="space-y-3">
-              {comparisons.map((comp, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-center gap-3 bg-primary/10 rounded-lg px-4 py-2 border-2 border-primary/30"
-                >
-                  <CheckCircle2 className="h-6 w-6 text-primary shrink-0" />
-                  <span className="text-sm font-bold text-foreground">{comp.aspect}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Key Features */}
-        <div className="grid md:grid-cols-3 gap-4">
-          {[
-            { icon: Ruler, title: 'Proper Scale', desc: 'Maintains accurate proportions', color: 'text-blue-500' },
-            { icon: Building2, title: 'Structural Integrity', desc: 'Follows building codes', color: 'text-green-500' },
-            { icon: Target, title: 'Material Accuracy', desc: 'Realistic material properties', color: 'text-primary' },
-          ].map((feature, index) => (
-            <div key={index} className="text-center p-5 bg-card/80 backdrop-blur-sm rounded-xl border-2 border-border shadow-lg">
-              <div className="mb-3">
-                <feature.icon className={`h-8 w-8 ${feature.color} mx-auto`} />
-              </div>
-              <h3 className="font-bold text-foreground mb-2">{feature.title}</h3>
-              <p className="text-sm text-muted-foreground">{feature.desc}</p>
-            </div>
-          ))}
         </div>
       </div>
     </div>

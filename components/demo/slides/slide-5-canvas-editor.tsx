@@ -70,129 +70,162 @@ export function Slide5CanvasEditor({ galleryRenders = [] }: Slide5CanvasEditorPr
     return { demoImages, demoChain };
   }, [galleryRenders, chains]);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node[]>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>([]);
-  const [currentStep, setCurrentStep] = useState(0);
-  const initializedRef = useRef(false);
-
-  // Initialize nodes only once when data is available
-  useEffect(() => {
-    if (initializedRef.current) return;
-    
+  // Create initial nodes once - memoized to prevent recreation
+  // Layout: Prompt (left) -> Image Node (center) -> Renders (right, vertical)
+  const initialNodes = useMemo<Node[]>(() => {
     const { demoChain, demoImages } = demoData;
     
     if (demoChain?.renders && demoChain.renders.length > 0) {
-      const initialNodes: Node[] = [
+      const renders = demoChain.renders.slice(0, 3).filter(r => r.outputUrl);
+      if (renders.length === 0) return [];
+      
+      const nodes: Node[] = [
+        // Prompt Input Node (left)
         {
           id: 'prompt',
           type: 'demo',
-          position: { x: 100, y: 200 },
+          position: { x: 50, y: 250 },
           data: {
             label: 'Prompt Input',
-            icon: <Sparkles className="h-5 w-5 text-primary" />,
+            icon: <Sparkles className="h-6 w-6 text-primary" />,
             prompt: demoChain.renders[0]?.prompt || 'Create a modern architectural visualization',
           },
         },
-      ];
-
-      // Add render nodes
-      demoChain.renders.slice(0, 4).forEach((render, index) => {
-        if (render.outputUrl) {
-          initialNodes.push({
-            id: `render-${index}`,
-            type: 'demo',
-            position: { x: 400 + (index % 2) * 300, y: 100 + Math.floor(index / 2) * 250 },
-            data: {
-              label: `Render ${index + 1}`,
-              icon: <ImageIcon className="h-5 w-5 text-blue-500" />,
-              image: render.outputUrl,
-              prompt: render.prompt?.substring(0, 50) + '...',
-            },
-          });
-        }
-      });
-
-      if (initialNodes.length > 1) {
-        setNodes(initialNodes);
-        initializedRef.current = true;
-      }
-    } else if (demoImages.length > 0) {
-      // Fallback: use gallery images
-      const initialNodes: Node[] = [
+        // Image Generation Node (center)
         {
-          id: 'prompt',
+          id: 'image-node',
           type: 'demo',
-          position: { x: 100, y: 200 },
+          position: { x: 400, y: 250 },
           data: {
-            label: 'Prompt Input',
-            icon: <Sparkles className="h-5 w-5 text-primary" />,
-            prompt: demoImages[0]?.render?.prompt || 'Create a modern architectural visualization',
+            label: 'Image Generator',
+            icon: <Wand2 className="h-6 w-6 text-purple-500" />,
+            prompt: 'Processing...',
           },
         },
       ];
 
-      demoImages.slice(0, 4).forEach((item, index) => {
+      // Add render nodes (right side, vertical stack)
+      renders.forEach((render, index) => {
+        nodes.push({
+          id: `render-${index}`,
+          type: 'demo',
+          position: { x: 750, y: 150 + index * 200 },
+          data: {
+            label: `Render v${index + 1}`,
+            icon: <ImageIcon className="h-6 w-6 text-blue-500" />,
+            image: render.outputUrl,
+            prompt: render.prompt?.substring(0, 60) + '...',
+          },
+        });
+      });
+
+      return nodes;
+    } else if (demoImages.length > 0) {
+      const images = demoImages.slice(0, 3).filter(item => item.render?.outputUrl);
+      if (images.length === 0) return [];
+      
+      // Fallback: use gallery images
+      const nodes: Node[] = [
+        {
+          id: 'prompt',
+          type: 'demo',
+          position: { x: 50, y: 250 },
+          data: {
+            label: 'Prompt Input',
+            icon: <Sparkles className="h-6 w-6 text-primary" />,
+            prompt: images[0]?.render?.prompt || 'Create a modern architectural visualization',
+          },
+        },
+        {
+          id: 'image-node',
+          type: 'demo',
+          position: { x: 400, y: 250 },
+          data: {
+            label: 'Image Generator',
+            icon: <Wand2 className="h-6 w-6 text-purple-500" />,
+            prompt: 'Processing...',
+          },
+        },
+      ];
+
+      images.forEach((item, index) => {
         if (item.render?.outputUrl) {
-          initialNodes.push({
+          nodes.push({
             id: `render-${index}`,
             type: 'demo',
-            position: { x: 400 + (index % 2) * 300, y: 100 + Math.floor(index / 2) * 250 },
+            position: { x: 750, y: 150 + index * 200 },
             data: {
-              label: `Render ${index + 1}`,
-              icon: <ImageIcon className="h-5 w-5 text-blue-500" />,
+              label: `Render v${index + 1}`,
+              icon: <ImageIcon className="h-6 w-6 text-blue-500" />,
               image: item.render.outputUrl,
-              prompt: item.render.prompt?.substring(0, 50) + '...',
+              prompt: item.render.prompt?.substring(0, 60) + '...',
             },
           });
         }
       });
 
-      if (initialNodes.length > 1) {
-        setNodes(initialNodes);
-        initializedRef.current = true;
-      }
+      return nodes;
     }
-  }, [demoData, setNodes]);
+    
+    return [];
+  }, [demoData]);
 
-  // Animate connections step by step - use ref to track nodes length
-  const nodesLengthRef = useRef(nodes.length);
+  // Initialize nodes directly in useNodesState - this prevents infinite loops
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node[]>(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>([]);
+  const [currentStep, setCurrentStep] = useState(0);
+
+  // Animate connections step by step: prompt -> image-node -> renders
+  const renderNodesCount = initialNodes.filter(n => n.id.startsWith('render-')).length;
+  
   useEffect(() => {
-    nodesLengthRef.current = nodes.length;
-  }, [nodes.length]);
+    if (renderNodesCount === 0) return;
 
-  useEffect(() => {
-    if (nodesLengthRef.current === 0) return;
-
+    let step = 0;
     const interval = setInterval(() => {
-      setCurrentStep((prev) => {
-        const maxSteps = nodesLengthRef.current - 1;
-        const nextStep = prev + 1;
+      step++;
+      
+      if (step === 1) {
+        // Step 1: Connect prompt to image-node
+        setEdges([{
+          id: 'edge-prompt-image',
+          source: 'prompt',
+          target: 'image-node',
+          animated: true,
+          style: { stroke: 'hsl(var(--primary))', strokeWidth: 3 },
+        }]);
+      } else if (step <= renderNodesCount + 1) {
+        // Step 2+: Connect image-node to each render sequentially
+        const renderIndex = step - 2;
+        const newEdges: Edge[] = [{
+          id: 'edge-prompt-image',
+          source: 'prompt',
+          target: 'image-node',
+          animated: true,
+          style: { stroke: 'hsl(var(--primary))', strokeWidth: 3 },
+        }];
         
-        if (nextStep > maxSteps) {
-          // Reset after showing all connections
-          setTimeout(() => setEdges([]), 1000);
-          return 0;
-        }
-
-        // Add edge from prompt to current render node
-        const newEdges: Edge[] = [];
-        for (let i = 0; i < nextStep && i < maxSteps; i++) {
+        for (let i = 0; i <= renderIndex; i++) {
           newEdges.push({
-            id: `edge-${i}`,
-            source: 'prompt',
+            id: `edge-image-render-${i}`,
+            source: 'image-node',
             target: `render-${i}`,
             animated: true,
             style: { stroke: 'hsl(var(--primary))', strokeWidth: 2 },
           });
         }
         setEdges(newEdges);
-        
-        return nextStep;
-      });
-    }, 1500); // Add a new connection every 1.5 seconds
+      } else {
+        // Reset after showing all connections
+        setTimeout(() => {
+          setEdges([]);
+          step = 0;
+        }, 2000);
+      }
+    }, 2000); // Show next connection every 2 seconds
 
     return () => clearInterval(interval);
-  }, [setEdges]);
+  }, [renderNodesCount, setEdges]);
 
   return (
     <div className="relative w-full h-full bg-gradient-to-br from-background via-primary/5 to-background flex flex-col items-center justify-center p-8 overflow-hidden">
@@ -219,10 +252,11 @@ export function Slide5CanvasEditor({ galleryRenders = [] }: Slide5CanvasEditorPr
             onEdgesChange={onEdgesChange}
             nodeTypes={nodeTypes}
             fitView
+            fitViewOptions={{ padding: 0.2 }}
             className="bg-background"
-            minZoom={0.3}
-            maxZoom={1.5}
-            defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+            minZoom={0.5}
+            maxZoom={1.2}
+            defaultViewport={{ x: 0, y: 0, zoom: 0.9 }}
             connectionMode={ConnectionMode.Loose}
             nodesDraggable={false}
             nodesConnectable={false}

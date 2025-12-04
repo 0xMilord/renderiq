@@ -173,7 +173,7 @@ export function DemoSlideshow({ galleryRenders = [], longestChains = [] }: DemoS
     if (slideId === 2) return { galleryRenders, onVideoComplete: handleVideoComplete };
     if (slideId === 3) return { galleryRenders, longestChains };
     if (slideId === 4) return { galleryRenders, longestChains };
-    if (slideId === 5) return {};
+    if (slideId === 5) return { galleryRenders, longestChains };
     if (slideId === 6) return { galleryRenders };
     if (slideId === 7) return {};
     if (slideId === 8) return {};
@@ -210,8 +210,9 @@ export function DemoSlideshow({ galleryRenders = [], longestChains = [] }: DemoS
           {slides[currentSlide]?.id === 2 && <Slide21Video galleryRenders={galleryRenders} onVideoComplete={handleVideoComplete} />}
           {slides[currentSlide]?.id === 3 && <Slide3UnifiedChat galleryRenders={galleryRenders} longestChains={longestChains} />}
           {slides[currentSlide]?.id === 4 && <Slide3ChatInterface galleryRenders={galleryRenders} longestChains={longestChains} />}
+          {slides[currentSlide]?.id === 5 && <Slide4RenderChains />}
           {slides[currentSlide]?.id === 6 && <Slide5CanvasEditor galleryRenders={galleryRenders} />}
-          {![1, 2, 3, 4, 6].includes(slides[currentSlide]?.id || -1) && CurrentSlideComponent && <CurrentSlideComponent {...getSlideProps()} />}
+          {![1, 2, 3, 4, 5, 6].includes(slides[currentSlide]?.id || -1) && CurrentSlideComponent && <CurrentSlideComponent {...getSlideProps()} />}
         </div>
 
         {/* Controls */}

@@ -44,7 +44,7 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
   };
 
   // Track when slider cycle completes to trigger prompt change
-  const [sliderCycleComplete, setSliderCycleComplete] = useState(false);
+  const [sliderCycleComplete, setSliderCycleComplete] = useState(true); // Start as true to trigger first prompt
   const [lastTypedIndex, setLastTypedIndex] = useState(-1);
 
   // Auto-animate slider position (left to right) - doubled speed
@@ -58,7 +58,13 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
           if (beforeAfterPairs.length > 1) {
             setTimeout(() => {
               setCurrentIndex((prevIndex) => (prevIndex + 1) % beforeAfterPairs.length);
-            }, 50);
+              setSliderPosition(0); // Reset slider position
+            }, 500);
+          } else {
+            // If only one image, reset after delay
+            setTimeout(() => {
+              setSliderPosition(0);
+            }, 500);
           }
           return 0; // Reset to start (left)
         }
@@ -66,7 +72,7 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
       });
     }, 50); // Update every 50ms for smooth animation
     return () => clearInterval(interval);
-  }, [currentIndex, beforeAfterPairs.length]);
+  }, [beforeAfterPairs.length]);
 
   // Auto-type prompt when image changes (only after slider cycle completes)
   useEffect(() => {
@@ -74,43 +80,47 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
     // 1. We have a prompt
     // 2. Slider cycle is complete
     // 3. We haven't typed for this index yet
-    if (!currentPrompt || !sliderCycleComplete || lastTypedIndex === currentIndex) return;
+    if (!currentPrompt || !sliderCycleComplete) return;
+    if (lastTypedIndex === currentIndex) return;
     
     // Mark this index as typed
     setLastTypedIndex(currentIndex);
     
-    // Clear old messages before starting new typing
+    // Clear old messages and typing text before starting new typing
     setMessages([]);
+    setTypingText('');
     
     // Truncate prompt at last period
     const truncatedPrompt = truncateAtLastPeriod(currentPrompt);
     
-    setIsTyping(true);
-    setTypingText('');
-    let charIndex = 0;
-    
-    const typingInterval = setInterval(() => {
-      if (charIndex < truncatedPrompt.length) {
-        setTypingText(truncatedPrompt.substring(0, charIndex + 1));
-        charIndex++;
-      } else {
-        clearInterval(typingInterval);
-        // After typing completes, wait a bit then send as message
-        setTimeout(() => {
-          setIsTyping(false);
-          setMessages([{
-            id: `msg-${currentIndex}-${Date.now()}`,
-            text: truncatedPrompt,
-            type: 'user' as const
-          }]);
-          setTypingText('');
-          // Reset cycle complete flag after typing starts
-          setSliderCycleComplete(false);
-        }, 500);
-      }
-    }, 15); // Typing speed: 15ms per character (doubled from 30ms)
+    // Small delay before starting to type
+    setTimeout(() => {
+      setIsTyping(true);
+      let charIndex = 0;
+      
+      const typingInterval = setInterval(() => {
+        if (charIndex < truncatedPrompt.length) {
+          setTypingText(truncatedPrompt.substring(0, charIndex + 1));
+          charIndex++;
+        } else {
+          clearInterval(typingInterval);
+          // After typing completes, wait a bit then send as message
+          setTimeout(() => {
+            setIsTyping(false);
+            setMessages([{
+              id: `msg-${currentIndex}-${Date.now()}`,
+              text: truncatedPrompt,
+              type: 'user' as const
+            }]);
+            setTypingText('');
+            // Reset cycle complete flag after message is sent
+            setSliderCycleComplete(false);
+          }, 500);
+        }
+      }, 15); // Typing speed: 15ms per character (doubled from 30ms)
+    }, 300);
 
-    return () => clearInterval(typingInterval);
+    // No cleanup needed - we want the typing to complete
   }, [currentIndex, currentPrompt, sliderCycleComplete, lastTypedIndex]);
 
   const handlePrev = () => {
