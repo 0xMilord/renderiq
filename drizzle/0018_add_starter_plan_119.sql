@@ -11,3 +11,4 @@ VALUES
    NULL, true, now(), now())
 ON CONFLICT DO NOTHING;
 
+

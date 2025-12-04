@@ -3,6 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Coins, Sparkles, Loader2 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
@@ -46,6 +47,8 @@ interface CreditPackagesProps {
 
 export function CreditPackages({ packages, userCredits, onPurchaseComplete }: CreditPackagesProps) {
   const [loading, setLoading] = useState<string | null>(null);
+  const [processingDialog, setProcessingDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
+  const [verificationDialog, setVerificationDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
   const razorpayInstanceRef = useRef<any>(null);
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -111,6 +114,8 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
 
     try {
       setLoading(packageId);
+      // Show processing dialog
+      setProcessingDialog({ open: true, message: 'Please wait while process is being started...' });
 
       // Create order with currency
       const orderResponse = await fetch('/api/payments/create-order', {
@@ -156,6 +161,10 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
         order_id: orderId,
         handler: async (response: any) => {
           try {
+            setProcessingDialog({ open: false, message: '' });
+            // Show verification dialog
+            setVerificationDialog({ open: true, message: 'We are verifying your payment. Please wait...' });
+            
             // Verify payment
             const verifyResponse = await fetch('/api/payments/verify-payment', {
               method: 'POST',
@@ -171,13 +180,18 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
 
             if (verifyResult.success) {
               setLoading(null);
+              setVerificationDialog({ open: false, message: '' });
               // Redirect to success page
-              window.location.href = `/payment/success?payment_order_id=${verifyResult.data.paymentOrderId}&razorpay_order_id=${response.razorpay_order_id}&razorpay_payment_id=${response.razorpay_payment_id}`;
+              setTimeout(() => {
+                window.location.href = `/payment/success?payment_order_id=${verifyResult.data.paymentOrderId}&razorpay_order_id=${response.razorpay_order_id}&razorpay_payment_id=${response.razorpay_payment_id}`;
+              }, 500);
             } else {
+              setVerificationDialog({ open: false, message: '' });
               throw new Error(verifyResult.error || 'Payment verification failed');
             }
           } catch (error: any) {
             console.error('Payment verification error:', error);
+            setVerificationDialog({ open: false, message: '' });
             toast.error(error.message || 'Payment verification failed');
           }
         },
@@ -192,6 +206,8 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
         modal: {
           ondismiss: () => {
             setLoading(null);
+            setProcessingDialog({ open: false, message: '' });
+            setVerificationDialog({ open: false, message: '' });
             razorpayInstanceRef.current = null; // Clear reference
             // No database record exists yet, so nothing to cancel
             toast.info('Payment cancelled');
@@ -238,6 +254,8 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
       razorpay.on('payment.failed', async (response: any) => {
         console.error('Payment failed:', response);
         setLoading(null);
+        setProcessingDialog({ open: false, message: '' });
+        setVerificationDialog({ open: false, message: '' });
         razorpayInstanceRef.current = null; // Clear reference
         const errorDescription = response.error?.description || 'Unknown error';
         
@@ -295,6 +313,8 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
       setTimeout(styleRazorpayModal, 1000);
     } catch (error: any) {
       console.error('Error processing purchase:', error);
+      setProcessingDialog({ open: false, message: '' });
+      setVerificationDialog({ open: false, message: '' });
       toast.error(error.message || 'Failed to process purchase');
       setLoading(null);
     }
@@ -481,6 +501,36 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
           }}
         />
       )}
+
+      {/* Processing Dialog */}
+      <Dialog open={processingDialog.open} onOpenChange={(open) => !open && setProcessingDialog({ open: false, message: '' })}>
+        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>Processing Payment</DialogTitle>
+            <DialogDescription>
+              {processingDialog.message}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Verification Dialog */}
+      <Dialog open={verificationDialog.open} onOpenChange={(open) => !open && setVerificationDialog({ open: false, message: '' })}>
+        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>Verifying Payment</DialogTitle>
+            <DialogDescription>
+              {verificationDialog.message}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

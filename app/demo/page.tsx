@@ -5,6 +5,9 @@ import { getProject } from '@/lib/actions/projects.actions';
 import type { Project } from '@/lib/db/schema';
 import type { RenderChainWithRenders } from '@/lib/types/render-chain';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const metadata = {
   title: 'Renderiq Demo - Transform Sketches into Photorealistic Renders',
   description: 'Experience Renderiq\'s AI-powered architectural visualization platform. See how we transform sketches into photorealistic renders using Google Gemini 3 Pro and Veo 3.1.',

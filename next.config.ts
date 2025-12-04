@@ -112,20 +112,20 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              // Razorpay: Completely permissive - allow all HTTPS scripts (CSP removed for Razorpay compatibility)
+              // Razorpay: Allow all HTTPS scripts (required for Razorpay checkout)
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
-              "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: https: blob: https://api.dicebear.com",
+              "style-src 'self' 'unsafe-inline' https:",
+              "img-src 'self' data: https: blob:",
               "media-src 'self' https: blob: data:",
-              "font-src 'self' data:",
-              // Razorpay: Allow all HTTPS connections (CSP removed for Razorpay compatibility)
+              "font-src 'self' data: https:",
+              // Razorpay: Allow all HTTPS connections (required for payment processing)
               "connect-src 'self' https: wss:",
-              // Razorpay: Allow all HTTPS frames (CSP removed for Razorpay compatibility)
+              // Razorpay: Allow all HTTPS frames (required for payment modal)
               "frame-src 'self' https:",
               "child-src 'self' https:",
               "object-src 'none'",
               "base-uri 'self'",
-              // Razorpay: Allow form submissions to any HTTPS (CSP removed for Razorpay compatibility)
+              // Razorpay: Allow form submissions to any HTTPS (required for payment forms)
               "form-action 'self' https:",
               "frame-ancestors 'none'",
               "upgrade-insecure-requests",

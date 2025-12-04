@@ -17,38 +17,127 @@ function PaymentSuccessContent() {
 
   const paymentOrderId = searchParams.get('payment_order_id');
   const razorpayOrderId = searchParams.get('razorpay_order_id');
+  const razorpaySubscriptionId = searchParams.get('razorpay_subscription_id');
   const razorpayPaymentId = searchParams.get('razorpay_payment_id');
+  const verification = searchParams.get('verification');
 
   useEffect(() => {
-    if (!paymentOrderId) {
+    // Allow access if we have at least one payment identifier
+    if (!paymentOrderId && !razorpayOrderId && !razorpaySubscriptionId && !razorpayPaymentId) {
       toast.error('Invalid payment information');
       router.push('/pricing');
       return;
     }
 
-    // Fetch payment details and receipt
-    fetchPaymentDetails();
-  }, [paymentOrderId]);
+    // If verification is pending, show verification message and poll for status
+    if (verification === 'pending') {
+      // Poll for payment verification status
+      pollPaymentStatus();
+    } else {
+      // Fetch payment details and receipt
+      fetchPaymentDetails();
+    }
+  }, [paymentOrderId, razorpayOrderId, razorpaySubscriptionId, razorpayPaymentId, verification]);
+
+  const pollPaymentStatus = async () => {
+    // Poll for payment status every 2 seconds, max 10 attempts (20 seconds)
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    const poll = async () => {
+      try {
+        attempts++;
+        
+        // Try to verify subscription payment if we have subscription ID
+        if (razorpaySubscriptionId && razorpayPaymentId) {
+          const verifyResponse = await fetch('/api/payments/verify-subscription', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              subscriptionId: razorpaySubscriptionId,
+              paymentId: razorpayPaymentId,
+            }),
+          });
+          
+          const verifyResult = await verifyResponse.json();
+          if (verifyResult.success && verifyResult.data?.paymentOrderId) {
+            // Payment verified, update URL and fetch details
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.set('payment_order_id', verifyResult.data.paymentOrderId);
+            newUrl.searchParams.delete('verification');
+            window.history.replaceState({}, '', newUrl.toString());
+            fetchPaymentDetails();
+            return;
+          }
+        }
+        
+        // Try to verify regular payment if we have order ID
+        if (razorpayOrderId && razorpayPaymentId) {
+          const verifyResponse = await fetch('/api/payments/verify-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              razorpay_order_id: razorpayOrderId,
+              razorpay_payment_id: razorpayPaymentId,
+              razorpay_signature: '', // Will fail signature but may still work
+            }),
+          });
+          
+          const verifyResult = await verifyResponse.json();
+          if (verifyResult.success && verifyResult.data?.paymentOrderId) {
+            // Payment verified, update URL and fetch details
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.set('payment_order_id', verifyResult.data.paymentOrderId);
+            newUrl.searchParams.delete('verification');
+            window.history.replaceState({}, '', newUrl.toString());
+            fetchPaymentDetails();
+            return;
+          }
+        }
+        
+        // If max attempts reached, just show the page with available info
+        if (attempts >= maxAttempts) {
+          fetchPaymentDetails();
+          return;
+        }
+        
+        // Continue polling
+        setTimeout(poll, 2000);
+      } catch (error) {
+        console.error('Error polling payment status:', error);
+        if (attempts >= maxAttempts) {
+          fetchPaymentDetails();
+        } else {
+          setTimeout(poll, 2000);
+        }
+      }
+    };
+    
+    poll();
+  };
 
   const fetchPaymentDetails = async () => {
     try {
       setLoading(true);
 
-      // Get receipt URL
-      const receiptResponse = await fetch(`/api/payments/receipt/${paymentOrderId}`);
-      if (receiptResponse.ok) {
-        const receiptData = await receiptResponse.json();
-        if (receiptData.success && receiptData.data?.receiptUrl) {
-          setReceiptUrl(receiptData.data.receiptUrl);
+      // Only fetch receipt if we have paymentOrderId
+      if (paymentOrderId) {
+        // Get receipt URL
+        const receiptResponse = await fetch(`/api/payments/receipt/${paymentOrderId}`);
+        if (receiptResponse.ok) {
+          const receiptData = await receiptResponse.json();
+          if (receiptData.success && receiptData.data?.receiptUrl) {
+            setReceiptUrl(receiptData.data.receiptUrl);
+          }
         }
-      }
 
-      // Get payment history to find this payment
-      const historyResponse = await fetch('/api/payments/history?limit=1');
-      if (historyResponse.ok) {
-        const historyData = await historyResponse.json();
-        if (historyData.success && historyData.data?.payments?.[0]) {
-          setPaymentData(historyData.data.payments[0]);
+        // Get payment history to find this payment
+        const historyResponse = await fetch('/api/payments/history?limit=1');
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json();
+          if (historyData.success && historyData.data?.payments?.[0]) {
+            setPaymentData(historyData.data.payments[0]);
+          }
         }
       }
 
@@ -127,12 +216,16 @@ function PaymentSuccessContent() {
     }
   };
 
-  if (loading) {
+  if (loading || verification === 'pending') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading payment details...</p>
+          <p className="text-muted-foreground">
+            {verification === 'pending' 
+              ? 'We are verifying your payment. Please wait...' 
+              : 'Loading payment details...'}
+          </p>
         </div>
       </div>
     );

@@ -66,31 +66,20 @@ export async function POST(request: NextRequest) {
         .where(eq(userSubscriptions.razorpaySubscriptionId, subscriptionId))
         .limit(1);
 
-      if (subscription?.plan) {
-        // Get user credits to show new balance
-        const [userCredit] = await db
-          .select()
-          .from(userCredits)
-          .where(eq(userCredits.userId, user.id))
-          .limit(1);
+      // Get user credits to show new balance
+      const [userCredit] = await db
+        .select()
+        .from(userCredits)
+        .where(eq(userCredits.userId, user.id))
+        .limit(1);
 
-        logger.log('✅ API: Subscription payment verified and activated');
-        return NextResponse.json({
-          success: true,
-          data: {
-            activated: true,
-            creditsAdded: true,
-            newBalance: userCredit?.balance || 0,
-            paymentOrderId: verifyResult.data?.paymentOrderId,
-          },
-        });
-      }
-
+      logger.log('✅ API: Subscription payment verified and activated');
       return NextResponse.json({
         success: true,
         data: {
           activated: true,
-          creditsAdded: false,
+          creditsAdded: verifyResult.data?.creditsAdded || false,
+          newBalance: verifyResult.data?.newBalance || userCredit?.balance || 0,
           paymentOrderId: verifyResult.data?.paymentOrderId,
         },
       });

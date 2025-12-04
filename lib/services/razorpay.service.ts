@@ -224,35 +224,43 @@ export class RazorpayService {
       // Fetch payment details from Razorpay (already have instance from above)
       const payment = await razorpay.payments.fetch(razorpayPaymentId);
 
-      if (payment.status !== 'captured' && payment.status !== 'authorized') {
-        return { success: false, error: `Payment not successful. Status: ${payment.status}` };
+      // CRITICAL: Only accept fully captured payments (not authorized/pending)
+      // This ensures we only record positive and fully completed payments
+      if (payment.status !== 'captured') {
+        logger.warn('⚠️ RazorpayService: Payment not captured yet, status:', payment.status);
+        return { success: false, error: `Payment not fully completed. Status: ${payment.status}. Please wait for payment to be captured.` };
       }
 
-      // Update payment order status
-      const isCompleted = payment.status === 'captured';
+      // Update payment order status to completed (payment is fully captured)
       await db
         .update(paymentOrders)
         .set({
           razorpayPaymentId: razorpayPaymentId,
-          status: isCompleted ? 'completed' : 'processing',
+          status: 'completed',
           updatedAt: new Date(),
         })
         .where(eq(paymentOrders.id, paymentOrder.id));
 
-      // Generate invoice and receipt for completed payments
-      if (isCompleted) {
-        try {
-          // Create invoice
-          await InvoiceService.createInvoice(paymentOrder.id);
-          
-          // Generate receipt PDF (async, don't block)
-          ReceiptService.generateReceiptPdf(paymentOrder.id).catch((error) => {
-            logger.error('❌ RazorpayService: Error generating receipt:', error);
-          });
-        } catch (error) {
-          logger.error('❌ RazorpayService: Error creating invoice/receipt:', error);
-          // Don't fail the payment verification if invoice/receipt generation fails
+      // Add credits only for fully captured payments
+      if (paymentOrder.type === 'credit_package' && paymentOrder.referenceId) {
+        const creditsResult = await this.addCreditsToAccount(paymentOrder.userId, paymentOrder.referenceId);
+        if (!creditsResult.success) {
+          logger.error('❌ RazorpayService: Failed to add credits after payment verification:', creditsResult.error);
         }
+      }
+
+      // Generate invoice and receipt for completed payments
+      try {
+        // Create invoice
+        await InvoiceService.createInvoice(paymentOrder.id);
+        
+        // Generate receipt PDF (async, don't block)
+        ReceiptService.generateReceiptPdf(paymentOrder.id).catch((error) => {
+          logger.error('❌ RazorpayService: Error generating receipt:', error);
+        });
+      } catch (error) {
+        logger.error('❌ RazorpayService: Error creating invoice/receipt:', error);
+        // Don't fail the payment verification if invoice/receipt generation fails
       }
 
       logger.log('✅ RazorpayService: Payment verified successfully');
@@ -784,10 +792,10 @@ Please verify the plan exists in Razorpay Dashboard.`;
             return { success: false, error: 'Payment verification failed: payment does not belong to subscription' };
           }
           
-          // Verify payment status
-          if (paymentVerification.status !== 'captured' && paymentVerification.status !== 'authorized') {
-            logger.error('❌ RazorpayService: Payment not successful, status:', paymentVerification.status);
-            return { success: false, error: `Payment not successful. Status: ${paymentVerification.status}` };
+          // Verify payment status - only accept captured payments
+          if (paymentVerification.status !== 'captured') {
+            logger.error('❌ RazorpayService: Payment not captured, status:', paymentVerification.status);
+            return { success: false, error: `Payment not fully completed. Status: ${paymentVerification.status}. Please wait for payment to be captured.` };
           }
           
           logger.warn('✅ RazorpayService: Payment verified via API fallback (signature format issue)');
@@ -802,8 +810,11 @@ Please verify the plan exists in Razorpay Dashboard.`;
 
       // Payment and subscription are already fetched above
 
-      if (payment.status !== 'captured' && payment.status !== 'authorized') {
-        return { success: false, error: `Payment not successful. Status: ${payment.status}` };
+      // CRITICAL: Only accept fully captured payments (not authorized/pending)
+      // This ensures we only record positive and fully completed payments
+      if (payment.status !== 'captured') {
+        logger.warn('⚠️ RazorpayService: Payment not captured yet, status:', payment.status);
+        return { success: false, error: `Payment not fully completed. Status: ${payment.status}. Please wait for payment to be captured.` };
       }
       
       if (razorpaySubscription.status !== 'active') {
@@ -834,9 +845,7 @@ Please verify the plan exists in Razorpay Dashboard.`;
           return { success: false, error: 'Subscription plan not found' };
         }
         
-        const isCompleted = payment.status === 'captured';
-        
-        // Create payment order record with status 'completed' (payment is verified)
+        // Create payment order record with status 'completed' (payment is captured)
         [paymentOrder] = await db
           .insert(paymentOrders)
           .values({
@@ -847,7 +856,7 @@ Please verify the plan exists in Razorpay Dashboard.`;
             razorpayPaymentId: razorpayPaymentId,
             amount: plan.price.toString(),
             currency: plan.currency,
-            status: isCompleted ? 'completed' : 'processing',
+            status: 'completed', // Payment is captured, so it's completed
             metadata: {
               planName: plan.name,
               creditsPerMonth: plan.creditsPerMonth,
@@ -857,61 +866,80 @@ Please verify the plan exists in Razorpay Dashboard.`;
         
         logger.log('✅ RazorpayService: Payment order created from verified payment');
       } else {
-        // Update existing payment order status
-        const isCompleted = payment.status === 'captured';
+        // Update existing payment order status to completed
         await db
           .update(paymentOrders)
           .set({
             razorpayPaymentId: razorpayPaymentId,
-            status: isCompleted ? 'completed' : 'processing',
+            status: 'completed', // Payment is captured, so it's completed
             updatedAt: new Date(),
           })
           .where(eq(paymentOrders.id, paymentOrder.id));
+        
+        logger.log('✅ RazorpayService: Payment order status updated to completed');
       }
 
       // Generate invoice and receipt for completed payments
-      if (payment.status === 'captured') {
-        try {
-          await InvoiceService.createInvoice(paymentOrder.id);
-          ReceiptService.generateReceiptPdf(paymentOrder.id).catch((error) => {
-            logger.error('❌ RazorpayService: Error generating receipt:', error);
-          });
-        } catch (error) {
-          logger.error('❌ RazorpayService: Error creating invoice/receipt:', error);
-        }
+      try {
+        await InvoiceService.createInvoice(paymentOrder.id);
+        ReceiptService.generateReceiptPdf(paymentOrder.id).catch((error) => {
+          logger.error('❌ RazorpayService: Error generating receipt:', error);
+        });
+      } catch (error) {
+        logger.error('❌ RazorpayService: Error creating invoice/receipt:', error);
+        // Don't fail the payment verification if invoice/receipt generation fails
       }
 
       // Update subscription to active if not already active
-      if (subscription.status !== 'active') {
-        const now = new Date();
-        const periodEnd = new Date(now);
-        
-        // Get plan to determine interval
-        const [plan] = await db
+      const now = new Date();
+      const periodEnd = new Date(now);
+      
+      // Get plan to determine interval
+      const [plan] = await db
+        .select()
+        .from(subscriptionPlans)
+        .where(eq(subscriptionPlans.id, subscription.planId))
+        .limit(1);
+      
+      if (plan?.interval === 'year') {
+        periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+      } else {
+        periodEnd.setMonth(periodEnd.getMonth() + 1);
+      }
+
+      // Always update subscription status and period dates (even if already active)
+      await db
+        .update(userSubscriptions)
+        .set({
+          status: 'active',
+          currentPeriodStart: now,
+          currentPeriodEnd: periodEnd,
+          updatedAt: new Date(),
+        })
+        .where(eq(userSubscriptions.id, subscription.id));
+
+      logger.log('✅ RazorpayService: Subscription status updated to active');
+
+      // CRITICAL: Always add credits when payment is verified (even if subscription was already active)
+      // This ensures credits are added on first payment and any subsequent verifications
+      const creditsResult = await this.addSubscriptionCredits(subscription.userId, subscription.planId);
+      let creditsAdded = false;
+      let newBalance = 0;
+      
+      if (creditsResult.success) {
+        creditsAdded = true;
+        newBalance = creditsResult.newBalance || 0;
+        logger.log('✅ RazorpayService: Credits added successfully. New balance:', newBalance);
+      } else {
+        logger.error('❌ RazorpayService: Failed to add credits:', creditsResult.error);
+        // Don't fail the verification, but log the error
+        // Get current balance even if credits addition failed
+        const [userCredit] = await db
           .select()
-          .from(subscriptionPlans)
-          .where(eq(subscriptionPlans.id, subscription.planId))
+          .from(userCredits)
+          .where(eq(userCredits.userId, subscription.userId))
           .limit(1);
-        
-        if (plan?.interval === 'year') {
-          periodEnd.setFullYear(periodEnd.getFullYear() + 1);
-        } else {
-          periodEnd.setMonth(periodEnd.getMonth() + 1);
-        }
-
-        await db
-          .update(userSubscriptions)
-          .set({
-            status: 'active',
-            currentPeriodStart: now,
-            currentPeriodEnd: periodEnd,
-            updatedAt: new Date(),
-          })
-          .where(eq(userSubscriptions.id, subscription.id));
-
-        // Add initial credits
-        await this.addSubscriptionCredits(subscription.userId, subscription.planId);
-        logger.log('✅ RazorpayService: Subscription activated and credits added');
+        newBalance = userCredit?.balance || 0;
       }
 
       logger.log('✅ RazorpayService: Subscription payment verified successfully');
@@ -923,6 +951,8 @@ Please verify the plan exists in Razorpay Dashboard.`;
           userId: subscription.userId,
           planId: subscription.planId,
           paymentOrderId: paymentOrder?.id,
+          creditsAdded,
+          newBalance,
         },
       };
     } catch (error) {

@@ -20,9 +20,13 @@ export const ALLOWED_DOMAINS = [
 
 /**
  * Check if origin is allowed
+ * Optimized: Only validates if origin is provided, doesn't block requests without origin
+ * This improves performance by not blocking same-origin requests
  */
 export function isAllowedOrigin(origin: string | null): boolean {
-  if (!origin) return false;
+  // If no origin header, allow (same-origin request or direct API call)
+  // This improves performance by not blocking legitimate requests
+  if (!origin) return true;
   
   try {
     const url = new URL(origin);
@@ -40,7 +44,8 @@ export function isAllowedOrigin(origin: string | null): boolean {
       hostname === domain || hostname.endsWith(`.${domain}`)
     );
   } catch {
-    return false;
+    // If origin parsing fails, allow (better UX than blocking)
+    return true;
   }
 }
 

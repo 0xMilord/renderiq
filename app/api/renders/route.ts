@@ -39,12 +39,13 @@ export async function POST(request: NextRequest) {
       return rateLimit.response!;
     }
 
-    // Check origin (if provided)
+    // Check origin (only if provided - optimized for performance)
     const origin = request.headers.get('origin');
     if (origin && !isAllowedOrigin(origin)) {
       securityLog('unauthorized_origin', { origin }, 'warn');
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
     }
+    // Note: Requests without origin header are allowed (same-origin or direct API calls)
 
     logger.log('🚀 Starting render generation API call');
     

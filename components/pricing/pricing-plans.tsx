@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Check, Zap, Crown, Building2, Mail, ExternalLink, AlertCircle } from 'lucide-react';
+import { Check, Zap, Crown, Building2, Mail, ExternalLink, AlertCircle, Loader2 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
@@ -57,6 +57,8 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
   const [billingInterval, setBillingInterval] = useState<'month' | 'year'>('month');
   const [loading, setLoading] = useState<string | null>(null);
   const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string; planId?: string }>({ open: false, message: '' });
+  const [processingDialog, setProcessingDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
+  const [verificationDialog, setVerificationDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
   const { theme, resolvedTheme } = useTheme();
   const isDarkMode = resolvedTheme === 'dark' || theme === 'dark';
   const { currency, currencyInfo, exchangeRate, format, convert, loading: currencyLoading } = useCurrency();
@@ -116,6 +118,8 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
 
     try {
       setLoading(planId);
+      // Show processing dialog
+      setProcessingDialog({ open: true, message: 'Please wait while process is being started...' });
       
       // Determine if this is a plan change (upgrade/downgrade)
       // If user has active subscription and is selecting a different plan, it's a plan change
@@ -217,6 +221,9 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
         handler: async (response: any) => {
           try {
             setLoading(null);
+            setProcessingDialog({ open: false, message: '' });
+            // Show verification dialog
+            setVerificationDialog({ open: true, message: 'We are verifying your payment. Please wait...' });
             
             // Verify subscription payment with signature (like credit packages)
             // Response contains: razorpay_payment_id, razorpay_subscription_id, razorpay_signature
@@ -235,42 +242,45 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
             const verifyResult = await verifyResponse.json();
 
             if (verifyResult.success) {
+              setVerificationDialog({ open: false, message: '' });
               if (verifyResult.data?.activated && verifyResult.data?.creditsAdded) {
                 toast.success(`Payment successful! ${verifyResult.data.newBalance || ''} credits added.`);
                 // Redirect to success page
                 setTimeout(() => {
                   window.location.href = `/payment/success?payment_order_id=${verifyResult.data.paymentOrderId || ''}&razorpay_subscription_id=${response.razorpay_subscription_id || result.data.subscriptionId}&razorpay_payment_id=${response.razorpay_payment_id}`;
-                }, 1500);
+                }, 500);
               } else if (verifyResult.data?.alreadyActive) {
                 toast.success('Payment successful! Subscription is already active.');
                 setTimeout(() => {
-                  window.location.reload();
-                }, 1500);
+                  window.location.href = `/payment/success?payment_order_id=${verifyResult.data.paymentOrderId || ''}&razorpay_subscription_id=${response.razorpay_subscription_id || result.data.subscriptionId}&razorpay_payment_id=${response.razorpay_payment_id}`;
+                }, 500);
               } else if (verifyResult.data?.status) {
                 toast.info(verifyResult.data.message || 'Payment is processing. Credits will be added shortly.');
                 setTimeout(() => {
-                  window.location.reload();
-                }, 2000);
+                  window.location.href = `/payment/success?payment_order_id=${verifyResult.data.paymentOrderId || ''}&razorpay_subscription_id=${response.razorpay_subscription_id || result.data.subscriptionId}&razorpay_payment_id=${response.razorpay_payment_id}&verification=pending`;
+                }, 500);
               } else {
                 toast.success('Payment successful!');
                 setTimeout(() => {
-                  window.location.reload();
-                }, 1500);
+                  window.location.href = `/payment/success?payment_order_id=${verifyResult.data.paymentOrderId || ''}&razorpay_subscription_id=${response.razorpay_subscription_id || result.data.subscriptionId}&razorpay_payment_id=${response.razorpay_payment_id}`;
+                }, 500);
               }
             } else {
               // CRITICAL: Even if verification fails, redirect to success page
               // Webhook will handle the actual payment processing
               logger.warn('⚠️ Payment verification failed but payment was successful. Redirecting to success page - webhook will handle.');
               toast.warning('Payment successful, but verification is pending. Credits will be added via webhook shortly.');
+              setVerificationDialog({ open: false, message: '' });
               
               // Redirect to success page with available IDs
               setTimeout(() => {
                 const successUrl = `/payment/success?payment_order_id=${result.data.subscriptionId || ''}&razorpay_subscription_id=${response.razorpay_subscription_id || result.data.subscriptionId}&razorpay_payment_id=${response.razorpay_payment_id || ''}&verification=pending`;
                 window.location.href = successUrl;
-              }, 2000);
+              }, 500);
             }
           } catch (error: any) {
             console.error('Error in payment success handler:', error);
+            setVerificationDialog({ open: false, message: '' });
             toast.error('Payment successful but there was an error. Please refresh the page.');
             setLoading(null);
           }
@@ -286,6 +296,8 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
         modal: {
           ondismiss: () => {
             setLoading(null);
+            setProcessingDialog({ open: false, message: '' });
+            setVerificationDialog({ open: false, message: '' });
             razorpayInstanceRef.current = null; // Clear reference
             // No database record exists yet, so nothing to cancel
             toast.info('Payment cancelled');
@@ -313,6 +325,8 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
       razorpayInstance.on('payment.failed', async (response: any) => {
         console.error('Payment failed:', response);
         setLoading(null);
+        setProcessingDialog({ open: false, message: '' });
+        setVerificationDialog({ open: false, message: '' });
         razorpayInstanceRef.current = null; // Clear reference
         const errorDescription = response.error?.description || 'Unknown error';
         
@@ -371,6 +385,8 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
       }, 300);
     } catch (error: any) {
       console.error('Error creating subscription:', error);
+      setProcessingDialog({ open: false, message: '' });
+      setVerificationDialog({ open: false, message: '' });
       toast.error(error.message || 'Failed to create subscription');
     } finally {
       setLoading(null);
@@ -688,6 +704,36 @@ Thank you!`);
               Contact Support
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Processing Dialog */}
+      <Dialog open={processingDialog.open} onOpenChange={(open) => !open && setProcessingDialog({ open: false, message: '' })}>
+        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>Processing Payment</DialogTitle>
+            <DialogDescription>
+              {processingDialog.message}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Verification Dialog */}
+      <Dialog open={verificationDialog.open} onOpenChange={(open) => !open && setVerificationDialog({ open: false, message: '' })}>
+        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>Verifying Payment</DialogTitle>
+            <DialogDescription>
+              {verificationDialog.message}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
         </DialogContent>
       </Dialog>
     </div>
