@@ -72,12 +72,30 @@ export class AuthService {
         if (!existingUser) {
           // Only create profile if it doesn't exist (new user)
           // Note: No fingerprint for sign-in - this is okay as they're existing users
-          await UserOnboardingService.createUserProfile({
+          // But we should still initialize credits if they don't exist
+          const profileResult = await UserOnboardingService.createUserProfile({
             id: data.user.id,
             email: data.user.email!,
             name: data.user.user_metadata?.name,
             avatar: data.user.user_metadata?.avatar_url,
           });
+          
+          // If profile creation failed, at least ensure credits are initialized
+          if (!profileResult.success) {
+            logger.warn('⚠️ AuthService: Profile creation failed on sign-in, checking credits');
+            const existingCredits = await AuthDAL.getUserCredits(data.user.id);
+            if (!existingCredits) {
+              logger.log('💰 AuthService: Initializing default credits for user without profile');
+              await UserOnboardingService.initializeUserCredits(data.user.id, 10);
+            }
+          }
+        } else {
+          // User exists, ensure credits are initialized (legacy users might not have credits)
+          const existingCredits = await AuthDAL.getUserCredits(data.user.id);
+          if (!existingCredits) {
+            logger.log('💰 AuthService: User exists but no credits, initializing default credits');
+            await UserOnboardingService.initializeUserCredits(data.user.id, 10);
+          }
         }
       }
 

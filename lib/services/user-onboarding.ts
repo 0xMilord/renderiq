@@ -40,7 +40,7 @@ export class UserOnboardingService {
 
       // Run sybil detection if device fingerprint is available
       let sybilResult;
-      let creditsToAward = INITIAL_SIGNUP_CREDITS;
+      let creditsToAward = INITIAL_SIGNUP_CREDITS; // Default to 10 credits
       let ipAddress: string | undefined;
       let userAgent: string | undefined;
 
@@ -57,14 +57,21 @@ export class UserOnboardingService {
             context.request.headers
           );
 
-          // Use recommended credits from sybil detection
-          creditsToAward = sybilResult.recommendedCredits;
+          // Use recommended credits from sybil detection (defaults to 10 if detection fails)
+          creditsToAward = sybilResult.recommendedCredits || INITIAL_SIGNUP_CREDITS;
         } catch (error) {
-          // If sybil detection fails, log but continue with default credits
+          // If sybil detection fails, log but ALWAYS continue with default credits
           logger.error('❌ UserOnboarding: Sybil detection failed, using default credits:', error);
-          creditsToAward = INITIAL_SIGNUP_CREDITS;
+          creditsToAward = INITIAL_SIGNUP_CREDITS; // Always give 10 credits if detection fails
         }
+      } else {
+        // No fingerprint available - give default credits and log warning
+        logger.warn('⚠️ UserOnboarding: No device fingerprint available, awarding default credits');
+        creditsToAward = INITIAL_SIGNUP_CREDITS;
+      }
 
+      // Log sybil detection result if available
+      if (sybilResult) {
         logger.log('🔍 UserOnboarding: Sybil detection result', {
           riskScore: sybilResult.riskScore,
           riskLevel: sybilResult.riskLevel,
@@ -81,15 +88,17 @@ export class UserOnboardingService {
           });
         }
 
-        // Record signup activity
-        const fingerprintHash = generateFingerprintHash(context.deviceFingerprint);
-        await SybilDetectionService.recordActivity(
-          userProfile.id,
-          'signup',
-          ipAddress,
-          userAgent,
-          fingerprintHash
-        );
+        // Record signup activity if we have fingerprint data
+        if (context?.deviceFingerprint && ipAddress && userAgent) {
+          const fingerprintHash = generateFingerprintHash(context.deviceFingerprint);
+          await SybilDetectionService.recordActivity(
+            userProfile.id,
+            'signup',
+            ipAddress,
+            userAgent,
+            fingerprintHash
+          );
+        }
       }
 
       // Generate unique avatar if not provided
@@ -124,11 +133,21 @@ export class UserOnboardingService {
 
       logger.log('✅ UserOnboarding: User profile created:', newUser.id);
 
-      // Initialize user credits with sybil-adjusted credits
-      await this.initializeUserCredits(userProfile.id, creditsToAward);
+      // CRITICAL: Always initialize user credits (even if 0 from sybil detection)
+      // This ensures user has a credits record in the database
+      const creditsResult = await this.initializeUserCredits(userProfile.id, creditsToAward);
+      if (!creditsResult.success) {
+        logger.error('❌ UserOnboarding: Failed to initialize credits, retrying with default:', creditsResult.error);
+        // Retry with default credits if initialization failed
+        await this.initializeUserCredits(userProfile.id, INITIAL_SIGNUP_CREDITS);
+      }
 
-      // Create welcome transaction
-      await this.createWelcomeTransaction(userProfile.id, creditsToAward, sybilResult);
+      // Create welcome transaction (only if credits > 0)
+      if (creditsToAward > 0) {
+        await this.createWelcomeTransaction(userProfile.id, creditsToAward, sybilResult);
+      } else {
+        logger.log('⚠️ UserOnboarding: No credits awarded, skipping welcome transaction');
+      }
 
       return {
         success: true,

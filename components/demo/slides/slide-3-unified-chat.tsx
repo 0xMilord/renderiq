@@ -33,10 +33,10 @@ export function Slide3UnifiedChat({ galleryRenders = [], longestChains = [] }: S
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(true);
 
-  // Find the longest chain with renders
+  // Use most popular chain (already sorted by popularity from demo page)
+  // Take first chain that has renders
   const demoChain = longestChains
-    .filter(c => c.renders && c.renders.length > 0)
-    .sort((a, b) => (b.renders?.length || 0) - (a.renders?.length || 0))[0];
+    .filter(c => c.renders && c.renders.length > 0)[0]; // First item is most popular (already sorted)
 
   // Build messages from chain renders
   const allMessages: DemoMessage[] = [];

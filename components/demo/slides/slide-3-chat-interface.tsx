@@ -29,15 +29,17 @@ export function Slide3ChatInterface({ galleryRenders = [], longestChains = [] }:
     });
   }, [longestChains, galleryRenders]);
 
-  // Get chains with 1-2 renders (short chains) - prefer short chains but fallback to any chains
+  // Use most popular chains (already sorted by popularity from demo page)
+  // Prefer chains with 1-2 renders (short chains) but use most popular ones first
   const shortChains = longestChains.filter(chain => 
     chain.renders && chain.renders.length >= 1 && chain.renders.length <= 2
   );
   
   // If no short chains, use any chains with renders (up to 6 renders max for demo)
+  // All chains are already sorted by popularity, so we just take first 6
   const chainsToUse = shortChains.length > 0 
-    ? shortChains.slice(0, 6)
-    : longestChains.filter(chain => chain.renders && chain.renders.length >= 1 && chain.renders.length <= 6).slice(0, 6);
+    ? shortChains.slice(0, 6) // Most popular short chains
+    : longestChains.filter(chain => chain.renders && chain.renders.length >= 1 && chain.renders.length <= 6).slice(0, 6); // Most popular chains
   
   console.log(`📊 Slide3: Filtered to ${chainsToUse.length} chains to use`);
 

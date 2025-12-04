@@ -6,6 +6,10 @@ import { getPostAuthRedirectUrl } from '@/lib/utils/auth-redirect';
 import { logger } from '@/lib/utils/logger';
 import { getClientIdentifier } from '@/lib/utils/rate-limit';
 import type { DeviceFingerprintInput } from '@/lib/services/sybil-detection';
+import { AuthDAL } from '@/lib/dal/auth';
+
+// Maximum initial credits for new users on signup (trusted users)
+const INITIAL_SIGNUP_CREDITS = 10;
 
 export async function GET(request: Request) {
   logger.log('🔄 Auth Callback: Processing OAuth callback');
@@ -115,6 +119,21 @@ export async function GET(request: Request) {
         
         if (!profileResult.success) {
           logger.error('❌ Auth Callback: Failed to create user profile:', profileResult.error);
+          // Try to ensure credits are initialized even if profile creation partially failed
+          // Check if user exists but credits don't
+          try {
+            const existingUser = await AuthDAL.getUserById(data.user.id);
+            if (existingUser) {
+              // User exists, check if credits exist
+              const existingCredits = await AuthDAL.getUserCredits(data.user.id);
+              if (!existingCredits) {
+                logger.log('💰 Auth Callback: User exists but no credits, initializing default credits');
+                await UserOnboardingService.initializeUserCredits(data.user.id, INITIAL_SIGNUP_CREDITS);
+              }
+            }
+          } catch (error) {
+            logger.error('❌ Auth Callback: Failed to initialize credits after profile creation failure:', error);
+          }
         } else {
           logger.log('✅ Auth Callback: User profile created successfully');
           if (profileResult.sybilDetection) {
@@ -126,6 +145,8 @@ export async function GET(request: Request) {
         }
       } else {
         logger.log('⚠️ Auth Callback: Email not verified yet, profile creation skipped');
+        // For email/password signups, profile will be created when they verify email
+        // The same callback route will be called again after email verification
       }
       
       // Use centralized redirect logic (handles localhost in dev)

@@ -5,8 +5,9 @@ import { getProject } from '@/lib/actions/projects.actions';
 import type { Project } from '@/lib/db/schema';
 import type { RenderChainWithRenders } from '@/lib/types/render-chain';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// Cache demo page for 5 minutes (300 seconds)
+// This prevents excessive database calls while still showing relatively fresh content
+export const revalidate = 300;
 
 export const metadata = {
   title: 'Renderiq Demo - Transform Sketches into Photorealistic Renders',
@@ -74,28 +75,30 @@ export default async function DemoPage() {
       }
     });
     
+    // Data is already sorted by popularity from the database queries
+    // No need to sort again - use directly
+    const selectedRenders = galleryItems;
+    const sortedChains = longestChains;
+    
     // Use chains directly from getLongestChains (already have full data)
+    // Sort chains by popularity before creating map
     const chainsMap: Record<string, RenderChainWithRenders> = {};
-    longestChains.forEach(chain => {
+    sortedChains.forEach(chain => {
       if (chain.id) {
         chainsMap[chain.id] = chain;
       }
     });
     
-    console.log(`✅ Demo: Prefetched ${Object.keys(projectsMap).length} projects and ${Object.keys(chainsMap).length} chains (using existing chain data)`);
-    
-    // Use gallery items directly in order (same as gallery page)
-    // Filter for items with before/after pairs will be done in slide 2 component
-    const selectedRenders = galleryItems;
+    console.log(`✅ Demo: Prefetched ${Object.keys(projectsMap).length} projects and ${Object.keys(chainsMap).length} chains (sorted by popularity)`);
     
     return (
       <DemoDataProvider
         galleryRenders={selectedRenders}
-        longestChains={longestChains}
+        longestChains={sortedChains}
         projects={projectsMap}
         chains={chainsMap}
       >
-        <DemoSlideshow galleryRenders={selectedRenders} longestChains={longestChains} />
+        <DemoSlideshow galleryRenders={selectedRenders} longestChains={sortedChains} />
       </DemoDataProvider>
     );
   } catch (error) {

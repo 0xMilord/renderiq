@@ -21,11 +21,10 @@ export function Slide4RenderChains() {
   const [visibleMessages, setVisibleMessages] = useState(0);
   const [highlightedVersion, setHighlightedVersion] = useState<string | null>(null);
 
-  // Get longest chain for demo
+  // Use most popular chain (already sorted by popularity from demo page)
+  // Take first chain that has renders
   const longestChain = longestChains.length > 0 
-    ? longestChains.reduce((longest, chain) => 
-        (chain.renders?.length || 0) > (longest.renders?.length || 0) ? chain : longest
-      )
+    ? longestChains.find(chain => chain.renders && chain.renders.length > 0) || null
     : null;
 
   // Convert chain renders to chat messages

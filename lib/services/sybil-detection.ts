@@ -54,17 +54,16 @@ const CONFIG = {
   MAX_ACCOUNTS_PER_IP: 4, // Max accounts from same IP in 24h (increased to reduce false positives)
   MAX_ACCOUNTS_PER_IP_7DAYS: 6, // Max accounts from same IP in 7 days (increased)
   RISK_THRESHOLDS: {
-    LOW: 30,
-    MEDIUM: 50,
-    HIGH: 70,
-    CRITICAL: 85,
+    MEDIUM: 50,  // Relaxed from 30 to 50 - less strict
+    HIGH: 70,    // Relaxed from 50 to 70 - less strict
+    CRITICAL: 85, // Relaxed from 70 to 85 - less strict
   },
   INITIAL_CREDITS: {
     TRUSTED: 10,
-    LOW_RISK: 10,
-    MEDIUM_RISK: 5,
-    HIGH_RISK: 2,
-    CRITICAL_RISK: 0,
+    LOW: 10,      // Always give 10 credits for low risk
+    MEDIUM: 10,   // Relaxed: Give 10 credits instead of 5 for medium risk
+    HIGH: 5,      // Relaxed: Give 5 credits instead of 0 for high risk
+    CRITICAL: 0,  // Only critical risk gets 0 credits
   },
   // Known proxy/CDN IP ranges (don't penalize)
   TRUSTED_PROXY_HEADERS: ['cf-connecting-ip', 'x-vercel-forwarded-for', 'x-forwarded-for'],
@@ -157,7 +156,12 @@ export class SybilDetectionService {
 
     const isSuspicious = riskScore >= CONFIG.RISK_THRESHOLDS.MEDIUM;
 
-    // Store detection result
+    // CRITICAL: Store device fingerprint and IP address FIRST, then detection result
+    // This ensures foreign keys exist when storing detection result
+    await this.storeDeviceFingerprint(userId, deviceData, fingerprintHash);
+    await this.storeIpAddress(userId, normalizedIp, requestHeaders);
+
+    // Store detection result AFTER device and IP are stored
     await this.storeDetectionResult(
       userId,
       riskScore,
@@ -167,12 +171,6 @@ export class SybilDetectionService {
       fingerprintHash,
       normalizedIp
     );
-
-    // Store device fingerprint
-    await this.storeDeviceFingerprint(userId, deviceData, fingerprintHash);
-
-    // Store IP address
-    await this.storeIpAddress(userId, normalizedIp, requestHeaders);
 
     logger.log('🔍 SybilDetection: Analysis complete', {
       userId,
@@ -224,15 +222,17 @@ export class SybilDetectionService {
           d => d.userId !== currentUserId && new Date(d.createdAt) > oneDayAgo
         );
 
-        if (recentAccounts.length >= CONFIG.MAX_ACCOUNTS_PER_DEVICE) {
-          riskScore += 40;
-          reasons.push(
-            `Multiple accounts (${recentAccounts.length + 1}) created from same device in last 24 hours`
-          );
-        } else if (recentAccounts.length > 0) {
-          riskScore += 20;
-          reasons.push(`Device fingerprint matches ${linkedAccounts.length} existing account(s)`);
-        }
+      // Relaxed: Only flag if 3+ accounts from same device (was 2+)
+      if (recentAccounts.length >= 3) {
+        riskScore += 30; // Reduced from 40
+        reasons.push(
+          `Multiple accounts (${recentAccounts.length + 1}) created from same device in last 24 hours`
+        );
+      } else if (recentAccounts.length >= 2) {
+        riskScore += 15; // Reduced from 20, only if 2+ accounts
+        reasons.push(`Device fingerprint matches ${linkedAccounts.length} existing account(s)`);
+      }
+      // If only 1 account, don't add risk score (relaxed)
       }
 
       return {
@@ -436,7 +436,7 @@ export class SybilDetectionService {
       await db.insert(deviceFingerprints).values({
         userId,
         fingerprintHash,
-        userAgent: deviceData.userAgent.substring(0, 500), // Truncate if too long
+        userAgent: deviceData.userAgent?.substring(0, 500) || '', // Truncate if too long
         browser,
         os,
         screenResolution: deviceData.screenResolution,
@@ -446,12 +446,17 @@ export class SybilDetectionService {
         hardwareConcurrency: deviceData.hardwareConcurrency,
         deviceMemory: deviceData.deviceMemory,
       });
+      
+      logger.log('✅ SybilDetection: Device fingerprint stored', { userId, fingerprintHash });
     } catch (error) {
       // Log error but don't fail signup - fingerprint storage is best effort
       logger.error('❌ SybilDetection: Failed to store device fingerprint:', error);
       // Check if it's a duplicate (race condition) - that's okay
-      if (error instanceof Error && error.message.includes('duplicate')) {
+      if (error instanceof Error && (error.message.includes('duplicate') || error.message.includes('unique'))) {
         logger.log('⚠️ SybilDetection: Device fingerprint already exists (race condition)');
+      } else {
+        // Re-throw if it's not a duplicate - we want to know about other errors
+        throw error;
       }
     }
   }
@@ -500,12 +505,17 @@ export class SybilDetectionService {
         isVpn,
         isTor,
       });
+      
+      logger.log('✅ SybilDetection: IP address stored', { userId, ipAddress });
     } catch (error) {
       // Log error but don't fail signup - IP storage is best effort
       logger.error('❌ SybilDetection: Failed to store IP address:', error);
       // Check if it's a duplicate (race condition) - that's okay
-      if (error instanceof Error && error.message.includes('duplicate')) {
+      if (error instanceof Error && (error.message.includes('duplicate') || error.message.includes('unique'))) {
         logger.log('⚠️ SybilDetection: IP address already exists (race condition)');
+      } else {
+        // Re-throw if it's not a duplicate - we want to know about other errors
+        throw error;
       }
     }
   }
@@ -523,20 +533,34 @@ export class SybilDetectionService {
     ipAddress: string
   ): Promise<void> {
     try {
-      // Get device fingerprint ID
+      // Get device fingerprint ID (should exist since we stored it first)
       const device = await db
         .select({ id: deviceFingerprints.id })
         .from(deviceFingerprints)
-        .where(eq(deviceFingerprints.fingerprintHash, fingerprintHash))
+        .where(
+          and(
+            eq(deviceFingerprints.fingerprintHash, fingerprintHash),
+            eq(deviceFingerprints.userId, userId)
+          )
+        )
+        .orderBy(desc(deviceFingerprints.createdAt))
         .limit(1);
 
-      // Get IP address ID
+      // Get IP address ID (should exist since we stored it first)
       const ip = await db
         .select({ id: ipAddresses.id })
         .from(ipAddresses)
-        .where(eq(ipAddresses.ipAddress, ipAddress))
+        .where(
+          and(
+            eq(ipAddresses.ipAddress, ipAddress),
+            eq(ipAddresses.userId, userId)
+          )
+        )
+        .orderBy(desc(ipAddresses.createdAt))
         .limit(1);
 
+      const creditsAwarded = this.getRecommendedCredits(riskLevel);
+      
       await db.insert(sybilDetections).values({
         userId,
         riskScore,
@@ -546,10 +570,20 @@ export class SybilDetectionService {
         deviceFingerprintId: device[0]?.id,
         ipAddressId: ip[0]?.id,
         isBlocked: false, // Allow signup but give 0 credits for critical risk
-        creditsAwarded: this.getRecommendedCredits(riskLevel),
+        creditsAwarded,
+      });
+      
+      logger.log('✅ SybilDetection: Detection result stored', {
+        userId,
+        riskScore,
+        riskLevel,
+        creditsAwarded,
+        deviceId: device[0]?.id,
+        ipId: ip[0]?.id,
       });
     } catch (error) {
       logger.error('❌ SybilDetection: Failed to store detection result:', error);
+      // Don't throw - allow signup to continue even if storage fails
     }
   }
 

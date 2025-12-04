@@ -16,7 +16,7 @@ export function Slide1Hero() {
 
             {/* Subtitle Text */}
             <div className="text-xl md:text-2xl lg:text-3xl xl:text-4xl font-semibold text-primary-foreground italic">
-              Visualize how Unitiles<sup>®</sup> beautifies your space
+              Visualize how Uniacoustics<sup>®</sup> beautifies your space
             </div>
           </div>
 

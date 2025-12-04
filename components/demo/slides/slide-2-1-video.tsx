@@ -21,18 +21,14 @@ export function Slide21Video({ galleryRenders = [], onVideoComplete }: Slide21Vi
   const [videoZooming, setVideoZooming] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Find latest video from gallery
+  // Use most popular video from gallery (already sorted by popularity from demo page)
+  // Take first video that is completed and has output
   const latestVideo = galleryRenders
     .filter(r => 
       r.render?.outputUrl && 
       r.render?.status === 'completed' && 
       r.render?.type === 'video'
-    )
-    .sort((a, b) => {
-      const aDate = a.render?.createdAt ? new Date(a.render.createdAt).getTime() : 0;
-      const bDate = b.render?.createdAt ? new Date(b.render.createdAt).getTime() : 0;
-      return bDate - aDate;
-    })[0];
+    )[0]; // First item is most popular (already sorted)
 
   const currentPrompt = latestVideo?.render?.prompt || 'Create a video showing the transformation';
 

@@ -21,8 +21,9 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
   const [messages, setMessages] = useState<Array<{ id: string; text: string; type: 'user' }>>([]);
   const [isTyping, setIsTyping] = useState(false);
 
-  // Use gallery renders directly in order (simple logic like gallery does)
+  // Use most popular gallery items (already sorted by popularity from demo page)
   // Filter for images with both uploaded and output URLs
+  // Take first 10 most popular items that have before/after pairs
   const beforeAfterPairs = galleryRenders
     .filter(r => 
       r.render?.uploadedImageUrl && 
@@ -30,7 +31,7 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
       r.render?.status === 'completed' && 
       r.render?.type === 'image'
     )
-    .slice(0, 10); // Limit to 10 images max
+    .slice(0, 10); // Limit to 10 most popular images max
 
   const currentPair = beforeAfterPairs[currentIndex] || beforeAfterPairs[0];
   const currentPrompt = currentPair?.render?.prompt || '';

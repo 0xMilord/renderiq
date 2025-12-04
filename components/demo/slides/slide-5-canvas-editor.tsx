@@ -54,21 +54,24 @@ const nodeTypes = {
 };
 
 export function Slide5CanvasEditor({ galleryRenders = [] }: Slide5CanvasEditorProps) {
-  const { chains } = useDemoData();
+  const { chains, longestChains } = useDemoData();
   
   // Memoize demo data to prevent recreating on every render
   const demoData = useMemo(() => {
-    // Get images from gallery renders for demo
+    // Get most popular images from gallery renders (already sorted by popularity)
     const demoImages = galleryRenders
       .filter(r => r.render?.outputUrl && r.render?.status === 'completed' && r.render?.type === 'image')
-      .slice(0, 5);
+      .slice(0, 5); // First 5 are most popular
     
-    // Get a chain with multiple renders for demo
-    const chainKeys = Object.keys(chains);
-    const demoChain = chainKeys.length > 0 ? chains[chainKeys[0]] : null;
+    // Get most popular chain (longestChains array is already sorted by popularity from demo page)
+    // Use longestChains array which is already sorted, or fallback to chains object
+    const chainArray = longestChains && longestChains.length > 0
+      ? longestChains.filter(c => c.renders && c.renders.length > 0)
+      : Object.values(chains).filter(c => c.renders && c.renders.length > 0);
+    const demoChain = chainArray.length > 0 ? chainArray[0] : null; // First chain is most popular
     
     return { demoImages, demoChain };
-  }, [galleryRenders, chains]);
+  }, [galleryRenders, chains, longestChains]);
 
   // Create initial nodes once - memoized to prevent recreation
   // Layout: Prompt (left) -> Image Node (center) -> Renders (right, vertical)
