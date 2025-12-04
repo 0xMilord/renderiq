@@ -87,19 +87,20 @@ export function Slide4RenderChains() {
 
   return (
     <div className="relative w-full h-full bg-gradient-to-br from-background via-primary/5 to-background flex items-center justify-center p-4 sm:p-6 overflow-hidden">
-      <div className="container mx-auto max-w-[95vw] h-full flex flex-col">
-        {/* Header */}
-        <div className="text-center mb-4 sm:mb-6 flex-shrink-0">
-          <div className="flex items-center justify-center gap-3 mb-2 sm:mb-3">
-            <GitBranch className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />
-            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground">
-              Render Chains & Version Control
-            </h2>
-          </div>
-          <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground">
-            Iterate with Context - Reference Any Version
-          </p>
+      {/* Header - Upper Left */}
+      <div className="absolute top-4 left-4 z-10 flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <GitBranch className="h-5 w-5 text-primary" />
+          <h2 className="text-xl sm:text-2xl font-extrabold text-foreground">
+            Render Chains & Version Control
+          </h2>
         </div>
+        <div className="h-6 w-px bg-border"></div>
+        <p className="text-xs sm:text-sm text-muted-foreground max-w-[250px]">
+          Iterate with context. Reference any version and track your design evolution.
+        </p>
+      </div>
+      <div className="container mx-auto max-w-[95vw] h-full flex flex-col pt-20">
 
         {/* Main Content - 2 Column Layout */}
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-h-0">

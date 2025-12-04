@@ -232,21 +232,22 @@ export function Slide5CanvasEditor({ galleryRenders = [] }: Slide5CanvasEditorPr
 
   return (
     <div className="relative w-full h-full bg-gradient-to-br from-background via-primary/5 to-background flex flex-col items-center justify-center p-8 overflow-hidden">
-      {/* Header */}
-      <div className="absolute top-8 left-1/2 -translate-x-1/2 z-20 text-center">
-        <div className="flex items-center justify-center gap-3 mb-4">
-          <Layers className="h-8 w-8 text-primary" />
-          <h2 className="text-4xl md:text-5xl font-extrabold text-foreground">
+      {/* Header - Upper Left */}
+      <div className="absolute top-4 left-4 z-20 flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <Layers className="h-5 w-5 text-primary" />
+          <h2 className="text-xl sm:text-2xl font-extrabold text-foreground">
             Visual Workflow Canvas
           </h2>
         </div>
-        <p className="text-lg text-muted-foreground">
-          Connect nodes to create complex rendering workflows
+        <div className="h-6 w-px bg-border"></div>
+        <p className="text-xs sm:text-sm text-muted-foreground max-w-[250px]">
+          Connect nodes to create complex rendering workflows. Visualize your entire process.
         </p>
       </div>
 
       {/* React Flow Canvas */}
-      <div className="w-full h-full mt-24">
+      <div className="w-full h-full pt-20">
         <ReactFlowProvider>
           <ReactFlow
             nodes={nodes}

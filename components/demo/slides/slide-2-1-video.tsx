@@ -19,16 +19,17 @@ export function Slide21Video({ galleryRenders = [], onVideoComplete }: Slide21Vi
   const [isTyping, setIsTyping] = useState(false);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [videoZooming, setVideoZooming] = useState(false);
+  const [showShimmer, setShowShimmer] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Use most popular video from gallery (already sorted by popularity from demo page)
-  // Take first video that is completed and has output
+  // Use 2nd most popular video from gallery (already sorted by popularity from demo page)
+  // Take second video that is completed and has output (index 1 = 2nd most liked)
   const latestVideo = galleryRenders
     .filter(r => 
       r.render?.outputUrl && 
       r.render?.status === 'completed' && 
       r.render?.type === 'video'
-    )[0]; // First item is most popular (already sorted)
+    )[1]; // Second item is 2nd most popular (already sorted)
 
   const currentPrompt = latestVideo?.render?.prompt || 'Create a video showing the transformation';
 
@@ -41,10 +42,11 @@ export function Slide21Video({ galleryRenders = [], onVideoComplete }: Slide21Vi
 
   // Auto-type prompt when component mounts
   useEffect(() => {
-    if (!currentPrompt) return;
+    if (!currentPrompt || !latestVideo) return;
     
     // Clear old messages
     setMessages([]);
+    setShowShimmer(false);
     
     // Truncate prompt at last period
     const truncatedPrompt = truncateAtLastPeriod(currentPrompt);
@@ -57,11 +59,16 @@ export function Slide21Video({ galleryRenders = [], onVideoComplete }: Slide21Vi
       if (charIndex < truncatedPrompt.length) {
         setTypingText(truncatedPrompt.substring(0, charIndex + 1));
         charIndex++;
+        // Show shimmer placeholder while typing
+        if (charIndex > 5) {
+          setShowShimmer(true);
+        }
       } else {
         clearInterval(typingInterval);
-        // After typing completes, send as user message
+        // After typing completes, send as user message and show video immediately
         setTimeout(() => {
           setIsTyping(false);
+          setShowShimmer(false);
           setMessages([{
             id: `user-msg-${Date.now()}`,
             text: truncatedPrompt,
@@ -69,24 +76,22 @@ export function Slide21Video({ galleryRenders = [], onVideoComplete }: Slide21Vi
           }]);
           setTypingText('');
           
-          // After user message, send assistant video response
-          setTimeout(() => {
-            if (latestVideo?.render?.outputUrl) {
-              setMessages(prev => [...prev, {
-                id: `assistant-msg-${Date.now()}`,
-                text: 'Here\'s your video!',
-                type: 'assistant',
-                videoUrl: latestVideo.render.outputUrl
-              }]);
-              setIsVideoPlaying(true);
-            }
-          }, 1000);
-        }, 500);
+          // Show video immediately after user message
+          if (latestVideo?.render?.outputUrl) {
+            setMessages(prev => [...prev, {
+              id: `assistant-msg-${Date.now()}`,
+              text: 'Here\'s your video!',
+              type: 'assistant',
+              videoUrl: latestVideo.render.outputUrl
+            }]);
+            setIsVideoPlaying(true);
+          }
+        }, 300); // Reduced delay to show video ASAP
       }
     }, 30); // Typing speed: 30ms per character
 
     return () => clearInterval(typingInterval);
-  }, []);
+  }, [currentPrompt, latestVideo]);
 
   // Handle video zoom and fullscreen
   useEffect(() => {
@@ -105,6 +110,29 @@ export function Slide21Video({ galleryRenders = [], onVideoComplete }: Slide21Vi
 
   return (
     <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-r from-background via-primary/5 to-background overflow-hidden">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes shimmer {
+          0% {
+            background-position: -200% 0;
+          }
+          100% {
+            background-position: 200% 0;
+          }
+        }
+      `}} />
+      {/* Header - Upper Left */}
+      <div className="absolute top-4 left-4 z-10 flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <VideoIcon className="h-5 w-5 text-primary" />
+          <h2 className="text-xl sm:text-2xl font-extrabold text-foreground">
+            Generate Video Renders
+          </h2>
+        </div>
+        <div className="h-6 w-px bg-border"></div>
+        <p className="text-xs sm:text-sm text-muted-foreground max-w-[250px]">
+          Generate 4-8 second video renders in seconds. AI-powered instant results.
+        </p>
+      </div>
       <div className="container mx-auto px-8 relative z-10 h-full flex flex-col">
         {/* Main Content - 2 Column Layout: Chat on Left, Video on Right */}
         <div className="flex-1 flex items-center gap-8 min-h-0 py-8">
@@ -163,6 +191,29 @@ export function Slide21Video({ galleryRenders = [], onVideoComplete }: Slide21Vi
                     )}
                   </div>
                 ))}
+                
+                {/* Shimmer placeholder while typing */}
+                {showShimmer && !isVideoPlaying && (
+                  <div className="flex justify-start">
+                    <div className="max-w-[80%] bg-muted rounded-lg overflow-hidden">
+                      <div className="relative aspect-video w-full bg-gradient-to-r from-muted via-primary/10 to-muted overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent" 
+                             style={{
+                               backgroundSize: '200% 100%',
+                               animation: 'shimmer 2s infinite linear',
+                               backgroundPosition: '0% 0%'
+                             }}>
+                        </div>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="flex flex-col items-center gap-2">
+                            <VideoIcon className="h-8 w-8 text-muted-foreground/50 animate-pulse" />
+                            <p className="text-xs text-muted-foreground/50">Generating video...</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Input Box - Auto-typing */}
@@ -202,21 +253,14 @@ export function Slide21Video({ galleryRenders = [], onVideoComplete }: Slide21Vi
             </div>
           </div>
 
-          {/* Right Column - Text Message */}
+          {/* Right Column - Empty or placeholder */}
           {!videoZooming && (
             <div className="flex-1 flex items-center justify-center min-h-0">
-              <div className="text-center">
-                <h2 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-foreground mb-4">
-                  Generate{' '}
-                  <span className="text-primary inline-block">Video Renders</span>
-                  {' '}in Seconds
-                </h2>
-              </div>
             </div>
           )}
         </div>
 
-        {/* Main Message - Only show when video is not zooming */}
+        {/* Feature Pills - Only show when video is not zooming */}
         {!videoZooming && (
           <div className="text-center pb-8">
             {/* Feature Pills */}

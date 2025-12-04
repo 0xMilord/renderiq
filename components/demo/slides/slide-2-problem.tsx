@@ -1,11 +1,16 @@
 'use client';
 
-import { Clock, Zap, CheckCircle2, ChevronLeft, ChevronRight, Send, MessageSquare, Upload, Image as ImageIcon } from 'lucide-react';
+import { Clock, Zap, CheckCircle2, ChevronLeft, ChevronRight, Send, MessageSquare, Upload, Image as ImageIcon, Video, Sparkles, Lock, Globe, HelpCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import ReactBeforeSliderComponent from 'react-before-after-slider-component';
 import 'react-before-after-slider-component/dist/build.css';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import type { GalleryItemWithDetails } from '@/lib/types';
@@ -18,12 +23,20 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sliderPosition, setSliderPosition] = useState(0); // Start from left (0%)
   const [typingText, setTypingText] = useState('');
-  const [messages, setMessages] = useState<Array<{ id: string; text: string; type: 'user' }>>([]);
+  const [messages, setMessages] = useState<Array<{ id: string; text: string; type: 'user'; uploadedImageUrl?: string }>>([]);
   const [isTyping, setIsTyping] = useState(false);
+  
+  // Demo state for input controls
+  const [isVideoMode, setIsVideoMode] = useState(false);
+  const [environment, setEnvironment] = useState('none');
+  const [effect, setEffect] = useState('none');
+  const [temperature, setTemperature] = useState('0.5');
+  const [quality, setQuality] = useState('standard');
+  const [isPublic, setIsPublic] = useState(true);
 
   // Use most popular gallery items (already sorted by popularity from demo page)
   // Filter for images with both uploaded and output URLs
-  // Take first 10 most popular items that have before/after pairs
+  // Take first 5 most popular items that have before/after pairs
   const beforeAfterPairs = galleryRenders
     .filter(r => 
       r.render?.uploadedImageUrl && 
@@ -31,7 +44,7 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
       r.render?.status === 'completed' && 
       r.render?.type === 'image'
     )
-    .slice(0, 10); // Limit to 10 most popular images max
+    .slice(0, 5); // Limit to 5 most popular images max
 
   const currentPair = beforeAfterPairs[currentIndex] || beforeAfterPairs[0];
   const currentPrompt = currentPair?.render?.prompt || '';
@@ -42,6 +55,21 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
     const lastPeriodIndex = text.lastIndexOf('.');
     if (lastPeriodIndex === -1) return text; // No period found, return full text
     return text.substring(0, lastPeriodIndex + 1);
+  };
+
+  // Helper function to get text that fits in 3 lines (approximately 120-150 characters)
+  const getTextForThreeLines = (text: string): string => {
+    // Approximate: 3 lines * ~40-50 chars per line = ~120-150 chars
+    // Find the last space before 120 chars to avoid breaking words
+    const maxChars = 120;
+    if (text.length <= maxChars) return text;
+    
+    const truncated = text.substring(0, maxChars);
+    const lastSpace = truncated.lastIndexOf(' ');
+    if (lastSpace > 80) {
+      return truncated.substring(0, lastSpace) + '...';
+    }
+    return truncated.substring(0, maxChars) + '...';
   };
 
   // Track when slider cycle completes to trigger prompt change
@@ -91,8 +119,10 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
     setMessages([]);
     setTypingText('');
     
-    // Truncate prompt at last period
-    const truncatedPrompt = truncateAtLastPeriod(currentPrompt);
+    // Get full prompt for message bubble
+    const fullPrompt = truncateAtLastPeriod(currentPrompt);
+    // Get text for 3 lines in textarea (limited display)
+    const textForTextarea = getTextForThreeLines(fullPrompt);
     
     // Small delay before starting to type
     setTimeout(() => {
@@ -100,25 +130,27 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
       let charIndex = 0;
       
       const typingInterval = setInterval(() => {
-        if (charIndex < truncatedPrompt.length) {
-          setTypingText(truncatedPrompt.substring(0, charIndex + 1));
+        // Only type up to 3 lines worth in the textarea
+        if (charIndex < textForTextarea.length) {
+          setTypingText(textForTextarea.substring(0, charIndex + 1));
           charIndex++;
         } else {
           clearInterval(typingInterval);
-          // After typing completes, wait a bit then send as message
+          // After typing 3 lines, immediately send full prompt as message
           setTimeout(() => {
             setIsTyping(false);
             setMessages([{
               id: `msg-${currentIndex}-${Date.now()}`,
-              text: truncatedPrompt,
-              type: 'user' as const
+              text: fullPrompt, // Full prompt in message bubble
+              type: 'user' as const,
+              uploadedImageUrl: currentPair?.render?.uploadedImageUrl
             }]);
             setTypingText('');
             // Reset cycle complete flag after message is sent
             setSliderCycleComplete(false);
-          }, 500);
+          }, 300); // Reduced delay to sync better
         }
-      }, 15); // Typing speed: 15ms per character (doubled from 30ms)
+      }, 15); // Typing speed: 15ms per character
     }, 300);
 
     // No cleanup needed - we want the typing to complete
@@ -136,6 +168,16 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
 
   return (
     <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-r from-background via-primary/5 to-background overflow-hidden">
+      {/* Header - Upper Left */}
+      <div className="absolute top-4 left-4 z-10 flex items-center gap-3 flex-shrink-0">
+        <h2 className="text-xl sm:text-2xl font-extrabold text-foreground">
+          Generate Approval-Ready Renders
+        </h2>
+        <div className="h-6 w-px bg-border"></div>
+        <p className="text-xs sm:text-sm text-muted-foreground max-w-[250px]">
+          Generate approval-ready renders in seconds, not days. No 3D modeling or technical skills required.
+        </p>
+      </div>
       <div className="container mx-auto px-8 relative z-10 h-full flex flex-col">
         {/* Main Content - 2 Column Layout: Chat on Left, Slideshow on Right */}
         <div className="flex-1 flex items-center gap-8 min-h-0 py-8">
@@ -159,44 +201,293 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {messages.map((msg) => (
                   <div key={msg.id} className="flex justify-end">
-                    <div className="bg-primary text-primary-foreground rounded-lg px-4 py-2 max-w-[80%]">
-                      <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>
+                    <div className="bg-primary text-primary-foreground rounded-lg px-4 py-3 max-w-[80%] space-y-2">
+                      {/* Show uploaded image as attachment if available */}
+                      {msg.uploadedImageUrl && (
+                        <div className="relative w-full max-w-[200px] rounded-lg overflow-hidden border-2 border-primary-foreground/20 mb-2">
+                          <div className="relative aspect-square w-full">
+                            <Image
+                              src={msg.uploadedImageUrl}
+                              alt="Uploaded image"
+                              fill
+                              className="object-cover"
+                              sizes="200px"
+                            />
+                          </div>
+                          <div className="absolute top-1 right-1 bg-primary-foreground/80 text-primary px-1.5 py-0.5 rounded text-[8px] font-medium flex items-center gap-1">
+                            <ImageIcon className="h-2.5 w-2.5" />
+                            <span>Image</span>
+                          </div>
+                        </div>
+                      )}
+                      <p className="text-sm sm:text-base whitespace-pre-wrap break-words">{msg.text}</p>
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Input Box - Auto-typing */}
-              <div className="p-4 border-t border-border">
-                <div className="relative">
-                  <Textarea
-                    value={typingText}
-                    readOnly
-                    placeholder="Describe your vision..."
-                    className={cn(
-                      "h-[60px] resize-none w-full text-xs sm:text-sm pr-20",
-                      isTyping && "border-primary/50 bg-primary/5"
-                    )}
-                  />
-                  {/* Upload indicator and Send button - 1 row 2 col */}
-                  <div className="absolute right-2 bottom-2 flex items-center gap-2">
-                    {hasUploadedImage && (
-                      <div className="flex items-center gap-1 bg-primary/10 px-2 py-1 rounded text-[10px] text-primary">
-                        <ImageIcon className="h-3 w-3" />
-                        <span>Image</span>
-                      </div>
-                    )}
-                    {isTyping ? (
-                      <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+              {/* Input Area - Matching Unified Chat Interface */}
+              <div className="p-2 sm:p-3 border-t border-border flex-shrink-0 space-y-2">
+                {/* Top Row: Private Toggle */}
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="privacy-toggle" className="text-[10px] sm:text-xs font-medium flex items-center gap-1.5 cursor-pointer">
+                    {isPublic ? (
+                      <>
+                        <Globe className="h-3 w-3" />
+                        <span className="hidden sm:inline">Public</span>
+                      </>
                     ) : (
-                      <Button
-                        size="sm"
-                        className="h-6 w-6 p-0"
-                        disabled
-                      >
-                        <Send className="h-3 w-3" />
-                      </Button>
+                      <>
+                        <Lock className="h-3 w-3" />
+                        <span className="hidden sm:inline">Private</span>
+                      </>
                     )}
+                  </Label>
+                  <Switch
+                    id="privacy-toggle"
+                    checked={!isPublic}
+                    onCheckedChange={(checked) => setIsPublic(!checked)}
+                    disabled
+                  />
+                </div>
+                
+                {/* Prompt Input */}
+                <div className="flex gap-1 sm:gap-2">
+                  <div className="relative flex-1 flex flex-col">
+                    <Textarea
+                      value={typingText}
+                      readOnly
+                      placeholder="Describe your vision..."
+                      className={cn(
+                        "h-[60px] sm:h-[70px] resize-none w-full text-xs sm:text-sm",
+                        isTyping && "border-primary/50 bg-primary/5",
+                        isVideoMode && "border-primary/50 bg-primary/5"
+                      )}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Button
+                      size="sm"
+                      className="h-8 sm:h-9 w-8 sm:w-9 shrink-0"
+                      disabled
+                    >
+                      <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 sm:h-9 w-8 sm:w-9 shrink-0"
+                      disabled
+                    >
+                      <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* Style Settings - 2 columns: Environment/Temperature (3/4) and Style Transfer (1/4) */}
+                <div>
+                  <div className="flex gap-1.5 sm:gap-2 items-stretch">
+                    {/* Left Column: Environment/Effect and Temperature (3/4 width, 2 rows) */}
+                    <div className="flex-[3] flex flex-col gap-1.5 sm:gap-2">
+                      {/* Row 1: Mode Toggle, Environment and Effect dropdowns */}
+                      <div className="flex gap-1.5 sm:gap-2 items-start">
+                        {/* Mode Toggle */}
+                        <div className="space-y-0.5 flex flex-col">
+                          <div className="flex items-center gap-0.5">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Label className="text-[10px] sm:text-xs font-medium cursor-help">Mode</Label>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Switch between image and video generation modes</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                          <div className="flex gap-0.5 border rounded p-0.5">
+                            <Button
+                              variant={!isVideoMode ? "default" : "ghost"}
+                              size="sm"
+                              onClick={() => setIsVideoMode(false)}
+                              className={cn(
+                                "h-6 sm:h-7 w-6 sm:w-7 p-0",
+                                !isVideoMode && "bg-primary text-primary-foreground"
+                              )}
+                              title="Image Mode"
+                              disabled
+                            >
+                              <ImageIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            </Button>
+                            <Button
+                              variant={isVideoMode ? "default" : "ghost"}
+                              size="sm"
+                              onClick={() => setIsVideoMode(true)}
+                              className={cn(
+                                "h-6 sm:h-7 w-6 sm:w-7 p-0",
+                                isVideoMode && "bg-primary text-primary-foreground"
+                              )}
+                              title="Video Mode"
+                              disabled
+                            >
+                              <Video className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Environment Dropdown */}
+                        <div className="space-y-1 flex flex-col flex-1">
+                          <div className="flex items-center gap-1">
+                            <Label className="text-[10px] sm:text-xs font-medium">Environment</Label>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Set the weather and lighting conditions</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                          <Select value={environment} onValueChange={setEnvironment} disabled>
+                            <SelectTrigger className="h-6 sm:h-7 text-[10px] sm:text-xs w-full">
+                              <SelectValue placeholder="Select environment" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none" className="text-[10px] sm:text-xs">None</SelectItem>
+                              <SelectItem value="sunny" className="text-[10px] sm:text-xs">Sunny</SelectItem>
+                              <SelectItem value="overcast" className="text-[10px] sm:text-xs">Overcast</SelectItem>
+                              <SelectItem value="rainy" className="text-[10px] sm:text-xs">Rainy</SelectItem>
+                              <SelectItem value="sunset" className="text-[10px] sm:text-xs">Sunset</SelectItem>
+                              <SelectItem value="sunrise" className="text-[10px] sm:text-xs">Sunrise</SelectItem>
+                              <SelectItem value="night" className="text-[10px] sm:text-xs">Night</SelectItem>
+                              <SelectItem value="foggy" className="text-[10px] sm:text-xs">Foggy</SelectItem>
+                              <SelectItem value="cloudy" className="text-[10px] sm:text-xs">Cloudy</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Effect Dropdown */}
+                        <div className="space-y-1 flex flex-col flex-1">
+                          <div className="flex items-center gap-1">
+                            <Label className="text-[10px] sm:text-xs font-medium">Effect</Label>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Choose visualization style and rendering mode</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                          <Select value={effect} onValueChange={setEffect} disabled>
+                            <SelectTrigger className="h-6 sm:h-7 text-[10px] sm:text-xs w-full">
+                              <SelectValue placeholder="Select effect" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none" className="text-[10px] sm:text-xs">None</SelectItem>
+                              <SelectItem value="wireframe" className="text-[10px] sm:text-xs">Wireframe</SelectItem>
+                              <SelectItem value="photoreal" className="text-[10px] sm:text-xs">Photoreal</SelectItem>
+                              <SelectItem value="illustration" className="text-[10px] sm:text-xs">Illustration</SelectItem>
+                              <SelectItem value="sketch" className="text-[10px] sm:text-xs">Sketch</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {/* Row 2: Temperature and Quality */}
+                      <div className="space-y-1 flex flex-col">
+                        <div className="flex items-center gap-1.5 sm:gap-2 w-full">
+                          {/* Temperature - 3/4 width */}
+                          <div className="flex-[3] space-y-0.5 flex flex-col">
+                            <div className="flex items-center gap-0.5">
+                              <Label className="text-[10px] sm:text-xs font-medium">Temperature</Label>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Control creativity: 0 = strict/deterministic, 1 = creative/random</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
+                            <ToggleGroup
+                              type="single"
+                              value={temperature}
+                              onValueChange={(value) => {
+                                if (value) setTemperature(value);
+                              }}
+                              className="h-6 sm:h-7 w-full"
+                              variant="outline"
+                              size="sm"
+                              disabled
+                            >
+                              <ToggleGroupItem value="0" aria-label="0" className="flex-1 text-[10px] sm:text-xs">
+                                0
+                              </ToggleGroupItem>
+                              <ToggleGroupItem value="0.25" aria-label="0.25" className="flex-1 text-[10px] sm:text-xs">
+                                0.25
+                              </ToggleGroupItem>
+                              <ToggleGroupItem value="0.5" aria-label="0.5" className="flex-1 text-[10px] sm:text-xs">
+                                0.5
+                              </ToggleGroupItem>
+                              <ToggleGroupItem value="0.75" aria-label="0.75" className="flex-1 text-[10px] sm:text-xs">
+                                0.75
+                              </ToggleGroupItem>
+                              <ToggleGroupItem value="1" aria-label="1" className="flex-1 text-[10px] sm:text-xs">
+                                1
+                              </ToggleGroupItem>
+                            </ToggleGroup>
+                          </div>
+                          
+                          {/* Quality - 1/4 width */}
+                          <div className="flex-[1] space-y-0.5 flex flex-col">
+                            <div className="flex items-center gap-0.5">
+                              <Label className="text-[10px] sm:text-xs font-medium">Quality</Label>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Image quality setting</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
+                            <Select value={quality} onValueChange={setQuality} disabled>
+                              <SelectTrigger className="h-6 sm:h-7 text-[10px] sm:text-xs w-full">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="standard" className="text-[10px] sm:text-xs">Standard</SelectItem>
+                                <SelectItem value="high" className="text-[10px] sm:text-xs">High</SelectItem>
+                                <SelectItem value="ultra" className="text-[10px] sm:text-xs">Ultra</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Column: Style Transfer (1/4 width) */}
+                    <div className="flex-[1] flex flex-col">
+                      <div className="flex items-center gap-0.5 mb-0.5">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Label className="text-[10px] sm:text-xs font-medium whitespace-nowrap cursor-help">Style Ref</Label>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Upload an image to transfer its style</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <div className="relative w-full flex-1 min-h-0">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-full w-full p-0"
+                          disabled
+                        >
+                          <ImageIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -283,15 +574,8 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
           </div>
         </div>
 
-        {/* Main Message */}
+        {/* Feature Pills */}
         <div className="text-center pb-8">
-          <h2 className="text-xl md:text-xl lg:text-2xl font-extrabold text-foreground mb-6">
-            Generate Approval-Ready Renders in{' '}
-            <span className="text-primary inline-block">Seconds</span>
-            {' '}Not Days
-          </h2>
-          
-          {/* Feature Pills */}
           <div className="flex items-center justify-center gap-4 flex-wrap">
             {[
               { icon: Clock, text: 'No 3D Modeling', color: 'text-blue-500' },

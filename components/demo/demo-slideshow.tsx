@@ -11,7 +11,12 @@ import { Slide5CanvasEditor } from './slides/slide-5-canvas-editor';
 import { Slide6AECFinetunes } from './slides/slide-6-aec-finetunes';
 import { Slide7Pricing } from './slides/slide-7-pricing';
 import { DemoControls } from './demo-controls';
+import dynamic from 'next/dynamic';
 import type { GalleryItemWithDetails } from '@/lib/types';
+
+const QRCodeSVG = dynamic(() => import('qrcode.react').then((mod) => mod.QRCodeSVG), {
+  ssr: false,
+});
 
 const SLIDE_DURATION = 10000; // 10 seconds per slide
 const CHAT_SLIDE_DURATION = 30000; // 30 seconds for chat interface (longer demo)
@@ -214,6 +219,28 @@ export function DemoSlideshow({ galleryRenders = [], longestChains = [] }: DemoS
           {slides[currentSlide]?.id === 6 && <Slide5CanvasEditor galleryRenders={galleryRenders} />}
           {![1, 2, 3, 4, 5, 6].includes(slides[currentSlide]?.id || -1) && CurrentSlideComponent && <CurrentSlideComponent {...getSlideProps()} />}
         </div>
+
+        {/* QR Code Card - Show on all slides except first (0) and last (8) */}
+        {currentSlide > 0 && currentSlide < slides.length - 1 && (
+          <div className="absolute top-4 right-4 z-50 bg-card/95 backdrop-blur-sm rounded-lg border-2 border-primary shadow-2xl p-2.5 max-w-[126px]">
+            <div className="flex flex-col items-center gap-2">
+              <div className="p-1.5 bg-primary/10 rounded-lg border border-primary/30">
+                <QRCodeSVG
+                  value="https://renderiq.io/api/qr-signup"
+                  size={98}
+                  level="H"
+                  includeMargin={false}
+                  className="rounded"
+                  fgColor="hsl(var(--primary))"
+                  bgColor="transparent"
+                />
+              </div>
+              <p className="text-[9px] text-center text-primary font-semibold leading-tight w-[98px]">
+                Visualize UniAcoustics products on Renderiq!
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Controls */}
         <DemoControls

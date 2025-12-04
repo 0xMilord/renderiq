@@ -139,19 +139,20 @@ export function Slide6AECFinetunes() {
 
   return (
     <div className="relative w-full h-full bg-gradient-to-br from-background via-primary/5 to-background flex items-center justify-center p-2 sm:p-4 overflow-hidden">
-      <div className="w-full max-w-[98vw] relative z-10 h-full flex flex-col">
-        {/* Header */}
-        <div className="text-center mb-2 sm:mb-3 flex-shrink-0">
-          <div className="mb-1 sm:mb-2">
-            <Award className="h-8 w-8 sm:h-10 sm:w-10 text-primary mx-auto" />
-          </div>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-foreground mb-1 sm:mb-2">
+      {/* Header - Upper Left */}
+      <div className="absolute top-4 left-4 z-10 flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <Award className="h-5 w-5 text-primary" />
+          <h2 className="text-xl sm:text-2xl font-extrabold text-foreground">
             Renderiq vs. The Competition
           </h2>
-          <p className="text-sm sm:text-base md:text-lg text-muted-foreground font-medium">
-            See why Renderiq is the best choice for AEC professionals
-          </p>
         </div>
+        <div className="h-6 w-px bg-border"></div>
+        <p className="text-xs sm:text-sm text-muted-foreground max-w-[250px]">
+          See why Renderiq is the best choice for AEC professionals. AEC-specific training and accuracy.
+        </p>
+      </div>
+      <div className="w-full max-w-[98vw] relative z-10 h-full flex flex-col pt-20">
 
         {/* Comparison Table */}
         <div className="bg-card/95 backdrop-blur-md rounded-xl border-2 border-border shadow-2xl overflow-hidden flex-1 flex flex-col min-h-0">
