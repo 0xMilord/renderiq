@@ -4,7 +4,9 @@ import { ArrowLeft, Layers, GitBranch, Users2, History, CheckCircle2, Sparkles }
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
+function getSiteUrl() {
+  return process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
+}
 
 export const metadata: Metadata = {
   title: "AI Design Iteration for Architecture | Version Control & A/B Testing | Renderiq",
@@ -25,17 +27,17 @@ export const metadata: Metadata = {
   creator: 'Renderiq',
   publisher: 'Renderiq',
   alternates: {
-    canonical: `${siteUrl}/use-cases/design-iteration`,
+    canonical: `${getSiteUrl()}/use-cases/design-iteration`,
   },
   openGraph: {
     title: "AI Design Iteration for Architecture | Version Control & A/B Testing | Renderiq",
     description: "Iterate architectural designs with unprecedented speed. AI-powered version control, A/B testing, and real-time design comparisons.",
     type: "website",
-    url: `${siteUrl}/use-cases/design-iteration`,
+    url: `${getSiteUrl()}/use-cases/design-iteration`,
     siteName: "Renderiq",
     images: [
       {
-        url: `${siteUrl}/og/use-cases-design-iteration.jpg`,
+        url: `${getSiteUrl()}/og/use-cases-design-iteration.jpg`,
         width: 1200,
         height: 630,
         alt: "AI Design Iteration for Architecture - Renderiq",
@@ -47,7 +49,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "AI Design Iteration for Architecture | Renderiq",
     description: "Iterate architectural designs with unprecedented speed. AI-powered version control and A/B testing.",
-    images: [`${siteUrl}/og/use-cases-design-iteration.jpg`],
+    images: [`${getSiteUrl()}/og/use-cases-design-iteration.jpg`],
     creator: "@Renderiq",
   },
   robots: {

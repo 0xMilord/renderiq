@@ -4,7 +4,9 @@ import { ArrowLeft, Zap, Layers, Users, Clock, CheckCircle2, TrendingUp } from "
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
+function getSiteUrl() {
+  return process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
+}
 
 export const metadata: Metadata = {
   title: "AI Rapid Prototyping for Architecture | Initial Design Concepts | Renderiq",
@@ -25,17 +27,17 @@ export const metadata: Metadata = {
   creator: 'Renderiq',
   publisher: 'Renderiq',
   alternates: {
-    canonical: `${siteUrl}/use-cases/initial-prototyping`,
+    canonical: `${getSiteUrl()}/use-cases/initial-prototyping`,
   },
   openGraph: {
     title: "AI Rapid Prototyping for Architecture | Initial Design Concepts | Renderiq",
     description: "Generate multiple architectural design concepts in minutes with AI. Rapid prototyping enables faster design exploration and reduces design time by 80%.",
     type: "website",
-    url: `${siteUrl}/use-cases/initial-prototyping`,
+    url: `${getSiteUrl()}/use-cases/initial-prototyping`,
     siteName: "Renderiq",
     images: [
       {
-        url: `${siteUrl}/og/use-cases-initial-prototyping.jpg`,
+        url: `${getSiteUrl()}/og/use-cases-initial-prototyping.jpg`,
         width: 1200,
         height: 630,
         alt: "AI Rapid Prototyping for Architecture - Renderiq",
@@ -47,7 +49,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "AI Rapid Prototyping for Architecture | Renderiq",
     description: "Generate multiple architectural design concepts in minutes with AI. Rapid prototyping reduces design time by 80%.",
-    images: [`${siteUrl}/og/use-cases-initial-prototyping.jpg`],
+    images: [`${getSiteUrl()}/og/use-cases-initial-prototyping.jpg`],
     creator: "@Renderiq",
   },
   robots: {
@@ -90,7 +92,7 @@ const benefits = [
   }
 ];
 
-const process = [
+const processSteps = [
   {
     title: "Brief Input",
     description: "Enter project requirements, style preferences, and key constraints"
@@ -222,7 +224,7 @@ export default function InitialPrototypingPage() {
           </div>
 
           <div className="grid md:grid-cols-4 gap-8">
-            {process.map((step, idx) => (
+            {processSteps.map((step, idx) => (
               <div key={idx} className="relative">
                 <div className="text-center">
                   <div className="w-16 h-16 rounded-full bg-primary text-primary-foreground text-2xl font-bold flex items-center justify-center mx-auto mb-4">
@@ -231,7 +233,7 @@ export default function InitialPrototypingPage() {
                   <h3 className="text-xl font-semibold mb-2">{step.title}</h3>
                   <p className="text-muted-foreground">{step.description}</p>
                 </div>
-                {idx < process.length - 1 && (
+                {idx < processSteps.length - 1 && (
                   <div className="hidden md:block absolute top-8 left-[60%] w-[80%] h-0.5 bg-border" />
                 )}
               </div>

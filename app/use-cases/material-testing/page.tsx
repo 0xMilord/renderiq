@@ -4,7 +4,9 @@ import { ArrowLeft, PaintBucket, Palette, Sun, DollarSign, CheckCircle2, Sparkle
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
+function getSiteUrl() {
+  return process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
+}
 
 export const metadata: Metadata = {
   title: "AI Material Testing for Architecture | Rapid Material Exploration | Renderiq",
@@ -25,17 +27,17 @@ export const metadata: Metadata = {
   creator: 'Renderiq',
   publisher: 'Renderiq',
   alternates: {
-    canonical: `${siteUrl}/use-cases/material-testing`,
+    canonical: `${getSiteUrl()}/use-cases/material-testing`,
   },
   openGraph: {
     title: "AI Material Testing for Architecture | Rapid Material Exploration | Renderiq",
     description: "Test thousands of architectural material combinations instantly with AI. Visualize different finishes, textures, and colors in realistic lighting.",
     type: "website",
-    url: `${siteUrl}/use-cases/material-testing`,
+    url: `${getSiteUrl()}/use-cases/material-testing`,
     siteName: "Renderiq",
     images: [
       {
-        url: `${siteUrl}/og/use-cases-material-testing.jpg`,
+        url: `${getSiteUrl()}/og/use-cases-material-testing.jpg`,
         width: 1200,
         height: 630,
         alt: "AI Material Testing for Architecture - Renderiq",
@@ -47,7 +49,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "AI Material Testing for Architecture | Renderiq",
     description: "Test thousands of architectural material combinations instantly with AI. Visualize different finishes and textures.",
-    images: [`${siteUrl}/og/use-cases-material-testing.jpg`],
+    images: [`${getSiteUrl()}/og/use-cases-material-testing.jpg`],
     creator: "@Renderiq",
   },
   robots: {

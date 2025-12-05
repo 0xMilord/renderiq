@@ -4,7 +4,9 @@ import { ArrowLeft, Sparkles, Clock, Zap, TrendingUp, CheckCircle2, Video, Image
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
+function getSiteUrl() {
+  return process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
+}
 
 export const metadata: Metadata = {
   title: "Real-Time Architectural Visualization with AI | Instant Rendering | Renderiq",
@@ -25,17 +27,17 @@ export const metadata: Metadata = {
   creator: 'Renderiq',
   publisher: 'Renderiq',
   alternates: {
-    canonical: `${siteUrl}/use-cases/real-time-visualization`,
+    canonical: `${getSiteUrl()}/use-cases/real-time-visualization`,
   },
   openGraph: {
     title: "Real-Time Architectural Visualization with AI | Instant Rendering | Renderiq",
     description: "Transform architectural designs into photorealistic renders in seconds. AI-powered real-time visualization enables instant client presentations and live design iterations.",
     type: "website",
-    url: `${siteUrl}/use-cases/real-time-visualization`,
+    url: `${getSiteUrl()}/use-cases/real-time-visualization`,
     siteName: "Renderiq",
     images: [
       {
-        url: `${siteUrl}/og/use-cases-real-time-visualization.jpg`,
+        url: `${getSiteUrl()}/og/use-cases-real-time-visualization.jpg`,
         width: 1200,
         height: 630,
         alt: "Real-Time Architectural Visualization with AI - Renderiq",
@@ -47,7 +49,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Real-Time Architectural Visualization with AI | Renderiq",
     description: "Transform architectural designs into photorealistic renders in seconds. AI-powered real-time visualization.",
-    images: [`${siteUrl}/og/use-cases-real-time-visualization.jpg`],
+    images: [`${getSiteUrl()}/og/use-cases-real-time-visualization.jpg`],
     creator: "@Renderiq",
   },
   robots: {
