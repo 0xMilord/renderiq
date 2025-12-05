@@ -6,9 +6,10 @@ import { ToolPageClient } from "./tool-client";
 export async function generateMetadata({ 
   params 
 }: { 
-  params: { toolSlug: string } 
+  params: Promise<{ toolSlug: string }>
 }): Promise<Metadata> {
-  const tool = getToolBySlug(params.toolSlug);
+  const { toolSlug } = await params;
+  const tool = getToolBySlug(toolSlug);
   
   if (!tool) {
     return {
@@ -34,8 +35,9 @@ export async function generateMetadata({
   };
 }
 
-export default function ToolPage({ params }: { params: { toolSlug: string } }) {
-  const tool = getToolBySlug(params.toolSlug);
+export default async function ToolPage({ params }: { params: Promise<{ toolSlug: string }> }) {
+  const { toolSlug } = await params;
+  const tool = getToolBySlug(toolSlug);
   
   if (!tool) {
     notFound();

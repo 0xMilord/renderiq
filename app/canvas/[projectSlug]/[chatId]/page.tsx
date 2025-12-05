@@ -100,7 +100,7 @@ export default function CanvasEditorPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-2.75rem)] bg-background overflow-hidden">
+    <div className="h-[calc(100vh-1rem-2.75rem)] bg-background overflow-hidden">
       <CanvasEditor
         projectId={project.id}
         chainId={chain.id}

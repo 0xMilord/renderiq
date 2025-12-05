@@ -112,19 +112,19 @@ export function UserDropdown() {
   return (
     <TooltipProvider>
       <div className="flex items-center gap-1.5 sm:gap-2">
-        {/* Credits Display - Outside Dropdown */}
-        <div className="flex items-center gap-1 sm:gap-1.5">
+        {/* Credits Display - Only on mobile (desktop shows in navbar) */}
+        <div className="flex items-center gap-1 sm:gap-1.5 md:hidden">
           {/* Credits */}
-          <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 h-8 rounded-md bg-muted/50 border border-border">
-            <Coins className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
-            <span className="text-xs sm:text-sm font-semibold">
+          <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 h-8 rounded-full bg-muted/80 backdrop-blur-sm border border-border/50">
+            <Coins className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-yellow-500 dark:text-yellow-400" />
+            <span className="text-xs sm:text-sm font-semibold text-yellow-600 dark:text-yellow-400">
               {creditsLoading ? '...' : creditsData?.balance ?? 0}
             </span>
           </div>
 
           {/* Top Up Button - Hidden on very small screens */}
           <Link href="/pricing" className="hidden sm:block">
-            <Button variant="outline" size="sm" className="h-7 px-2.5 text-xs">
+            <Button variant="outline" size="sm" className="h-7 px-2.5 text-xs rounded-full">
               <Zap className="h-3 w-3 mr-1" />
               Top Up
             </Button>
@@ -132,17 +132,49 @@ export function UserDropdown() {
 
           {/* Plan Name, Status Badge, or Get Pro Button */}
           {hasPlan ? (
-            <Badge variant="secondary" className="h-7 px-2 sm:px-2.5 text-xs">
+            <Badge variant="secondary" className="h-7 px-2 sm:px-2.5 text-xs rounded-full">
               {planName}
             </Badge>
           ) : showStatusBadge ? (
-            <Badge variant="outline" className="h-7 px-2 sm:px-2.5 text-xs border-yellow-500 text-yellow-600 dark:text-yellow-400">
+            <Badge variant="outline" className="h-7 px-2 sm:px-2.5 text-xs border-yellow-500 text-yellow-600 dark:text-yellow-400 rounded-full">
               {statusBadgeText}
             </Badge>
           ) : (
             <Link href="/pricing">
-              <Button variant="default" size="sm" className="h-7 px-1.5 sm:px-2 text-[10px] leading-tight">
+              <Button variant="default" size="sm" className="h-7 px-1.5 sm:px-2 text-[10px] leading-tight rounded-full">
                 <Crown className="h-2.5 w-2.5 mr-0.5 sm:mr-1 shrink-0" />
+                <span className="flex flex-col leading-none">
+                  <span>Get</span>
+                  <span>Pro</span>
+                </span>
+              </Button>
+            </Link>
+          )}
+        </div>
+        
+        {/* Desktop: Top Up, Plan Name, Status Badge, or Get Pro Button */}
+        <div className="hidden md:flex items-center gap-1.5">
+          {/* Top Up Button */}
+          <Link href="/pricing">
+            <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs rounded-full">
+              <Zap className="h-3 w-3 mr-1" />
+              Top Up
+            </Button>
+          </Link>
+
+          {/* Plan Name, Status Badge, or Get Pro Button */}
+          {hasPlan ? (
+            <Badge variant="secondary" className="h-8 px-2.5 text-xs rounded-full">
+              {planName}
+            </Badge>
+          ) : showStatusBadge ? (
+            <Badge variant="outline" className="h-8 px-2.5 text-xs border-yellow-500 text-yellow-600 dark:text-yellow-400 rounded-full">
+              {statusBadgeText}
+            </Badge>
+          ) : (
+            <Link href="/pricing">
+              <Button variant="default" size="sm" className="h-8 px-2 text-[10px] leading-tight rounded-full">
+                <Crown className="h-2.5 w-2.5 mr-1 shrink-0" />
                 <span className="flex flex-col leading-none">
                   <span>Get</span>
                   <span>Pro</span>

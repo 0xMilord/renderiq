@@ -48,7 +48,7 @@ export default async function CanvasPage() {
   } catch (error) {
     console.error('❌ [CanvasPage SSR] Fatal error:', error);
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-2.75rem)]">
+      <div className="flex items-center justify-center h-[calc(100vh-1rem-2.75rem)]">
         <div className="text-center">
           <h2 className="text-xl font-semibold mb-2">Error Loading Canvas</h2>
           <p className="text-muted-foreground mb-4">

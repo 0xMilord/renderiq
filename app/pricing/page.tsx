@@ -73,7 +73,7 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 py-12">
+      <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 pt-[calc(1rem+2.75rem+1.5rem+3rem)] pb-12">
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold tracking-tight mb-4">

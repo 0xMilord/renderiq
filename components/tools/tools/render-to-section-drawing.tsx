@@ -201,26 +201,9 @@ The input is an architectural render. Your task is to convert it into a technica
         </CardContent>
       </Card>
       additionalSections={
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
-          {/* FAQ Section - Large Card (spans 2 columns on large screens) */}
-          <div className="lg:col-span-2">
-            <Card className="h-full border-2 hover:border-primary/50 transition-colors">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-semibold">Frequently Asked Questions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-5">
-                {(TOOL_CONTENT['render-section-drawing']?.faq || []).map((faq, idx) => (
-                  <div key={idx} className="space-y-2 pb-4 border-b last:border-0 last:pb-0">
-                    <h3 className="font-semibold text-sm text-foreground leading-snug">{faq.q}</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{faq.a}</p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Key Features - Medium Card */}
-          <div className="lg:col-span-1">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Row 2: Key Features (1/4) + FAQ (3/4) */}
+          <div className="md:col-span-1">
             <Card className="h-full border-2 hover:border-primary/50 transition-colors bg-gradient-to-br from-primary/5 to-transparent">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg font-semibold">Key Features</CardTitle>
@@ -240,14 +223,30 @@ The input is an architectural render. Your task is to convert it into a technica
             </Card>
           </div>
 
-          {/* Use Cases - Full Width Card */}
-          <div className="md:col-span-2 lg:col-span-3">
+          <div className="md:col-span-3">
+            <Card className="h-full border-2 hover:border-primary/50 transition-colors">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg font-semibold">Frequently Asked Questions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                {(TOOL_CONTENT['render-section-drawing']?.faq || []).map((faq, idx) => (
+                  <div key={idx} className="space-y-2 pb-4 border-b last:border-0 last:pb-0">
+                    <h3 className="font-semibold text-sm text-foreground leading-snug">{faq.q}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{faq.a}</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Row 3: Use Cases (3/4) + Empty/Spacer (1/4) */}
+          <div className="md:col-span-3">
             <Card className="border-2 hover:border-primary/50 transition-colors">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg font-semibold">Use Cases</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {(TOOL_CONTENT['render-section-drawing']?.useCases || []).map((useCase, idx) => (
                     <div key={idx} className="space-y-2 p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
                       <h4 className="font-semibold text-sm text-foreground">{useCase.title}</h4>

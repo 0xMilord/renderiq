@@ -1,10 +1,21 @@
+'use client';
+
+import { useState, useRef, useEffect } from 'react';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Badge } from '@/components/ui/badge';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import Image from 'next/image';
 
 const faqs = [
   {
@@ -144,43 +155,158 @@ const faqs = [
   },
 ];
 
-export function FAQSection() {
-  return (
-    <section id="faq" className="py-20 px-4 sm:px-6 lg:px-8 bg-background">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-16">
-          <Badge className="mb-4 bg-muted text-muted-foreground px-4 py-2">
-            FAQ
-          </Badge>
-          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
-            Frequently Asked Questions
-          </h2>
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Everything you need to know about Renderiq
-          </p>
-        </div>
+// Shortened tab names
+const tabNames: Record<string, string> = {
+  'General': 'General',
+  'Core Features': 'Features',
+  'Technical': 'Technical',
+  'Projects & Organization': 'Projects',
+  'Pricing & Credits': 'Pricing',
+  'AEC & Retail': 'AEC & Retail',
+  'Security & Privacy': 'Security',
+};
 
-        <Accordion type="single" collapsible className="w-full space-y-4">
-          {faqs.map((category, categoryIndex) => (
-            <div key={categoryIndex} className="mb-8">
-              <h3 className="text-2xl font-bold text-foreground mb-4">{category.category}</h3>
-              {category.questions.map((faq, index) => (
-                <AccordionItem
-                  key={index}
-                  value={`item-${categoryIndex}-${index}`}
-                  className="border border-border rounded-lg px-6 mb-4"
-                >
-                  <AccordionTrigger className="text-left font-semibold text-foreground hover:no-underline">
-                    {faq.question}
-                  </AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground leading-relaxed">
-                    {faq.answer}
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
+export function FAQSection() {
+  const [activeTab, setActiveTab] = useState(faqs[0]?.category || '');
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(false);
+
+  const checkScrollButtons = () => {
+    if (scrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+      setShowLeftArrow(scrollLeft > 0);
+      setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 1);
+    }
+  };
+
+  useEffect(() => {
+    checkScrollButtons();
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', checkScrollButtons);
+      window.addEventListener('resize', checkScrollButtons);
+      return () => {
+        container.removeEventListener('scroll', checkScrollButtons);
+        window.removeEventListener('resize', checkScrollButtons);
+      };
+    }
+  }, []);
+
+  const scroll = (direction: 'left' | 'right') => {
+    if (scrollContainerRef.current) {
+      const scrollAmount = 200;
+      scrollContainerRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  return (
+    <section id="faq" className="bg-primary w-full overflow-x-hidden relative">
+      <div className="w-full px-4 sm:px-6 lg:px-8 relative border-l-[5px] border-r-[5px] border-b-[5px] border-secondary">
+        <div className="w-full relative">
+          <div className="text-left relative pt-8">
+            <h2 className="text-4xl md:text-5xl font-bold text-primary-foreground mb-6">
+              Frequently Asked Questions
+            </h2>
+            <p className="text-xl text-primary-foreground/80 max-w-3xl pb-6">
+              Everything you need to know about Renderiq
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="w-full relative border-l-[5px] border-b-[5px] border-secondary">
+        {/* Black container behind FAQ */}
+        <div className="absolute inset-0 bg-black -z-10"></div>
+        
+        <div className="flex flex-col lg:flex-row w-full overflow-hidden relative">
+          {/* Left Column - 60% - FAQ Content */}
+          <div className="w-full lg:w-[60%] order-1 lg:order-1 px-4 sm:px-6 lg:px-8 py-8 bg-primary relative flex flex-col border-r-[5px] border-secondary">
+            <div className="w-full relative px-4 sm:px-6 lg:px-8 py-6 rounded-2xl bg-background flex-1 border-[5px] border-secondary">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <div className="relative mb-8">
+                  
+                  {showLeftArrow && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 bg-background/90 shadow-md hover:bg-background/80 text-primary-foreground"
+                      onClick={() => scroll('left')}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {showRightArrow && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 bg-background/90 shadow-md hover:bg-background/80 text-primary-foreground"
+                      onClick={() => scroll('right')}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <TabsList 
+                    ref={scrollContainerRef}
+                    className="flex w-full h-auto p-1 bg-muted overflow-x-auto scroll-smooth gap-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                    onScroll={checkScrollButtons}
+                  >
+                    {faqs.map((category) => (
+                      <TabsTrigger
+                        key={category.category}
+                        value={category.category}
+                        className="text-xs sm:text-sm px-3 sm:px-4 py-2 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground data-[state=active]:shadow-sm rounded-md whitespace-nowrap flex-shrink-0"
+                      >
+                        {tabNames[category.category] || category.category}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </div>
+
+                {faqs.map((category) => (
+                  <TabsContent
+                    key={category.category}
+                    value={category.category}
+                    className="mt-0"
+                  >
+                    <Accordion type="single" collapsible className="w-full space-y-4">
+                      {category.questions.map((faq, index) => (
+                        <AccordionItem
+                          key={index}
+                          value={`item-${category.category}-${index}`}
+                          className="border border-border rounded-lg px-6 bg-card"
+                        >
+                          <AccordionTrigger className="text-left font-semibold text-foreground hover:no-underline [&>svg]:text-muted-foreground">
+                            {faq.question}
+                          </AccordionTrigger>
+                          <AccordionContent className="text-muted-foreground leading-relaxed">
+                            {faq.answer}
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  </TabsContent>
+                ))}
+              </Tabs>
             </div>
-          ))}
-        </Accordion>
+          </div>
+
+          {/* Right Column - 40% - FAQ Image - Extended to extreme right edge */}
+          <div className="w-full lg:w-[40%] flex items-center justify-end order-2 lg:order-2 bg-primary lg:ml-auto lg:mr-0 lg:pr-0 lg:relative border-r-[5px] border-secondary" style={{ marginRight: 'calc((100vw - 100%) / -2)' }}>
+            <div className="relative w-full h-full min-h-[400px] lg:min-h-[600px]">
+              <Image
+                src="/home/faq-section.svg"
+                alt="FAQ Illustration"
+                fill
+                className="object-contain object-right"
+                priority
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );

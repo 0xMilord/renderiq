@@ -132,8 +132,8 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Renderiq" />
         <style dangerouslySetInnerHTML={{
           __html: `
-            html { background-color: hsl(0, 0%, 7%); }
-            body { background-color: hsl(0, 0%, 7%); }
+            html { background-color: hsl(var(--background)); }
+            body { background-color: hsl(var(--background)); }
           `
         }} />
       </head>

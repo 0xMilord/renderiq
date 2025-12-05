@@ -452,12 +452,12 @@ export function BaseToolComponent({
         </div>
       </div>
 
-      {/* Bottom: Bento Grid Info Cards */}
+      {/* Bottom: Brick Pattern Info Cards */}
       <div className="mt-12">
-        {/* Bento Grid Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-fr">
-          {/* How It Works - Large Card (spans 2 columns) */}
-          <div className="md:col-span-2">
+        {/* Brick Pattern Layout - 3 rows with alternating 3/4 and 1/4 widths */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Row 1: How It Works (3/4) + About This Tool (1/4) */}
+          <div className="md:col-span-3">
             {children || (
               <Card className="h-full border-2 hover:border-primary/50 transition-colors">
                 <CardHeader className="pb-3">
@@ -489,14 +489,14 @@ export function BaseToolComponent({
             )}
           </div>
 
-          {/* About This Tool - Medium Card */}
-          <div className="md:col-span-2 lg:col-span-2">
+          {/* About This Tool - 1/4 width */}
+          <div className="md:col-span-1">
             <Card className="h-full border-2 hover:border-primary/50 transition-colors">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg font-semibold">About This Tool</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3">
                   <div className="space-y-1">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Input</p>
                     <p className="text-sm font-medium">
@@ -538,14 +538,10 @@ export function BaseToolComponent({
               </CardContent>
             </Card>
           </div>
-        </div>
 
-        {/* Additional Custom Sections for Landing Pages - Bento Grid */}
-        {additionalSections && (
-          <div className="mt-6">
-            {additionalSections}
-          </div>
-        )}
+          {/* Additional Custom Sections - Rows 2 & 3 in brick pattern */}
+          {additionalSections}
+        </div>
       </div>
 
       {/* Structured Data for SEO */}

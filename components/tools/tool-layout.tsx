@@ -15,8 +15,8 @@ export function ToolLayout({ tool, children }: ToolLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 w-full">
-        <div className="w-full max-w-[1920px] mx-auto px-4 py-2">
+      <div className="border-b fixed top-0 left-0 right-0 z-10 w-full pointer-events-none">
+        <div className="w-full max-w-[1920px] mx-auto px-4 py-2 pointer-events-auto">
           <div className="flex items-center gap-3">
             {/* Back Button - Auto width (hugging) */}
             <Link href="/apps">
@@ -45,7 +45,7 @@ export function ToolLayout({ tool, children }: ToolLayoutProps) {
       </div>
 
       {/* Main Content */}
-      <div className="w-full max-w-[1920px] mx-auto px-4 py-8">
+      <div className="w-full max-w-[1920px] mx-auto px-4 py-8 pt-16">
         {children}
       </div>
     </div>

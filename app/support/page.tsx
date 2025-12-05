@@ -95,18 +95,8 @@ const supportLevels = [
 export default function SupportPage() {
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b bg-muted/30">
-        <div className="container mx-auto max-w-7xl px-4 py-4">
-          <Link href="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Home
-          </Link>
-        </div>
-      </div>
-
       {/* Hero */}
-      <section className="py-20 px-4 bg-gradient-to-b from-primary/5 to-background">
+      <section className="pt-[calc(1rem+2.75rem+1.5rem)] pb-20 px-4 bg-gradient-to-b from-primary/5 to-background">
         <div className="container mx-auto max-w-4xl text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-full mb-6">
             <HelpCircle className="w-4 h-4" />

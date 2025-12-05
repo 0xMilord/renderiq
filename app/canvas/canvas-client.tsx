@@ -89,7 +89,7 @@ export function CanvasPageClient({ initialProjects, initialChains }: CanvasPageC
   };
 
   return (
-    <div className="h-[calc(100vh-2.75rem)] bg-background text-foreground flex flex-col">
+    <div className="h-screen pt-[calc(1rem+2.75rem)] bg-background text-foreground flex flex-col overflow-hidden">
       {/* Top Toolbar - Photoshop-like */}
       <div className="h-12 bg-card border-b border-border flex items-center px-4 gap-4">
         <div className="flex items-center gap-2">

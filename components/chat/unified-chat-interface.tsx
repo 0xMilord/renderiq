@@ -1468,7 +1468,7 @@ export function UnifiedChatInterface({
 
 
   return (
-    <div className="flex flex-col lg:flex-row h-[calc(100vh-2.75rem)] overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-1rem-2.75rem)] overflow-hidden">
       {/* Mobile View Toggle - Only visible on mobile/tablet */}
       <div className="lg:hidden border-b border-border bg-background sticky top-0 z-10">
         <div className="px-4 py-2 flex items-center justify-between">
@@ -2747,7 +2747,7 @@ export function UnifiedChatInterface({
         mobileView === 'render' ? 'flex' : 'hidden lg:flex'
       )}>
         {/* Header with Toolbar - ONLY in output area, never in chat */}
-        <div className="border-b border-border bg-background sticky top-0 z-10">
+        <div className="border-b border-border sticky top-0 z-10">
           <div className="px-4 py-1.5 h-11 flex items-center">
             {/* Toolbar - Only show when there's a render AND we're in output area (not chat) */}
             {currentRender && (() => {

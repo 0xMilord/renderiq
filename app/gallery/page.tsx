@@ -201,8 +201,8 @@ export default function GalleryPage() {
   return (
     <main className="min-h-screen bg-background">
       {/* Header with Title, Description, Sidebar Button in Same Row */}
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="container mx-auto px-4 py-3 sm:py-4">
+      <header className="fixed top-0 left-0 right-0 z-40 border-b border-border pointer-events-none">
+        <div className="container mx-auto px-4 py-3 sm:py-4 pointer-events-auto">
           <div className="flex items-center gap-3 sm:gap-4">
             {/* Sidebar Toggle Button */}
             <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
@@ -428,7 +428,7 @@ export default function GalleryPage() {
       </header>
 
       {/* Content */}
-      <section className="container mx-auto px-4 py-8" aria-label="Gallery content">
+      <section className="container mx-auto px-4 py-8 pt-[calc(1rem+2.75rem+1.5rem+4rem)]" aria-label="Gallery content">
         {/* Masonry Feed */}
         <MasonryFeed
           items={filteredAndSortedItems}

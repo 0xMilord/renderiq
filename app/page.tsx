@@ -152,8 +152,8 @@ export default async function Home() {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section - SEO Optimized */}
-      <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-        <div className="absolute inset-0 bg-muted/30"></div>
+      <section className="pt-[calc(1rem+2.75rem+1.5rem)] pb-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+        <div className="absolute inset-0 top-0 bg-muted/30 -z-10"></div>
         <div className="max-w-7xl mx-auto relative">
           <div className="text-center">
             <Badge className="mb-6 bg-primary text-primary-foreground border-0 px-4 py-2 text-sm font-medium">
@@ -599,8 +599,7 @@ export default async function Home() {
 
       {/* CTA Section - Conversion Optimized */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-primary relative overflow-hidden">
-        <div className="absolute inset-0 bg-black/10"></div>
-        <div className="max-w-7xl mx-auto text-center relative">
+        <div className="max-w-7xl mx-auto text-center relative border-[5px] border-black p-8">
           <h2 className="text-4xl md:text-6xl font-bold text-primary-foreground mb-6">
             Ready to transform your architectural designs?
           </h2>

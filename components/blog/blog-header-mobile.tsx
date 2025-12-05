@@ -16,7 +16,8 @@ export function BlogHeaderMobile() {
     
     // Calculate navbar height including AlphaBanner if present
     const calculateNavbarHeight = () => {
-      const navbar = document.querySelector('nav.bg-background');
+      // Look for fixed navbar (new transparent design)
+      const navbar = document.querySelector('nav[class*="fixed"]');
       const alphaBanner = document.querySelector('.bg-destructive\\/10');
       
       let height = 0;
@@ -33,7 +34,7 @@ export function BlogHeaderMobile() {
 
     // Check if navbar is scrolled out of view
     const handleScroll = () => {
-      const navbar = document.querySelector('nav.bg-background');
+      const navbar = document.querySelector('nav[class*="fixed"]');
       if (navbar) {
         const navbarRect = navbar.getBoundingClientRect();
         // If navbar is scrolled out of view (above viewport), set height to 0
@@ -66,10 +67,10 @@ export function BlogHeaderMobile() {
   return (
     <>
       <div 
-        className="border-b bg-muted/30 lg:hidden sticky z-40 transition-all duration-200 bg-background"
+        className="border-b lg:hidden fixed left-0 right-0 z-40 transition-all duration-200 pointer-events-none"
         style={mounted ? { top: `${navbarHeight}px` } : undefined}
       >
-        <div className="px-4 py-2 h-10 flex items-center">
+        <div className="px-4 py-2 h-10 flex items-center pointer-events-auto">
           <div className="p-[3px] border-[0.25px] border-primary rounded-lg bg-background flex-1">
             <Button variant="ghost" asChild className="w-full justify-start h-8">
               <Link href="/blog" className="inline-flex items-center text-sm w-full">
@@ -82,7 +83,7 @@ export function BlogHeaderMobile() {
       </div>
 
       {/* Desktop Header */}
-      <div className="border-b bg-muted/30 hidden lg:block">
+      <div className="border-b hidden lg:block">
         <div className="px-4 py-2">
           <Button variant="ghost" asChild>
             <Link href="/blog" className="inline-flex items-center text-sm">

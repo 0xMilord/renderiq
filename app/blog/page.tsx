@@ -179,7 +179,7 @@ export default function BlogPage() {
       />
       <div className="min-h-screen bg-background">
       {/* Hero */}
-      <section className="border-b bg-muted/30 py-5 px-1">
+      <section className="pt-[calc(1rem+2.75rem+1.5rem)] pb-5 px-1 border-b">
         <div className="container mx-auto max-w-7xl">
           <div className="max-w-3xl">
             <h1 className="text-4xl md:text-5xl font-bold mb-2">

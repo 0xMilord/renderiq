@@ -320,7 +320,7 @@ export default function UseCasesPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <section className="relative py-20 px-4 bg-gradient-to-b from-primary/5 to-background">
+      <section className="relative pt-[calc(1rem+2.75rem+1.5rem)] pb-20 px-4 bg-gradient-to-b from-primary/5 to-background">
         <div className="container mx-auto max-w-7xl">
           <div className="text-center max-w-3xl mx-auto mb-16">
             <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/60">

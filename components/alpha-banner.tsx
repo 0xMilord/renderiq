@@ -36,16 +36,16 @@ export function AlphaBanner() {
 
   return (
     <div className={cn(
-      "bg-destructive/10 border-b border-destructive/20",
-      "px-4 sm:px-6 lg:px-8 py-1 relative z-50"
+      "bg-destructive/5 backdrop-blur-sm border-t border-destructive/10",
+      "px-4 sm:px-6 lg:px-8 py-1.5 fixed bottom-0 left-0 right-0 z-[60]"
     )}>
-      <div className="flex items-center justify-center gap-2 text-sm">
-        <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0" />
-        <span className="text-destructive">
+      <div className="flex items-center justify-center gap-2 text-xs sm:text-sm">
+        <AlertTriangle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-destructive/80 flex-shrink-0" />
+        <span className="text-destructive/80">
           Renderiq is in early development and may experience issues.
         </span>
         {isMobile && (
-          <div className="flex items-center space-x-1 text-destructive/80 text-xs ml-2">
+          <div className="flex items-center space-x-1 text-destructive/70 text-xs ml-2">
             <Smartphone className="h-3 w-3" />
             <span>Use</span>
             <Monitor className="h-3 w-3" />
@@ -56,7 +56,7 @@ export function AlphaBanner() {
           variant="ghost"
           size="sm"
           onClick={handleDismiss}
-          className="text-destructive hover:text-destructive/80 hover:bg-destructive/10 h-6 w-6 p-0 ml-2"
+          className="text-destructive/70 hover:text-destructive/90 hover:bg-destructive/10 h-6 w-6 p-0 ml-2"
         >
           <X className="h-3 w-3" />
         </Button>

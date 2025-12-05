@@ -284,7 +284,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }, []);
 
   return (
-    <div className="flex h-[calc(100vh-2.75rem)] bg-background">
+    <div className="flex h-[calc(100vh-1rem-2.75rem)] bg-background">
       {/* Sidebar */}
       <div
         className={cn(
@@ -823,7 +823,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="px-4 border-b shrink-0 h-16 flex items-center">
+        <div className="px-4 border-b shrink-0 h-16 flex items-center pointer-events-auto">
           <div className="min-w-0 flex-1 overflow-hidden flex items-center gap-3">
             <CurrentPageIcon className="h-5 w-5 text-primary shrink-0" />
             <h2 className="text-lg font-semibold text-foreground truncate min-w-0">{currentPageDescription}</h2>

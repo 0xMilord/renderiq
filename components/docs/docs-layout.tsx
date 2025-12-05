@@ -77,9 +77,9 @@ export function DocsLayout({ children }: DocsLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Mobile Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 lg:hidden">
-        <div className="flex h-14 items-center px-4">
+      {/* Mobile Header - positioned below main navbar */}
+      <header className="fixed top-[calc(1rem+2.75rem)] left-0 right-0 z-40 w-full border-b bg-background lg:hidden pointer-events-none">
+        <div className="flex h-14 items-center px-4 pointer-events-auto">
           <Button
             variant="ghost"
             size="icon"
@@ -99,7 +99,9 @@ export function DocsLayout({ children }: DocsLayoutProps) {
         {/* Sidebar */}
         <aside
           className={cn(
-            'fixed inset-y-0 left-0 z-50 w-64 border-r bg-background transition-transform lg:translate-x-0 lg:static lg:inset-0',
+            'fixed left-0 z-40 w-64 border-r bg-background transition-transform',
+            'top-[calc(1rem+2.75rem)] h-[calc(100vh-1rem-2.75rem)]',
+            'lg:translate-x-0 lg:top-[calc(1rem+2.75rem)] lg:h-[calc(100vh-1rem-2.75rem)]',
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           )}
         >
@@ -176,13 +178,13 @@ export function DocsLayout({ children }: DocsLayoutProps) {
         {/* Overlay for mobile */}
         {sidebarOpen && (
           <div
-            className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm lg:hidden"
+            className="fixed left-0 right-0 bottom-0 top-[calc(1rem+2.75rem)] z-30 bg-background/80 backdrop-blur-sm lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
 
-        {/* Main Content */}
-        <main className="flex-1 lg:ml-0">
+        {/* Main Content - account for navbar on all screens and docs header on mobile */}
+        <main className="flex-1 lg:ml-64 pt-[calc(1rem+2.75rem+3.5rem)] lg:pt-[calc(1rem+2.75rem)]">
           <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
             {children}
           </div>

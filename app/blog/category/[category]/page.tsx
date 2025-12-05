@@ -228,20 +228,8 @@ export default async function CategoryPage({
         }}
       />
       <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b bg-muted/30">
-        <div className="container mx-auto max-w-7xl px-1 py-1">
-          <Button variant="ghost" asChild>
-            <Link href="/blog" className="inline-flex items-center text-sm">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Blog
-            </Link>
-          </Button>
-        </div>
-      </div>
-
       {/* Hero */}
-      <section className="border-b bg-muted/30 py-5 px-1">
+      <section className="pt-[calc(1rem+2.75rem+1.5rem)] pb-5 px-1 border-b">
         <div className="container mx-auto max-w-7xl">
           <div className="max-w-3xl">
             <Badge variant="secondary" className="mb-1">

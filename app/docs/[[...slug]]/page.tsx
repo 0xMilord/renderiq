@@ -357,7 +357,7 @@ async function DocsHomePage() {
               <h2 className="mb-4 text-2xl font-semibold">{category}</h2>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {(docs as any[]).map((doc) => (
-                  <Link key={doc.slug} href={doc.url}>
+                  <Link key={`${category}-${doc.slug}`} href={doc.url}>
                     <Card className="h-full transition-colors hover:bg-muted">
                       <CardHeader>
                         <CardTitle className="text-lg">{doc.title}</CardTitle>
