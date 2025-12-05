@@ -103,7 +103,7 @@ const processSteps = [
   },
   {
     title: "Rapid Iteration",
-    description: "Refine promising concepts with instant AI-powered variations"
+    description: "Refine promising concenpts with instant AI-powered variations"
   },
   {
     title: "Selection & Development",

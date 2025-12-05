@@ -41,19 +41,35 @@ export const metadata = {
 
 export default async function DemoPage() {
   try {
-    // Fetch real gallery renders for demo - simple logic like gallery does
+    // Admin user ID for demo
+    const ADMIN_USER_ID = '2def3d01-6cfb-470b-9e89-ce34093daafa';
+    
+    // Fetch real gallery renders for demo - filter for admin user only
     // Get more items to ensure we have enough with before/after pairs
     const galleryResult = await getPublicGallery(1, 50);
-    const galleryItems = galleryResult.success ? galleryResult.data || [] : [];
+    const allGalleryItems = galleryResult.success ? galleryResult.data || [] : [];
+    
+    // Filter for admin user only
+    const galleryItems = allGalleryItems.filter(item => item.userId === ADMIN_USER_ID);
 
-    console.log(`📊 Demo: Fetched ${galleryItems.length} gallery items`);
+    console.log(`📊 Demo: Fetched ${allGalleryItems.length} total gallery items, ${galleryItems.length} from admin user`);
     
     // Fetch more chains (up to 20) to ensure we have chains with 1-2 renders
     // The component filters for short chains (1-2 renders), so we need more chains
     const longestChainsResult = await getLongestChains(20);
-    const longestChains = longestChainsResult.success ? longestChainsResult.data || [] : [];
+    const allLongestChains = longestChainsResult.success ? longestChainsResult.data || [] : [];
     
-    console.log(`📊 Demo: Fetched ${longestChains.length} chains with public renders`);
+    // Filter chains for admin user only
+    const longestChains = allLongestChains.filter(chain => {
+      // Check if any render in the chain belongs to admin user
+      return chain.renders?.some(render => {
+        // Find the gallery item for this render to check userId
+        const galleryItem = allGalleryItems.find(item => item.renderId === render.id);
+        return galleryItem?.userId === ADMIN_USER_ID;
+      });
+    });
+    
+    console.log(`📊 Demo: Fetched ${allLongestChains.length} total chains, ${longestChains.length} from admin user`);
     
     // Log chain details for debugging
     longestChains.forEach((chain, idx) => {

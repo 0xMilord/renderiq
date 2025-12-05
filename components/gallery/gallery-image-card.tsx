@@ -516,12 +516,12 @@ export function GalleryImageCard({
                   secondImage={{ imageUrl: item.render.uploadedImageUrl }}
                   currentPercentPosition={75}
                 />
-                {/* Labels - Bottom corners: After on left (generated image), Before on right (uploaded image) */}
+                {/* Labels - Bottom corners: Before on left (uploaded image), After on right (generated image) */}
                 <div className="absolute bottom-2 left-2 bg-background/90 backdrop-blur-sm border border-border text-foreground px-2 py-1 rounded text-xs font-medium z-10">
-                  After
+                  Before
                 </div>
                 <div className="absolute bottom-2 right-2 bg-background/90 backdrop-blur-sm border border-border text-foreground px-2 py-1 rounded text-xs font-medium z-10">
-                  Before
+                  After
                 </div>
               </div>
             ) : (

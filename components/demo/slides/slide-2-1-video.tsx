@@ -279,6 +279,13 @@ export function Slide21Video({ galleryRenders = [], onVideoComplete }: Slide21Vi
                                   });
                                 }
                               }}
+                              onEnded={() => {
+                                // Restart video immediately when it ends to ensure continuous looping
+                                if (videoRef.current) {
+                                  videoRef.current.currentTime = 0;
+                                  videoRef.current.play().catch(() => {});
+                                }
+                              }}
                             />
                           </div>
                         ) : (

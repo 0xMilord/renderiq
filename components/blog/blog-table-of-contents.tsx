@@ -149,17 +149,12 @@ const BlogTableOfContents = memo(function BlogTableOfContents() {
                           'hover:bg-muted rounded-md cursor-pointer flex items-center justify-center',
                           'flex-shrink-0'
                         )}
-                        onClick={(e) => copyAnchorLink(h1.id, e)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          copyAnchorLink(h1.id, e);
+                        }}
                         title="Copy link to this section"
                         aria-label="Copy link to this section"
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            copyAnchorLink(h1.id, e as any);
-                          }
-                        }}
                       >
                         {copiedId === h1.id ? (
                           <Check className="h-3 w-3 text-primary" />
@@ -200,17 +195,12 @@ const BlogTableOfContents = memo(function BlogTableOfContents() {
                               'hover:bg-muted rounded-md cursor-pointer flex items-center justify-center',
                               'flex-shrink-0'
                             )}
-                            onClick={(e) => copyAnchorLink(child.id, e)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyAnchorLink(child.id, e);
+                            }}
                             title="Copy link to this section"
                             aria-label="Copy link to this section"
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault();
-                                copyAnchorLink(child.id, e as any);
-                              }
-                            }}
                           >
                             {copiedId === child.id ? (
                               <Check className="h-3 w-3 text-primary" />

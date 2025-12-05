@@ -169,7 +169,7 @@ export function Slide7Pricing() {
             </div>
           </div>
 
-          {/* Right Column: Trust Signals & QR Code */}
+          {/* Right Column: Trust Signals, QR Code & Testimonials */}
           <div className="flex flex-col justify-center gap-4">
             {/* Trust Signals */}
             <div className="grid grid-cols-2 gap-4">
@@ -189,55 +189,53 @@ export function Slide7Pricing() {
               </div>
             </div>
 
-            {/* QR Code */}
-            <div className="flex flex-col items-center justify-center bg-card/60 backdrop-blur-sm rounded-xl border border-border p-6 mb-4">
-              <div className="bg-foreground/90 p-6 rounded-xl mb-3 shadow-lg border-2 border-primary/30">
-                <QRCodeSVG
-                  value={`${typeof window !== 'undefined' ? window.location.origin : ''}/signup`}
-                  size={352}
-                  level="H"
-                  includeMargin={true}
-                  fgColor="hsl(var(--primary))"
-                  bgColor="hsl(var(--foreground))"
-                  imageSettings={{
-                    src: '/logo.svg',
-                    height: 60,
-                    width: 60,
-                    excavate: true,
-                  }}
-                />
+            {/* QR Code and Testimonials - 2 columns, 1 row */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* QR Code */}
+              <div className="flex flex-col items-center justify-center bg-card/60 backdrop-blur-sm rounded-xl border border-border p-4">
+                <div className="p-1 bg-primary/10 rounded border border-primary/30 flex-shrink-0 mb-3">
+                  <QRCodeSVG
+                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/signup`}
+                    size={140}
+                    level="M"
+                    includeMargin={false}
+                    className="rounded"
+                    fgColor="hsl(var(--primary))"
+                    bgColor="transparent"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground text-center font-medium">
+                  Scan to sign up instantly
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground text-center font-medium">
-                Scan to sign up instantly
-              </p>
-            </div>
 
-            {/* Testimonials Carousel */}
-            <div className="bg-card/60 backdrop-blur-sm rounded-xl border border-border p-4">
-              <h4 className="text-sm font-semibold text-foreground mb-3 text-center">What Our Users Say</h4>
-              <Carousel
-                opts={{
-                  align: 'start',
-                  loop: true,
-                }}
-                plugins={[autoplayPlugin]}
-                className="w-full"
-              >
-                <CarouselContent className="-ml-2 md:-ml-4">
-                  {twitterTestimonials.map((testimonial, index) => (
-                    <CarouselItem key={index} className="pl-2 md:pl-4 basis-full">
-                      <div className="h-full">
-                        <TwitterTestimonial
-                          tweetUrl={testimonial.url}
-                          fallback={testimonial.fallback}
-                        />
-                      </div>
-                    </CarouselItem>
-                  ))}
-                </CarouselContent>
-                <CarouselPrevious className="left-2" />
-                <CarouselNext className="right-2" />
-              </Carousel>
+              {/* Testimonials Carousel */}
+              <div className="bg-card/60 backdrop-blur-sm rounded-xl border border-border p-4">
+                <h4 className="text-sm font-semibold text-foreground mb-3 text-center">What Our Users Say</h4>
+                <Carousel
+                  opts={{
+                    align: 'start',
+                    loop: true,
+                  }}
+                  plugins={[autoplayPlugin]}
+                  className="w-full"
+                >
+                  <CarouselContent className="-ml-2 md:-ml-4">
+                    {twitterTestimonials.map((testimonial, index) => (
+                      <CarouselItem key={index} className="pl-2 md:pl-4 basis-full">
+                        <div className="h-full">
+                          <TwitterTestimonial
+                            tweetUrl={testimonial.url}
+                            fallback={testimonial.fallback}
+                          />
+                        </div>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  <CarouselPrevious className="left-2" />
+                  <CarouselNext className="right-2" />
+                </Carousel>
+              </div>
             </div>
           </div>
         </div>

@@ -520,18 +520,18 @@ export function Slide4RenderChains() {
           </div>
 
           {/* Right Column - Version Cards (3/4 width) */}
-          <div className="col-span-3 bg-card/90 backdrop-blur-md rounded-xl border-2 border-border shadow-xl flex flex-col overflow-hidden">
+          <div className="col-span-3 bg-card/90 backdrop-blur-md rounded-xl border-2 border-border shadow-xl flex flex-col overflow-hidden w-full">
             <div className="p-3 sm:p-4 border-b border-border flex items-center gap-2 bg-muted/50">
               <GitBranch className="h-5 w-5 text-primary" />
               <h3 className="text-lg sm:text-xl font-bold text-foreground">Version History</h3>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 w-full">
               {versions.length === 0 ? (
                 <div className="text-center text-muted-foreground py-8">
                   No versions available
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
                   {versions.map((version, index) => (
                     <div
                       key={version.id}

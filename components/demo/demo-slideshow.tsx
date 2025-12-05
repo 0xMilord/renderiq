@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Slide1Hero } from './slides/slide-1-hero';
 import { Slide2Problem } from './slides/slide-2-problem';
 import { Slide21Video } from './slides/slide-2-1-video';
@@ -44,6 +44,8 @@ export function DemoSlideshow({ galleryRenders = [], longestChains = [] }: DemoS
   const [isFullscreen, setIsFullscreen] = useState(false);
   const currentSlideDuration = slides[currentSlide]?.duration || SLIDE_DURATION;
   const [timeRemaining, setTimeRemaining] = useState(currentSlideDuration);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const fadeIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleVideoComplete = () => {
     // Auto-advance to next slide when video completes
@@ -51,6 +53,88 @@ export function DemoSlideshow({ galleryRenders = [], longestChains = [] }: DemoS
     setCurrentSlide(nextSlide);
     setTimeRemaining(slides[nextSlide]?.duration || SLIDE_DURATION);
   };
+
+  // Initialize audio on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const audio = new Audio('/piano-438549.mp3');
+      audio.loop = true;
+      audio.volume = 0;
+      audioRef.current = audio;
+      
+      // Start playing audio
+      audio.play().catch((error) => {
+        console.log('Audio autoplay prevented:', error);
+      });
+      
+      // Fade in from 0 to 1 over 3 seconds
+      let volume = 0;
+      const fadeInInterval = setInterval(() => {
+        volume += 0.01; // Increase by 1% every ~30ms (3 seconds total)
+        if (volume >= 1) {
+          volume = 1;
+          clearInterval(fadeInInterval);
+        }
+        if (audioRef.current) {
+          audioRef.current.volume = volume;
+        }
+      }, 30);
+      
+      return () => {
+        clearInterval(fadeInInterval);
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current = null;
+        }
+      };
+    }
+  }, []);
+
+  // Fade out audio when slideshow ends (on last slide with low time remaining)
+  useEffect(() => {
+    const totalSlides = slides.length;
+    const isLastSlide = currentSlide === totalSlides - 1;
+    const timeUntilEnd = timeRemaining;
+    const fadeOutDuration = 5000; // 5 seconds fade out
+    
+    if (isLastSlide && timeUntilEnd <= fadeOutDuration && audioRef.current) {
+      // Start fading out
+      if (fadeIntervalRef.current) {
+        clearInterval(fadeIntervalRef.current);
+      }
+      
+      const startVolume = audioRef.current.volume;
+      const startTime = Date.now();
+      
+      fadeIntervalRef.current = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / fadeOutDuration, 1);
+        const newVolume = startVolume * (1 - progress);
+        
+        if (audioRef.current) {
+          audioRef.current.volume = Math.max(0, newVolume);
+        }
+        
+        if (progress >= 1) {
+          if (fadeIntervalRef.current) {
+            clearInterval(fadeIntervalRef.current);
+            fadeIntervalRef.current = null;
+          }
+          if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.volume = 0;
+          }
+        }
+      }, 30);
+      
+      return () => {
+        if (fadeIntervalRef.current) {
+          clearInterval(fadeIntervalRef.current);
+          fadeIntervalRef.current = null;
+        }
+      };
+    }
+  }, [currentSlide, timeRemaining]);
 
   // Update time remaining when slide changes
   useEffect(() => {

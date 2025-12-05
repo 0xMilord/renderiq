@@ -53,35 +53,49 @@ export function Slide3UnifiedChat({ galleryRenders = [], longestChains = [] }: S
     ...demoChain,
     renders: top5Images
       .map((img, index) => {
+        // Always prioritize gallery item data over chain render data
         // Find the render in the chain or create a mock render
         const chainRender = demoChain.renders?.find(r => r.id === img.renderId);
+        
+        // Ensure we have outputUrl from gallery item
+        const outputUrl = img.render?.outputUrl || chainRender?.outputUrl || '';
+        const uploadedImageUrl = img.render?.uploadedImageUrl || chainRender?.uploadedImageUrl || undefined;
+        
+        if (!outputUrl) {
+          // Skip renders without outputUrl
+          return null;
+        }
+        
         if (chainRender) {
-          // Always use the uploadedImageUrl from the gallery item to ensure sync
-          // Set chainPosition to 0 to prevent before/after comparison sliders in demo
+          // Always use the uploadedImageUrl and outputUrl from the gallery item to ensure sync
           return {
             ...chainRender,
-            chainPosition: 0, // Set to 0 to prevent previous render detection
-            uploadedImageUrl: img.render.uploadedImageUrl || chainRender.uploadedImageUrl || undefined,
-            outputUrl: img.render.outputUrl || chainRender.outputUrl || '',
-            prompt: img.render.prompt || chainRender.prompt || '',
+            chainPosition: index, // Use index for proper ordering
+            uploadedImageUrl: uploadedImageUrl,
+            outputUrl: outputUrl, // Always use gallery item's outputUrl
+            prompt: img.render?.prompt || chainRender.prompt || '',
+            status: 'completed' as const, // Ensure status is completed
+            type: (img.render?.type || chainRender.type || 'image') as 'image' | 'video',
           };
         }
         // If not found, create a mock render from the gallery item
         return {
           id: img.renderId,
-          projectId: img.render.projectId || '',
+          projectId: img.render?.projectId || '',
           chainId: demoChain.id,
-          chainPosition: 0, // Set to 0 to prevent previous render detection
-          prompt: img.render.prompt || '',
-          type: 'image' as const,
+          chainPosition: index, // Use index for proper ordering
+          prompt: img.render?.prompt || '',
+          type: (img.render?.type || 'image') as 'image' | 'video',
           status: 'completed' as const,
-          outputUrl: img.render.outputUrl || '',
-          uploadedImageUrl: img.render.uploadedImageUrl || undefined,
-          createdAt: img.render.createdAt || new Date(),
-          updatedAt: img.render.updatedAt || new Date(),
+          outputUrl: outputUrl, // Always use gallery item's outputUrl
+          uploadedImageUrl: uploadedImageUrl,
+          createdAt: img.render?.createdAt || new Date(),
+          updatedAt: img.render?.updatedAt || new Date(),
+          settings: img.render?.settings || chainRender?.settings || {},
         } as Render;
       })
-      .filter(Boolean) as Render[],
+      .filter((r): r is Render => r !== null && !!r && !!r.outputUrl) // Only include renders with outputUrl
+      .sort((a, b) => (a.chainPosition || 0) - (b.chainPosition || 0)), // Sort by chainPosition
   } : undefined;
 
   // Autopilot: Cycle through top 5 images sequentially
@@ -165,20 +179,37 @@ export function Slide3UnifiedChat({ galleryRenders = [], longestChains = [] }: S
         // For the current render, control its status based on state
         if (originalIdx === currentImageIndex) {
           if (hasShownImage) {
-            // Image has been rendered - show completed render
-            return { ...render, status: 'completed' as const };
+            // Image has been rendered - show completed render with outputUrl
+            return { 
+              ...render, 
+              status: 'completed' as const,
+              outputUrl: render.outputUrl || top5Images[currentImageIndex]?.render?.outputUrl || '',
+            };
           } else if (isShowingThinking) {
             // Bot is thinking - show render but it will appear as processing
-            return { ...render, status: 'processing' as const };
+            return { 
+              ...render, 
+              status: 'processing' as const,
+              outputUrl: render.outputUrl || top5Images[currentImageIndex]?.render?.outputUrl || '',
+            };
           } else {
             // User message phase - show render with uploaded image
-            return { ...render, status: 'processing' as const };
+            return { 
+              ...render, 
+              status: 'processing' as const,
+              outputUrl: render.outputUrl || top5Images[currentImageIndex]?.render?.outputUrl || '',
+            };
           }
         }
-        // Previous renders are always completed
-        return { ...render, status: 'completed' as const };
+        // Previous renders are always completed - ensure they have outputUrl
+        const previousImage = top5Images[originalIdx];
+        return { 
+          ...render, 
+          status: 'completed' as const,
+          outputUrl: render.outputUrl || previousImage?.render?.outputUrl || '',
+        };
       })
-      .filter((render): render is Render => render !== null)
+      .filter((render): render is Render => render !== null && !!render.outputUrl) // Only include renders with outputUrl
       .sort((a, b) => (a.chainPosition || 0) - (b.chainPosition || 0)),
   } : undefined;
 
@@ -265,9 +296,9 @@ export function Slide3UnifiedChat({ galleryRenders = [], longestChains = [] }: S
 
         {/* Actual Unified Chat Interface - Full Width */}
         <div className="flex-1 w-full min-h-0 overflow-hidden demo-unified-chat-container">
-          {filteredChain && (
+          {filteredChain && filteredChain.renders && filteredChain.renders.length > 0 && filteredChain.renders.every(r => r.outputUrl) && (
             <UnifiedChatInterface
-              key={`demo-chat-${currentImageIndex}-${hasShownImage ? 'shown' : 'thinking'}`}
+              key={`demo-chat-${demoProjectId}-${filteredChain.id}-${filteredChain.renders.map(r => `${r.id}-${r.status}`).join('-')}`}
               projectId={demoProjectId}
               chainId={filteredChain.id}
               chain={filteredChain}

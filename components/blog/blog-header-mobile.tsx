@@ -9,8 +9,11 @@ import { BlogMobileSidebar } from './blog-mobile-sidebar';
 export function BlogHeaderMobile() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [navbarHeight, setNavbarHeight] = useState(44); // Default navbar height (h-11 = 44px)
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+    
     // Calculate navbar height including AlphaBanner if present
     const calculateNavbarHeight = () => {
       const navbar = document.querySelector('nav.bg-background');
@@ -64,7 +67,7 @@ export function BlogHeaderMobile() {
     <>
       <div 
         className="border-b bg-muted/30 lg:hidden sticky z-40 transition-all duration-200 bg-background"
-        style={{ top: `${navbarHeight}px` }}
+        style={mounted ? { top: `${navbarHeight}px` } : undefined}
       >
         <div className="px-4 py-2 h-10 flex items-center">
           <div className="p-[3px] border-[0.25px] border-primary rounded-lg bg-background flex-1">

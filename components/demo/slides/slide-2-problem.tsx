@@ -54,7 +54,7 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
 
   // Use most popular gallery items (already sorted by popularity from demo page)
   // Filter for images with both uploaded and output URLs
-  // Take first 5 most popular items that have before/after pairs
+  // Take first 8 most popular items that have before/after pairs
   const beforeAfterPairs = galleryRenders
     .filter(r => 
       r.render?.uploadedImageUrl && 
@@ -62,7 +62,7 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
       r.render?.status === 'completed' && 
       r.render?.type === 'image'
     )
-    .slice(0, 5); // Limit to 5 most popular images max
+    .slice(0, 8); // Limit to 8 most popular images max
 
   const currentPair = beforeAfterPairs[currentIndex] || beforeAfterPairs[0];
   const currentPrompt = currentPair?.render?.prompt || '';
@@ -128,7 +128,7 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
           }
           return 0; // Reset to start (left)
         }
-        return prev + 1.0; // Move right (increase) - doubled speed
+        return prev + 0.8; // Move right (increase) - slowed down by 20% (was 1.0, now 0.8)
       });
     }, 50); // Update every 50ms for smooth animation
     return () => clearInterval(interval);
@@ -604,11 +604,12 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
                 .slide-2-slider-wrapper .react-before-after-slider-container img {
                   width: 100% !important;
                   height: 100% !important;
-                  object-fit: cover !important;
+                  object-fit: contain !important;
+                  object-position: center !important;
                 }
               `}} />
               <div className="relative w-full max-w-6xl h-full max-h-[70vh] slide-2-slider-wrapper">
-                <div className="relative w-full h-full overflow-hidden rounded-lg" style={{ aspectRatio: '16/9' }}>
+                <div className="relative w-full h-full overflow-hidden rounded-lg bg-muted" style={{ aspectRatio: '16/9' }}>
                   <ReactBeforeSliderComponent
                     firstImage={{ imageUrl: currentPair.render.uploadedImageUrl }}
                     secondImage={{ imageUrl: currentPair.render.outputUrl }}
