@@ -301,6 +301,7 @@ export async function createRenderAction(formData: FormData) {
       uploadedImageData: uploadedImageData || referenceRenderImageData,
       uploadedImageType: uploadedImageType || referenceRenderImageType,
       referenceRenderPrompt,
+      imageType: imageType || null,
       projectId,
       userId: user.id,
       creditsCost,
@@ -353,6 +354,7 @@ async function processRenderAsync(
     uploadedImageData?: string;
     uploadedImageType?: string;
     referenceRenderPrompt?: string;
+    imageType?: string | null;
     projectId: string;
     userId: string;
     creditsCost: number;
@@ -373,9 +375,16 @@ async function processRenderAsync(
       });
     } else {
       // Enhance prompt with context from previous render if available
+      // SKIP modification for tool-generated prompts (identified by imageType field)
+      // Tool prompts are already structured with XML format and should not be modified
+      const isToolPrompt = renderData.imageType && typeof renderData.imageType === 'string' && renderData.imageType.startsWith('render-');
       let contextualPrompt = renderData.prompt;
-      if (renderData.referenceRenderPrompt && renderData.uploadedImageData) {
+      
+      if (!isToolPrompt && renderData.referenceRenderPrompt && renderData.uploadedImageData) {
         contextualPrompt = `Based on the previous render (${renderData.referenceRenderPrompt}), ${renderData.prompt}`;
+        logger.log('🔗 Added reference render context to prompt (non-tool prompt)');
+      } else if (isToolPrompt) {
+        logger.log('🔧 Tool prompt detected - skipping reference render context modification to preserve structured XML format');
       }
       
       result = await aiService.generateImage({

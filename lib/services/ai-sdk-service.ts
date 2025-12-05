@@ -225,37 +225,45 @@ Original prompt: "${originalPrompt}"`;
       // Start with user's original prompt - it's the primary input
       let enhancedPrompt = request.prompt.trim();
       
-      // Only add settings if they're not already mentioned in the prompt
-      // This avoids redundancy and token waste
-      const promptLower = enhancedPrompt.toLowerCase();
+      // Detect tool-generated prompts (structured XML format with <role>, <task>, <constraints> tags)
+      // Tool prompts should NOT be modified with environment/effect modifiers
+      const isToolPrompt = enhancedPrompt.includes('<role>') || enhancedPrompt.includes('<task>') || enhancedPrompt.includes('<constraints>');
       
-      // Add environment if provided and not already mentioned
-      // Follow best practice: only add if not redundant
-      if (request.environment && request.environment !== 'none') {
-        // Check if environment/weather is already mentioned in prompt
-        const envKeywords = ['rainy', 'sunny', 'overcast', 'sunset', 'sunrise', 'night', 'day', 'dusk', 'dawn', 'weather', 'environment'];
-        const envValue = request.environment.toLowerCase();
-        const isEnvMentioned = envKeywords.some(keyword => 
-          promptLower.includes(keyword) && (promptLower.includes(envValue) || promptLower.includes('environment') || promptLower.includes('weather'))
-        );
+      if (isToolPrompt) {
+        logger.log('🔧 Tool prompt detected (structured XML format) - skipping environment/effect modifiers to preserve prompt structure');
+      } else {
+        // Only add settings if they're not already mentioned in the prompt
+        // This avoids redundancy and token waste
+        const promptLower = enhancedPrompt.toLowerCase();
         
-        if (!isEnvMentioned) {
-          enhancedPrompt += `, ${request.environment} environment`;
+        // Add environment if provided and not already mentioned
+        // Follow best practice: only add if not redundant
+        if (request.environment && request.environment !== 'none') {
+          // Check if environment/weather is already mentioned in prompt
+          const envKeywords = ['rainy', 'sunny', 'overcast', 'sunset', 'sunrise', 'night', 'day', 'dusk', 'dawn', 'weather', 'environment'];
+          const envValue = request.environment.toLowerCase();
+          const isEnvMentioned = envKeywords.some(keyword => 
+            promptLower.includes(keyword) && (promptLower.includes(envValue) || promptLower.includes('environment') || promptLower.includes('weather'))
+          );
+          
+          if (!isEnvMentioned) {
+            enhancedPrompt += `, ${request.environment} environment`;
+          }
         }
-      }
-      
-      // Add effect/style if provided and not already mentioned
-      // Follow best practice: avoid redundancy
-      if (request.effect && request.effect !== 'none') {
-        // Check if style/effect is already mentioned in prompt
-        const styleKeywords = ['photoreal', 'realistic', 'illustration', 'wireframe', 'sketch', 'painting', 'digital art', 'style', 'effect'];
-        const effectValue = request.effect.toLowerCase();
-        const isStyleMentioned = styleKeywords.some(keyword => 
-          promptLower.includes(keyword) && (promptLower.includes(effectValue) || promptLower.includes('style'))
-        );
         
-        if (!isStyleMentioned) {
-          enhancedPrompt += `, ${request.effect} style`;
+        // Add effect/style if provided and not already mentioned
+        // Follow best practice: avoid redundancy
+        if (request.effect && request.effect !== 'none') {
+          // Check if style/effect is already mentioned in prompt
+          const styleKeywords = ['photoreal', 'realistic', 'illustration', 'wireframe', 'sketch', 'painting', 'digital art', 'style', 'effect'];
+          const effectValue = request.effect.toLowerCase();
+          const isStyleMentioned = styleKeywords.some(keyword => 
+            promptLower.includes(keyword) && (promptLower.includes(effectValue) || promptLower.includes('style'))
+          );
+          
+          if (!isStyleMentioned) {
+            enhancedPrompt += `, ${request.effect} style`;
+          }
         }
       }
       
