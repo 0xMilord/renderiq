@@ -40,11 +40,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { CATEGORIES, getToolsByCategory, getAllTools } from '@/lib/tools/registry';
 
 // Icon mapping for tools
@@ -92,8 +87,8 @@ const getToolIcon = (toolId: string) => {
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [isAppsDropdownOpen, setIsAppsDropdownOpen] = useState(false);
+  const [hoveredNavItem, setHoveredNavItem] = useState<string | null>(null);
   const pathname = usePathname();
   const { theme, systemTheme } = useTheme();
   const { user, loading } = useAuth();
@@ -115,8 +110,30 @@ export function Navbar() {
     { href: '/', icon: Home, label: 'Home' },
     { href: '/render', icon: Sparkles, label: 'Render' },
     { href: '/canvas', icon: Layout, label: 'Canvas' },
-    { href: '/gallery', icon: Images, label: 'Gallery' },
-    { href: '/docs', icon: FileText, label: 'Docs' },
+    { 
+      href: '/gallery', 
+      icon: Images, 
+      label: 'Gallery',
+      dropdown: [
+        { href: '/gallery', label: 'Browse Gallery' },
+        { href: '/pricing', label: 'Pricing' },
+        { href: '/blog', label: 'Blog' },
+      ]
+    },
+    { 
+      href: '/use-cases', 
+      icon: Lightbulb, 
+      label: 'Use Cases',
+      dropdown: [
+        { href: '/use-cases', label: 'All Use Cases' },
+        { href: '/use-cases/real-time-visualization', label: 'Real-time Visualization' },
+        { href: '/use-cases/initial-prototyping', label: 'Initial Prototyping' },
+        { href: '/use-cases/material-testing-built-spaces', label: 'Material Testing' },
+        { href: '/use-cases/rapid-concept-video', label: 'Rapid Concept Video' },
+        { href: '/use-cases/presentation-ready-graphics', label: 'Presentation Graphics' },
+        { href: '/use-cases/social-media-content', label: 'Social Media Content' },
+      ]
+    },
   ];
 
   // Check if item is active
@@ -130,9 +147,9 @@ export function Navbar() {
   return (
     <>
       <nav 
-        className="w-full fixed top-0 left-0 right-0 z-50 pt-4 pointer-events-none bg-background"
+        className="w-full fixed top-0 left-0 right-0 z-50 pointer-events-none bg-background"
       >
-        <div className="w-full px-4 sm:px-6 lg:px-8 pointer-events-auto">
+        <div className="w-full px-4 sm:px-6 lg:px-8 pb-2 pointer-events-auto">
         <div className="flex items-center justify-between h-11 gap-6">
           {/* Logo */}
           <div className="flex items-center gap-4 flex-shrink-0">
@@ -152,49 +169,85 @@ export function Navbar() {
             </Link>
           </div>
 
-          {/* Middle Section: Navigation Links Dock */}
+          {/* Middle Section: Navigation Links */}
           {!loading && (
             <div className="flex-1 flex items-center justify-center">
-              <div 
-                className="hidden md:flex items-center gap-0 bg-muted/80 backdrop-blur-sm border border-border/50 rounded-full px-2 py-2 shadow-lg h-11"
-                onMouseLeave={() => {
-                  // Only clear hover if dropdown is not open
-                  if (!isAppsDropdownOpen) {
-                    setHoveredItem(null);
-                  }
-                }}
+              <nav 
+                className="hidden md:flex items-center gap-2"
+                onMouseLeave={() => setHoveredNavItem(null)}
               >
                 {navItems.map((item, index) => {
                   const Icon = item.icon;
                   const active = isActive(item.href);
-                  const isHovered = hoveredItem === item.href;
-                  const showText = active || isHovered;
+                  const hasDropdown = item.dropdown && item.dropdown.length > 0;
+                  const showText = active || hoveredNavItem === item.href;
 
                   return (
                     <div key={item.href} className="flex items-center">
                       {index > 0 && (
-                        <div className="h-6 w-px bg-border/50 mx-0.5 shrink-0" />
+                        <div className="h-6 w-px bg-border/50 mx-1 shrink-0" />
                       )}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
+                      <div 
+                        className="relative"
+                        onMouseEnter={() => setHoveredNavItem(item.href)}
+                        onMouseLeave={() => setHoveredNavItem(null)}
+                      >
+                        {hasDropdown ? (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                className={cn(
+                                  "flex items-center gap-2 rounded-md text-sm font-medium transition-all duration-200 outline-none overflow-hidden",
+                                  showText ? "px-3 py-2 gap-2" : "p-2 gap-0",
+                                  active
+                                    ? "bg-primary text-primary-foreground"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                                )}
+                              >
+                                <Icon className="h-4 w-4 shrink-0" />
+                                <span 
+                                  className={cn(
+                                    "whitespace-nowrap transition-all duration-200",
+                                    showText 
+                                      ? "opacity-100 max-w-[200px] ml-0" 
+                                      : "opacity-0 max-w-0 ml-0 w-0"
+                                  )}
+                                >
+                                  {item.label}
+                                </span>
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent 
+                              align="start" 
+                              className="bg-muted/80 backdrop-blur-sm border border-border/50 rounded-lg shadow-lg z-50 p-2 min-w-[200px]"
+                            >
+                              {item.dropdown?.map((dropdownItem) => (
+                                <DropdownMenuItem key={dropdownItem.href} asChild>
+                                  <Link 
+                                    href={dropdownItem.href}
+                                    className="cursor-pointer"
+                                  >
+                                    {dropdownItem.label}
+                                  </Link>
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : (
                           <Link
                             href={item.href}
                             className={cn(
-                              "flex items-center gap-1.5 rounded-full transition-all duration-300 ease-in-out overflow-hidden",
-                              "text-foreground hover:text-primary relative",
-                              active 
-                                ? "bg-background/50 text-primary" 
-                                : "hover:bg-background/50",
-                              showText ? "px-3 w-auto" : "w-10 px-0 justify-center",
-                              // Add safe zone padding to prevent flickering
-                              "before:absolute before:inset-0 before:-mx-1 before:pointer-events-none"
+                              "flex items-center gap-2 rounded-md text-sm font-medium transition-all duration-200 overflow-hidden",
+                              showText ? "px-3 py-2 gap-2" : "p-2 gap-0",
+                              active
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                             )}
-                            onMouseEnter={() => setHoveredItem(item.href)}
                           >
-                            <Icon className="h-5 w-5 shrink-0" />
+                            <Icon className="h-4 w-4 shrink-0" />
                             <span 
                               className={cn(
-                                "whitespace-nowrap text-sm font-medium transition-all duration-300 ease-in-out",
+                                "whitespace-nowrap transition-all duration-200",
                                 showText 
                                   ? "opacity-100 max-w-[200px] ml-0" 
                                   : "opacity-0 max-w-0 ml-0 w-0"
@@ -203,83 +256,73 @@ export function Navbar() {
                               {item.label}
                             </span>
                           </Link>
-                        </TooltipTrigger>
-                        {!showText && (
-                          <TooltipContent side="bottom" sideOffset={8}>
-                            {item.label}
-                          </TooltipContent>
                         )}
-                      </Tooltip>
+                      </div>
                     </div>
                   );
                 })}
                 <div className="flex items-center">
-                  <div className="h-6 w-px bg-border/50 mx-0.5 shrink-0" />
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div>
-                        <DropdownMenu open={isAppsDropdownOpen} onOpenChange={setIsAppsDropdownOpen}>
-                          <DropdownMenuTrigger asChild>
-                            <button 
-                              className={cn(
-                                "flex items-center gap-1.5 rounded-full transition-all duration-300 ease-in-out overflow-hidden outline-none relative",
-                                pathname.startsWith('/apps')
-                                  ? "bg-background/50 text-primary"
-                                  : "text-foreground hover:text-primary hover:bg-background/50",
-                                hoveredItem === 'apps' || pathname.startsWith('/apps') || isAppsDropdownOpen
-                                  ? "px-3 w-auto" 
-                                  : "w-10 px-0 justify-center",
-                                // Add safe zone padding to prevent flickering
-                                "before:absolute before:inset-0 before:-mx-1 before:pointer-events-none"
-                              )}
-                              onMouseEnter={() => setHoveredItem('apps')}
-                            >
-                              <Wrench className="h-5 w-5 shrink-0" />
-                              <span 
-                                className={cn(
-                                  "whitespace-nowrap text-sm font-medium transition-all duration-300 ease-in-out",
-                                  hoveredItem === 'apps' || pathname.startsWith('/apps') || isAppsDropdownOpen
-                                    ? "opacity-100 max-w-[200px] ml-0" 
-                                    : "opacity-0 max-w-0 ml-0 w-0"
-                                )}
+                  <div className="h-6 w-px bg-border/50 mx-1 shrink-0" />
+                  <div
+                    className="relative"
+                    onMouseEnter={() => setHoveredNavItem('apps')}
+                    onMouseLeave={() => setHoveredNavItem(null)}
+                  >
+                  <DropdownMenu open={isAppsDropdownOpen} onOpenChange={setIsAppsDropdownOpen}>
+                    <DropdownMenuTrigger asChild>
+                      <button 
+                        className={cn(
+                          "flex items-center gap-2 rounded-md text-sm font-medium transition-all duration-200 outline-none overflow-hidden",
+                          (hoveredNavItem === 'apps' || pathname.startsWith('/apps')) ? "px-3 py-2 gap-2" : "p-2 gap-0",
+                          pathname.startsWith('/apps')
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                        )}
+                      >
+                        <Wrench className="h-4 w-4 shrink-0" />
+                        <span 
+                          className={cn(
+                            "whitespace-nowrap transition-all duration-200",
+                            (hoveredNavItem === 'apps' || pathname.startsWith('/apps'))
+                              ? "opacity-100 max-w-[400px] ml-0" 
+                              : "opacity-0 max-w-0 ml-0 w-0"
+                          )}
+                        >
+                          Apps
+                        </span>
+                      </button>
+                    </DropdownMenuTrigger>
+                  <DropdownMenuContent 
+                    align="start" 
+                    className="bg-background border border-border rounded-lg shadow-lg z-50 p-4"
+                  >
+                    <div className="grid grid-cols-5 gap-0 min-w-[600px]">
+                      {getAllTools().map((tool, index) => {
+                        const ToolIcon = getToolIcon(tool.id);
+                        const isLastInRow = (index + 1) % 5 === 0;
+                        return (
+                          <div key={tool.id} className="relative">
+                            {!isLastInRow && (
+                              <div className="absolute right-0 top-0 bottom-0 w-px bg-border" />
+                            )}
+                            <DropdownMenuItem asChild>
+                              <Link 
+                                href={`/apps/${tool.slug}`}
+                                className="flex items-center gap-2 p-2 rounded-md hover:bg-accent transition-colors min-w-0"
                               >
-                                Apps
-                              </span>
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent 
-                            align="center" 
-                            className="bg-muted/80 backdrop-blur-sm border border-border/50 rounded-lg shadow-lg z-50 p-4"
-                            onCloseAutoFocus={(e) => e.preventDefault()}
-                          >
-                            <div className="grid grid-cols-5 gap-2 min-w-[600px]">
-                              {getAllTools().map((tool) => {
-                                const ToolIcon = getToolIcon(tool.id);
-                                return (
-                                  <DropdownMenuItem key={tool.id} asChild>
-                                    <Link 
-                                      href={`/apps/${tool.slug}`}
-                                      className="flex flex-col items-center gap-1.5 p-2 rounded-md hover:bg-accent transition-colors"
-                                    >
-                                      <ToolIcon className="h-5 w-5 shrink-0" />
-                                      <span className="text-xs text-center leading-tight">{tool.name}</span>
-                                    </Link>
-                                  </DropdownMenuItem>
-                                );
-                              })}
-                            </div>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </TooltipTrigger>
-                    {!(hoveredItem === 'apps' || pathname.startsWith('/apps')) && (
-                      <TooltipContent side="bottom" sideOffset={8}>
-                        Apps
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
+                                <ToolIcon className="h-4 w-4 shrink-0" />
+                                <span className="text-xs leading-tight truncate min-w-0">{tool.name}</span>
+                              </Link>
+                            </DropdownMenuItem>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                  </div>
                 </div>
-              </div>
+              </nav>
             </div>
           )}
 
@@ -370,30 +413,92 @@ export function Navbar() {
                           <Sparkles className="h-4 w-4" />
                           <span>Render</span>
                         </Link>
-                        <Link
-                          href="/use-cases"
-                          className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium transition-colors"
-                          onClick={() => setIsOpen(false)}
-                        >
-                          <Lightbulb className="h-4 w-4" />
-                          <span>Use Cases</span>
-                        </Link>
-                        <Link
-                          href="/gallery"
-                          className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium transition-colors"
-                          onClick={() => setIsOpen(false)}
-                        >
-                          <Images className="h-4 w-4" />
-                          <span>Gallery</span>
-                        </Link>
-                        <Link
-                          href="/pricing"
-                          className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium transition-colors"
-                          onClick={() => setIsOpen(false)}
-                        >
-                          <CreditCard className="h-4 w-4" />
-                          <span>Pricing</span>
-                        </Link>
+                        <div className="px-3 py-2">
+                          <div className="flex items-center space-x-2 text-muted-foreground mb-2">
+                            <Images className="h-4 w-4" />
+                            <span className="text-base font-medium">Gallery</span>
+                          </div>
+                          <div className="ml-6 space-y-0.5">
+                            <Link
+                              href="/gallery"
+                              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary block px-2 py-1.5 rounded-md transition-colors"
+                              onClick={() => setIsOpen(false)}
+                            >
+                              <span>Browse Gallery</span>
+                            </Link>
+                            <Link
+                              href="/pricing"
+                              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary block px-2 py-1.5 rounded-md transition-colors"
+                              onClick={() => setIsOpen(false)}
+                            >
+                              <span>Pricing</span>
+                            </Link>
+                            <Link
+                              href="/blog"
+                              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary block px-2 py-1.5 rounded-md transition-colors"
+                              onClick={() => setIsOpen(false)}
+                            >
+                              <span>Blog</span>
+                            </Link>
+                          </div>
+                        </div>
+                        <div className="px-3 py-2">
+                          <div className="flex items-center space-x-2 text-muted-foreground mb-2">
+                            <Lightbulb className="h-4 w-4" />
+                            <span className="text-base font-medium">Use Cases</span>
+                          </div>
+                          <div className="ml-6 space-y-0.5">
+                            <Link
+                              href="/use-cases"
+                              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary block px-2 py-1.5 rounded-md transition-colors"
+                              onClick={() => setIsOpen(false)}
+                            >
+                              <span>All Use Cases</span>
+                            </Link>
+                            <Link
+                              href="/use-cases/real-time-visualization"
+                              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary block px-2 py-1.5 rounded-md transition-colors"
+                              onClick={() => setIsOpen(false)}
+                            >
+                              <span>Real-time Visualization</span>
+                            </Link>
+                            <Link
+                              href="/use-cases/initial-prototyping"
+                              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary block px-2 py-1.5 rounded-md transition-colors"
+                              onClick={() => setIsOpen(false)}
+                            >
+                              <span>Initial Prototyping</span>
+                            </Link>
+                            <Link
+                              href="/use-cases/material-testing-built-spaces"
+                              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary block px-2 py-1.5 rounded-md transition-colors"
+                              onClick={() => setIsOpen(false)}
+                            >
+                              <span>Material Testing</span>
+                            </Link>
+                            <Link
+                              href="/use-cases/rapid-concept-video"
+                              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary block px-2 py-1.5 rounded-md transition-colors"
+                              onClick={() => setIsOpen(false)}
+                            >
+                              <span>Rapid Concept Video</span>
+                            </Link>
+                            <Link
+                              href="/use-cases/presentation-ready-graphics"
+                              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary block px-2 py-1.5 rounded-md transition-colors"
+                              onClick={() => setIsOpen(false)}
+                            >
+                              <span>Presentation Graphics</span>
+                            </Link>
+                            <Link
+                              href="/use-cases/social-media-content"
+                              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary block px-2 py-1.5 rounded-md transition-colors"
+                              onClick={() => setIsOpen(false)}
+                            >
+                              <span>Social Media Content</span>
+                            </Link>
+                          </div>
+                        </div>
                         <div className="px-3 py-2">
                           <div className="flex items-center space-x-2 text-muted-foreground mb-2">
                             <Wrench className="h-4 w-4" />
@@ -437,14 +542,6 @@ export function Navbar() {
                         >
                           <Newspaper className="h-4 w-4" />
                           <span>Blog</span>
-                        </Link>
-                        <Link
-                          href="/docs"
-                          className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium transition-colors"
-                          onClick={() => setIsOpen(false)}
-                        >
-                          <FileText className="h-4 w-4" />
-                          <span>Docs</span>
                         </Link>
                       </div>
                       

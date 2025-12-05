@@ -12,9 +12,10 @@ import { TOOL_CONTENT } from '@/lib/tools/tool-content';
 
 interface RenderToSectionDrawingProps {
   tool: ToolConfig;
+  projectId?: string | null;
 }
 
-export function RenderToSectionDrawing({ tool }: RenderToSectionDrawingProps) {
+export function RenderToSectionDrawing({ tool, projectId }: RenderToSectionDrawingProps) {
   const [sectionType, setSectionType] = useState<'technical-cad' | '3d-cross' | 'illustrated-2d'>('technical-cad');
   const [lod, setLod] = useState<'LOD100' | 'LOD200' | 'LOD300' | 'LOD400'>('LOD300');
 
@@ -129,6 +130,7 @@ The input is an architectural render. Your task is to convert it into a technica
   return (
     <BaseToolComponent
       tool={tool}
+      projectId={projectId}
       onGenerate={handleGenerate}
       customSettings={
         <>
@@ -200,65 +202,6 @@ The input is an architectural render. Your task is to convert it into a technica
           </ol>
         </CardContent>
       </Card>
-      additionalSections={
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Row 2: Key Features (1/4) + FAQ (3/4) */}
-          <div className="md:col-span-1">
-            <Card className="h-full border-2 hover:border-primary/50 transition-colors bg-gradient-to-br from-primary/5 to-transparent">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-semibold">Key Features</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2.5">
-                  {(TOOL_CONTENT['render-section-drawing']?.keyFeatures || []).map((feature, idx) => (
-                    <li key={idx} className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs mt-0.5">
-                        ✓
-                      </span>
-                      <span className="flex-1 pt-0.5 leading-relaxed">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="md:col-span-3">
-            <Card className="h-full border-2 hover:border-primary/50 transition-colors">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-semibold">Frequently Asked Questions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-5">
-                {(TOOL_CONTENT['render-section-drawing']?.faq || []).map((faq, idx) => (
-                  <div key={idx} className="space-y-2 pb-4 border-b last:border-0 last:pb-0">
-                    <h3 className="font-semibold text-sm text-foreground leading-snug">{faq.q}</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{faq.a}</p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Row 3: Use Cases (3/4) + Empty/Spacer (1/4) */}
-          <div className="md:col-span-3">
-            <Card className="border-2 hover:border-primary/50 transition-colors">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-semibold">Use Cases</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {(TOOL_CONTENT['render-section-drawing']?.useCases || []).map((useCase, idx) => (
-                    <div key={idx} className="space-y-2 p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
-                      <h4 className="font-semibold text-sm text-foreground">{useCase.title}</h4>
-                      <p className="text-xs text-muted-foreground leading-relaxed">{useCase.desc}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      }
     </BaseToolComponent>
   );
 }

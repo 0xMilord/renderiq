@@ -9,14 +9,16 @@ import { BaseToolComponent } from '../base-tool-component';
 
 interface RenderUpscaleProps {
   tool: ToolConfig;
+  projectId?: string | null;
 }
 
-export function RenderUpscale({ tool }: RenderUpscaleProps) {
+export function RenderUpscale({ tool, projectId }: RenderUpscaleProps) {
   const [upscaleFactor, setUpscaleFactor] = useState<'2x' | '4x' | '8x'>('2x');
 
   return (
     <BaseToolComponent
       tool={tool}
+      projectId={projectId}
       customSettings={
         <>
           <div className="space-y-3">

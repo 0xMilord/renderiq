@@ -9,15 +9,17 @@ import { BaseToolComponent } from '../base-tool-component';
 
 interface FloorplanToFurnishedProps {
   tool: ToolConfig;
+  projectId?: string | null;
 }
 
-export function FloorplanToFurnished({ tool }: FloorplanToFurnishedProps) {
+export function FloorplanToFurnished({ tool, projectId }: FloorplanToFurnishedProps) {
   const [furnitureStyle, setFurnitureStyle] = useState<'modern' | 'traditional' | 'minimalist' | 'luxury'>('modern');
   const [roomType, setRoomType] = useState<string>('living-room');
 
   return (
     <BaseToolComponent
       tool={tool}
+      projectId={projectId}
       customSettings={
         <>
           <div className="space-y-3">

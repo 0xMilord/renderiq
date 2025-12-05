@@ -9,21 +9,27 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Sparkles, 
   FileImage, 
   X, 
   AlertCircle, 
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  Settings,
+  Image as ImageIcon,
+  ExternalLink,
+  Download
 } from 'lucide-react';
 import { ToolConfig } from '@/lib/tools/registry';
 import { TOOL_CONTENT } from '@/lib/tools/tool-content';
 import { createRenderAction } from '@/lib/actions/render.actions';
-import { useToolProject } from '@/lib/hooks/use-tool-project';
 import { useCredits } from '@/lib/hooks/use-credits';
+import { useRenders } from '@/lib/hooks/use-renders';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface BaseToolComponentProps {
   tool: ToolConfig;
@@ -32,7 +38,7 @@ interface BaseToolComponentProps {
   multipleImages?: boolean;
   maxImages?: number;
   onGenerate?: (formData: FormData) => Promise<{ success: boolean; data?: { renderId: string; outputUrl: string }; error?: string } | void>;
-  additionalSections?: React.ReactNode; // Custom sections for landing pages
+  projectId?: string | null;
 }
 
 export function BaseToolComponent({
@@ -42,13 +48,26 @@ export function BaseToolComponent({
   multipleImages = false,
   maxImages = 1,
   onGenerate,
-  additionalSections,
+  projectId: propProjectId,
 }: BaseToolComponentProps) {
   // Get rich content for this tool, or use defaults
   const toolContent = TOOL_CONTENT[tool.id];
   const router = useRouter();
-  const { projectId, loading: projectLoading } = useToolProject();
   const { credits, loading: creditsLoading, refreshCredits } = useCredits();
+  
+  // Use prop projectId only - no automatic project selection
+  const projectId = propProjectId;
+  const projectLoading = false; // No longer loading projects automatically
+  
+  // Fetch renders for this project and filter by tool
+  const { renders, loading: rendersLoading, refetch: refetchRenders } = useRenders(projectId);
+  const toolRenders = renders.filter(render => {
+    // Check if render was created with this tool via settings.imageType
+    if (render.settings && typeof render.settings === 'object' && 'imageType' in render.settings) {
+      return (render.settings as { imageType?: string }).imageType === tool.id;
+    }
+    return false;
+  }).filter(render => render.status === 'completed' && render.outputUrl).slice(0, 20); // Limit to 20 most recent
   
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
@@ -56,6 +75,7 @@ export function BaseToolComponent({
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ renderId: string; outputUrl: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<'tool' | 'output'>('tool');
   
   const [quality, setQuality] = useState<'standard' | 'high' | 'ultra'>('standard');
   const [aspectRatio, setAspectRatio] = useState<string>('16:9');
@@ -108,7 +128,8 @@ export function BaseToolComponent({
     }
 
     if (!projectId) {
-      setError('Project not ready. Please wait...');
+      setError('Please select a project first');
+      toast.error('Please select a project before generating');
       return;
     }
 
@@ -169,10 +190,11 @@ export function BaseToolComponent({
             await refreshCredits();
             toast.success('Render generated successfully!');
             
-            // Navigate to render after a short delay
-            setTimeout(() => {
-              router.push(`/project/tools`);
-            }, 2000);
+            // Refresh renders list
+            refetchRenders();
+            
+            // Switch to output tab to show result
+            setActiveTab('output');
           } else if (result && !result.success) {
             throw new Error(result.error || 'Failed to generate render');
           } else {
@@ -200,10 +222,11 @@ export function BaseToolComponent({
         await refreshCredits();
         toast.success('Render generated successfully!');
         
-        // Navigate to render after a short delay
-        setTimeout(() => {
-          router.push(`/project/tools`);
-        }, 2000);
+        // Refresh renders list
+        refetchRenders();
+        
+        // Switch to output tab to show result
+        setActiveTab('output');
       } else {
         throw new Error(result.error || 'Failed to generate render');
       }
@@ -217,19 +240,48 @@ export function BaseToolComponent({
     }
   };
 
-  const canGenerate = images.length > 0 && !loading && projectId && (!credits || credits.balance >= creditsCost);
+  const canGenerate = images.length > 0 && !loading && !!projectId && (!credits || credits.balance >= creditsCost);
 
-  return (
-    <div className="w-full max-w-[1920px] mx-auto">
-      <div className="grid lg:grid-cols-4 gap-6">
-        {/* Left: Upload & Settings - 1/4 width */}
-        <Card className="w-full lg:col-span-1 h-[calc(100vh-200px)] sticky top-20 overflow-y-auto">
-          <CardContent className="space-y-6 pt-6">
-            {/* Upload Area - 1:1 Square */}
+  // Shimmer placeholder component
+  const ShimmerPlaceholder = () => (
+    <div className="w-full aspect-video rounded-lg overflow-hidden bg-muted/50 relative">
+      {/* Shimmer effect */}
+      <div 
+        className="absolute inset-0 animate-shimmer"
+        style={{
+          background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.1) 50%, transparent 100%)',
+          backgroundSize: '200% 100%',
+          backgroundPosition: '-200% 0',
+        }}
+      />
+      {/* Content overlay */}
+      <div className="absolute inset-0 flex items-center justify-center z-10">
+        <div className="text-center space-y-4 p-6">
+          <Loader2 className="h-12 w-12 mx-auto animate-spin text-primary" />
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-foreground">Generating your render...</p>
+            <div className="space-y-2">
+              <Progress value={progress} className="w-full max-w-md mx-auto h-2" />
+              <p className="text-xs text-muted-foreground">{progress}% complete</p>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              This may take 10-30 seconds
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Tool Panel Content
+  const ToolPanelContent = () => (
+    <Card className="w-full min-h-[600px] lg:h-[calc(100vh-200px)] lg:sticky lg:top-20 overflow-y-auto overflow-x-hidden">
+      <CardContent className="space-y-6 pt-6">
+            {/* Upload Area - 16:9 */}
             <div
               {...getRootProps()}
               className={cn(
-                "border-2 border-dashed rounded-lg cursor-pointer transition-colors aspect-square relative overflow-hidden",
+                "border-2 border-dashed rounded-lg cursor-pointer transition-colors aspect-video relative overflow-hidden",
                 isDragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25",
                 "hover:border-primary/50"
               )}
@@ -311,23 +363,26 @@ export function BaseToolComponent({
               </Alert>
             )}
 
-            {/* Progress */}
+            {/* Progress - Only show in tool panel, not in output tab */}
             {loading && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span>Generating...</span>
-                  <span>{progress}%</span>
+                  <span className="font-medium">Generating render...</span>
+                  <span className="text-muted-foreground">{progress}%</span>
                 </div>
-                <Progress value={progress} />
+                <Progress value={progress} className="h-2" />
+                <p className="text-xs text-muted-foreground text-center">
+                  Processing your image... This may take 10-30 seconds
+                </p>
               </div>
             )}
 
             {/* Success Alert */}
-            {result && (
+            {result && !loading && (
               <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
                 <AlertDescription className="text-green-800 dark:text-green-200">
-                  Render generated successfully! Redirecting...
+                  Render generated successfully! Check the Output tab to view your result.
                 </AlertDescription>
               </Alert>
             )}
@@ -414,135 +469,411 @@ export function BaseToolComponent({
             )}
           </CardContent>
         </Card>
+  );
 
-        {/* Right: Output Area - 3/4 width */}
-        <div className="lg:col-span-3 space-y-6">
-          {/* Output/Preview Area */}
-          <Card className="w-full h-[calc(100vh-200px)] flex items-center justify-center">
-            <CardContent className="p-12 text-center">
-              {result ? (
-                <div className="space-y-4">
-                  <img 
-                    src={result.outputUrl} 
-                    alt="Generated result" 
-                    className="max-w-full max-h-[calc(100vh-300px)] mx-auto rounded-lg"
-                  />
-                  <div className="flex gap-4 justify-center">
-                    <Button onClick={() => window.open(result.outputUrl, '_blank')}>
-                      View Full Size
-                    </Button>
-                    <Button variant="outline" onClick={() => {
-                      const link = document.createElement('a');
-                      link.href = result.outputUrl;
-                      link.download = `render-${result.renderId}.png`;
-                      link.click();
-                    }}>
-                      Download
-                    </Button>
-                  </div>
+  // Output Panel Content
+  const OutputPanelContent = () => (
+    <Card className="w-full min-h-[600px] lg:h-[calc(100vh-200px)] flex items-center justify-center">
+      <CardContent className="p-6 lg:p-12 text-center w-full">
+        {loading ? (
+          <ShimmerPlaceholder />
+        ) : result ? (
+          <div className="space-y-4">
+            <img 
+              src={result.outputUrl} 
+              alt="Generated result" 
+              className="max-w-full max-h-[calc(100vh-300px)] mx-auto rounded-lg"
+            />
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button onClick={() => window.open(result.outputUrl, '_blank')}>
+                View Full Size
+              </Button>
+              <Button variant="outline" onClick={() => {
+                const link = document.createElement('a');
+                link.href = result.outputUrl;
+                link.download = `render-${result.renderId}.png`;
+                link.click();
+              }}>
+                Download
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="text-muted-foreground">
+            <ImageIcon className="h-16 w-16 mx-auto mb-4 opacity-50" />
+            <p className="text-lg">Your generated render will appear here</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <div className="w-full max-w-[1920px] mx-auto overflow-x-hidden">
+      {/* Desktop: Side-by-side layout */}
+      <div className="hidden lg:grid lg:grid-cols-10 gap-6">
+        <div className="lg:col-span-4">
+          <ToolPanelContent />
+        </div>
+        <div className="lg:col-span-6 space-y-6 overflow-x-hidden">
+          <OutputPanelContent />
+        </div>
+      </div>
+
+      {/* Mobile/Tablet: Tabs layout */}
+      <div className="block lg:hidden">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'tool' | 'output')} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="tool" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Tool Panel
+            </TabsTrigger>
+            <TabsTrigger value="output" className="flex items-center gap-2">
+              <ImageIcon className="h-4 w-4" />
+              Output
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="tool" className="mt-0">
+            <ToolPanelContent />
+          </TabsContent>
+          <TabsContent value="output" className="mt-0">
+            <OutputPanelContent />
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      {/* Rendered Images Bar */}
+      {projectId && (
+        <div className="mt-12">
+          <Card className="border">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold">Your Renders from This Tool</CardTitle>
+                {toolRenders.length > 0 && (
+                  <span className="text-xs text-muted-foreground">{toolRenders.length} render{toolRenders.length !== 1 ? 's' : ''}</span>
+                )}
+              </div>
+            </CardHeader>
+            <div className="h-px bg-border mx-4"></div>
+            <CardContent className="px-4 pt-3 pb-4">
+              {rendersLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
+              ) : toolRenders.length > 0 ? (
+                <ScrollArea className="w-full">
+                  <div className="flex gap-3 pb-2">
+                    {toolRenders.map((render, index) => (
+                      <div key={render.id} className="flex items-center gap-3">
+                        <div
+                          className="group relative flex-shrink-0 w-32 aspect-[4/3] rounded-md overflow-hidden border border-border hover:border-primary transition-colors cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (render.outputUrl) {
+                              window.open(render.outputUrl, '_blank');
+                            }
+                          }}
+                        >
+                          <img
+                            src={render.outputUrl || ''}
+                            alt={`Render ${render.id}`}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors flex items-center justify-center">
+                            <Button
+                              size="icon"
+                              variant="secondary"
+                              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (render.outputUrl) {
+                                  const link = document.createElement('a');
+                                  link.href = render.outputUrl;
+                                  link.download = `render-${render.id}.png`;
+                                  link.click();
+                                }
+                              }}
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        {index < toolRenders.length - 1 && (
+                          <div className="h-16 w-px bg-border flex-shrink-0"></div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
               ) : (
-                <div className="text-muted-foreground">
-                  <FileImage className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg">Your generated render will appear here</p>
+                <div className="text-center py-8 text-muted-foreground">
+                  <ImageIcon className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p className="text-xs">No renders yet. Generate your first render to see it here!</p>
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
-      </div>
+      )}
 
-      {/* Bottom: Brick Pattern Info Cards */}
+      {/* Info Sections - 2x2 Grid */}
       <div className="mt-12">
-        {/* Brick Pattern Layout - 3 rows with alternating 3/4 and 1/4 widths */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Row 1: How It Works (3/4) + About This Tool (1/4) */}
-          <div className="md:col-span-3">
-            {children || (
-              <Card className="h-full border-2 hover:border-primary/50 transition-colors">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg font-semibold">How It Works</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ol className="space-y-2.5">
-                    {(toolContent?.howItWorks.steps || [
-                      { step: `Upload your ${tool.inputType === 'multiple' ? 'images' : 'image'}`, detail: `Upload your ${tool.inputType === 'multiple' ? 'images' : 'image'} in JPG, PNG, or WebP format` },
-                      { step: 'Configure settings', detail: 'Adjust quality, aspect ratio, and tool-specific settings to match your project needs' },
-                      { step: 'Generate', detail: 'Click Generate and wait for AI processing (typically 10-30 seconds)' },
-                      { step: 'Download', detail: `Download your ${tool.outputType === 'video' ? 'video' : 'high-resolution image'} result` }
-                    ]).map((item, idx) => (
-                      <li key={idx} className="flex items-start gap-3 text-sm">
-                        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary font-semibold flex items-center justify-center text-xs mt-0.5">
-                          {idx + 1}
-                        </span>
-                        <div className="flex-1 pt-0.5">
-                          <span className="font-medium text-foreground">{typeof item === 'string' ? item : item.step}:</span>
-                          {typeof item === 'object' && item.detail && (
-                            <span className="text-muted-foreground ml-1">{item.detail}</span>
-                          )}
-                        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Row 1, Col 1: About This Tool */}
+          <Card className="border-2 hover:border-primary/50 transition-colors">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-semibold">About This Tool</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Input</p>
+                  <p className="text-sm font-medium">
+                    {tool.inputType === 'multiple' ? 'Multiple Images' : tool.inputType === 'image+text' ? 'Image + Text' : 'Single Image'}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Output</p>
+                  <p className="text-sm font-medium">{tool.outputType === 'video' ? 'Video' : 'Image'}</p>
+                </div>
+              </div>
+              <div className="pt-2 border-t">
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {toolContent?.about.description || tool.description}
+                </p>
+                {toolContent?.about.benefits && toolContent.about.benefits.length > 0 && (
+                  <ul className="mt-3 space-y-1.5">
+                    {toolContent.about.benefits.map((benefit, idx) => (
+                      <li key={idx} className="text-xs text-muted-foreground flex items-start gap-2">
+                        <span className="text-primary mt-0.5">•</span>
+                        <span>{benefit}</span>
                       </li>
                     ))}
-                  </ol>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+                  </ul>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* About This Tool - 1/4 width */}
-          <div className="md:col-span-1">
-            <Card className="h-full border-2 hover:border-primary/50 transition-colors">
+          {/* Row 1, Col 2: How It Works */}
+          <Card className="border-2 hover:border-primary/50 transition-colors">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-semibold">How It Works</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ol className="space-y-2.5">
+                {(toolContent?.howItWorks.steps || [
+                  { step: `Upload your ${tool.inputType === 'multiple' ? 'images' : 'image'}`, detail: `Upload your ${tool.inputType === 'multiple' ? 'images' : 'image'} in JPG, PNG, or WebP format` },
+                  { step: 'Configure settings', detail: 'Adjust quality, aspect ratio, and tool-specific settings to match your project needs' },
+                  { step: 'Generate', detail: 'Click Generate and wait for AI processing (typically 10-30 seconds)' },
+                  { step: 'Download', detail: `Download your ${tool.outputType === 'video' ? 'video' : 'high-resolution image'} result` }
+                ]).map((item, idx) => (
+                  <li key={idx} className="flex items-start gap-3 text-sm">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary font-semibold flex items-center justify-center text-xs mt-0.5">
+                      {idx + 1}
+                    </span>
+                    <div className="flex-1 pt-0.5">
+                      <span className="font-medium text-foreground">{typeof item === 'string' ? item : item.step}:</span>
+                      {typeof item === 'object' && item.detail && (
+                        <span className="text-muted-foreground ml-1">{item.detail}</span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </CardContent>
+          </Card>
+
+          {/* Row 2, Col 1: Key Features */}
+          <Card className="border-2 hover:border-primary/50 transition-colors">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-semibold">Key Features</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2.5">
+                {(toolContent?.keyFeatures || [
+                  'AI-powered processing',
+                  'High-quality output',
+                  'Fast generation',
+                  'Easy to use'
+                ]).map((feature, idx) => (
+                  <li key={idx} className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs mt-0.5">
+                      ✓
+                    </span>
+                    <span className="flex-1 pt-0.5 leading-relaxed">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+
+          {/* Row 2, Col 2: Frequently Asked Questions */}
+          <Card className="border-2 hover:border-primary/50 transition-colors">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-semibold">Frequently Asked Questions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {(toolContent?.faq || [
+                { q: 'What file formats are supported?', a: 'We support JPG, PNG, and WebP formats for input images.' },
+                { q: 'How long does processing take?', a: 'Processing typically takes 10-30 seconds depending on the complexity of your image.' },
+                { q: 'What is the output quality?', a: 'Output images are generated at high resolution suitable for professional use.' }
+              ]).map((faq, idx) => (
+                <div key={idx} className="space-y-2 pb-4 border-b last:border-0 last:pb-0">
+                  <h3 className="font-semibold text-sm text-foreground leading-snug">{faq.q}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{faq.a}</p>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Specialized Sections for Render Section Drawing Tool */}
+      {tool.id === 'render-section-drawing' && toolContent && (
+        <div className="mt-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Section Types */}
+            <Card className="border-2 hover:border-primary/50 transition-colors">
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-semibold">About This Tool</CardTitle>
+                <CardTitle className="text-lg font-semibold">Section Types</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3">
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Input</p>
-                    <p className="text-sm font-medium">
-                      {tool.inputType === 'multiple' ? 'Multiple Images' : tool.inputType === 'image+text' ? 'Image + Text' : 'Single Image'}
+                  <div className="p-3 rounded-lg border bg-card">
+                    <h4 className="font-semibold text-sm mb-1.5">Technical CAD</h4>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Precise linework with architectural annotations and standard CAD conventions. Perfect for construction documents and permit applications.
                     </p>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Output</p>
-                    <p className="text-sm font-medium">{tool.outputType === 'video' ? 'Video' : 'Image'}</p>
+                  <div className="p-3 rounded-lg border bg-card">
+                    <h4 className="font-semibold text-sm mb-1.5">3D Cross Section</h4>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Three-dimensional perspective showing depth, volume, and spatial relationships. Ideal for design visualization and client presentations.
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg border bg-card">
+                    <h4 className="font-semibold text-sm mb-1.5">Illustrated 2D</h4>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Stylized architectural illustration with artistic rendering while maintaining technical accuracy. Great for presentations and marketing materials.
+                    </p>
                   </div>
                 </div>
-                <div className="pt-2 border-t">
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {toolContent?.about.description || tool.description}
-                  </p>
-                  {toolContent?.about.benefits && toolContent.about.benefits.length > 0 && (
-                    <ul className="mt-3 space-y-1.5">
-                      {toolContent.about.benefits.map((benefit, idx) => (
-                        <li key={idx} className="text-xs text-muted-foreground flex items-start gap-2">
-                          <span className="text-primary mt-0.5">•</span>
-                          <span>{benefit}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+              </CardContent>
+            </Card>
+
+            {/* LOD Levels */}
+            <Card className="border-2 hover:border-primary/50 transition-colors">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg font-semibold">Level of Detail (LOD)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div className="p-3 rounded-lg border bg-card">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-xs font-bold text-primary">LOD 100</span>
+                      <span className="text-xs text-muted-foreground">Conceptual</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Basic shapes and volumes only. Perfect for early concept studies and massing studies.
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg border bg-card">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-xs font-bold text-primary">LOD 200</span>
+                      <span className="text-xs text-muted-foreground">Approximate</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Generic elements with approximate sizes. Ideal for schematic design phase.
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg border bg-card">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-xs font-bold text-primary">LOD 300</span>
+                      <span className="text-xs text-muted-foreground">Precise</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Specific elements with exact dimensions. Best for design development with detailed specifications.
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg border bg-card">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-xs font-bold text-primary">LOD 400</span>
+                      <span className="text-xs text-muted-foreground">Fabrication</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Complete specifications ready for construction. Includes assembly details and fabrication-ready information.
+                    </p>
+                  </div>
                 </div>
-                {tool.seo.keywords.length > 0 && (
-                  <div className="pt-3 border-t">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Keywords</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {tool.seo.keywords.slice(0, 4).map((keyword, idx) => (
-                        <span key={idx} className="text-xs px-2 py-1 rounded-md bg-muted text-muted-foreground">
-                          {keyword}
+              </CardContent>
+            </Card>
+
+            {/* Use Cases */}
+            <Card className="border-2 hover:border-primary/50 transition-colors">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg font-semibold">Use Cases</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {toolContent.useCases?.map((useCase, idx) => (
+                    <div key={idx} className="p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+                      <h4 className="font-semibold text-sm text-foreground mb-1.5">{useCase.title}</h4>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{useCase.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Software Compatibility */}
+            <Card className="border-2 hover:border-primary/50 transition-colors">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg font-semibold">Software Compatibility</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">3D Modeling</p>
+                    <div className="flex flex-wrap gap-2">
+                      {['Revit', 'SketchUp', 'Rhino', 'Archicad', 'Vectorworks'].map((software) => (
+                        <span key={software} className="text-xs px-2.5 py-1 rounded-md bg-muted text-foreground">
+                          {software}
                         </span>
                       ))}
                     </div>
                   </div>
-                )}
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Rendering</p>
+                    <div className="flex flex-wrap gap-2">
+                      {['Lumion', 'Enscape', 'V-Ray', 'Twinmotion', 'Unreal Engine'].map((software) => (
+                        <span key={software} className="text-xs px-2.5 py-1 rounded-md bg-muted text-foreground">
+                          {software}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">CAD Integration</p>
+                    <div className="flex flex-wrap gap-2">
+                      {['AutoCAD', 'Revit', 'Archicad', 'Vectorworks'].map((software) => (
+                        <span key={software} className="text-xs px-2.5 py-1 rounded-md bg-muted text-foreground">
+                          {software}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Works with any architectural render regardless of source software. Simply export your render as JPG, PNG, or WebP and upload.
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
-
-          {/* Additional Custom Sections - Rows 2 & 3 in brick pattern */}
-          {additionalSections}
         </div>
-      </div>
+      )}
 
       {/* Structured Data for SEO */}
       <script

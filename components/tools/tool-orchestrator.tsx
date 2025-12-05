@@ -26,11 +26,12 @@ import { GenericTool } from './tools/generic-tool';
 
 interface ToolOrchestratorProps {
   tool: ToolConfig;
+  projectId?: string | null;
 }
 
 // Tool component mapping - All 21 tools mapped
 // Sophisticated components can be swapped in as they're built
-const TOOL_COMPONENTS: Record<string, React.ComponentType<{ tool: ToolConfig }>> = {
+const TOOL_COMPONENTS: Record<string, React.ComponentType<{ tool: ToolConfig; projectId?: string | null }>> = {
   // Sophisticated components (custom UI)
   'render-section-drawing': RenderToSectionDrawing,
   'sketch-to-render': SketchToRender,
@@ -57,15 +58,15 @@ const TOOL_COMPONENTS: Record<string, React.ComponentType<{ tool: ToolConfig }>>
   'presentation-sequence-creator': PresentationSequenceCreator,
 };
 
-export function ToolOrchestrator({ tool }: ToolOrchestratorProps) {
+export function ToolOrchestrator({ tool, projectId }: ToolOrchestratorProps) {
   const ToolComponent = TOOL_COMPONENTS[tool.id];
 
   // Use specific component if available, otherwise use generic
   if (ToolComponent) {
-    return <ToolComponent tool={tool} />;
+    return <ToolComponent tool={tool} projectId={projectId} />;
   }
 
   // Fallback to generic component
-  return <GenericTool tool={tool} />;
+  return <GenericTool tool={tool} projectId={projectId} />;
 }
 

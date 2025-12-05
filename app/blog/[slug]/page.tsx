@@ -318,7 +318,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
         <BlogHeaderMobile />
 
       {/* Article */}
-      <article className="py-4 px-4 sm:py-5 sm:px-6 lg:px-8 lg:ml-0 ml-12 lg:pt-0 pt-10">
+      <article className="py-4 px-4 sm:py-5 sm:px-6 lg:px-8 lg:ml-0 ml-12 lg:pt-[calc(1rem+2.75rem+1.5rem)] pt-10">
         <div className="w-full">
           <div className="flex gap-6 lg:gap-8">
             {/* Main Content - Full width on mobile, flex-1 on desktop to fill remaining space */}

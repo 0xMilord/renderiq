@@ -6,11 +6,12 @@ import { BaseToolComponent } from '../base-tool-component';
 
 interface GenericToolProps {
   tool: ToolConfig;
+  projectId?: string | null;
 }
 
-export function GenericTool({ tool }: GenericToolProps) {
+export function GenericTool({ tool, projectId }: GenericToolProps) {
   return (
-    <BaseToolComponent tool={tool}>
+    <BaseToolComponent tool={tool} projectId={projectId}>
       <Card>
         <CardHeader>
           <CardTitle>How It Works</CardTitle>

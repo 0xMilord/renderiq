@@ -196,7 +196,7 @@ export default function SignupPage() {
         />
       </div>
 
-      <div className="flex h-screen">
+      <div className="flex h-[calc(100vh-1rem-2.75rem)]">
         {/* Signup Form - 1/4 width on desktop, full width on mobile */}
         <div className="w-full lg:w-1/4 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 border-r border-border relative z-10 bg-background/80 lg:bg-background backdrop-blur-sm lg:backdrop-blur-none">
           <div className="max-w-md w-full space-y-8">

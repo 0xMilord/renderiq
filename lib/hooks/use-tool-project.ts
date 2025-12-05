@@ -17,7 +17,7 @@ export function useToolProject() {
   useEffect(() => {
     if (loading) return;
 
-    // Look for existing "Tools" project
+    // Look for existing "Tools" project (but don't auto-create)
     const toolsProject = projects.find(
       p => p.name.toLowerCase() === 'tools' || p.name.toLowerCase() === 'micro tools'
     );
@@ -28,41 +28,10 @@ export function useToolProject() {
       return;
     }
 
-    // Create "Tools" project if it doesn't exist
-    if (!creating && projects.length > 0) {
-      setCreating(true);
-      const formData = new FormData();
-      formData.append('projectName', 'Tools');
-      formData.append('description', 'Default project for micro-tools and specialized AI tools');
-      
-      createProject(formData)
-        .then(result => {
-          if (result.success && result.data) {
-            setToolProjectId(result.data.id);
-            logger.log('✅ Created Tools project:', result.data.id);
-          } else {
-            logger.error('❌ Failed to create Tools project:', result.error);
-            // Fallback to first project if creation fails
-            if (projects.length > 0) {
-              setToolProjectId(projects[0].id);
-            }
-          }
-        })
-        .catch(error => {
-          logger.error('❌ Error creating Tools project:', error);
-          // Fallback to first project
-          if (projects.length > 0) {
-            setToolProjectId(projects[0].id);
-          }
-        })
-        .finally(() => {
-          setCreating(false);
-        });
-    } else if (projects.length > 0) {
-      // Fallback to first project
-      setToolProjectId(projects[0].id);
-    }
-  }, [projects, loading, creating]);
+    // Don't auto-create projects - user must select manually
+    // Return null to indicate no project is selected
+    setToolProjectId(null);
+  }, [projects, loading]);
 
   return {
     projectId: toolProjectId,

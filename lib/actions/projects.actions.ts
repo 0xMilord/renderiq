@@ -41,6 +41,7 @@ export async function createProject(formData: FormData) {
     const projectName = formData.get('projectName') as string;
     const description = formData.get('description') as string;
     const dicebearUrl = formData.get('dicebearUrl') as string;
+    const isToolsProject = formData.get('isToolsProject') === 'true';
 
     logger.log('📝 [createProject] Form data received:', { 
       fileName: file?.name, 
@@ -75,6 +76,32 @@ export async function createProject(formData: FormData) {
 
       const project = await ProjectsDAL.create(projectData);
       logger.log('✅ [createProject] Project created successfully:', project.id);
+
+      revalidatePath('/dashboard/projects');
+      revalidatePath('/render');
+      
+      return { success: true, data: project };
+    }
+
+    // If this is a Tools project, create it without a file
+    if (isToolsProject) {
+      logger.log('🛠️ [createProject] Creating Tools project without file');
+      
+      const projectData = {
+        userId: user.id,
+        name: projectName,
+        description: description || 'Default project for micro-tools and specialized AI tools',
+        originalImageId: null, // No file upload needed
+        isPublic: false,
+        tags: ['tools', 'micro-tools'],
+        metadata: {
+          createdBy: 'tools-project',
+          isToolsProject: true
+        }
+      };
+
+      const project = await ProjectsDAL.create(projectData);
+      logger.log('✅ [createProject] Tools project created successfully:', project.id);
 
       revalidatePath('/dashboard/projects');
       revalidatePath('/render');

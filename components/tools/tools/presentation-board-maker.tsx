@@ -9,9 +9,10 @@ import { BaseToolComponent } from '../base-tool-component';
 
 interface PresentationBoardMakerProps {
   tool: ToolConfig;
+  projectId?: string | null;
 }
 
-export function PresentationBoardMaker({ tool }: PresentationBoardMakerProps) {
+export function PresentationBoardMaker({ tool, projectId }: PresentationBoardMakerProps) {
   const [boardSize, setBoardSize] = useState<'A3' | 'A2' | 'A1' | 'custom'>('A2');
   const [layoutStyle, setLayoutStyle] = useState<'grid' | 'masonry' | 'linear' | 'asymmetric'>('grid');
   const [colorScheme, setColorScheme] = useState<'light' | 'dark' | 'neutral'>('light');
@@ -19,6 +20,7 @@ export function PresentationBoardMaker({ tool }: PresentationBoardMakerProps) {
   return (
     <BaseToolComponent
       tool={tool}
+      projectId={projectId}
       multipleImages={true}
       maxImages={10}
       customSettings={

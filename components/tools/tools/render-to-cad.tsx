@@ -9,15 +9,17 @@ import { BaseToolComponent } from '../base-tool-component';
 
 interface RenderToCADProps {
   tool: ToolConfig;
+  projectId?: string | null;
 }
 
-export function RenderToCAD({ tool }: RenderToCADProps) {
+export function RenderToCAD({ tool, projectId }: RenderToCADProps) {
   const [lineStyle, setLineStyle] = useState<'technical' | 'architectural' | 'minimal'>('technical');
   const [detailLevel, setDetailLevel] = useState<'basic' | 'detailed' | 'comprehensive'>('detailed');
 
   return (
     <BaseToolComponent
       tool={tool}
+      projectId={projectId}
       customSettings={
         <>
           <div className="space-y-3">

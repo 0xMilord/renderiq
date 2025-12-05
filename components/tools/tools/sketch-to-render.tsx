@@ -9,15 +9,17 @@ import { BaseToolComponent } from '../base-tool-component';
 
 interface SketchToRenderProps {
   tool: ToolConfig;
+  projectId?: string | null;
 }
 
-export function SketchToRender({ tool }: SketchToRenderProps) {
+export function SketchToRender({ tool, projectId }: SketchToRenderProps) {
   const [detailLevel, setDetailLevel] = useState<'preserve' | 'enhance' | 'transform'>('enhance');
   const [environment, setEnvironment] = useState<string>('none');
 
   return (
     <BaseToolComponent
       tool={tool}
+      projectId={projectId}
       customSettings={
         <>
           <div className="space-y-3">

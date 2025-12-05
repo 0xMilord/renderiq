@@ -40,6 +40,7 @@
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --radius: 0.5rem;
+  --navbar-height: calc(2.75rem + 0.5rem); /* h-11 (2.75rem) + pb-2 (0.5rem) = 3.25rem - flush to top */
   --shadow-x: 0;
   --shadow-y: 1px;
   --shadow-blur: 3px;
@@ -96,6 +97,7 @@
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --radius: 0.5rem;
+  --navbar-height: calc(2.75rem + 0.5rem); /* h-11 (2.75rem) + pb-2 (0.5rem) = 3.25rem - flush to top */
   --shadow-x: 0;
   --shadow-y: 1px;
   --shadow-blur: 3px;

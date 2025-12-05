@@ -238,7 +238,7 @@ export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
       </section>
 
       {/* Category Tabs */}
-      <section className="sticky top-[2.75rem] z-10 bg-background/80 dark:bg-background/80 backdrop-blur-xl border-b w-full">
+      <section className="sticky top-[calc(1rem+2.75rem)] z-10 bg-background/80 dark:bg-background/80 backdrop-blur-xl border-b w-full">
         <div className="w-full px-4">
           <div className="flex gap-2 overflow-x-auto py-4 scrollbar-hide">
             <Button
