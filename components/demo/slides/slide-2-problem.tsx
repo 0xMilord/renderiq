@@ -52,17 +52,53 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
     });
   };
 
-  // Use most popular gallery items (already sorted by popularity from demo page)
-  // Filter for images with both uploaded and output URLs
-  // Take first 8 most popular items that have before/after pairs
-  const beforeAfterPairs = galleryRenders
-    .filter(r => 
-      r.render?.uploadedImageUrl && 
-      r.render?.outputUrl && 
-      r.render?.status === 'completed' && 
-      r.render?.type === 'image'
-    )
-    .slice(0, 8); // Limit to 8 most popular images max
+  // Filter for completed images, prioritize those with both uploaded and output URLs
+  // Sort by views (descending), then by oldest to newest date added, take top 10
+  const allImages = galleryRenders.filter(r => 
+    r.render?.outputUrl && 
+    r.render?.status === 'completed' && 
+    r.render?.type === 'image'
+  );
+  
+  // Prioritize items with both uploaded and output URLs, then sort by views, then by date (oldest first)
+  const beforeAfterPairs = allImages
+    .sort((a, b) => {
+      // First, prioritize items with both uploadedImageUrl and outputUrl
+      const aHasBoth = !!(a.render?.uploadedImageUrl && a.render?.outputUrl);
+      const bHasBoth = !!(b.render?.uploadedImageUrl && b.render?.outputUrl);
+      if (aHasBoth !== bHasBoth) {
+        return bHasBoth ? 1 : -1; // Items with both come first
+      }
+      // Then sort by views (descending)
+      const viewsDiff = (b.views || 0) - (a.views || 0);
+      if (viewsDiff !== 0) {
+        return viewsDiff;
+      }
+      // If views are equal, sort by oldest to newest (ascending date)
+      const aDate = new Date(a.createdAt || a.render?.createdAt || 0).getTime();
+      const bDate = new Date(b.createdAt || b.render?.createdAt || 0).getTime();
+      return aDate - bDate; // Oldest first
+    })
+    .slice(0, 10);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('📊 Slide 2 Debug:', {
+      totalGalleryRenders: galleryRenders.length,
+      filteredImagesCount: allImages.length,
+      beforeAfterPairsCount: beforeAfterPairs.length,
+      itemsWithBoth: beforeAfterPairs.filter(p => p.render?.uploadedImageUrl && p.render?.outputUrl).length,
+      sampleItems: galleryRenders.slice(0, 5).map((r, i) => ({
+        index: i,
+        id: r.id,
+        hasUploaded: !!r.render?.uploadedImageUrl,
+        hasOutput: !!r.render?.outputUrl,
+        status: r.render?.status,
+        type: r.render?.type,
+        views: r.views,
+      })),
+    });
+  }, [galleryRenders.length, beforeAfterPairs.length, allImages.length]);
 
   const currentPair = beforeAfterPairs[currentIndex] || beforeAfterPairs[0];
   const currentPrompt = currentPair?.render?.prompt || '';
@@ -100,31 +136,25 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
     const interval = setInterval(() => {
       setSliderPosition((prev) => {
         if (prev >= 100) {
-          // Slider completed - prevent new typing during transition
-          setIsTransitioning(true);
-          setSliderCycleComplete(false); // Reset before transition
-          
-          // Advance to next image after a brief delay
+          // Slider completed - advance immediately for better sync
           if (beforeAfterPairs.length > 1) {
-            setTimeout(() => {
-              const nextIndex = (currentIndex + 1) % beforeAfterPairs.length;
-              setCurrentIndex(nextIndex);
-              setSliderPosition(0); // Reset slider position
-              setLastTypedIndex(-1); // Reset typed index to allow new typing
-              // Mark as complete AFTER index has changed
-              setTimeout(() => {
-                setSliderCycleComplete(true);
-                setIsTransitioning(false);
-              }, 100); // Small delay to ensure state is updated
-            }, 500);
+            const nextIndex = (currentIndex + 1) % beforeAfterPairs.length;
+            setCurrentIndex(nextIndex);
+            setSliderPosition(0); // Reset slider position
+            setLastTypedIndex(-1); // Reset typed index to allow new typing
+            // Clear messages immediately for new image
+            setMessages([]);
+            setTypingText('');
+            setIsTyping(false);
+            // Mark as complete immediately so prompt can start typing
+            setSliderCycleComplete(true);
+            setIsTransitioning(false);
           } else {
-            // If only one image, reset after delay
-            setTimeout(() => {
-              setSliderPosition(0);
-              setLastTypedIndex(-1);
-              setSliderCycleComplete(true);
-              setIsTransitioning(false);
-            }, 500);
+            // If only one image, reset
+            setSliderPosition(0);
+            setLastTypedIndex(-1);
+            setSliderCycleComplete(true);
+            setIsTransitioning(false);
           }
           return 0; // Reset to start (left)
         }
@@ -134,11 +164,11 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
     return () => clearInterval(interval);
   }, [beforeAfterPairs.length, currentIndex]);
 
-  // Auto-type prompt when image changes (only after slider cycle completes)
+  // Auto-type prompt when image changes (immediately when index changes)
   useEffect(() => {
     // Only trigger when:
     // 1. We have a prompt
-    // 2. Slider cycle is complete
+    // 2. Slider cycle is complete (allows typing)
     // 3. Not currently transitioning
     // 4. We haven't typed for this index yet
     if (!currentPrompt || !sliderCycleComplete || isTransitioning) return;
@@ -148,7 +178,7 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
     const pairForThisMessage = beforeAfterPairs[currentIndex];
     if (!pairForThisMessage) return;
     
-    // Mark this index as typed
+    // Mark this index as typed immediately
     setLastTypedIndex(currentIndex);
     
     // Clear old messages and typing text before starting new typing
@@ -160,37 +190,33 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
     // Get text for 3 lines in textarea (limited display)
     const textForTextarea = getTextForThreeLines(fullPrompt);
     
-    // Small delay before starting to type
-    setTimeout(() => {
-      setIsTyping(true);
-      let charIndex = 0;
-      
-      const typingInterval = setInterval(() => {
-        // Only type up to 3 lines worth in the textarea
-        if (charIndex < textForTextarea.length) {
-          setTypingText(textForTextarea.substring(0, charIndex + 1));
-          charIndex++;
-        } else {
-          clearInterval(typingInterval);
-          // After typing 3 lines, immediately send full prompt as message
-          // Use the captured pair data to ensure correct image URL
-          setTimeout(() => {
-            setIsTyping(false);
-            setMessages([{
-              id: `msg-${currentIndex}-${Date.now()}`,
-              text: fullPrompt, // Full prompt in message bubble
-              type: 'user' as const,
-              uploadedImageUrl: pairForThisMessage.render?.uploadedImageUrl
-            }]);
-            setTypingText('');
-            // Reset cycle complete flag after message is sent
-            setSliderCycleComplete(false);
-          }, 300); // Reduced delay to sync better
-        }
-      }, 15); // Typing speed: 15ms per character
-    }, 300);
+    // Start typing immediately (no delay) for better sync with image
+    setIsTyping(true);
+    let charIndex = 0;
+    
+    const typingInterval = setInterval(() => {
+      // Only type up to 3 lines worth in the textarea
+      if (charIndex < textForTextarea.length) {
+        setTypingText(textForTextarea.substring(0, charIndex + 1));
+        charIndex++;
+      } else {
+        clearInterval(typingInterval);
+        // After typing 3 lines, immediately send full prompt as message
+        // Use the captured pair data to ensure correct image URL
+        setTimeout(() => {
+          setIsTyping(false);
+          setMessages([{
+            id: `msg-${currentIndex}-${Date.now()}`,
+            text: fullPrompt, // Full prompt in message bubble
+            type: 'user' as const,
+            uploadedImageUrl: pairForThisMessage.render?.uploadedImageUrl
+          }]);
+          setTypingText('');
+        }, 200); // Small delay before showing message
+      }
+    }, 15); // Typing speed: 15ms per character
 
-    // No cleanup needed - we want the typing to complete
+    return () => clearInterval(typingInterval);
   }, [currentIndex, currentPrompt, sliderCycleComplete, lastTypedIndex, isTransitioning, beforeAfterPairs]);
 
   const handlePrev = () => {
@@ -257,9 +283,9 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
       </div>
       <div className="container mx-auto px-8 relative z-10 flex-1 flex flex-col min-h-0">
         {/* Main Content - 2 Column Layout: Chat on Left, Slideshow on Right */}
-        <div className="flex-1 flex items-center gap-8 min-h-0 py-8">
+        <div className="flex-1 flex items-stretch gap-8 min-h-0 py-8">
           {/* Left Column - Chat Interface Simulation */}
-          <div className="flex-[1] flex flex-col h-full w-full">
+          <div className="flex-[1] flex flex-col min-h-0">
             <div className="bg-card rounded-lg border border-border shadow-lg h-full flex flex-col overflow-hidden">
               {/* Chat Header */}
               <div className="p-4 border-b border-border flex items-center gap-2">
@@ -594,7 +620,7 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
 
           {/* Right Column - Before/After Slider */}
           <div className="flex-[3] flex items-center justify-center min-h-0">
-          {currentPair && currentPair.render.uploadedImageUrl && currentPair.render.outputUrl ? (
+          {currentPair && currentPair.render.outputUrl ? (
             <>
               <style dangerouslySetInnerHTML={{ __html: `
                 .slide-2-slider-wrapper .react-before-after-slider-container {
@@ -610,18 +636,31 @@ export function Slide2Problem({ galleryRenders = [] }: Slide2ProblemProps) {
               `}} />
               <div className="relative w-full max-w-6xl h-full max-h-[70vh] slide-2-slider-wrapper">
                 <div className="relative w-full h-full overflow-hidden rounded-lg bg-muted" style={{ aspectRatio: '16/9' }}>
-                  <ReactBeforeSliderComponent
-                    firstImage={{ imageUrl: currentPair.render.uploadedImageUrl }}
-                    secondImage={{ imageUrl: currentPair.render.outputUrl }}
-                    currentPercentPosition={sliderPosition}
-                  />
-                  {/* Labels Over Image - After on left, Before on right */}
-                  <div className="absolute top-2 left-2 bg-black/70 text-white px-2 py-0.5 rounded text-[10px] font-medium z-10">
-                    After
-                  </div>
-                  <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-0.5 rounded text-[10px] font-medium z-10">
-                    Before
-                  </div>
+                  {currentPair.render.uploadedImageUrl ? (
+                    <ReactBeforeSliderComponent
+                      firstImage={{ imageUrl: currentPair.render.uploadedImageUrl }}
+                      secondImage={{ imageUrl: currentPair.render.outputUrl }}
+                      currentPercentPosition={sliderPosition}
+                    />
+                  ) : (
+                    <Image
+                      src={currentPair.render.outputUrl}
+                      alt={currentPair.render.prompt || 'Generated render'}
+                      fill
+                      className="object-contain"
+                    />
+                  )}
+                  {/* Labels Over Image - After on left, Before on right (only show if both images exist) */}
+                  {currentPair.render.uploadedImageUrl && (
+                    <>
+                      <div className="absolute top-2 left-2 bg-black/70 text-white px-2 py-0.5 rounded text-[10px] font-medium z-10">
+                        After
+                      </div>
+                      <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-0.5 rounded text-[10px] font-medium z-10">
+                        Before
+                      </div>
+                    </>
+                  )}
           </div>
 
               {/* Slideshow Navigation */}

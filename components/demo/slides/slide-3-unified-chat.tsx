@@ -25,13 +25,14 @@ export function Slide3UnifiedChat({ galleryRenders = [], longestChains = [] }: S
   const [hasShownImage, setHasShownImage] = useState(false);
   const autopilotRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Get top 5 images by likes (already sorted by popularity from demo page)
+  // Simple: Filter for completed images, sort by likes (descending), take top 5
   const top5Images = galleryRenders
     .filter(r => 
       r.render?.status === 'completed' && 
       r.render?.outputUrl && 
       r.render?.type === 'image'
     )
+    .sort((a, b) => (b.likes || 0) - (a.likes || 0))
     .slice(0, 5);
 
   // Find the project and chain for the first image
@@ -176,6 +177,11 @@ export function Slide3UnifiedChat({ galleryRenders = [], longestChains = [] }: S
           return null; // Exclude future renders
         }
         
+        // Get the corresponding gallery image for this render
+        const galleryImage = top5Images[originalIdx];
+        const outputUrl = render.outputUrl || galleryImage?.render?.outputUrl || '';
+        const uploadedImageUrl = render.uploadedImageUrl || galleryImage?.render?.uploadedImageUrl;
+        
         // For the current render, control its status based on state
         if (originalIdx === currentImageIndex) {
           if (hasShownImage) {
@@ -183,30 +189,33 @@ export function Slide3UnifiedChat({ galleryRenders = [], longestChains = [] }: S
             return { 
               ...render, 
               status: 'completed' as const,
-              outputUrl: render.outputUrl || top5Images[currentImageIndex]?.render?.outputUrl || '',
+              outputUrl: outputUrl,
+              uploadedImageUrl: uploadedImageUrl,
             };
           } else if (isShowingThinking) {
             // Bot is thinking - show render but it will appear as processing
             return { 
               ...render, 
               status: 'processing' as const,
-              outputUrl: render.outputUrl || top5Images[currentImageIndex]?.render?.outputUrl || '',
+              outputUrl: outputUrl, // Keep outputUrl even when processing so it can appear
+              uploadedImageUrl: uploadedImageUrl,
             };
           } else {
             // User message phase - show render with uploaded image
             return { 
               ...render, 
               status: 'processing' as const,
-              outputUrl: render.outputUrl || top5Images[currentImageIndex]?.render?.outputUrl || '',
+              outputUrl: outputUrl, // Keep outputUrl for consistency
+              uploadedImageUrl: uploadedImageUrl,
             };
           }
         }
         // Previous renders are always completed - ensure they have outputUrl
-        const previousImage = top5Images[originalIdx];
         return { 
           ...render, 
           status: 'completed' as const,
-          outputUrl: render.outputUrl || previousImage?.render?.outputUrl || '',
+          outputUrl: outputUrl,
+          uploadedImageUrl: uploadedImageUrl,
         };
       })
       .filter((render): render is Render => render !== null && !!render.outputUrl) // Only include renders with outputUrl
@@ -296,17 +305,25 @@ export function Slide3UnifiedChat({ galleryRenders = [], longestChains = [] }: S
 
         {/* Actual Unified Chat Interface - Full Width */}
         <div className="flex-1 w-full min-h-0 overflow-hidden demo-unified-chat-container">
-          {filteredChain && filteredChain.renders && filteredChain.renders.length > 0 && filteredChain.renders.every(r => r.outputUrl) && (
-            <UnifiedChatInterface
-              key={`demo-chat-${demoProjectId}-${filteredChain.id}-${filteredChain.renders.map(r => `${r.id}-${r.status}`).join('-')}`}
-              projectId={demoProjectId}
-              chainId={filteredChain.id}
-              chain={filteredChain}
-              projectName={demoProject?.name || 'Demo Project'}
-              chainName={filteredChain.name || 'Demo Chain'}
-              onBackToProjects={() => {}}
-            />
-          )}
+          {filteredChain && filteredChain.renders && filteredChain.renders.length > 0 && filteredChain.renders.every(r => r.outputUrl) && (() => {
+            // Get the latest completed render ID for the key to force updates
+            const completedRenders = filteredChain.renders.filter(r => r.status === 'completed');
+            const latestRenderId = completedRenders.length > 0 
+              ? completedRenders.sort((a, b) => (b.chainPosition || 0) - (a.chainPosition || 0))[0]?.id 
+              : 'none';
+            
+            return (
+              <UnifiedChatInterface
+                key={`demo-chat-${demoProjectId}-${filteredChain.id}-${currentImageIndex}-${latestRenderId}`}
+                projectId={demoProjectId}
+                chainId={filteredChain.id}
+                chain={filteredChain}
+                projectName={demoProject?.name || 'Demo Project'}
+                chainName={filteredChain.name || 'Demo Chain'}
+                onBackToProjects={() => {}}
+              />
+            );
+          })()}
         </div>
       </div>
     </>

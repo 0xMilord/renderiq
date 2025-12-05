@@ -36,19 +36,76 @@ export function Slide3ChatInterface({ galleryRenders = [], longestChains = [] }:
     });
   }, [longestChains, galleryRenders]);
 
-  // Use most popular chains (already sorted by popularity from demo page)
-  // Prefer chains with 1-2 renders (short chains) but use most popular ones first
-  const shortChains = longestChains.filter(chain => 
+  // Priority gallery item IDs for Multiple Projects & Chains slide
+  // Order matters - chains will appear in this exact order
+  const priorityGalleryIds = [
+    '64b885e0-b9b7-49ee-9ebb-321fa94ff475',
+    '67ca8023-a57d-4e11-aba9-680065dbedfd',
+    '5d76d5db-63b9-4cbd-b99b-eec45c048c16',
+    '104b24b3-0aed-49bb-9588-7b78fed3a620',
+  ];
+
+  // Create a map of gallery items by ID for quick lookup
+  const galleryItemsById = new Map(galleryRenders.map(item => [item.id, item]));
+
+  // Find render IDs for priority gallery items in EXACT order
+  const priorityRenderIds: string[] = [];
+  priorityGalleryIds.forEach(galleryId => {
+    const galleryItem = galleryItemsById.get(galleryId);
+    if (galleryItem?.renderId) {
+      priorityRenderIds.push(galleryItem.renderId);
+    }
+  });
+
+  // Create a map of chains by their render IDs (for priority ordering)
+  const chainsByRenderId = new Map<string, RenderChainWithRenders[]>();
+  longestChains.forEach(chain => {
+    chain.renders?.forEach(render => {
+      if (!chainsByRenderId.has(render.id)) {
+        chainsByRenderId.set(render.id, []);
+      }
+      chainsByRenderId.get(render.id)!.push(chain);
+    });
+  });
+
+  // Get priority chains in EXACT order based on priority render IDs
+  const priorityChainsOrdered: RenderChainWithRenders[] = [];
+  const seenChainIds = new Set<string>();
+  
+  priorityRenderIds.forEach(renderId => {
+    const chains = chainsByRenderId.get(renderId) || [];
+    chains.forEach(chain => {
+      if (!seenChainIds.has(chain.id) && chain.renders && chain.renders.length >= 1 && chain.renders.length <= 6) {
+        priorityChainsOrdered.push(chain);
+        seenChainIds.add(chain.id);
+      }
+    });
+  });
+
+  // Get rest chains (excluding priority chains)
+  const allChains = longestChains.filter(chain => 
+    chain.renders && chain.renders.length >= 1 && chain.renders.length <= 6
+  );
+
+  const restChains = allChains.filter(chain =>
+    !seenChainIds.has(chain.id)
+  );
+
+  // Prefer short chains (1-2 renders) within priority and rest
+  const priorityShortChains = priorityChainsOrdered.filter(chain => 
     chain.renders && chain.renders.length >= 1 && chain.renders.length <= 2
   );
+  const restShortChains = restChains.filter(chain => 
+    chain.renders && chain.renders.length >= 1 && chain.renders.length <= 2
+  );
+
+  // Combine: priority chains first (in specified order, short preferred), then rest (short preferred)
+  const chainsToUse = [
+    ...(priorityShortChains.length > 0 ? priorityShortChains : priorityChainsOrdered),
+    ...(restShortChains.length > 0 ? restShortChains : restChains)
+  ].slice(0, 6); // Limit to 6 chains
   
-  // If no short chains, use any chains with renders (up to 6 renders max for demo)
-  // All chains are already sorted by popularity, so we just take first 6
-  const chainsToUse = shortChains.length > 0 
-    ? shortChains.slice(0, 6) // Most popular short chains
-    : longestChains.filter(chain => chain.renders && chain.renders.length >= 1 && chain.renders.length <= 6).slice(0, 6); // Most popular chains
-  
-  console.log(`📊 Slide3: Filtered to ${chainsToUse.length} chains to use`);
+  console.log(`📊 Slide3: Filtered to ${chainsToUse.length} chains to use (${priorityChainsOrdered.length} priority)`);
 
   // Get chains with renders - include both images and videos
   // Prefer before/after pairs for images, but also include videos
@@ -279,6 +336,17 @@ export function Slide3ChatInterface({ galleryRenders = [], longestChains = [] }:
                     )}
                   </div>
 
+                  {/* Chain Name and Render Prompt */}
+                  <div className="p-4 space-y-2">
+                    <h3 className="font-semibold text-foreground text-sm truncate">
+                      {chain.name || 'Untitled Chain'}
+                    </h3>
+                    {render.prompt && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        {render.prompt}
+                      </p>
+                    )}
+                  </div>
                 </div>
               );
             })}
