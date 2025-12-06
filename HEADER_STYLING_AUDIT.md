@@ -79,3 +79,5 @@ All headers now follow a consistent pattern:
 - [ ] Content is not hidden behind fixed headers
 - [ ] Headers work correctly on all breakpoints
 
+
+
