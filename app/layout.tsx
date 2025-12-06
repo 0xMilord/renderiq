@@ -132,13 +132,23 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Renderiq" />
         <style dangerouslySetInnerHTML={{
           __html: `
-            html { background-color: hsl(var(--background)); }
-            body { background-color: hsl(var(--background)); }
+            html { 
+              background-color: hsl(var(--background)); 
+              height: 100%;
+              margin: 0;
+              padding: 0;
+            }
+            body { 
+              background-color: hsl(var(--background)); 
+              height: 100%;
+              margin: 0;
+              padding: 0;
+            }
           `
         }} />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-y-auto cursor-none`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-y-auto h-full m-0 p-0`}
       >
         {/* Google tag (gtag.js) */}
         <Script
@@ -171,7 +181,7 @@ export default function RootLayout({
           <AuthProvider>
             <UserOnboardingProvider>
               <ConditionalNavbar />
-              <main>
+              <main className="min-h-0 flex-1">
                 {children}
               </main>
               <ConditionalFooter />

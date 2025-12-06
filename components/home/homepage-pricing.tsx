@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, ArrowRight, Coins, Sparkles } from 'lucide-react';
 import { getCreditPackagesAction, getSubscriptionPlansAction } from '@/lib/actions/pricing.actions';
+import { HomepageCreditPackageCard } from './homepage-credit-package-card';
 
 export async function HomepagePricing() {
   // Fetch pricing data from database
@@ -61,41 +62,7 @@ export async function HomepagePricing() {
             {/* Show top 3 credit packages */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
               {creditPackages.slice(0, 3).map((pkg: any) => (
-                <div
-                  key={pkg.id}
-                  className="bg-card border border-border rounded-2xl p-6 hover:shadow-lg transition-all duration-300"
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <Coins className="h-5 w-5 text-primary" />
-                      <h4 className="text-xl font-bold">{pkg.name}</h4>
-                    </div>
-                    {pkg.isPopular && (
-                      <Badge variant="default">Popular</Badge>
-                    )}
-                  </div>
-                  <div className="mb-4">
-                    <div className="text-3xl font-bold">₹{pkg.price}</div>
-                    <p className="text-sm text-muted-foreground">
-                      {pkg.credits} credits
-                    </p>
-                    {pkg.bonusCredits > 0 && (
-                      <p className="text-sm text-primary font-medium mt-1">
-                        +{pkg.bonusCredits} bonus credits
-                      </p>
-                    )}
-                  </div>
-                  {pkg.description && (
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {pkg.description}
-                    </p>
-                  )}
-                  <Link href="/pricing">
-                    <Button className="w-full" variant="outline">
-                      Purchase Credits
-                    </Button>
-                  </Link>
-                </div>
+                <HomepageCreditPackageCard key={pkg.id} package={pkg} />
               ))}
             </div>
           </div>

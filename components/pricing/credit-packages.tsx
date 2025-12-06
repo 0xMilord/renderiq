@@ -1,18 +1,17 @@
 'use client';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Coins, Sparkles, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { GradientCard } from '@/components/ui/gradient-card';
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
 import { useCurrency } from '@/lib/hooks/use-currency';
 import { useRazorpaySDK } from '@/lib/hooks/use-razorpay-sdk';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SUPPORTED_CURRENCIES } from '@/lib/utils/currency';
 import { logger } from '@/lib/utils/logger';
+import { calculateSavings } from '@/lib/utils/pricing';
 
 // Helper function to format numbers with k/m/b suffixes (no decimals)
 const formatNumberCompact = (num: number | string | null | undefined): string => {
@@ -53,7 +52,7 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
   const razorpayInstanceRef = useRef<any>(null);
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const { currency, currencyInfo, exchangeRate, format, changeCurrency, loading: currencyLoading } = useCurrency();
+  const { currency, currencyInfo, exchangeRate, format, loading: currencyLoading } = useCurrency();
   const [convertedPrices, setConvertedPrices] = useState<Record<string, number>>({});
   
   // Use simplified shared Razorpay SDK loader
@@ -406,33 +405,6 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
         <p className="text-muted-foreground">
           Purchase credits for pay-as-you-go usage. Credits never expire.
         </p>
-        
-        {/* Currency Selector */}
-        <div className="flex items-center justify-center gap-2 mt-4">
-          <span className="text-sm text-muted-foreground">Currency:</span>
-          <Select value={currency} onValueChange={changeCurrency}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue>
-                {currencyInfo.symbol} {currencyInfo.code}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {/* Show INR first since Razorpay is primarily for Indian market */}
-              {Object.values(SUPPORTED_CURRENCIES)
-                .sort((a, b) => {
-                  // Put INR first
-                  if (a.code === 'INR') return -1;
-                  if (b.code === 'INR') return 1;
-                  return a.code.localeCompare(b.code);
-                })
-                .map((curr) => (
-                  <SelectItem key={curr.code} value={curr.code}>
-                    {curr.symbol} {curr.code} - {curr.name}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
 
       {/* Sort packages by display_order */}
@@ -440,97 +412,103 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
         const sortedPackages = [...packages].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
         
         return (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 md:gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {sortedPackages.map((pkg) => {
               const totalCredits = pkg.credits + (pkg.bonusCredits || 0);
-              const pricePerCredit = parseFloat(pkg.price) / totalCredits;
-              const isSmallPackage = pkg.credits <= 50;
+              // Use pricePerCredit from database if available, otherwise calculate
+              const pricePerCredit = pkg.pricePerCredit ? parseFloat(pkg.pricePerCredit.toString()) : (parseFloat(pkg.price) / totalCredits);
 
               return (
-                <Card key={pkg.id} className={`relative flex flex-col ${pkg.isPopular ? 'ring-2 ring-primary' : ''} ${isSmallPackage ? 'h-full' : ''}`}>
-                  {pkg.isPopular && (
-                    <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-10">
-                      <Badge className="bg-primary text-primary-foreground text-xs px-2 py-0.5">
-                        Popular
-                      </Badge>
-                    </div>
-                  )}
-
-                  <CardHeader className="pb-2 pt-2 px-3">
-                    {/* Package Name with Icon and Buy Now Button - 1 row 2 columns at top */}
-                    <div className="grid grid-cols-2 gap-2 items-center mb-2">
-                      <div className="flex items-center gap-1.5">
-                        {pkg.bonusCredits > 0 ? (
-                          <Sparkles className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                        ) : (
-                          <Coins className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                        )}
-                        <CardTitle className="text-sm font-semibold leading-tight truncate">{pkg.name}</CardTitle>
+                <GradientCard
+                  key={pkg.id}
+                  title={pkg.name}
+                  description={
+                    <>
+                      {pkg.description || undefined}
+                      {pkg.pricingTier === 'bulk' && (
+                        <span className="block mt-1 text-[hsl(72,87%,62%)] text-xs font-semibold">
+                          Enterprise Pricing - Best Value
+                        </span>
+                      )}
+                    </>
+                  }
+                  isPopular={pkg.isPopular}
+                  className="h-full"
+                  glowColor="rgba(209, 242, 74, 0.7)"
+                >
+                  {/* Credits and Pricing Information - 1 row, 2 columns */}
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    {/* Credits */}
+                    <div className="text-center">
+                      <div className={`text-2xl font-bold mb-0.5 ${isDarkMode ? 'text-white' : 'text-[hsl(0,0%,7%)]'}`}>
+                        {formatNumberCompact(Number(totalCredits) || 0)}
                       </div>
-                      <Button
-                        className="w-full text-xs h-8"
-                        onClick={() => handlePurchase(pkg.id, pkg)}
-                        disabled={loading === pkg.id || !razorpayLoaded || razorpayLoading || !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID}
-                        title={
-                          !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID 
-                            ? 'Payment gateway not configured' 
-                            : razorpayLoading || !razorpayLoaded
-                              ? 'Payment gateway is loading...' 
-                              : ''
+                      <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {formatNumberCompact(Number(pkg.credits) || 0)} credits
+                        {pkg.bonusCredits > 0 && (
+                          <span className="text-[hsl(72,87%,62%)]"> +{formatNumberCompact(Number(pkg.bonusCredits) || 0)}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Pricing */}
+                    <div className="text-center">
+                      <div className={`text-2xl font-bold mb-0.5 ${isDarkMode ? 'text-white' : 'text-[hsl(0,0%,7%)]'}`}>
+                        {currencyLoading || !convertedPrices[pkg.id] 
+                          ? '...' 
+                          : formatCurrencyCompact(convertedPrices[pkg.id], currency)}
+                      </div>
+                      <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {currencyLoading || !convertedPrices[pkg.id]
+                          ? '...'
+                          : `${formatCurrencyCompact(Math.round(pricePerCredit), currency)}/credit`}
+                      </div>
+                      {/* Show savings for bulk packages */}
+                      {pkg.pricingTier === 'bulk' && (() => {
+                        const savings = calculateSavings(Number(totalCredits), pricePerCredit);
+                        if (savings.percentage > 0) {
+                          return (
+                            <div className="text-xs text-[hsl(72,87%,62%)] font-semibold mt-1">
+                              Save {savings.percentage.toFixed(0)}%
+                            </div>
+                          );
                         }
-                      >
-                        {loading === pkg.id ? (
-                          <>
-                            <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-                            <span className="text-xs">Processing...</span>
-                          </>
-                        ) : razorpayLoading || !razorpayLoaded ? (
-                          <>
-                            <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-                            <span className="text-xs">Loading...</span>
-                          </>
-                        ) : (
-                          <span className="text-xs">Buy Now</span>
-                        )}
-                      </Button>
+                        return null;
+                      })()}
                     </div>
-                    {pkg.description && !isSmallPackage && (
-                      <CardDescription className="text-[10px] text-center line-clamp-1">{pkg.description}</CardDescription>
+                  </div>
+
+                  {/* Buy Now Button */}
+                  <Button
+                    className="w-full bg-[hsl(72,87%,62%)] text-[hsl(0,0%,7%)] hover:bg-[hsl(72,87%,55%)] font-semibold"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePurchase(pkg.id, pkg);
+                    }}
+                    disabled={loading === pkg.id || !razorpayLoaded || razorpayLoading || !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID}
+                    title={
+                      !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID 
+                        ? 'Payment gateway not configured' 
+                        : razorpayLoading || !razorpayLoaded
+                          ? 'Payment gateway is loading...' 
+                          : ''
+                    }
+                  >
+                    {loading === pkg.id ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : razorpayLoading || !razorpayLoaded ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      'Buy Now'
                     )}
-                  </CardHeader>
-
-                  <CardContent className="space-y-2 px-3 pb-2 flex-1 flex flex-col">
-                    {/* Credits and Pricing - Stack on mobile, side by side on larger screens */}
-                    <div className="flex flex-col sm:grid sm:grid-cols-2 gap-2">
-                      {/* Credits Column */}
-                      <div className="text-center p-1.5 bg-muted rounded">
-                        <div className="text-sm font-bold text-foreground">
-                          {formatNumberCompact(Number(totalCredits) || 0)}
-                        </div>
-                        <div className="text-[9px] text-muted-foreground mt-0.5">
-                          {formatNumberCompact(Number(pkg.credits) || 0)} credits
-                          {pkg.bonusCredits > 0 && (
-                            <span className="text-primary"> +{formatNumberCompact(Number(pkg.bonusCredits) || 0)}</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Pricing Column */}
-                      <div className="text-center p-1.5 bg-muted rounded">
-                        <div className="text-sm font-bold text-foreground">
-                          {currencyLoading || !convertedPrices[pkg.id] 
-                            ? '...' 
-                            : formatCurrencyCompact(convertedPrices[pkg.id], currency)}
-                        </div>
-                        <div className="text-[9px] text-muted-foreground mt-0.5">
-                          {currencyLoading || !convertedPrices[pkg.id]
-                            ? '...'
-                            : `${formatCurrencyCompact(Math.round((convertedPrices[pkg.id] || 0) / totalCredits), currency)}/credit`}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                  </Button>
+                </GradientCard>
               );
             })}
           </div>

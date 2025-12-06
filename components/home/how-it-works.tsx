@@ -4,8 +4,6 @@ import { Upload, Wand2, Download, CheckCircle, ArrowRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MagicCard } from '@/components/ui/magic-card';
-import { useTheme } from 'next-themes';
 import Link from 'next/link';
 
 const steps = [
@@ -33,9 +31,6 @@ const steps = [
 ];
 
 export function HowItWorksSection() {
-  const { theme } = useTheme();
-  const primaryColor = 'hsl(72,87%,62%)'; // Lime green primary color
-  
   return (
     <section id="how-it-works" className="relative py-20 px-4 sm:px-6 lg:px-8 bg-card overflow-hidden">
       {/* Diagonal Stripe Pattern on Sides - Muted Neutral Tone - Responsive - 10% Opacity */}
@@ -72,37 +67,29 @@ export function HowItWorksSection() {
                     <ArrowRight className="absolute right-0 top-1/2 transform -translate-y-1/2 h-5 w-5 text-primary" />
                   </div>
                 )}
-                <Card className="h-full border-none p-0 shadow-none">
-                  <MagicCard
-                    gradientColor={theme === "dark" ? "#262626" : "#D9D9D955"}
-                    gradientFrom={primaryColor}
-                    gradientTo={primaryColor}
-                    gradientOpacity={0.3}
-                    className="h-full"
-                  >
-                    <CardContent className="p-8 h-full">
-                      <div className="flex items-start gap-6">
-                        <div className="flex-shrink-0">
-                          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mb-4">
-                            <Icon className="h-8 w-8 text-primary-foreground" />
-                          </div>
-                          <div className="text-6xl font-bold text-primary/20">{step.number}</div>
+                <Card className="h-full hover:shadow-lg transition-shadow">
+                  <CardContent className="p-8 h-full">
+                    <div className="flex items-start gap-6">
+                      <div className="flex-shrink-0">
+                        <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mb-4">
+                          <Icon className="h-8 w-8 text-primary-foreground" />
                         </div>
-                        <div className="flex-1">
-                          <h3 className="text-2xl font-bold text-card-foreground mb-3">{step.title}</h3>
-                          <p className="text-muted-foreground mb-6 leading-relaxed">{step.description}</p>
-                          <ul className="space-y-2">
-                            {step.details.map((detail, idx) => (
-                              <li key={idx} className="flex items-center text-sm text-muted-foreground">
-                                <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                                {detail}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
+                        <div className="text-6xl font-bold text-primary/20">{step.number}</div>
                       </div>
-                    </CardContent>
-                  </MagicCard>
+                      <div className="flex-1">
+                        <h3 className="text-2xl font-bold text-card-foreground mb-3">{step.title}</h3>
+                        <p className="text-muted-foreground mb-6 leading-relaxed">{step.description}</p>
+                        <ul className="space-y-2">
+                          {step.details.map((detail, idx) => (
+                            <li key={idx} className="flex items-center text-sm text-muted-foreground">
+                              <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                              {detail}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </CardContent>
                 </Card>
               </div>
             );

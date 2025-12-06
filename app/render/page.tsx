@@ -50,7 +50,7 @@ export default async function ChatPage() {
     console.error('❌ [ChatPage SSR] Fatal error:', error);
     // Return error state instead of throwing
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-1rem-2.75rem)]">
+      <div className="flex items-center justify-center h-[calc(100vh-var(--navbar-height))]">
         <div className="text-center">
           <h2 className="text-xl font-semibold mb-2">Error Loading Render</h2>
           <p className="text-muted-foreground mb-4">

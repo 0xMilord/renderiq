@@ -174,7 +174,7 @@ export function GalleryItemPageClient({ item, similarItems }: GalleryItemPageCli
 
   return (
     <article className="min-h-screen bg-background overflow-x-hidden" itemScope itemType="https://schema.org/Article">
-      <div className="w-full max-w-full py-8 px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-full pt-[calc(var(--navbar-height)+1rem)] pb-8 px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-full overflow-hidden">
           {/* Creator Header with Back Button and Action Buttons */}
           {item.user && (

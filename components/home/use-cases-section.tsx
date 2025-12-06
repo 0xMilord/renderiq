@@ -1,65 +1,17 @@
-import { Building2, Factory, Home, Hotel, School, Hospital, Building } from 'lucide-react';
+'use client';
+
+import { memo } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { ArrowRight } from 'lucide-react';
+import { primaryUseCases } from '@/lib/data/use-cases';
 
-const aecUseCases = [
-  {
-    icon: Building2,
-    title: 'Commercial Architecture',
-    description: 'Create stunning visualizations for office buildings, commercial developments, and corporate facilities.',
-    features: ['Exterior renders', 'Interior design', 'Material testing', 'Lighting studies'],
-  },
-  {
-    icon: Factory,
-    title: 'Industrial Design',
-    description: 'Visualize manufacturing facilities, warehouses, and industrial complexes with precision.',
-    features: ['Large-scale visualization', 'Technical accuracy', 'Safety compliance', 'Efficiency planning'],
-  },
-  {
-    icon: School,
-    title: 'Educational Facilities',
-    description: 'Design and present educational buildings, campuses, and learning environments.',
-    features: ['Campus planning', 'Classroom layouts', 'Student spaces', 'Accessibility design'],
-  },
-  {
-    icon: Hospital,
-    title: 'Healthcare Architecture',
-    description: 'Plan and visualize hospitals, clinics, and medical facilities with attention to detail.',
-    features: ['Patient flow', 'Medical equipment', 'Sanitation standards', 'Healing environments'],
-  },
-];
-
-const additionalAecUseCases = [
-  {
-    icon: Home,
-    title: 'Residential Architecture',
-    description: 'Visualize homes, apartments, and residential developments for client presentations and marketing.',
-    features: ['Interior design', 'Exterior renders', 'Space planning', 'Client presentations'],
-  },
-  {
-    icon: Hotel,
-    title: 'Hospitality Architecture',
-    description: 'Design hotels, restaurants, and hospitality spaces with immersive architectural visualizations.',
-    features: ['Guest rooms', 'Common areas', 'Restaurant layouts', 'Public spaces'],
-  },
-  {
-    icon: Building,
-    title: 'Mixed-Use Developments',
-    description: 'Plan and visualize complex mixed-use projects combining residential, commercial, and public spaces.',
-    features: ['Master planning', 'Urban design', 'Space integration', 'Site analysis'],
-  },
-  {
-    icon: Building2,
-    title: 'Institutional Buildings',
-    description: 'Create visualizations for government buildings, cultural centers, and institutional facilities.',
-    features: ['Public spaces', 'Facade design', 'Accessibility compliance', 'Cultural expression'],
-  },
-];
-
-export function UseCasesSection() {
+const UseCasesSection = memo(function UseCasesSection() {
   return (
-    <section id="use-cases" className="py-20 px-4 sm:px-6 lg:px-8 bg-background">
-      <div className="max-w-7xl mx-auto">
+    <section id="use-cases" className="w-full py-20 px-4 sm:px-6 lg:px-8 bg-background">
+      <div className="w-full">
         <div className="text-center mb-16">
           <Badge className="mb-4 bg-muted text-muted-foreground px-4 py-2">
             Use Cases
@@ -73,77 +25,78 @@ export function UseCasesSection() {
           </p>
         </div>
 
-        {/* AEC Section */}
+        {/* All Use Cases - Merged */}
         <div className="mb-20">
           <div className="flex items-center gap-3 mb-8">
-            <Building2 className="h-8 w-8 text-primary" />
-            <h3 className="text-3xl font-bold text-foreground">Architecture, Engineering & Construction (AEC)</h3>
+            <h3 className="text-3xl font-bold text-foreground">AI Architecture Workflows</h3>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {aecUseCases.map((useCase, index) => {
-              const Icon = useCase.icon;
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {primaryUseCases.map((useCase) => {
+              const isVideo = useCase.slug === 'rapid-concept-video';
               return (
-                <Card key={index} className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                      <Icon className="h-6 w-6 text-primary" />
+                <Link key={useCase.slug} href={`/use-cases/${useCase.slug}`}>
+                  <Card className="hover:shadow-lg transition-all duration-300 h-full group cursor-pointer overflow-hidden">
+                    <div className="relative w-full aspect-square overflow-hidden bg-muted">
+                      {isVideo ? (
+                        <video
+                          src={`/use-cases/${useCase.slug}.mp4`}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <Image
+                          src={`/use-cases/${useCase.slug}.webp`}
+                          alt={useCase.title}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                        />
+                      )}
                     </div>
-                    <CardTitle className="text-xl">{useCase.title}</CardTitle>
-                    <CardDescription>{useCase.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      {useCase.features.map((feature, idx) => (
-                        <li key={idx} className="text-sm text-muted-foreground flex items-start">
-                          <span className="text-primary mr-2">•</span>
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
+                    <CardHeader>
+                      <CardTitle className="text-xl group-hover:text-primary transition-colors">
+                        {useCase.title}
+                      </CardTitle>
+                      <CardDescription>{useCase.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="space-y-2 mb-4">
+                        {useCase.features.slice(0, 3).map((feature, idx) => (
+                          <li key={idx} className="text-sm text-muted-foreground flex items-start">
+                            <span className={`${useCase.color} mr-2`}>•</span>
+                            {feature}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="flex items-center text-primary text-sm font-medium group-hover:underline">
+                        Learn more
+                        <ArrowRight className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
               );
             })}
           </div>
         </div>
 
-        {/* Additional AEC Use Cases */}
-        <div>
-          <div className="flex items-center gap-3 mb-8">
-            <Building2 className="h-8 w-8 text-primary" />
-            <h3 className="text-3xl font-bold text-foreground">Specialized AEC Applications</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {additionalAecUseCases.map((useCase, index) => {
-              const Icon = useCase.icon;
-              return (
-                <Card key={index} className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                      <Icon className="h-6 w-6 text-primary" />
-                    </div>
-                    <CardTitle className="text-xl">{useCase.title}</CardTitle>
-                    <CardDescription>{useCase.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      {useCase.features.map((feature, idx) => (
-                        <li key={idx} className="text-sm text-muted-foreground flex items-start">
-                          <span className="text-primary mr-2">•</span>
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+        {/* Link to full use cases page */}
+        <div className="text-center mt-12">
+          <Link href="/use-cases">
+            <span className="inline-flex items-center text-primary hover:underline text-lg font-medium">
+              View all use cases
+              <ArrowRight className="h-5 w-5 ml-2" />
+            </span>
+          </Link>
         </div>
       </div>
     </section>
   );
-}
+});
 
+UseCasesSection.displayName = 'UseCasesSection';
 
-
+export { UseCasesSection };

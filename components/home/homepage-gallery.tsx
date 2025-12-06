@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { memo, useCallback } from 'react';
 import { GalleryImageCard } from '@/components/gallery/gallery-image-card';
 import { likeGalleryItem } from '@/lib/actions/gallery.actions';
 import type { GalleryItemWithDetails } from '@/lib/types';
@@ -9,16 +9,14 @@ interface HomepageGalleryProps {
   items: GalleryItemWithDetails[];
 }
 
-export function HomepageGallery({ items }: HomepageGalleryProps) {
-  const router = useRouter();
-
-  const handleLike = async (itemId: string) => {
+const HomepageGallery = memo(function HomepageGallery({ items }: HomepageGalleryProps) {
+  const handleLike = useCallback(async (itemId: string) => {
     return await likeGalleryItem(itemId);
-  };
+  }, []);
 
-  const handleView = (itemId: string) => {
+  const handleView = useCallback((itemId: string) => {
     // View tracking is handled by the GalleryImageCard component
-  };
+  }, []);
 
   if (items.length === 0) {
     return (
@@ -51,7 +49,11 @@ export function HomepageGallery({ items }: HomepageGalleryProps) {
       ))}
     </div>
   );
-}
+});
+
+HomepageGallery.displayName = 'HomepageGallery';
+
+export { HomepageGallery };
 
 
 

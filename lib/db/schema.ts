@@ -36,7 +36,7 @@ export const subscriptionPlans = pgTable('subscription_plans', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-// Credit packages for one-time purchases
+// Credit packages for one-time purchases with volume-based pricing
 export const creditPackages = pgTable('credit_packages', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
@@ -48,6 +48,8 @@ export const creditPackages = pgTable('credit_packages', {
   isPopular: boolean('is_popular').default(false).notNull(),
   isActive: boolean('is_active').default(true).notNull(),
   displayOrder: integer('display_order').default(0).notNull(),
+  pricingTier: text('pricing_tier').default('standard').notNull(), // 'single', 'standard', 'bulk'
+  pricePerCredit: decimal('price_per_credit', { precision: 10, scale: 2 }).default('5.00').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

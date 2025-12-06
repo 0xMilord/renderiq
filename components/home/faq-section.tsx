@@ -69,7 +69,7 @@ const faqs = [
       },
       {
         question: 'How long does it take to generate a render?',
-        answer: 'Most image renders complete in 2-5 minutes. Video generation using Veo 3.1 may take longer depending on duration and quality settings. You\'ll receive real-time updates on your render progress, and renders are automatically added to your project chains.',
+        answer: 'Most image renders complete in under 30 seconds. Video generation using Veo 3.1 may take longer depending on duration and quality settings. You\'ll receive real-time updates on your render progress, and renders are automatically added to your project chains.',
       },
       {
         question: 'What resolution can I export renders at?',
