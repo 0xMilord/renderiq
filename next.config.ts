@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // Set output file tracing root to silence warning about multiple lockfiles
+  outputFileTracingRoot: process.cwd(),
   // Experimental features
   experimental: {
     optimizeCss: true,

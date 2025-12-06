@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next'
 import { RendersDAL } from '@/lib/dal/renders'
 import { db } from '@/lib/db'
 import { users, galleryItems } from '@/lib/db/schema'
-import { eq, and, sql } from 'drizzle-orm'
+import { eq, and, sql, desc } from 'drizzle-orm'
 
 // Helper function to get all blog posts
 function getAllBlogs(): any[] {
@@ -160,11 +160,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }))
 
-  // Dynamic: Gallery items (top 1000 most popular)
+  // Dynamic: Gallery items (top 200 most popular - reduced for faster build)
   let galleryItemPages: MetadataRoute.Sitemap = [];
   try {
-    const popularItemIds = await RendersDAL.getAllPublicGalleryItemIds(1000);
-    const items = await db
+    // Add timeout to prevent hanging during deployment
+    const fetchPromise = db
       .select({
         id: galleryItems.id,
         createdAt: galleryItems.createdAt,
@@ -173,7 +173,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       })
       .from(galleryItems)
       .where(eq(galleryItems.isPublic, true))
-      .limit(1000);
+      .orderBy(desc(sql`COALESCE(${galleryItems.likes}, 0) + COALESCE(${galleryItems.views}, 0)`), desc(galleryItems.createdAt))
+      .limit(200); // Reduced from 1000 to 200 for faster generation
+    
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('Sitemap gallery query timeout')), 5000)
+    );
+    
+    const items = await Promise.race([fetchPromise, timeoutPromise]);
 
     galleryItemPages = items.map((item) => {
       // Calculate priority based on engagement (0.5 to 0.9)
@@ -191,10 +198,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.error('Error generating gallery item sitemap entries:', error);
   }
 
-  // Dynamic: User profiles (users with public gallery items)
+  // Dynamic: User profiles (users with public gallery items - reduced for faster build)
   let userProfilePages: MetadataRoute.Sitemap = [];
   try {
-    const usersWithGallery = await db
+    // Add timeout to prevent hanging during deployment
+    const fetchPromise = db
       .selectDistinct({
         userId: galleryItems.userId,
         userName: users.name,
@@ -207,7 +215,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         eq(users.isActive, true)
       ))
       .groupBy(galleryItems.userId, users.name)
-      .limit(500);
+      .limit(100); // Reduced from 500 to 100 for faster generation
+    
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('Sitemap user query timeout')), 5000)
+    );
+    
+    const usersWithGallery = await Promise.race([fetchPromise, timeoutPromise]);
 
     userProfilePages = usersWithGallery
       .filter(u => u.userName)
