@@ -32,6 +32,9 @@ function getAllBlogs(): any[] {
   }
 }
 
+// ISR: Revalidate sitemap every hour
+export const revalidate = 3600;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io'
   
@@ -160,10 +163,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }))
 
-  // Dynamic: Gallery items (top 200 most popular - reduced for faster build)
+  // Dynamic: Gallery items (top 100 most popular - further reduced for faster deployment)
   let galleryItemPages: MetadataRoute.Sitemap = [];
   try {
-    // Add timeout to prevent hanging during deployment
+    // Add aggressive timeout to prevent hanging during deployment
     const fetchPromise = db
       .select({
         id: galleryItems.id,
@@ -174,10 +177,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .from(galleryItems)
       .where(eq(galleryItems.isPublic, true))
       .orderBy(desc(sql`COALESCE(${galleryItems.likes}, 0) + COALESCE(${galleryItems.views}, 0)`), desc(galleryItems.createdAt))
-      .limit(200); // Reduced from 1000 to 200 for faster generation
+      .limit(100); // Further reduced from 200 to 100 for faster generation
     
     const timeoutPromise = new Promise<never>((_, reject) => 
-      setTimeout(() => reject(new Error('Sitemap gallery query timeout')), 5000)
+      setTimeout(() => reject(new Error('Sitemap gallery query timeout')), 3000) // Reduced to 3 seconds
     );
     
     const items = await Promise.race([fetchPromise, timeoutPromise]);
@@ -195,13 +198,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       };
     });
   } catch (error) {
-    console.error('Error generating gallery item sitemap entries:', error);
+    // Silently fail - sitemap will work with static pages only
+    console.error('Error generating gallery item sitemap entries (skipping):', error);
   }
 
-  // Dynamic: User profiles (users with public gallery items - reduced for faster build)
+  // Dynamic: User profiles (users with public gallery items - further reduced for faster deployment)
   let userProfilePages: MetadataRoute.Sitemap = [];
   try {
-    // Add timeout to prevent hanging during deployment
+    // Add aggressive timeout to prevent hanging during deployment
     const fetchPromise = db
       .selectDistinct({
         userId: galleryItems.userId,
@@ -215,10 +219,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         eq(users.isActive, true)
       ))
       .groupBy(galleryItems.userId, users.name)
-      .limit(100); // Reduced from 500 to 100 for faster generation
+      .limit(50); // Further reduced from 100 to 50 for faster generation
     
     const timeoutPromise = new Promise<never>((_, reject) => 
-      setTimeout(() => reject(new Error('Sitemap user query timeout')), 5000)
+      setTimeout(() => reject(new Error('Sitemap user query timeout')), 3000) // Reduced to 3 seconds
     );
     
     const usersWithGallery = await Promise.race([fetchPromise, timeoutPromise]);
@@ -241,7 +245,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         };
       });
   } catch (error) {
-    console.error('Error generating user profile sitemap entries:', error);
+    // Silently fail - sitemap will work with static pages only
+    console.error('Error generating user profile sitemap entries (skipping):', error);
   }
 
   return [
