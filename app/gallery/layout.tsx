@@ -109,9 +109,18 @@ export default async function GalleryLayout({
   children: React.ReactNode;
 }) {
   // Fetch initial gallery items for ItemList schema (top 20)
+  // Use empty schema during build to avoid blocking deployment
+  // Schema will be populated on-demand when pages are rendered
   let itemListElements: any[] = [];
+  
   try {
-    const initialItems = await RendersDAL.getPublicGallery(20, 0);
+    // Use Promise.race with timeout to prevent hanging during build
+    const fetchPromise = RendersDAL.getPublicGallery(20, 0);
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('Timeout')), 2000)
+    );
+    
+    const initialItems = await Promise.race([fetchPromise, timeoutPromise]);
     itemListElements = initialItems.slice(0, 20).map((item, index) => ({
       '@type': 'ListItem',
       position: index + 1,
@@ -127,7 +136,8 @@ export default async function GalleryLayout({
       },
     }));
   } catch (error) {
-    console.error('Error fetching gallery items for schema:', error);
+    // Silently fail - schema will be empty but page will still work
+    // This prevents build from hanging if database is unavailable
   }
 
   // Update gallery schema with dynamic ItemList
