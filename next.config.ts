@@ -2,9 +2,7 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   /* config options here */
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // Note: eslint config removed - Next.js 16 handles linting differently
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -199,6 +197,32 @@ const nextConfig: NextConfig = {
       },
       {
         source: '/sitemap.xml',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'application/xml',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=3600',
+          },
+        ],
+      },
+      {
+        source: '/sitemap-images.xml',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'application/xml',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=3600',
+          },
+        ],
+      },
+      {
+        source: '/sitemap-video.xml',
         headers: [
           {
             key: 'Content-Type',
