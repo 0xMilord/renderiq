@@ -9,15 +9,19 @@ import { BaseToolComponent } from '../base-tool-component';
 
 interface ExplodedDiagramProps {
   tool: ToolConfig;
+  projectId?: string | null;
+  onHintChange?: (hint: string | null) => void;
 }
 
-export function ExplodedDiagram({ tool }: ExplodedDiagramProps) {
+export function ExplodedDiagram({ tool, projectId, onHintChange }: ExplodedDiagramProps) {
   const [spacing, setSpacing] = useState<'tight' | 'medium' | 'wide'>('medium');
   const [orientation, setOrientation] = useState<'vertical' | 'horizontal' | 'diagonal'>('vertical');
 
   return (
     <BaseToolComponent
       tool={tool}
+      projectId={projectId}
+      onHintChange={onHintChange}
       customSettings={
         <>
           <div className="space-y-3">

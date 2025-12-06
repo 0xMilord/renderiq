@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
-import { useCreditsWithReset, useIsPro, useSubscription } from '@/lib/hooks/use-subscription';
+import { useUserBillingStats } from '@/lib/hooks/use-subscription';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -45,10 +45,17 @@ import { CreateProjectModal } from '@/components/projects/create-project-modal';
 export function UserDropdown() {
   const { user, signOut } = useAuth();
   const { profile, loading: profileLoading } = useUserProfile();
-  const { data: creditsData, loading: creditsLoading } = useCreditsWithReset(profile?.id);
-  const { data: isPro, loading: proLoading } = useIsPro(profile?.id);
-  const { data: subscription, loading: subscriptionLoading } = useSubscription(profile?.id);
+  // ✅ BATCHED: Single hook replaces 3 separate hooks to prevent N+1 queries
+  const { data: billingStats, loading: billingLoading } = useUserBillingStats(profile?.id);
   const [isOpen, setIsOpen] = useState(false);
+  
+  // Extract data from batched stats
+  const creditsData = billingStats?.credits;
+  const subscription = billingStats?.subscription;
+  const isPro = billingStats?.isPro || false;
+  const creditsLoading = billingLoading;
+  const proLoading = billingLoading;
+  const subscriptionLoading = billingLoading;
 
   const handleSignOut = async () => {
     await signOut();

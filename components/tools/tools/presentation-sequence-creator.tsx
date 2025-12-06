@@ -9,15 +9,19 @@ import { BaseToolComponent } from '../base-tool-component';
 
 interface PresentationSequenceCreatorProps {
   tool: ToolConfig;
+  projectId?: string | null;
+  onHintChange?: (hint: string | null) => void;
 }
 
-export function PresentationSequenceCreator({ tool }: PresentationSequenceCreatorProps) {
+export function PresentationSequenceCreator({ tool, projectId, onHintChange }: PresentationSequenceCreatorProps) {
   const [sequenceType, setSequenceType] = useState<'linear' | 'comparison' | 'progressive'>('linear');
   const [annotationStyle, setAnnotationStyle] = useState<'minimal' | 'detailed' | 'none'>('minimal');
 
   return (
     <BaseToolComponent
       tool={tool}
+      projectId={projectId}
+      onHintChange={onHintChange}
       multipleImages={true}
       maxImages={8}
       customSettings={

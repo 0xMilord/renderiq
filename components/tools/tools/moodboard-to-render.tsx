@@ -9,15 +9,19 @@ import { BaseToolComponent } from '../base-tool-component';
 
 interface MoodboardToRenderProps {
   tool: ToolConfig;
+  projectId?: string | null;
+  onHintChange?: (hint: string | null) => void;
 }
 
-export function MoodboardToRender({ tool }: MoodboardToRenderProps) {
+export function MoodboardToRender({ tool, projectId, onHintChange }: MoodboardToRenderProps) {
   const [style, setStyle] = useState<'cohesive' | 'eclectic' | 'minimalist'>('cohesive');
   const [roomType, setRoomType] = useState<'living' | 'bedroom' | 'kitchen' | 'office'>('living');
 
   return (
     <BaseToolComponent
       tool={tool}
+      projectId={projectId}
+      onHintChange={onHintChange}
       customSettings={
         <>
           <div className="space-y-3">

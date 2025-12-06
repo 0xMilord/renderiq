@@ -228,3 +228,26 @@ export async function deductCredits(
     };
   }
 }
+
+/**
+ * ✅ BATCHED: Get all user billing stats in a single call
+ * Replaces separate calls to getUserCreditsWithReset, getUserSubscription, and isUserPro
+ */
+export async function getUserBillingStatsAction(userId: string) {
+  logger.log('💰 BillingAction: Getting batched billing stats for:', userId);
+  
+  try {
+    const stats = await BillingDAL.getUserBillingStats(userId);
+    
+    return {
+      success: true,
+      data: stats,
+    };
+  } catch (error) {
+    logger.error('❌ BillingAction: Error getting batched billing stats:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get billing stats',
+    };
+  }
+}

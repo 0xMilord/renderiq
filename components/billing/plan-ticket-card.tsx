@@ -4,8 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
-import { useSubscription } from '@/lib/hooks/use-subscription';
-import { useCredits } from '@/lib/hooks/use-credits';
+import { useUserBillingStats } from '@/lib/hooks/use-subscription';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { CreditCard, Zap, Calendar, Coins, AlertCircle, History, Plus } from 'lucide-react';
 import Link from 'next/link';
@@ -13,8 +12,14 @@ import { Button } from '@/components/ui/button';
 
 export function PlanTicketCard() {
   const { user } = useAuth();
-  const { data: subscription, loading: subscriptionLoading } = useSubscription(user?.id);
-  const { credits, loading: creditsLoading } = useCredits();
+  // ✅ BATCHED: Single hook replaces 2 separate hooks to prevent N+1 queries
+  const { data: billingStats, loading: billingLoading } = useUserBillingStats(user?.id);
+  
+  // Extract data from batched stats
+  const subscription = billingStats?.subscription;
+  const credits = billingStats?.credits;
+  const subscriptionLoading = billingLoading;
+  const creditsLoading = billingLoading;
 
   if (subscriptionLoading || creditsLoading) {
     return (

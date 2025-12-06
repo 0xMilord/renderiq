@@ -40,7 +40,7 @@
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --radius: 0.5rem;
-  --navbar-height: calc(2.75rem + 0.5rem); /* h-11 (2.75rem) + pb-2 (0.5rem) = 3.25rem - flush to top */
+  --navbar-height: calc(2.75rem + 0.8rem); /* h-11 (2.75rem) + py-[0.4rem] (0.4rem top + 0.4rem bottom = 0.8rem) = 3.55rem */
   --shadow-x: 0;
   --shadow-y: 1px;
   --shadow-blur: 3px;
@@ -97,7 +97,7 @@
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --radius: 0.5rem;
-  --navbar-height: calc(2.75rem + 0.5rem); /* h-11 (2.75rem) + pb-2 (0.5rem) = 3.25rem - flush to top */
+  --navbar-height: calc(2.75rem + 0.8rem); /* h-11 (2.75rem) + py-[0.4rem] (0.4rem top + 0.4rem bottom = 0.8rem) = 3.55rem */
   --shadow-x: 0;
   --shadow-y: 1px;
   --shadow-blur: 3px;
@@ -129,6 +129,49 @@
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
+  }
+
+  /* Custom Scrollbar Styles - Slim and Sleek */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--primary)) hsl(var(--background));
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+    border-radius: 3px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.2);
+    border-radius: 3px;
+    transition: background 0.2s ease;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.6);
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:active {
+    background: hsl(var(--primary));
+  }
+
+  /* Apply custom scrollbar to Radix ScrollArea components */
+  [data-slot="scroll-area-scrollbar"] {
+    background: hsl(var(--background)) !important;
+  }
+
+  [data-slot="scroll-area-thumb"] {
+    background: hsl(var(--muted-foreground) / 0.2) !important;
+  }
+
+  [data-slot="scroll-area-thumb"]:hover {
+    background: hsl(var(--primary) / 0.6) !important;
   }
 }
 

@@ -10,9 +10,10 @@ import { BaseToolComponent } from '../base-tool-component';
 interface PresentationBoardMakerProps {
   tool: ToolConfig;
   projectId?: string | null;
+  onHintChange?: (hint: string | null) => void;
 }
 
-export function PresentationBoardMaker({ tool, projectId }: PresentationBoardMakerProps) {
+export function PresentationBoardMaker({ tool, projectId, onHintChange }: PresentationBoardMakerProps) {
   const [boardSize, setBoardSize] = useState<'A3' | 'A2' | 'A1' | 'custom'>('A2');
   const [layoutStyle, setLayoutStyle] = useState<'grid' | 'masonry' | 'linear' | 'asymmetric'>('grid');
   const [colorScheme, setColorScheme] = useState<'light' | 'dark' | 'neutral'>('light');
@@ -23,6 +24,7 @@ export function PresentationBoardMaker({ tool, projectId }: PresentationBoardMak
       projectId={projectId}
       multipleImages={true}
       maxImages={10}
+      onHintChange={onHintChange}
       customSettings={
         <>
           <div className="space-y-3">

@@ -293,5 +293,85 @@ export class BillingDAL {
       throw error;
     }
   }
+
+  /**
+   * ✅ BATCHED: Get all user billing stats in a single optimized query
+   * Combines credits, subscription, and pro status to prevent N+1 queries
+   */
+  static async getUserBillingStats(userId: string) {
+    logger.log('💰 BillingDAL: Getting batched billing stats for user:', userId);
+    
+    try {
+      // Get credits with active subscription info in one query
+      const [creditsResult] = await db
+        .select({
+          credits: userCredits,
+          subscription: userSubscriptions,
+          plan: subscriptionPlans,
+        })
+        .from(userCredits)
+        .leftJoin(
+          userSubscriptions,
+          and(
+            eq(userCredits.userId, userSubscriptions.userId),
+            eq(userSubscriptions.status, 'active')
+          )
+        )
+        .leftJoin(subscriptionPlans, eq(userSubscriptions.planId, subscriptionPlans.id))
+        .where(eq(userCredits.userId, userId))
+        .orderBy(desc(userSubscriptions.createdAt))
+        .limit(1);
+
+      if (!creditsResult || !creditsResult.credits) {
+        logger.log('❌ BillingDAL: User credits not found');
+        return {
+          credits: null,
+          subscription: null,
+          isPro: false,
+        };
+      }
+
+      // Get full subscription details (including pending, etc.) in parallel
+      // This uses the existing optimized method
+      const subscription = await this.getUserSubscription(userId);
+
+      // Calculate isPro from subscription
+      let isPro = false;
+      if (subscription?.subscription && subscription?.plan) {
+        const isActive = subscription.subscription.status === 'active';
+        const isPeriodValid = new Date(subscription.subscription.currentPeriodEnd) > new Date();
+        isPro = isActive && isPeriodValid;
+      }
+
+      const resetDate = creditsResult.subscription?.currentPeriodEnd 
+        ? new Date(creditsResult.subscription.currentPeriodEnd)
+        : subscription?.subscription?.currentPeriodEnd
+        ? new Date(subscription.subscription.currentPeriodEnd)
+        : null;
+
+      logger.log('✅ BillingDAL: Batched billing stats retrieved', {
+        credits: creditsResult.credits.balance,
+        hasSubscription: !!subscription,
+        isPro,
+      });
+
+      return {
+        credits: {
+          ...creditsResult.credits,
+          nextResetDate: resetDate,
+          plan: creditsResult.plan || subscription?.plan,
+        },
+        subscription: subscription || {
+          subscription: creditsResult.subscription,
+          plan: creditsResult.plan,
+          paymentMethod: null,
+        },
+        isPro,
+      };
+    } catch (error) {
+      console.error('❌ BillingDAL: Error getting batched billing stats:', error);
+      throw error;
+    }
+  }
 }
 

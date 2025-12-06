@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getUserSubscriptionAction, getUserCreditsWithResetAction, isUserProAction } from '@/lib/actions/billing.actions';
+import { getUserSubscriptionAction, getUserCreditsWithResetAction, isUserProAction, getUserBillingStatsAction } from '@/lib/actions/billing.actions';
 
 /**
  * Hook to get user's subscription status
@@ -114,6 +114,54 @@ export function useCreditsWithReset(userId?: string) {
 
     // Refresh credits every 30 seconds
     const interval = setInterval(fetchCredits, 30000);
+
+    return () => clearInterval(interval);
+  }, [userId]);
+
+  return { data, loading, error };
+}
+
+/**
+ * ✅ BATCHED: Hook to get all user billing stats in a single call
+ * Replaces separate useCreditsWithReset, useIsPro, and useSubscription hooks
+ * Prevents N+1 queries by fetching everything in one optimized database query
+ */
+export function useUserBillingStats(userId?: string) {
+  const [data, setData] = useState<{
+    credits: any;
+    subscription: any;
+    isPro: boolean;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        const result = await getUserBillingStatsAction(userId);
+        if (result.success) {
+          setData(result.data);
+          setError(null);
+        } else {
+          setError(result.error || 'Failed to fetch billing stats');
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+
+    // Refresh stats every 30 seconds
+    const interval = setInterval(fetchStats, 30000);
 
     return () => clearInterval(interval);
   }, [userId]);

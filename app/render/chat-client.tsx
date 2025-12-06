@@ -198,7 +198,7 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
   }, []);
 
   return (
-    <div className="flex h-[calc(100vh-1rem-2.75rem)] bg-background">
+    <div className="flex h-[calc(100vh-var(--navbar-height))] pt-[var(--navbar-height)] bg-background">
       {/* Sidebar */}
       <div
         className={cn(

@@ -1,3 +1,5 @@
+import { getEffectiveToolStatus, isToolAccessible } from './feature-flags';
+
 export type ToolCategory = 
   | 'transformation' 
   | 'floorplan' 
@@ -19,6 +21,7 @@ export interface ToolConfig {
   icon?: string;
   color?: string;
   priority: 'high' | 'medium' | 'low';
+  status: 'online' | 'offline'; // Feature flag: online = accessible, offline = disabled
   seo: {
     title: string;
     description: string;
@@ -38,6 +41,7 @@ export const TOOLS: ToolConfig[] = [
     inputType: 'image',
     outputType: 'image',
     priority: 'high',
+    status: 'online',
     seo: {
       title: 'Render to Section Drawing Tool | AI Architectural Section Drawing',
       description: 'Transform architectural renders into precise technical section drawings with AI. Create professional section drawings with structural details and dimensions.',
@@ -54,6 +58,7 @@ export const TOOLS: ToolConfig[] = [
     inputType: 'image',
     outputType: 'image',
     priority: 'medium',
+    status: 'online',
     seo: {
       title: 'Render to CAD Converter | AI CAD Conversion Tool',
       description: 'Convert photorealistic renders into clean 2D CAD-style technical drawings with precise linework and dimensions.',
@@ -70,6 +75,7 @@ export const TOOLS: ToolConfig[] = [
     inputType: 'image',
     outputType: 'image',
     priority: 'high',
+    status: 'online',
     seo: {
       title: 'AI Render Upscaler | Architectural Image Enhancement',
       description: 'Upscale and enhance architectural renders with AI. Increase resolution while maintaining quality and detail.',
@@ -86,6 +92,7 @@ export const TOOLS: ToolConfig[] = [
     inputType: 'image',
     outputType: 'image',
     priority: 'low',
+    status: 'offline',
     seo: {
       title: 'Render Effects Tool | AI Architectural Style Effects',
       description: 'Add creative effects to architectural renders. Transform renders with sketch, illustration, wireframe, and artistic styles.',
@@ -104,6 +111,7 @@ export const TOOLS: ToolConfig[] = [
     inputType: 'image',
     outputType: 'image',
     priority: 'high',
+    status: 'offline',
     seo: {
       title: 'Floor Plan to Furnished | AI Furniture Placement Tool',
       description: 'Transform empty floor plans into furnished layouts. Add furniture and interior elements with proper scale and proportions.',
@@ -120,6 +128,7 @@ export const TOOLS: ToolConfig[] = [
     inputType: 'image',
     outputType: 'image',
     priority: 'medium',
+    status: 'offline',
     seo: {
       title: 'Floor Plan to 3D Converter | 2D to 3D Floor Plan Tool',
       description: 'Convert 2D floor plans into professional 3D axonometric diagrams. Visualize spatial relationships and volumes.',
@@ -136,6 +145,7 @@ export const TOOLS: ToolConfig[] = [
     inputType: 'image',
     outputType: 'image',
     priority: 'medium',
+    status: 'offline',
     seo: {
       title: 'Floor Plan Technical Diagrams | Architectural Diagram Tool',
       description: 'Convert floor plans into professional technical diagrams with annotations, dimensions, and room labels.',
@@ -154,6 +164,7 @@ export const TOOLS: ToolConfig[] = [
     inputType: 'image',
     outputType: 'image',
     priority: 'medium',
+    status: 'offline',
     seo: {
       title: 'Exploded Diagram Generator | Architectural Axonometric Tool',
       description: 'Create exploded axonometric diagrams from architectural designs. Show components with proper spacing and technical accuracy.',
@@ -170,6 +181,7 @@ export const TOOLS: ToolConfig[] = [
     inputType: 'image',
     outputType: 'image',
     priority: 'low',
+    status: 'offline',
     seo: {
       title: 'Multi Angle View Tool | Architectural Perspectives Generator',
       description: 'Generate multiple camera angle views of architectural designs. Create aerial, eye-level, and close-up perspectives.',
@@ -188,6 +200,7 @@ export const TOOLS: ToolConfig[] = [
     inputType: 'image',
     outputType: 'image',
     priority: 'medium',
+    status: 'offline',
     seo: {
       title: 'Change Texture Tool | AI Material Replacement',
       description: 'Modify textures and materials in interior spaces with AI. Replace materials while maintaining lighting and proportions.',
@@ -204,6 +217,7 @@ export const TOOLS: ToolConfig[] = [
     inputType: 'image',
     outputType: 'image',
     priority: 'low',
+    status: 'offline',
     seo: {
       title: 'Material Alteration Tool | Facade Material Replacement',
       description: 'Transform building materials and facade finishes with AI. Test different materials while maintaining structural integrity.',
@@ -220,6 +234,7 @@ export const TOOLS: ToolConfig[] = [
     inputType: 'image',
     outputType: 'image',
     priority: 'medium',
+    status: 'offline',
     seo: {
       title: 'Change Lighting Tool | Interior Lighting Simulation',
       description: 'Transform lighting conditions in interior spaces. Adjust natural and artificial light to create different ambiances.',
@@ -238,6 +253,7 @@ export const TOOLS: ToolConfig[] = [
     inputType: 'image',
     outputType: 'image',
     priority: 'low',
+    status: 'offline',
     seo: {
       title: 'Upholstery Change Tool | Furniture Fabric Replacement',
       description: 'Transform furniture upholstery with different patterns and materials. Test fabric options while maintaining form.',
@@ -254,6 +270,7 @@ export const TOOLS: ToolConfig[] = [
     inputType: 'multiple',
     outputType: 'image',
     priority: 'medium',
+    status: 'offline',
     seo: {
       title: 'Product Placement Tool | Interior Product Visualization',
       description: 'Place products into interior scenes with AI. Integrate products with proper scale, lighting, and perspective.',
@@ -270,6 +287,7 @@ export const TOOLS: ToolConfig[] = [
     inputType: 'image',
     outputType: 'image',
     priority: 'low',
+    status: 'offline',
     seo: {
       title: 'Item Change Tool | Interior Item Replacement',
       description: 'Replace and swap items in interior spaces. Test different furniture and decor options with AI precision.',
@@ -286,6 +304,7 @@ export const TOOLS: ToolConfig[] = [
     inputType: 'image',
     outputType: 'image',
     priority: 'medium',
+    status: 'offline',
     seo: {
       title: 'Moodboard to Render | Interior Design Visualization',
       description: 'Transform moodboards into photorealistic interior renders. Bring design concepts to life with AI.',
@@ -304,6 +323,7 @@ export const TOOLS: ToolConfig[] = [
     inputType: 'image',
     outputType: 'image',
     priority: 'high',
+    status: 'offline',
     seo: {
       title: '3D to Render Converter | Model Visualization Tool',
       description: 'Transform 3D models into photorealistic renders. Create presentation-ready visualizations with realistic materials and lighting.',
@@ -320,6 +340,7 @@ export const TOOLS: ToolConfig[] = [
     inputType: 'image',
     outputType: 'image',
     priority: 'high',
+    status: 'offline',
     seo: {
       title: 'Sketch to Render | Architectural Sketch Visualization',
       description: 'Transform architectural sketches into photorealistic renders. Bring hand drawings to life with AI.',
@@ -338,6 +359,7 @@ export const TOOLS: ToolConfig[] = [
     inputType: 'multiple',
     outputType: 'image',
     priority: 'high',
+    status: 'offline',
     seo: {
       title: 'Presentation Board Maker | Architectural Board Layout Tool',
       description: 'Create professional architectural presentation boards. Design layouts with proper visual hierarchy, spacing, and annotations.',
@@ -354,6 +376,7 @@ export const TOOLS: ToolConfig[] = [
     inputType: 'multiple',
     outputType: 'image',
     priority: 'medium',
+    status: 'offline',
     seo: {
       title: 'Portfolio Layout Generator | Architect Portfolio Tool',
       description: 'Generate professional portfolio layouts for architectural projects. Create stunning portfolio pages with proper typography and spacing.',
@@ -370,6 +393,7 @@ export const TOOLS: ToolConfig[] = [
     inputType: 'multiple',
     outputType: 'image',
     priority: 'medium',
+    status: 'offline',
     seo: {
       title: 'Presentation Sequence Creator | Client Presentation Tool',
       description: 'Create sequential presentation layouts for client meetings. Tell visual stories with proper flow and narrative structure.',
@@ -417,7 +441,14 @@ export const CATEGORIES: { id: ToolCategory; name: string; description: string }
 ];
 
 export function getToolBySlug(slug: string): ToolConfig | undefined {
-  return TOOLS.find(tool => tool.slug === slug);
+  const tool = TOOLS.find(tool => tool.slug === slug);
+  if (!tool) return undefined;
+  
+  // Apply feature flags - override status based on environment
+  return {
+    ...tool,
+    status: getEffectiveToolStatus(tool.id, tool.status)
+  };
 }
 
 export function getToolsByCategory(category: ToolCategory): ToolConfig[] {
@@ -425,6 +456,21 @@ export function getToolsByCategory(category: ToolCategory): ToolConfig[] {
 }
 
 export function getAllTools(): ToolConfig[] {
-  return TOOLS;
+  // Apply feature flags to all tools
+  return TOOLS.map(tool => ({
+    ...tool,
+    status: getEffectiveToolStatus(tool.id, tool.status)
+  }));
+}
+
+export function getOnlineTools(): ToolConfig[] {
+  return TOOLS.filter(tool => {
+    const effectiveStatus = getEffectiveToolStatus(tool.id, tool.status);
+    return effectiveStatus === 'online';
+  });
+}
+
+export function getOfflineTools(): ToolConfig[] {
+  return TOOLS.filter(tool => tool.status === 'offline');
 }
 

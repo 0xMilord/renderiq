@@ -10,9 +10,11 @@ import { BaseToolComponent } from '../base-tool-component';
 interface ThreeDToRenderProps {
   tool: ToolConfig;
   projectId?: string | null;
+  onHintChange?: (hint: string | null) => void;
+  hintMessage?: string | null;
 }
 
-export function ThreeDToRender({ tool, projectId }: ThreeDToRenderProps) {
+export function ThreeDToRender({ tool, projectId, onHintChange, hintMessage }: ThreeDToRenderProps) {
   const [lightingStyle, setLightingStyle] = useState<string>('natural');
   const [environment, setEnvironment] = useState<string>('none');
   const [cameraAngle, setCameraAngle] = useState<string>('eye-level');
@@ -21,6 +23,8 @@ export function ThreeDToRender({ tool, projectId }: ThreeDToRenderProps) {
     <BaseToolComponent
       tool={tool}
       projectId={projectId}
+      onHintChange={onHintChange}
+      hintMessage={hintMessage}
       customSettings={
         <>
           <div className="space-y-3">

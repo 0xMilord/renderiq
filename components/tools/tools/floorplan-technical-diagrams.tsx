@@ -9,15 +9,19 @@ import { BaseToolComponent } from '../base-tool-component';
 
 interface FloorplanTechnicalDiagramsProps {
   tool: ToolConfig;
+  projectId?: string | null;
+  onHintChange?: (hint: string | null) => void;
 }
 
-export function FloorplanTechnicalDiagrams({ tool }: FloorplanTechnicalDiagramsProps) {
+export function FloorplanTechnicalDiagrams({ tool, projectId, onHintChange }: FloorplanTechnicalDiagramsProps) {
   const [annotationStyle, setAnnotationStyle] = useState<'minimal' | 'standard' | 'detailed'>('standard');
   const [includeDimensions, setIncludeDimensions] = useState<'yes' | 'no'>('yes');
 
   return (
     <BaseToolComponent
       tool={tool}
+      projectId={projectId}
+      onHintChange={onHintChange}
       customSettings={
         <>
           <div className="space-y-3">

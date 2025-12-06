@@ -5,16 +5,21 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/lib/hooks/use-auth';
-import { useCredits } from '@/lib/hooks/use-credits';
-import { useSubscription } from '@/lib/hooks/use-subscription';
+import { useUserBillingStats } from '@/lib/hooks/use-subscription';
 import { CreditCard, Calendar, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 export function BillingOverview() {
   const { user } = useAuth();
-  const { credits, loading: creditsLoading } = useCredits();
-  const { data: subscription, loading: subscriptionLoading } = useSubscription(user?.id);
+  // ✅ BATCHED: Single hook replaces 2 separate hooks to prevent N+1 queries
+  const { data: billingStats, loading: billingLoading } = useUserBillingStats(user?.id);
+  
+  // Extract data from batched stats
+  const credits = billingStats?.credits;
+  const subscription = billingStats?.subscription;
+  const creditsLoading = billingLoading;
+  const subscriptionLoading = billingLoading;
 
   if (creditsLoading || subscriptionLoading) {
     return (

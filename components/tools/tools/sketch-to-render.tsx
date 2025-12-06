@@ -10,9 +10,11 @@ import { BaseToolComponent } from '../base-tool-component';
 interface SketchToRenderProps {
   tool: ToolConfig;
   projectId?: string | null;
+  onHintChange?: (hint: string | null) => void;
+  hintMessage?: string | null;
 }
 
-export function SketchToRender({ tool, projectId }: SketchToRenderProps) {
+export function SketchToRender({ tool, projectId, onHintChange, hintMessage }: SketchToRenderProps) {
   const [detailLevel, setDetailLevel] = useState<'preserve' | 'enhance' | 'transform'>('enhance');
   const [environment, setEnvironment] = useState<string>('none');
 
@@ -20,6 +22,8 @@ export function SketchToRender({ tool, projectId }: SketchToRenderProps) {
     <BaseToolComponent
       tool={tool}
       projectId={projectId}
+      onHintChange={onHintChange}
+      hintMessage={hintMessage}
       customSettings={
         <>
           <div className="space-y-3">

@@ -9,15 +9,19 @@ import { BaseToolComponent } from '../base-tool-component';
 
 interface ChangeLightingProps {
   tool: ToolConfig;
+  projectId?: string | null;
+  onHintChange?: (hint: string | null) => void;
 }
 
-export function ChangeLighting({ tool }: ChangeLightingProps) {
+export function ChangeLighting({ tool, projectId, onHintChange }: ChangeLightingProps) {
   const [lightingType, setLightingType] = useState<'natural' | 'warm' | 'cool' | 'dramatic' | 'soft'>('natural');
   const [timeOfDay, setTimeOfDay] = useState<'day' | 'sunset' | 'night' | 'dawn'>('day');
 
   return (
     <BaseToolComponent
       tool={tool}
+      projectId={projectId}
+      onHintChange={onHintChange}
       customSettings={
         <>
           <div className="space-y-3">

@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
-import { useCreditsWithReset } from '@/lib/hooks/use-subscription';
+import { useUserBillingStats } from '@/lib/hooks/use-subscription';
 import { UserDropdown } from '@/components/user-dropdown';
 import { AlphaBanner } from '@/components/alpha-banner';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -93,7 +93,10 @@ export function Navbar() {
   const { theme, systemTheme } = useTheme();
   const { user, loading } = useAuth();
   const { profile } = useUserProfile();
-  const { data: creditsData, loading: creditsLoading } = useCreditsWithReset(profile?.id);
+  // ✅ BATCHED: Single hook replaces separate hooks to prevent N+1 queries
+  const { data: billingStats, loading: billingLoading } = useUserBillingStats(profile?.id);
+  const creditsData = billingStats?.credits;
+  const creditsLoading = billingLoading;
 
   useEffect(() => {
     setMounted(true);
@@ -149,7 +152,7 @@ export function Navbar() {
       <nav 
         className="w-full fixed top-0 left-0 right-0 z-50 pointer-events-none bg-background"
       >
-        <div className="w-full px-4 sm:px-6 lg:px-8 pb-2 pointer-events-auto">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-[0.4rem] pointer-events-auto">
         <div className="flex items-center justify-between h-11 gap-6">
           {/* Logo */}
           <div className="flex items-center gap-4 flex-shrink-0">

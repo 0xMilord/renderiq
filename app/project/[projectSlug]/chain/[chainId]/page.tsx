@@ -81,7 +81,7 @@ export default function ProjectChainPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-1rem-2.75rem)] bg-background overflow-hidden">
+    <div className="h-[calc(100vh-var(--navbar-height))] pt-[var(--navbar-height)] bg-background overflow-hidden">
       {/* Unified Chat Interface */}
       <div className="h-full">
         <UnifiedChatInterface

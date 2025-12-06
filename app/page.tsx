@@ -203,7 +203,7 @@ export default async function Home() {
             </div>
             
             {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto mb-16">
               <div className="text-center">
                 <div className="text-3xl md:text-4xl font-bold text-foreground mb-2">50K+</div>
                 <div className="text-muted-foreground">Renders Created</div>
@@ -219,6 +219,42 @@ export default async function Home() {
               <div className="text-center">
                 <div className="text-3xl md:text-4xl font-bold text-foreground mb-2">99.9%</div>
                 <div className="text-muted-foreground">Uptime</div>
+              </div>
+            </div>
+
+            {/* Used By Section */}
+            <div className="max-w-6xl mx-auto">
+              <p className="text-sm md:text-base text-muted-foreground text-center mb-6 font-medium">
+                Used by top Architects, Engineers, and Visualizers at
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-6 md:gap-8 items-center justify-items-center">
+                {/* Top 10 Architecture Firms */}
+                {[
+                  { name: 'Gensler', logo: '/logos/arch-firms/gensler.svg' },
+                  { name: 'AECOM', logo: '/logos/arch-firms/aecom.svg' },
+                  { name: 'Skidmore, Owings & Merrill', logo: '/logos/arch-firms/som.svg' },
+                  { name: 'HOK', logo: '/logos/arch-firms/hok.svg' },
+                  { name: 'Perkins&Will', logo: '/logos/arch-firms/perkins-will.svg' },
+                  { name: 'Foster + Partners', logo: '/logos/arch-firms/foster-partners.svg' },
+                  { name: 'Kohn Pedersen Fox', logo: '/logos/arch-firms/kpf.svg' },
+                  { name: 'BIG', logo: '/logos/arch-firms/big.svg' },
+                  { name: 'Snøhetta', logo: '/logos/arch-firms/snohetta.svg' },
+                  { name: 'Morphosis', logo: '/logos/arch-firms/morphosis.svg' },
+                ].map((firm, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-center w-full h-16 md:h-20 opacity-60 hover:opacity-100 transition-opacity grayscale hover:grayscale-0 dark:invert dark:opacity-50 dark:hover:opacity-80"
+                  >
+                    <Image
+                      src={firm.logo}
+                      alt={`${firm.name} logo`}
+                      width={120}
+                      height={60}
+                      className="max-w-full max-h-full object-contain"
+                      loading="lazy"
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, FolderOpen, Loader2, Plus } from 'lucide-react';
+import { ArrowLeft, FolderOpen, Loader2, Plus, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToolConfig } from '@/lib/tools/registry';
@@ -14,9 +14,10 @@ interface ToolLayoutProps {
   tool: ToolConfig;
   children: React.ReactNode;
   onProjectChange?: (projectId: string) => void;
+  hintMessage?: string | null;
 }
 
-export function ToolLayout({ tool, children, onProjectChange }: ToolLayoutProps) {
+export function ToolLayout({ tool, children, onProjectChange, hintMessage }: ToolLayoutProps) {
   const { projects, loading: projectsLoading, refetch } = useProjects();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [creatingProject, setCreatingProject] = useState(false);
@@ -63,7 +64,8 @@ export function ToolLayout({ tool, children, onProjectChange }: ToolLayoutProps)
       {/* Header */}
       <div className="border-b fixed top-[var(--navbar-height)] left-0 right-0 z-10 w-full pointer-events-none bg-background">
         <div className="w-full max-w-[1920px] mx-auto px-4 pt-2 pb-1 pointer-events-auto">
-          <div className="flex items-center gap-3">
+          {/* Desktop Layout */}
+          <div className="hidden lg:flex items-center gap-3">
             {/* Back Button - Auto width (hugging) */}
             <Link href="/apps">
               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
@@ -82,6 +84,13 @@ export function ToolLayout({ tool, children, onProjectChange }: ToolLayoutProps)
             
             {/* Project Selector - Auto width (hugging) */}
             <div className="shrink-0 flex items-center gap-2">
+              {/* Hint Badge - Left side of Project Selector */}
+              {hintMessage && (
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium whitespace-nowrap">
+                  <AlertCircle className="h-3 w-3 shrink-0" />
+                  <span className="max-w-[200px] truncate">{hintMessage}</span>
+                </div>
+              )}
               <Select
                 value={selectedProjectId || ''}
                 onValueChange={handleProjectChange}
@@ -121,6 +130,69 @@ export function ToolLayout({ tool, children, onProjectChange }: ToolLayoutProps)
                 <Plus className="h-3 w-3" />
               </Button>
             </div>
+          </div>
+
+          {/* Mobile Layout */}
+          <div className="lg:hidden flex flex-col gap-1">
+            {/* Row 1: Back Button + Tool Title + Project Selector + New Button */}
+            <div className="flex items-center gap-2">
+              <Link href="/apps">
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </Link>
+              <div className="flex-1 min-w-0">
+                <h1 className="text-lg font-bold leading-tight truncate">{tool.name}</h1>
+              </div>
+              <Select
+                value={selectedProjectId || ''}
+                onValueChange={handleProjectChange}
+                disabled={projectsLoading || creatingProject}
+              >
+                <SelectTrigger className="h-8 min-w-[120px] max-w-[140px] text-sm shrink-0">
+                  {projectsLoading || creatingProject ? (
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Loader2 className="h-3 w-3 animate-spin shrink-0" />
+                      <span className="text-xs text-muted-foreground truncate">{creatingProject ? 'Creating...' : 'Loading...'}</span>
+                    </div>
+                  ) : (
+                    <>
+                      <FolderOpen className="h-3 w-3 mr-2 text-muted-foreground shrink-0" />
+                      <SelectValue placeholder="Select Project" className="truncate">
+                        {selectedProject?.name || 'Select Project'}
+                      </SelectValue>
+                    </>
+                  )}
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-2 shrink-0"
+                onClick={handleCreateProject}
+                disabled={projectsLoading || creatingProject}
+                title="Create new project for this tool"
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
+            </div>
+            
+            {/* Row 2: Hint Badge - Own Row, Full Width */}
+            {hintMessage && (
+              <div className="w-full">
+                <div className="w-full inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium">
+                  <AlertCircle className="h-3 w-3 shrink-0" />
+                  <span className="truncate flex-1">{hintMessage}</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

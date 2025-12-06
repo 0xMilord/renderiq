@@ -9,15 +9,19 @@ import { BaseToolComponent } from '../base-tool-component';
 
 interface MultiAngleViewProps {
   tool: ToolConfig;
+  projectId?: string | null;
+  onHintChange?: (hint: string | null) => void;
 }
 
-export function MultiAngleView({ tool }: MultiAngleViewProps) {
+export function MultiAngleView({ tool, projectId, onHintChange }: MultiAngleViewProps) {
   const [viewCount, setViewCount] = useState<'2' | '4' | '6'>('4');
   const [viewType, setViewType] = useState<'aerial' | 'eye-level' | 'mixed'>('mixed');
 
   return (
     <BaseToolComponent
       tool={tool}
+      projectId={projectId}
+      onHintChange={onHintChange}
       customSettings={
         <>
           <div className="space-y-3">

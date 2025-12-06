@@ -7,11 +7,13 @@ import { BaseToolComponent } from '../base-tool-component';
 interface GenericToolProps {
   tool: ToolConfig;
   projectId?: string | null;
+  onHintChange?: (hint: string | null) => void;
+  hintMessage?: string | null;
 }
 
-export function GenericTool({ tool, projectId }: GenericToolProps) {
+export function GenericTool({ tool, projectId, onHintChange, hintMessage }: GenericToolProps) {
   return (
-    <BaseToolComponent tool={tool} projectId={projectId}>
+    <BaseToolComponent tool={tool} projectId={projectId} onHintChange={onHintChange} hintMessage={hintMessage}>
       <Card>
         <CardHeader>
           <CardTitle>How It Works</CardTitle>

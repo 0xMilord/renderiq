@@ -27,11 +27,13 @@ import { GenericTool } from './tools/generic-tool';
 interface ToolOrchestratorProps {
   tool: ToolConfig;
   projectId?: string | null;
+  onHintChange?: (hint: string | null) => void;
+  hintMessage?: string | null;
 }
 
 // Tool component mapping - All 21 tools mapped
 // Sophisticated components can be swapped in as they're built
-const TOOL_COMPONENTS: Record<string, React.ComponentType<{ tool: ToolConfig; projectId?: string | null }>> = {
+const TOOL_COMPONENTS: Record<string, React.ComponentType<{ tool: ToolConfig; projectId?: string | null; onHintChange?: (hint: string | null) => void; hintMessage?: string | null }>> = {
   // Sophisticated components (custom UI)
   'render-section-drawing': RenderToSectionDrawing,
   'sketch-to-render': SketchToRender,
@@ -58,15 +60,15 @@ const TOOL_COMPONENTS: Record<string, React.ComponentType<{ tool: ToolConfig; pr
   'presentation-sequence-creator': PresentationSequenceCreator,
 };
 
-export function ToolOrchestrator({ tool, projectId }: ToolOrchestratorProps) {
+export function ToolOrchestrator({ tool, projectId, onHintChange, hintMessage }: ToolOrchestratorProps) {
   const ToolComponent = TOOL_COMPONENTS[tool.id];
 
   // Use specific component if available, otherwise use generic
   if (ToolComponent) {
-    return <ToolComponent tool={tool} projectId={projectId} />;
+    return <ToolComponent tool={tool} projectId={projectId} onHintChange={onHintChange} hintMessage={hintMessage} />;
   }
 
   // Fallback to generic component
-  return <GenericTool tool={tool} projectId={projectId} />;
+  return <GenericTool tool={tool} projectId={projectId} onHintChange={onHintChange} hintMessage={hintMessage} />;
 }
 

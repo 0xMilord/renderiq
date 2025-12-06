@@ -9,15 +9,19 @@ import { BaseToolComponent } from '../base-tool-component';
 
 interface RenderEffectsProps {
   tool: ToolConfig;
+  projectId?: string | null;
+  onHintChange?: (hint: string | null) => void;
 }
 
-export function RenderEffects({ tool }: RenderEffectsProps) {
+export function RenderEffects({ tool, projectId, onHintChange }: RenderEffectsProps) {
   const [effectType, setEffectType] = useState<'sketch' | 'illustration' | 'wireframe' | 'watercolor' | 'pencil'>('sketch');
   const [intensity, setIntensity] = useState<'subtle' | 'medium' | 'strong'>('medium');
 
   return (
     <BaseToolComponent
       tool={tool}
+      projectId={projectId}
+      onHintChange={onHintChange}
       customSettings={
         <>
           <div className="space-y-3">

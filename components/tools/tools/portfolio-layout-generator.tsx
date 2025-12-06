@@ -9,15 +9,19 @@ import { BaseToolComponent } from '../base-tool-component';
 
 interface PortfolioLayoutGeneratorProps {
   tool: ToolConfig;
+  projectId?: string | null;
+  onHintChange?: (hint: string | null) => void;
 }
 
-export function PortfolioLayoutGenerator({ tool }: PortfolioLayoutGeneratorProps) {
+export function PortfolioLayoutGenerator({ tool, projectId, onHintChange }: PortfolioLayoutGeneratorProps) {
   const [layoutStyle, setLayoutStyle] = useState<'grid' | 'masonry' | 'linear' | 'magazine'>('grid');
   const [colorScheme, setColorScheme] = useState<'light' | 'dark' | 'neutral'>('light');
 
   return (
     <BaseToolComponent
       tool={tool}
+      projectId={projectId}
+      onHintChange={onHintChange}
       multipleImages={true}
       maxImages={10}
       customSettings={

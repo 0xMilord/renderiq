@@ -9,15 +9,19 @@ import { BaseToolComponent } from '../base-tool-component';
 
 interface ItemChangeProps {
   tool: ToolConfig;
+  projectId?: string | null;
+  onHintChange?: (hint: string | null) => void;
 }
 
-export function ItemChange({ tool }: ItemChangeProps) {
+export function ItemChange({ tool, projectId, onHintChange }: ItemChangeProps) {
   const [replacementType, setReplacementType] = useState<'furniture' | 'decor' | 'fixtures'>('furniture');
   const [preserveScale, setPreserveScale] = useState<'yes' | 'no'>('yes');
 
   return (
     <BaseToolComponent
       tool={tool}
+      projectId={projectId}
+      onHintChange={onHintChange}
       customSettings={
         <>
           <div className="space-y-3">

@@ -9,15 +9,19 @@ import { BaseToolComponent } from '../base-tool-component';
 
 interface UpholsteryChangeProps {
   tool: ToolConfig;
+  projectId?: string | null;
+  onHintChange?: (hint: string | null) => void;
 }
 
-export function UpholsteryChange({ tool }: UpholsteryChangeProps) {
+export function UpholsteryChange({ tool, projectId, onHintChange }: UpholsteryChangeProps) {
   const [fabricType, setFabricType] = useState<'leather' | 'fabric' | 'velvet' | 'linen' | 'suede'>('fabric');
   const [pattern, setPattern] = useState<'solid' | 'striped' | 'geometric' | 'floral'>('solid');
 
   return (
     <BaseToolComponent
       tool={tool}
+      projectId={projectId}
+      onHintChange={onHintChange}
       customSettings={
         <>
           <div className="space-y-3">

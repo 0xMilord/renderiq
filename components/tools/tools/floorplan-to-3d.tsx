@@ -9,15 +9,19 @@ import { BaseToolComponent } from '../base-tool-component';
 
 interface FloorplanTo3DProps {
   tool: ToolConfig;
+  projectId?: string | null;
+  onHintChange?: (hint: string | null) => void;
 }
 
-export function FloorplanTo3D({ tool }: FloorplanTo3DProps) {
+export function FloorplanTo3D({ tool, projectId, onHintChange }: FloorplanTo3DProps) {
   const [perspective, setPerspective] = useState<'isometric' | 'axonometric' | 'oblique'>('axonometric');
   const [height, setHeight] = useState<'low' | 'medium' | 'high'>('medium');
 
   return (
     <BaseToolComponent
       tool={tool}
+      projectId={projectId}
+      onHintChange={onHintChange}
       customSettings={
         <>
           <div className="space-y-3">

@@ -9,15 +9,19 @@ import { BaseToolComponent } from '../base-tool-component';
 
 interface ChangeTextureProps {
   tool: ToolConfig;
+  projectId?: string | null;
+  onHintChange?: (hint: string | null) => void;
 }
 
-export function ChangeTexture({ tool }: ChangeTextureProps) {
+export function ChangeTexture({ tool, projectId, onHintChange }: ChangeTextureProps) {
   const [materialType, setMaterialType] = useState<'wood' | 'stone' | 'metal' | 'fabric' | 'concrete'>('wood');
   const [preserveLighting, setPreserveLighting] = useState<'yes' | 'no'>('yes');
 
   return (
     <BaseToolComponent
       tool={tool}
+      projectId={projectId}
+      onHintChange={onHintChange}
       customSettings={
         <>
           <div className="space-y-3">

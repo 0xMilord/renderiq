@@ -9,15 +9,19 @@ import { BaseToolComponent } from '../base-tool-component';
 
 interface MaterialAlterationProps {
   tool: ToolConfig;
+  projectId?: string | null;
+  onHintChange?: (hint: string | null) => void;
 }
 
-export function MaterialAlteration({ tool }: MaterialAlterationProps) {
+export function MaterialAlteration({ tool, projectId, onHintChange }: MaterialAlterationProps) {
   const [facadeMaterial, setFacadeMaterial] = useState<'brick' | 'glass' | 'concrete' | 'metal' | 'wood'>('glass');
   const [finish, setFinish] = useState<'matte' | 'glossy' | 'textured'>('matte');
 
   return (
     <BaseToolComponent
       tool={tool}
+      projectId={projectId}
+      onHintChange={onHintChange}
       customSettings={
         <>
           <div className="space-y-3">

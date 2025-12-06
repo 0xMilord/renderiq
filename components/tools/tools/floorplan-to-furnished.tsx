@@ -10,9 +10,11 @@ import { BaseToolComponent } from '../base-tool-component';
 interface FloorplanToFurnishedProps {
   tool: ToolConfig;
   projectId?: string | null;
+  onHintChange?: (hint: string | null) => void;
+  hintMessage?: string | null;
 }
 
-export function FloorplanToFurnished({ tool, projectId }: FloorplanToFurnishedProps) {
+export function FloorplanToFurnished({ tool, projectId, onHintChange, hintMessage }: FloorplanToFurnishedProps) {
   const [furnitureStyle, setFurnitureStyle] = useState<'modern' | 'traditional' | 'minimalist' | 'luxury'>('modern');
   const [roomType, setRoomType] = useState<string>('living-room');
 
@@ -20,6 +22,8 @@ export function FloorplanToFurnished({ tool, projectId }: FloorplanToFurnishedPr
     <BaseToolComponent
       tool={tool}
       projectId={projectId}
+      onHintChange={onHintChange}
+      hintMessage={hintMessage}
       customSettings={
         <>
           <div className="space-y-3">

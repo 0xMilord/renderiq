@@ -432,7 +432,8 @@ async function processRenderAsync(
         processedImageData = await WatermarkService.addWatermark(result.data.imageData, {
           text: 'Renderiq',
           position: 'bottom-right',
-          opacity: 0.7
+          opacity: 0.5,
+          useLogo: true // Use logo SVG instead of text
         });
       } else {
         // Paid users: No watermark

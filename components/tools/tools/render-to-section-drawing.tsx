@@ -3,103 +3,100 @@
 import { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
+import { HelpCircle, Image as ImageIcon, X } from 'lucide-react';
 import { ToolConfig } from '@/lib/tools/registry';
 import { BaseToolComponent } from '../base-tool-component';
 import { createRenderAction } from '@/lib/actions/render.actions';
 import { TOOL_CONTENT } from '@/lib/tools/tool-content';
+import { StyleReferenceDialog } from '@/components/ui/style-reference-dialog';
 
 interface RenderToSectionDrawingProps {
   tool: ToolConfig;
   projectId?: string | null;
+  onHintChange?: (hint: string | null) => void;
+  hintMessage?: string | null;
 }
 
-export function RenderToSectionDrawing({ tool, projectId }: RenderToSectionDrawingProps) {
+export function RenderToSectionDrawing({ tool, projectId, onHintChange, hintMessage }: RenderToSectionDrawingProps) {
   const [sectionType, setSectionType] = useState<'technical-cad' | '3d-cross' | 'illustrated-2d'>('technical-cad');
-  const [lod, setLod] = useState<'LOD100' | 'LOD200' | 'LOD300' | 'LOD400'>('LOD300');
+  const [includeText, setIncludeText] = useState<boolean>(true);
+  const [styleReferenceImage, setStyleReferenceImage] = useState<File | null>(null);
+  const [styleReferencePreview, setStyleReferencePreview] = useState<string | null>(null);
+  const [styleReferenceName, setStyleReferenceName] = useState<string | null>(null);
+  const [styleDialogOpen, setStyleDialogOpen] = useState(false);
 
   // Build system prompt based on settings - Following Gemini 3 best practices
   const buildSystemPrompt = (): string => {
-    const sectionTypeMap = {
+    // Style-specific configurations
+    const stylePrompts = {
       'technical-cad': {
         type: 'precise technical CAD-style section drawing',
-        style: 'technical linework with precise measurements, architectural annotations, and standard CAD conventions',
-        elements: 'structural elements (beams, columns, walls), materials (concrete, steel, wood), dimensions, annotations, and technical specifications'
+        role: 'expert architectural draftsman specializing in technical CAD section drawings',
+        task: 'Transform the architectural render into a precise technical CAD-style section drawing with technical linework, precise measurements, and standard CAD conventions',
+        style: 'Technical linework with precise measurements, architectural annotations, and standard CAD conventions. Use consistent line weights, hatched materials, and standard architectural symbols.',
+        elements: 'structural elements (beams, columns, walls), materials (concrete, steel, wood), dimensions, annotations, and technical specifications',
+        focus: 'precision, technical accuracy, and construction documentation standards'
       },
       '3d-cross': {
         type: '3D cross-section view',
-        style: 'three-dimensional perspective showing depth, volume, and spatial relationships',
-        elements: 'structural elements in 3D perspective, material textures, depth cues, and dimensional relationships'
+        role: 'expert architectural visualizer specializing in 3D cross-section views',
+        task: 'Transform the architectural render into a 3D cross-section view showing depth, volume, and spatial relationships',
+        style: 'Three-dimensional perspective showing depth, volume, and spatial relationships. Use perspective techniques, depth cues, material textures, and dimensional relationships to show the section in 3D space.',
+        elements: 'structural elements in 3D perspective, material textures, depth cues, shadows, and dimensional relationships',
+        focus: 'spatial visualization, depth perception, and design communication'
       },
       'illustrated-2d': {
         type: 'illustrated 2D section drawing',
-        style: 'stylized architectural illustration with artistic rendering while maintaining technical accuracy',
-        elements: 'structural elements with visual styling, material representations, annotations, and clear spatial hierarchy'
+        role: 'expert architectural illustrator specializing in stylized section drawings',
+        task: 'Transform the architectural render into an illustrated 2D section drawing with artistic rendering while maintaining technical accuracy',
+        style: 'Stylized architectural illustration with artistic rendering while maintaining technical accuracy. Use visual styling, material representations, clear spatial hierarchy, and presentation-quality graphics.',
+        elements: 'structural elements with visual styling, material representations, annotations, and clear spatial hierarchy',
+        focus: 'visual appeal, presentation quality, and design communication'
       }
     };
 
-    const lodMap: Record<string, { level: string; detail: string; include: string; exclude: string }> = {
-      'LOD100': {
-        level: 'conceptual',
-        detail: 'basic shapes and volumes only',
-        include: 'overall building form, major spatial divisions, basic structural elements',
-        exclude: 'specific materials, detailed dimensions, annotations, or technical specifications'
-      },
-      'LOD200': {
-        level: 'approximate',
-        detail: 'generic elements with approximate sizes',
-        include: 'generic structural elements, approximate dimensions, basic material indications, simple annotations',
-        exclude: 'specific product details, exact measurements, or fabrication-level information'
-      },
-      'LOD300': {
-        level: 'precise',
-        detail: 'specific elements with exact dimensions',
-        include: 'specific structural elements, precise dimensions, material specifications, detailed annotations, technical notes',
-        exclude: 'fabrication details, assembly instructions, or manufacturing specifications'
-      },
-      'LOD400': {
-        level: 'fabrication',
-        detail: 'complete specifications ready for construction',
-        include: 'all structural elements with exact specifications, complete dimensions, material details, annotations, technical notes, assembly details, and fabrication-ready information',
-        exclude: ''
-      }
-    };
-
-    const sectionConfig = sectionTypeMap[sectionType];
-    const lodConfig = lodMap[lod];
+    const styleConfig = stylePrompts[sectionType];
+    
+    // Text inclusion settings
+    const textInstruction = includeText 
+      ? 'Include text labels, annotations, dimensions, and technical notes as appropriate for the section drawing type.'
+      : 'DO NOT include any text labels, text annotations, or written text. Use ONLY annotation symbols, dimension lines, leader lines, and graphical symbols. Users will add clean, proper, editable text in post-processing.';
 
     // Following Gemini 3 best practices: structured, precise, with clear constraints
     return `<role>
-You are an expert architectural draftsman specializing in creating professional section drawings from architectural renders.
+You are an ${styleConfig.role}.
 </role>
 
 <task>
-Transform the provided architectural render image into ${sectionConfig.type} with ${lodConfig.level} level of detail (${lodConfig.detail}).
+${styleConfig.task}. The input may show any architectural content: whole buildings (any type or style), building components, interior spaces, exterior views, or detail views. Create an appropriate section drawing that accurately represents the architectural content shown.
 </task>
 
 <constraints>
 1. Output format: Generate a single architectural section drawing image
-2. Style: ${sectionConfig.style}
-3. Level of detail: ${lodConfig.level} - ${lodConfig.detail}
-4. Include: ${lodConfig.include}
-5. Exclude: ${lodConfig.exclude}
+2. Visual style: ${styleConfig.style}
+3. Text and annotations: ${textInstruction}
+4. Scale handling: Adapt to input scale - whole buildings show component relationships; components show detailed information; interiors show spatial relationships; details show element-specific information
+5. Element recognition: Identify and represent visible architectural elements (structural systems, building envelope, interior elements, spatial relationships)
 6. Maintain: Architectural drafting standards, proper scale, accurate proportions, and professional presentation quality
-7. Ensure: All ${sectionConfig.elements} are clearly visible, properly annotated, and professionally rendered
+7. Focus: ${styleConfig.focus}
 8. Do not: Add elements not present in the original render, distort proportions, or include photorealistic rendering elements
 </constraints>
 
 <output_requirements>
-- Drawing type: ${sectionConfig.type}
-- Detail level: LOD ${lod.replace('LOD', '')} (${lodConfig.level})
-- Visual style: ${sectionConfig.style}
+- Drawing type: ${styleConfig.type || sectionType}
+- Visual style: ${styleConfig.style}
+- Elements: ${styleConfig.elements}
 - Technical accuracy: Must follow architectural drafting standards
-- Clarity: All elements must be clearly distinguishable and properly labeled
-- Professional quality: Suitable for construction documentation and design presentations
+- Professional quality: Suitable for construction documentation, shop drawings, and design presentations
+- Text handling: ${includeText ? 'Include appropriate text labels and annotations' : 'Use ONLY graphical symbols. NO text labels.'}
 </output_requirements>
 
 <context>
-The input is an architectural render. Your task is to convert it into a technical section drawing that architects and engineers can use for documentation, construction, and design communication. The drawing must be accurate, clear, and follow standard architectural drafting conventions.
+Convert the architectural render into a ${styleConfig.type || sectionType} following ${styleConfig.style}. Work with any architectural content, building type, or style. The drawing must be accurate, clear, and professionally rendered. ${includeText ? 'Include text labels where appropriate.' : 'Use only graphical symbols - users will add text in post-processing.'}
 </context>`;
   };
 
@@ -109,7 +106,27 @@ The input is an architectural render. Your task is to convert it into a technica
     
     // Add custom settings to formData for reference
     formData.append('sectionType', sectionType);
-    formData.append('lod', lod);
+    formData.append('includeText', includeText.toString());
+    
+    // Add style reference if provided
+    if (styleReferenceImage) {
+      formData.append('styleReference', 'custom');
+      const styleImageBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result as string;
+          const base64Data = base64.split(',')[1];
+          resolve(base64Data);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(styleReferenceImage);
+      });
+      formData.append('styleReferenceImageData', styleImageBase64);
+      formData.append('styleReferenceImageType', styleReferenceImage.type);
+    } else if (styleReferenceName) {
+      formData.append('styleReference', 'library');
+      formData.append('styleReferenceName', styleReferenceName);
+    }
     
     const result = await createRenderAction(formData);
     
@@ -132,51 +149,112 @@ The input is an architectural render. Your task is to convert it into a technica
       tool={tool}
       projectId={projectId}
       onGenerate={handleGenerate}
+      onHintChange={onHintChange}
+      hintMessage={hintMessage}
       customSettings={
         <>
-          <div className="space-y-3">
-            {/* Section Type Tabs and LOD Dropdown in same row */}
-            <div className="grid grid-cols-4 gap-2">
-              <div className="col-span-3">
-                <Label className="text-xs mb-2 block">Section Type</Label>
-                    <Tabs value={sectionType} onValueChange={(v: 'technical-cad' | '3d-cross' | 'illustrated-2d') => setSectionType(v)} className="w-full">
-                  <TabsList className="grid w-full grid-cols-3 h-9">
-                    <TabsTrigger 
-                      value="technical-cad" 
-                      className="text-xs px-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground hover:text-primary"
-                    >
-                      Technical CAD
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="3d-cross" 
-                      className="text-xs px-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground hover:text-primary"
-                    >
-                      3D Cross Section
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="illustrated-2d" 
-                      className="text-xs px-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground hover:text-primary"
-                    >
-                      Illustrated 2D
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-              
-              <div className="col-span-1">
-                <Label htmlFor="lod" className="text-xs mb-2 block">LOD</Label>
-                    <Select value={lod} onValueChange={(v: 'LOD100' | 'LOD200' | 'LOD300' | 'LOD400') => setLod(v)}>
-                  <SelectTrigger id="lod" className="h-9 text-xs">
+          {/* Section Type and Style Reference - Same Row */}
+          <div className="flex items-stretch gap-4">
+            {/* Section Type Dropdown */}
+            <div className="flex-1 flex flex-col min-w-0 h-full justify-between">
+              {/* Section Type - Pinned to Top */}
+              <div className="flex flex-col space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor="section-type" className="text-sm">Section Type</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Choose the drawing style: Technical CAD for precise linework, 3D Cross Section for spatial depth, or Illustrated 2D for stylized presentation.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <Select value={sectionType} onValueChange={(v: 'technical-cad' | '3d-cross' | 'illustrated-2d') => setSectionType(v)}>
+                  <SelectTrigger id="section-type" className="h-10 w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="LOD100">LOD 100</SelectItem>
-                    <SelectItem value="LOD200">LOD 200</SelectItem>
-                    <SelectItem value="LOD300">LOD 300</SelectItem>
-                    <SelectItem value="LOD400">LOD 400</SelectItem>
+                    <SelectItem value="technical-cad">Technical CAD</SelectItem>
+                    <SelectItem value="3d-cross">3D Cross Section</SelectItem>
+                    <SelectItem value="illustrated-2d">Illustrated 2D</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              
+              {/* Horizontal Separator */}
+              <div className="h-px bg-border my-3"></div>
+              
+              {/* Include Text Labels - Pinned to Bottom */}
+              <div className="flex flex-col space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor="include-text" className="text-sm">Include Text Labels</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">When enabled, text labels and annotations are included. When disabled, only graphical symbols are used for post-processing text addition.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg border bg-card h-10">
+                  <p className="text-xs text-muted-foreground">
+                    {includeText 
+                      ? 'Text labels included'
+                      : 'Symbols only'}
+                  </p>
+                  <Switch
+                    id="include-text"
+                    checked={includeText}
+                    onCheckedChange={setIncludeText}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Style Reference - Right Aligned */}
+            <div className="flex-1 flex flex-col space-y-2 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <Label className="text-sm">Style Reference</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">Upload your own image or choose from Renderiq's style library to guide the generation.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              {/* Upload Area - Fills whole available column width */}
+              <div
+                className="relative w-full h-[132px] border-2 border-dashed rounded-lg cursor-pointer transition-all duration-200 flex items-center justify-center group"
+                onClick={() => setStyleDialogOpen(true)}
+                style={{
+                  borderColor: styleReferencePreview ? 'transparent' : undefined,
+                }}
+              >
+                {styleReferencePreview ? (
+                  <>
+                    <img
+                      src={styleReferencePreview}
+                      alt="Style reference"
+                      className="w-full h-full rounded-lg object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 rounded-lg transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <ImageIcon className="h-4 w-4 text-white" />
+                    </div>
+                  </>
+                ) : (
+                  <ImageIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
+                )}
+              </div>
+              {/* Style Name - Below upload area */}
+              {styleReferenceName && (
+                <div>
+                  <p className="text-xs text-muted-foreground truncate">{styleReferenceName}</p>
+                </div>
+              )}
             </div>
           </div>
         </>
@@ -202,6 +280,150 @@ The input is an architectural render. Your task is to convert it into a technica
           </ol>
         </CardContent>
       </Card>
+      {/* Tool-specific content sections */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+        {/* Section Types */}
+        <Card className="border-2 hover:border-primary/50 transition-colors">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg font-semibold">Section Types</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <div className="p-3 rounded-lg border bg-card">
+                <h4 className="font-semibold text-sm mb-1.5">Technical CAD</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Precise linework with architectural annotations and standard CAD conventions. Perfect for construction documents and permit applications.
+                </p>
+              </div>
+              <div className="p-3 rounded-lg border bg-card">
+                <h4 className="font-semibold text-sm mb-1.5">3D Cross Section</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Three-dimensional perspective showing depth, volume, and spatial relationships. Ideal for design visualization and client presentations.
+                </p>
+              </div>
+              <div className="p-3 rounded-lg border bg-card">
+                <h4 className="font-semibold text-sm mb-1.5">Illustrated 2D</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Stylized architectural illustration with artistic rendering while maintaining technical accuracy. Great for presentations and marketing materials.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Text Labels Control */}
+        <Card className="border-2 hover:border-primary/50 transition-colors">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg font-semibold">Text Labels Control</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <div className="p-3 rounded-lg border bg-card">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-xs font-bold text-primary">Text ON</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Text labels, dimensions, and annotations will be included in the section drawing. Perfect when you want complete documentation with readable text labels.
+                </p>
+              </div>
+              <div className="p-3 rounded-lg border bg-card">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-xs font-bold text-primary">Text OFF</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Only annotation symbols, dimension lines, and graphical symbols will be used. No text labels included. Add clean, proper, editable text in post-processing using CAD or design software. Ideal for professional workflows where you need precise control over typography and text placement.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Use Cases */}
+        {TOOL_CONTENT['render-section-drawing']?.useCases && (
+          <Card className="border-2 hover:border-primary/50 transition-colors">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-semibold">Use Cases</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {TOOL_CONTENT['render-section-drawing'].useCases.map((useCase, idx) => (
+                  <div key={idx} className="p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+                    <h4 className="font-semibold text-sm text-foreground mb-1.5">{useCase.title}</h4>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{useCase.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Software Compatibility */}
+        <Card className="border-2 hover:border-primary/50 transition-colors">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg font-semibold">Software Compatibility</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">3D Modeling</p>
+                <div className="flex flex-wrap gap-2">
+                  {['Revit', 'SketchUp', 'Rhino', 'Archicad', 'Vectorworks'].map((software) => (
+                    <span key={software} className="text-xs px-2.5 py-1 rounded-md bg-muted text-foreground">
+                      {software}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Rendering</p>
+                <div className="flex flex-wrap gap-2">
+                  {['Lumion', 'Enscape', 'V-Ray', 'Twinmotion', 'Unreal Engine'].map((software) => (
+                    <span key={software} className="text-xs px-2.5 py-1 rounded-md bg-muted text-foreground">
+                      {software}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">CAD Integration</p>
+                <div className="flex flex-wrap gap-2">
+                  {['AutoCAD', 'Revit', 'Archicad', 'Vectorworks'].map((software) => (
+                    <span key={software} className="text-xs px-2.5 py-1 rounded-md bg-muted text-foreground">
+                      {software}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="pt-2 border-t">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Works with any architectural render regardless of source software. Simply export your render as JPG, PNG, or WebP and upload.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      
+      <StyleReferenceDialog
+        open={styleDialogOpen}
+        onOpenChange={setStyleDialogOpen}
+        onSelect={(file, styleName) => {
+          setStyleReferenceImage(file);
+          setStyleReferenceName(styleName || null);
+          if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              setStyleReferencePreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+          } else {
+            setStyleReferencePreview(null);
+          }
+        }}
+        toolId={tool.id}
+        currentImage={styleReferenceImage}
+        currentPreview={styleReferencePreview}
+      />
     </BaseToolComponent>
   );
 }

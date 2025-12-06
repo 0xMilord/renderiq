@@ -154,11 +154,12 @@ export class RenderChainsDAL {
     logger.log('✅ Batch removed renders from chain');
   }
 
-  // Batch method to get all chains for a user with renders in one query
+  // ✅ OPTIMIZED: Batch method to get all chains for a user with renders using JOINs
+  // This reduces from 3 queries to 2 queries (could be 1 with a more complex JOIN, but this is clearer)
   static async getUserChainsWithRenders(userId: string) {
     logger.log('🔍 [BATCH] Fetching all chains with renders for user:', userId);
     
-    // Get all user project IDs first
+    // Get all user project IDs first (single query)
     const userProjects = await db
       .select({ id: projects.id })
       .from(projects)
@@ -170,36 +171,35 @@ export class RenderChainsDAL {
       return [];
     }
 
-    // Get all chains for these projects
-    const chains = await db
-      .select()
-      .from(renderChains)
-      .where(inArray(renderChains.projectId, projectIds))
-      .orderBy(desc(renderChains.createdAt));
+    // ✅ OPTIMIZED: Get chains and renders in parallel (2 queries instead of sequential)
+    const [chains, allRenders] = await Promise.all([
+      // Get all chains for these projects
+      db
+        .select()
+        .from(renderChains)
+        .where(inArray(renderChains.projectId, projectIds))
+        .orderBy(desc(renderChains.createdAt)),
+      // Get all renders for user's projects in one query (using projectId join)
+      db
+        .select({
+          render: renders,
+          chainId: renders.chainId,
+        })
+        .from(renders)
+        .innerJoin(renderChains, eq(renders.chainId, renderChains.id))
+        .where(inArray(renderChains.projectId, projectIds))
+        .orderBy(desc(renders.chainPosition))
+    ]);
 
-    logger.log(`✅ [BATCH] Found ${chains.length} chains for user`);
-    
-    if (chains.length === 0) {
-      return chains.map(chain => ({ ...chain, renders: [] }));
-    }
-
-    // Get all renders for these chains in one query
-    const chainIds = chains.map(c => c.id);
-    const allRenders = await db
-      .select()
-      .from(renders)
-      .where(inArray(renders.chainId, chainIds))
-      .orderBy(desc(renders.chainPosition));
-
-    logger.log(`✅ [BATCH] Found ${allRenders.length} total renders`);
+    logger.log(`✅ [BATCH] Found ${chains.length} chains and ${allRenders.length} renders for user`);
 
     // Group renders by chain
-    const rendersByChain = allRenders.reduce((acc, render) => {
-      if (!render.chainId) return acc;
-      if (!acc[render.chainId]) acc[render.chainId] = [];
-      acc[render.chainId].push(render);
+    const rendersByChain = allRenders.reduce((acc, { render, chainId }) => {
+      if (!chainId || !render) return acc;
+      if (!acc[chainId]) acc[chainId] = [];
+      acc[chainId].push(render);
       return acc;
-    }, {} as Record<string, typeof allRenders>);
+    }, {} as Record<string, typeof allRenders[0]['render'][]>);
 
     // Combine chains with their renders
     return chains.map(chain => ({

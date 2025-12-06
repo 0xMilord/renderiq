@@ -1,10 +1,20 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Home, Sparkles, Images, User, Settings, CreditCard, Info, Heart, FileText, HelpCircle, Layout, LayoutDashboard } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Home, Sparkles, Images, User, Settings, CreditCard, Info, Heart, FileText, HelpCircle, Layout, LayoutDashboard, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/hooks/use-auth';
+import { getOnlineTools } from '@/lib/tools/registry';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
 
 const publicNavItems = [
   { href: '/', icon: Home, label: 'Home' },
@@ -20,12 +30,15 @@ const authenticatedNavItems = [
   { href: '/canvas', icon: Layout, label: 'Canvas' },
   { href: '/gallery', icon: Images, label: 'Gallery' },
   { href: '/dashboard/likes', icon: Heart, label: 'Likes' },
+  // Apps will be handled separately as a dropdown
   { href: '/dashboard/profile', icon: User, label: 'Profile' },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, loading } = useAuth();
+  const [isAppsSheetOpen, setIsAppsSheetOpen] = useState(false);
 
   // Hide bottom nav on render routes, project/chain routes, and demo route
   // Note: Dashboard routes now show bottom nav for authenticated users
@@ -37,15 +50,38 @@ export function BottomNav() {
     return null;
   }
 
+  // Get online tools for Apps dropdown
+  const onlineTools = getOnlineTools();
+  const isAppsActive = pathname.startsWith('/apps');
+
   // Use conditional nav items based on auth state
   const navItems = user && !loading ? authenticatedNavItems : publicNavItems;
+
+  // Split items for authenticated users: before Apps, Apps, after Apps
+  const isAuthenticated = user && !loading;
+  let leftItems: typeof authenticatedNavItems = [];
+  let rightItems: typeof authenticatedNavItems = [];
+
+  if (isAuthenticated) {
+    // Split at Likes (index 3), Apps goes between Likes and Profile
+    leftItems = authenticatedNavItems.slice(0, 3); // Dashboard, Canvas, Gallery
+    rightItems = authenticatedNavItems.slice(3); // Likes, Profile
+  } else {
+    leftItems = navItems.slice(0, Math.ceil(navItems.length / 2));
+    rightItems = navItems.slice(Math.ceil(navItems.length / 2));
+  }
+
+  const handleAppSelect = (toolSlug: string) => {
+    router.push(`/apps/${toolSlug}`);
+    setIsAppsSheetOpen(false);
+  };
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border md:hidden z-50">
       <div className="relative flex items-center justify-between h-14 px-2">
         {/* Left side nav items */}
         <div className="flex items-center justify-between flex-1 gap-1 pr-6">
-          {navItems.slice(0, Math.ceil(navItems.length / 2)).map((item) => {
+          {leftItems.map((item) => {
             const isActive = pathname === item.href || 
               (item.href === '/dashboard' && pathname.startsWith('/dashboard')) ||
               (item.href !== '/' && item.href !== '/dashboard' && pathname.startsWith(item.href));
@@ -84,27 +120,119 @@ export function BottomNav() {
 
         {/* Right side nav items */}
         <div className="flex items-center justify-between flex-1 gap-1 pl-6">
-          {navItems.slice(Math.ceil(navItems.length / 2)).map((item) => {
-            const isActive = pathname === item.href || 
-              (item.href !== '/' && item.href !== '/dashboard' && pathname.startsWith(item.href)) ||
-              (item.href === '/dashboard' && pathname.startsWith('/dashboard'));
-            
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'flex flex-col items-center justify-center space-y-0.5 transition-colors flex-1',
-                  isActive
-                    ? 'text-primary'
-                    : 'text-muted-foreground hover:text-primary'
-                )}
-              >
-                <item.icon className="h-[17px] w-[17px]" />
-                <span className="text-[10.5px] font-medium">{item.label}</span>
-              </Link>
-            );
-          })}
+          {isAuthenticated ? (
+            <>
+              {/* Likes */}
+              {rightItems.slice(0, 1).map((item) => {
+                const isActive = pathname === item.href || 
+                  (item.href !== '/' && item.href !== '/dashboard' && pathname.startsWith(item.href)) ||
+                  (item.href === '/dashboard' && pathname.startsWith('/dashboard'));
+                
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      'flex flex-col items-center justify-center space-y-0.5 transition-colors flex-1',
+                      isActive
+                        ? 'text-primary'
+                        : 'text-muted-foreground hover:text-primary'
+                    )}
+                  >
+                    <item.icon className="h-[17px] w-[17px]" />
+                    <span className="text-[10.5px] font-medium">{item.label}</span>
+                  </Link>
+                );
+              })}
+
+              {/* Apps Dropdown */}
+              <Sheet open={isAppsSheetOpen} onOpenChange={setIsAppsSheetOpen}>
+                <SheetTrigger asChild>
+                  <button
+                    className={cn(
+                      'flex flex-col items-center justify-center space-y-0.5 transition-colors flex-1',
+                      isAppsActive
+                        ? 'text-primary'
+                        : 'text-muted-foreground hover:text-primary'
+                    )}
+                  >
+                    <Wrench className="h-[17px] w-[17px]" />
+                    <span className="text-[10.5px] font-medium">Apps</span>
+                  </button>
+                </SheetTrigger>
+                <SheetContent side="bottom" className="h-[80vh] rounded-t-xl">
+                  <SheetHeader>
+                    <SheetTitle>Select an App</SheetTitle>
+                  </SheetHeader>
+                  <div className="mt-6 overflow-y-auto">
+                    <div className="grid grid-cols-2 gap-3">
+                      {onlineTools.map((tool) => (
+                        <Button
+                          key={tool.id}
+                          variant="outline"
+                          className="h-auto flex-col items-start justify-start p-4 text-left"
+                          onClick={() => handleAppSelect(tool.slug)}
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            <Wrench className="h-4 w-4" />
+                            <span className="font-semibold text-sm">{tool.name}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {tool.description}
+                          </p>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </SheetContent>
+              </Sheet>
+
+              {/* Profile */}
+              {rightItems.slice(1).map((item) => {
+                const isActive = pathname === item.href || 
+                  (item.href !== '/' && item.href !== '/dashboard' && pathname.startsWith(item.href)) ||
+                  (item.href === '/dashboard' && pathname.startsWith('/dashboard'));
+                
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      'flex flex-col items-center justify-center space-y-0.5 transition-colors flex-1',
+                      isActive
+                        ? 'text-primary'
+                        : 'text-muted-foreground hover:text-primary'
+                    )}
+                  >
+                    <item.icon className="h-[17px] w-[17px]" />
+                    <span className="text-[10.5px] font-medium">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </>
+          ) : (
+            rightItems.map((item) => {
+              const isActive = pathname === item.href || 
+                (item.href !== '/' && item.href !== '/dashboard' && pathname.startsWith(item.href)) ||
+                (item.href === '/dashboard' && pathname.startsWith('/dashboard'));
+              
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'flex flex-col items-center justify-center space-y-0.5 transition-colors flex-1',
+                    isActive
+                      ? 'text-primary'
+                      : 'text-muted-foreground hover:text-primary'
+                  )}
+                >
+                  <item.icon className="h-[17px] w-[17px]" />
+                  <span className="text-[10.5px] font-medium">{item.label}</span>
+                </Link>
+              );
+            })
+          )}
         </div>
       </div>
     </nav>

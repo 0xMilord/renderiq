@@ -5,6 +5,8 @@
 
 import sharp from 'sharp';
 import { logger } from '@/lib/utils/logger';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 export interface WatermarkOptions {
   text?: string;
@@ -13,6 +15,7 @@ export interface WatermarkOptions {
   fontSize?: number;
   color?: string;
   padding?: number;
+  useLogo?: boolean; // Use logo SVG instead of text
 }
 
 // Check if we're in a browser environment
@@ -64,11 +67,12 @@ function imageDataToBase64(imageData: ImageData): string {
 export class WatermarkService {
   private static readonly DEFAULT_OPTIONS: Required<WatermarkOptions> = {
     text: 'Renderiq',
-    opacity: 0.7,
+    opacity: 0.5,
     position: 'bottom-right',
     fontSize: 24,
     color: '#ffffff',
     padding: 20,
+    useLogo: true, // Default to using logo
   };
 
   /**
@@ -103,55 +107,130 @@ export class WatermarkService {
           throw new Error('Could not get image dimensions');
         }
         
-        // Create watermark text as SVG
-        const fontSize = Math.max(24, Math.floor(Math.min(width, height) * 0.03));
-        const padding = Math.floor(Math.min(width, height) * 0.02);
+        let watermarkSvg: string;
         
-        // Calculate position
-        let x: number, y: number;
-        switch (config.position) {
-          case 'bottom-right':
-            x = width - padding - (fontSize * config.text.length) / 2;
-            y = height - padding - fontSize;
-            break;
-          case 'bottom-left':
-            x = padding;
-            y = height - padding - fontSize;
-            break;
-          case 'top-right':
-            x = width - padding - (fontSize * config.text.length) / 2;
-            y = padding + fontSize;
-            break;
-          case 'top-left':
-            x = padding;
-            y = padding + fontSize;
-            break;
-          case 'center':
-          default:
-            x = width / 2 - (fontSize * config.text.length) / 4;
-            y = height / 2;
-            break;
+        // Use logo SVG if requested, otherwise use text
+        if (config.useLogo !== false) {
+          try {
+            // Read logo SVG file
+            const logoPath = join(process.cwd(), 'public', 'logo-light.svg');
+            let logoSvg = readFileSync(logoPath, 'utf-8');
+            
+            // Calculate watermark size (10% of image width, max 200px, min 80px)
+            const watermarkSize = Math.max(80, Math.min(200, Math.floor(width * 0.1)));
+            const padding = Math.floor(Math.min(width, height) * 0.02);
+            
+            // Calculate position
+            let x: number, y: number;
+            switch (config.position) {
+              case 'bottom-right':
+                x = width - padding - watermarkSize;
+                y = height - padding - watermarkSize;
+                break;
+              case 'bottom-left':
+                x = padding;
+                y = height - padding - watermarkSize;
+                break;
+              case 'top-right':
+                x = width - padding - watermarkSize;
+                y = padding;
+                break;
+              case 'top-left':
+                x = padding;
+                y = padding;
+                break;
+              case 'center':
+              default:
+                x = width / 2 - watermarkSize / 2;
+                y = height / 2 - watermarkSize / 2;
+                break;
+            }
+            
+            // Extract SVG content (remove outer svg tags)
+            let logoSvgContent = logoSvg
+              .replace(/<svg[^>]*>/, '')
+              .replace(/<\/svg>/, '')
+              .trim();
+            
+            // Modify SVG paths to be white
+            // Replace all fill attributes with white
+            logoSvgContent = logoSvgContent
+              .replace(/fill="[^"]*"/g, 'fill="white"')
+              .replace(/fill='[^']*'/g, "fill='white'")
+              .replace(/fill="#[^"]*"/g, 'fill="white"')
+              .replace(/fill='#[^']*'/g, "fill='white'")
+              .replace(/fill={[^}]*}/g, 'fill="white"');
+            
+            // Create SVG container with watermark
+            watermarkSvg = `
+              <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+                <g opacity="${config.opacity}">
+                  <svg x="${x}" y="${y}" width="${watermarkSize}" height="${watermarkSize}" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+                    ${logoSvgContent}
+                  </svg>
+                </g>
+              </svg>
+            `;
+            
+            logger.log('✅ Using logo SVG for watermark');
+          } catch (logoError) {
+            logger.error('❌ Error loading logo, falling back to text:', logoError);
+            // Fall back to text watermark
+            config.useLogo = false;
+          }
         }
         
-        // Create SVG watermark
-        const svgWatermark = `
-          <svg width="${width}" height="${height}">
-            <text x="${x}" y="${y}" 
-                  font-family="Arial, sans-serif" 
-                  font-size="${fontSize}" 
-                  fill="${config.color}" 
-                  opacity="${config.opacity}"
-                  text-anchor="start">
-              ${config.text}
-            </text>
-          </svg>
-        `;
+        // If logo failed or useLogo is false, create text watermark
+        if (!watermarkSvg) {
+          const fontSize = Math.max(24, Math.floor(Math.min(width, height) * 0.03));
+          const padding = Math.floor(Math.min(width, height) * 0.02);
+          
+          // Calculate position
+          let x: number, y: number;
+          switch (config.position) {
+            case 'bottom-right':
+              x = width - padding - (fontSize * config.text.length) / 2;
+              y = height - padding - fontSize;
+              break;
+            case 'bottom-left':
+              x = padding;
+              y = height - padding - fontSize;
+              break;
+            case 'top-right':
+              x = width - padding - (fontSize * config.text.length) / 2;
+              y = padding + fontSize;
+              break;
+            case 'top-left':
+              x = padding;
+              y = padding + fontSize;
+              break;
+            case 'center':
+            default:
+              x = width / 2 - (fontSize * config.text.length) / 4;
+              y = height / 2;
+              break;
+          }
+          
+          // Create SVG watermark with text
+          watermarkSvg = `
+            <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+              <text x="${x}" y="${y}" 
+                    font-family="Arial, sans-serif" 
+                    font-size="${fontSize}" 
+                    fill="${config.color}" 
+                    opacity="${config.opacity}"
+                    text-anchor="start">
+                ${config.text}
+              </text>
+            </svg>
+          `;
+        }
         
         // Apply watermark using Sharp
         const watermarkedImage = await sharp(imageBuffer)
           .composite([
             {
-              input: Buffer.from(svgWatermark),
+              input: Buffer.from(watermarkSvg),
               top: 0,
               left: 0
             }

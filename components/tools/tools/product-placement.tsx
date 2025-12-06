@@ -9,15 +9,19 @@ import { BaseToolComponent } from '../base-tool-component';
 
 interface ProductPlacementProps {
   tool: ToolConfig;
+  projectId?: string | null;
+  onHintChange?: (hint: string | null) => void;
 }
 
-export function ProductPlacement({ tool }: ProductPlacementProps) {
+export function ProductPlacement({ tool, projectId, onHintChange }: ProductPlacementProps) {
   const [placementStyle, setPlacementStyle] = useState<'natural' | 'prominent' | 'subtle'>('natural');
   const [lightingMatch, setLightingMatch] = useState<'yes' | 'no'>('yes');
 
   return (
     <BaseToolComponent
       tool={tool}
+      projectId={projectId}
+      onHintChange={onHintChange}
       multipleImages={true}
       maxImages={2}
       customSettings={

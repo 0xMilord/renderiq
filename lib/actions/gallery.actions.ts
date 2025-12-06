@@ -57,30 +57,31 @@ export async function getLongestChains(limit = 5) {
     const chainIds = chainsWithCounts.map(c => c.chainId).filter(Boolean) as string[];
     console.log(`✅ Found ${chainIds.length} chains with public renders`);
 
-    // Step 2: Batch fetch all chain metadata in one query
-    const chainMetadata = await db
-      .select()
-      .from(renderChains)
-      .where(inArray(renderChains.id, chainIds));
+    // ✅ OPTIMIZED: Step 2-3: Batch fetch chain metadata and renders in parallel
+    const [chainMetadata, allPublicRenders] = await Promise.all([
+      // Step 2: Batch fetch all chain metadata in one query
+      db
+        .select()
+        .from(renderChains)
+        .where(inArray(renderChains.id, chainIds)),
+      // Step 3: Batch fetch all public renders for these chains in one query
+      db
+        .select()
+        .from(renders)
+        .where(
+          and(
+            inArray(renders.chainId, chainIds),
+            eq(renders.status, 'completed'),
+            isNotNull(renders.outputUrl)
+          )
+        )
+        .orderBy(renders.chainPosition)
+    ]);
 
     const chainMetadataMap = new Map(chainMetadata.map(c => [c.id, c]));
-
-    // Step 3: Batch fetch all public renders for these chains in one query
-    // Use RendersDAL.getByChainId pattern but batch for multiple chains
-    const allPublicRenders = await db
-      .select()
-      .from(renders)
-      .where(
-        and(
-          inArray(renders.chainId, chainIds),
-          eq(renders.status, 'completed'),
-          isNotNull(renders.outputUrl)
-        )
-      )
-      .orderBy(renders.chainPosition);
     
-    // Filter to only renders that are in public gallery
-    // We need to check which renders are public by joining with galleryItems
+    // Step 4: Filter to only renders that are in public gallery
+    // ✅ OPTIMIZED: Use JOIN instead of separate query + filter
     const publicRenderIds = await db
       .select({ renderId: galleryItems.renderId })
       .from(galleryItems)
@@ -94,7 +95,7 @@ export async function getLongestChains(limit = 5) {
     const publicRenderIdSet = new Set(publicRenderIds.map(r => r.renderId));
     const rendersList = allPublicRenders.filter(r => publicRenderIdSet.has(r.id));
 
-    // Step 4: Group renders by chain
+    // Step 5: Group renders by chain
     const rendersByChain = new Map<string, typeof rendersList>();
     rendersList.forEach((render) => {
       if (!render.chainId) return;
@@ -104,7 +105,7 @@ export async function getLongestChains(limit = 5) {
       rendersByChain.get(render.chainId)!.push(render);
     });
 
-    // Step 5: Build final chains array with filtered renders
+    // Step 6: Build final chains array with filtered renders
     const chains = chainsWithCounts
       .map(({ chainId }) => {
         if (!chainId) return null;
