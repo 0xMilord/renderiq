@@ -168,7 +168,7 @@ export function Navbar() {
               ) : (
                 <Skeleton className="h-11 w-11 rounded" />
               )}
-              <span className="text-lg font-bold text-foreground">Renderiq</span>
+              <span className="hidden md:inline text-lg font-bold text-foreground">Renderiq</span>
             </Link>
           </div>
 

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Sparkles, Images, User, Settings, CreditCard, Info, Heart, FileText, HelpCircle, Layout, LayoutDashboard, Wrench } from 'lucide-react';
+import { Home, Sparkles, Images, User, Settings, CreditCard, Info, Heart, FileText, HelpCircle, Layout, LayoutDashboard, Wrench, Layers, Square, Maximize2, Sofa, Box, Grid3x3, Split, RotateCw, Palette, Brush, Sun, Package, Replace, Image as ImageIcon, FileStack, LayoutGrid, Film } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { getOnlineTools } from '@/lib/tools/registry';
@@ -15,6 +15,48 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+
+// Icon mapping for tools (same as navbar)
+const getToolIcon = (toolId: string) => {
+  const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+    // Transformation tools
+    'render-section-drawing': Layers,
+    'render-to-cad': Square,
+    'render-upscale': Maximize2,
+    'render-effects': Sparkles,
+    
+    // Floorplan tools
+    'floorplan-to-furnished': Sofa,
+    'floorplan-to-3d': Box,
+    'floorplan-technical-diagrams': Grid3x3,
+    
+    // Diagram tools
+    'exploded-diagram': Split,
+    'multi-angle-view': RotateCw,
+    
+    // Material tools
+    'change-texture': Palette,
+    'material-alteration': Brush,
+    'change-lighting': Sun,
+    
+    // Interior tools
+    'upholstery-change': Sofa,
+    'product-placement': Package,
+    'item-change': Replace,
+    'moodboard-to-render': ImageIcon,
+    
+    // 3D tools
+    '3d-to-render': Box,
+    'sketch-to-render': FileStack,
+    
+    // Presentation tools
+    'presentation-board-maker': LayoutGrid,
+    'portfolio-layout-generator': FileStack,
+    'presentation-sequence-creator': Film,
+  };
+  
+  return iconMap[toolId] || Wrench;
+};
 
 const publicNavItems = [
   { href: '/', icon: Home, label: 'Home' },
@@ -166,22 +208,25 @@ export function BottomNav() {
                   </SheetHeader>
                   <div className="mt-6 overflow-y-auto">
                     <div className="grid grid-cols-2 gap-3">
-                      {onlineTools.map((tool) => (
-                        <Button
-                          key={tool.id}
-                          variant="outline"
-                          className="h-auto flex-col items-start justify-start p-4 text-left"
-                          onClick={() => handleAppSelect(tool.slug)}
-                        >
-                          <div className="flex items-center gap-2 mb-2">
-                            <Wrench className="h-4 w-4" />
-                            <span className="font-semibold text-sm">{tool.name}</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground line-clamp-2">
-                            {tool.description}
-                          </p>
-                        </Button>
-                      ))}
+                      {onlineTools.map((tool) => {
+                        const ToolIcon = getToolIcon(tool.id);
+                        return (
+                          <Button
+                            key={tool.id}
+                            variant="outline"
+                            className="h-auto flex-col items-start justify-start p-4 text-left"
+                            onClick={() => handleAppSelect(tool.slug)}
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <ToolIcon className="h-4 w-4 shrink-0" />
+                              <span className="font-semibold text-sm">{tool.name}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground line-clamp-2">
+                              {tool.description}
+                            </p>
+                          </Button>
+                        );
+                      })}
                     </div>
                   </div>
                 </SheetContent>
