@@ -21,9 +21,9 @@ export function BlogHeaderMobile() {
       const alphaBanner = document.querySelector('.bg-destructive\\/10');
       
       let height = 0;
-      if (alphaBanner && alphaBanner.offsetParent !== null) {
+      if (alphaBanner && (alphaBanner as HTMLElement).offsetParent !== null) {
         // Only count if banner is visible
-        height += alphaBanner.clientHeight;
+        height += (alphaBanner as HTMLElement).clientHeight;
       }
       if (navbar) {
         height += navbar.clientHeight;

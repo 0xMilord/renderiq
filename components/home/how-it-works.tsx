@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { useTheme } from 'next-themes';
 import { Upload, Wand2, Download, CheckCircle, ArrowRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -31,14 +33,25 @@ const steps = [
 ];
 
 export function HowItWorksSection() {
+  const { theme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDarkMode = mounted && (resolvedTheme === 'dark' || theme === 'dark');
+  // In light mode: white hatches (matching main background), in dark mode: dark gray - matching hero section
+  const hatchColor = isDarkMode ? 'hsl(0,0%,7%)' : 'hsl(0,0%,100%)';
+
   return (
     <section id="how-it-works" className="relative py-20 px-4 sm:px-6 lg:px-8 bg-card overflow-hidden">
-      {/* Diagonal Stripe Pattern on Sides - Muted Neutral Tone - Responsive - 10% Opacity */}
-      <div className="absolute inset-y-0 left-0 hidden md:block md:w-16 lg:w-32 -z-0" style={{ 
-        backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, hsla(0,0%,20%,0.1) 10px, hsla(0,0%,20%,0.1) 20px)'
+      {/* Diagonal Stripe Pattern on Sides - Theme-aware - Responsive - Solid like hero section */}
+      <div className="absolute inset-y-0 left-0 hidden md:block md:w-16 lg:w-32 -z-0 overflow-hidden" style={{ 
+        backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 10px, ${hatchColor} 10px, ${hatchColor} 20px)`
       }}></div>
-      <div className="absolute inset-y-0 right-0 hidden md:block md:w-16 lg:w-32 -z-0" style={{ 
-        backgroundImage: 'repeating-linear-gradient(-45deg, transparent, transparent 10px, hsla(0,0%,20%,0.1) 10px, hsla(0,0%,20%,0.1) 20px)'
+      <div className="absolute inset-y-0 right-0 hidden md:block md:w-16 lg:w-32 -z-0 overflow-hidden" style={{ 
+        backgroundImage: `repeating-linear-gradient(-45deg, transparent, transparent 10px, ${hatchColor} 10px, ${hatchColor} 20px)`
       }}></div>
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="text-center mb-16">

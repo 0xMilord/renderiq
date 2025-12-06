@@ -3,14 +3,15 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getPublicGallery } from '@/lib/actions/gallery.actions';
-import { TwitterTestimonialsGrid } from '@/components/home/twitter-testimonials-grid';
 import { UseCasesSection } from '@/components/home/use-cases-section';
 import { HowItWorksSection } from '@/components/home/how-it-works';
 import { FAQSection } from '@/components/home/faq-section';
 import { ComparisonSection } from '@/components/home/comparison-section';
 import { TrustBadges } from '@/components/home/trust-badges';
 import { HomepagePricing } from '@/components/home/homepage-pricing';
-import { PinterestGallery } from '@/components/home/pinterest-gallery';
+import { GallerySection } from '@/components/home/gallery-section';
+import { TestimonialsSection } from '@/components/home/testimonials-section';
+import { ArchitectureAppsSection } from '@/components/home/architecture-apps-section';
 import { UsersDAL } from '@/lib/dal/users';
 import GradualBlur from '@/components/ui/gradual-blur';
 import { SmoothCursorWrapper } from '@/components/home/smooth-cursor-wrapper';
@@ -81,6 +82,10 @@ export default async function Home() {
   // Fetch actual gallery items for the homepage - fetch more for Pinterest-style scrolling
   const galleryResult = await getPublicGallery(1, 60);
   const galleryItems = galleryResult.success ? galleryResult.data || [] : [];
+  
+  // Fetch top 50 gallery items for hero slideshow (sorted by likes + views)
+  const heroGalleryResult = await getPublicGallery(1, 50);
+  const heroGalleryItems = heroGalleryResult.success ? heroGalleryResult.data || [] : [];
 
   // Fetch latest users for avatar circles - only those with avatars
   let latestUsers = [];
@@ -181,10 +186,22 @@ export default async function Home() {
       <div className="relative z-10">
       
       {/* Optimized Hero Section */}
-      <HeroSection avatarData={avatarData} totalUsers={totalUsers} />
+      <HeroSection avatarData={avatarData} totalUsers={totalUsers} galleryItems={heroGalleryItems} />
 
       {/* How It Works Section */}
       <HowItWorksSection />
+
+      {/* Gallery Preview - Full Width */}
+      <GallerySection galleryItems={galleryItems} />
+
+      {/* Architecture Apps Section */}
+      <ArchitectureAppsSection />
+
+      {/* Pricing Section - Fetched from Database */}
+      <HomepagePricing />
+
+      {/* Testimonials Section - With Twitter - Full Width */}
+      <TestimonialsSection testimonials={twitterTestimonials} />
 
       {/* Use Cases Section - AEC Professionals */}
       <UseCasesSection />
@@ -433,111 +450,6 @@ export default async function Home() {
           </div>
         </div>
       </section>
-
-      {/* Gallery Preview - Full Width */}
-      <section id="gallery" className="w-full overflow-x-hidden relative bg-[hsl(72,87%,62%)]">
-        <div className="w-full px-4 sm:px-6 lg:px-8 relative border-l-[5px] border-r-[5px] border-b-[5px] border-secondary">
-          <div className="w-full relative">
-            <div className="text-left relative pt-8">
-              <Badge className="mb-4 bg-background text-foreground px-4 py-2">
-                Gallery
-              </Badge>
-              <h2 className="text-4xl md:text-5xl font-bold mb-6 text-[hsl(0,0%,7%)]">
-                See what&apos;s possible with Renderiq
-              </h2>
-              <p className="text-xl max-w-3xl pb-6 text-[hsl(0,0%,20%)]">
-                Explore stunning renders created by architects, engineers, and visualizers using our architecture render software
-              </p>
-              <Link href="/gallery">
-                <Button size="lg" variant="secondary" className="px-8 py-4 text-lg font-semibold mb-8">
-                  View Full Gallery
-                  <ArrowRight className="h-5 w-5 ml-2" />
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        <div className="w-full relative border-l-[5px] border-b-[5px] border-secondary">
-          {/* Black container behind gallery */}
-          <div className="absolute inset-0 bg-black -z-10"></div>
-          
-          <div className="flex flex-col lg:flex-row w-full overflow-hidden relative">
-            {/* Left Column - 40% - Gallery Illustration - Extended to extreme left edge */}
-            <div className="w-full lg:w-[40%] flex items-center justify-start order-2 lg:order-1 lg:mr-auto lg:ml-0 lg:pl-0 lg:relative border-r-[5px] lg:border-r-[5px] border-secondary bg-[hsl(72,87%,62%)]" style={{ marginLeft: 'calc((100vw - 100%) / -2)' }}>
-              <div className="relative w-full h-full min-h-[400px] lg:min-h-[600px]">
-                <Image
-                  src="/home/gallery-section.svg"
-                  alt="Gallery Illustration"
-                  fill
-                  className="object-contain object-left"
-                  priority
-                />
-              </div>
-            </div>
-
-            {/* Right Column - 100% on mobile, 60% on desktop - Gallery Content */}
-            <div className="w-full lg:w-[60%] order-1 lg:order-2 px-2 sm:px-4 lg:px-4 py-4 relative flex flex-col bg-[hsl(72,87%,62%)]">
-              <div className="w-full relative px-2 sm:px-4 lg:px-4 py-2 rounded-2xl bg-background flex-1 border-[5px] border-secondary">
-                {/* Pinterest-style Vertical Marquee Gallery */}
-                <PinterestGallery items={galleryItems} />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials Section - With Twitter - Full Width */}
-      <section id="testimonials" className="w-full overflow-x-hidden relative bg-[hsl(72,87%,62%)]">
-        <div className="w-full px-4 sm:px-6 lg:px-8 relative border-l-[5px] border-r-[5px] border-b-[5px] border-secondary">
-          <div className="w-full relative">
-            <div className="text-left relative pt-8">
-              <Badge className="mb-4 bg-background text-foreground px-4 py-2">
-                Testimonials
-              </Badge>
-              <h2 className="text-4xl md:text-5xl font-bold mb-6 text-[hsl(0,0%,7%)]">
-                Trusted by AEC Professionals
-              </h2>
-              <p className="text-xl max-w-3xl pb-6 text-[hsl(0,0%,20%)]">
-                Join thousands of architects, engineers, and designers who trust Renderiq for their visualization needs
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="w-full relative border-l-[5px] border-b-[5px] border-secondary">
-          {/* Black container behind testimonials */}
-          <div className="absolute inset-0 bg-black -z-10"></div>
-          
-          <div className="flex flex-col lg:flex-row w-full overflow-hidden relative">
-            {/* Left Column - 100% on mobile, 60% on desktop - Testimonials Content */}
-            <div className="w-full lg:w-[60%] order-1 lg:order-1 px-4 sm:px-6 lg:px-8 py-8 relative flex flex-col border-r-[5px] border-secondary bg-[hsl(72,87%,62%)]">
-              <div className="w-full relative px-4 sm:px-6 lg:px-8 py-6 rounded-2xl bg-background flex-1 border-[5px] border-secondary">
-                {/* Twitter Testimonials - Masonry Layout */}
-                <div>
-                  <TwitterTestimonialsGrid testimonials={twitterTestimonials} />
-                </div>
-              </div>
-            </div>
-
-            {/* Right Column - 40% - Testimonials Image - Extended to extreme right edge */}
-            <div className="w-full lg:w-[40%] flex items-center justify-end order-2 lg:order-2 lg:ml-auto lg:mr-0 lg:pr-0 lg:relative border-r-[5px] border-secondary bg-[hsl(72,87%,62%)]" style={{ marginRight: 'calc((100vw - 100%) / -2)' }}>
-              <div className="relative w-full h-full min-h-[400px] lg:min-h-[600px]">
-                <Image
-                  src="/home/testimonials-section.svg"
-                  alt="Testimonials Illustration"
-                  fill
-                  className="object-contain object-right"
-                  priority
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Section - Fetched from Database */}
-      <HomepagePricing />
 
       {/* Comparison Section */}
       <ComparisonSection />

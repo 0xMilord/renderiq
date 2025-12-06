@@ -32,13 +32,14 @@ export function HeadingWithCopy({ id, level, children, className }: HeadingWithC
     }
   };
 
-  const Tag = `h${level}` as keyof JSX.IntrinsicElements;
   const baseClasses = {
     1: 'text-4xl font-bold tracking-tight mt-8 mb-4 scroll-mt-20',
     2: 'text-3xl font-semibold tracking-tight mt-8 mb-4 scroll-mt-20',
     3: 'text-2xl font-semibold tracking-tight mt-6 mb-3 scroll-mt-20',
     4: 'text-xl font-semibold tracking-tight mt-4 mb-2 scroll-mt-20',
   };
+
+  const Tag = `h${level}` as 'h1' | 'h2' | 'h3' | 'h4';
 
   return (
     <Tag

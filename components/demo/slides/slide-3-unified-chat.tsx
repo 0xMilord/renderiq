@@ -50,7 +50,7 @@ export function Slide3UnifiedChat({ galleryRenders = [], longestChains = [] }: S
   // Build a chain with only the top 5 images for demo
   // Ensure each render has the correct uploadedImageUrl from the gallery item
   // Set all chainPositions to 0 to prevent before/after sliders in demo
-  const demoChainWithTop5: RenderChainWithRenders | undefined = demoChain ? {
+  const demoChainWithTop5: RenderChainWithRenders | undefined = demoChain ? ({
     ...demoChain,
     renders: top5Images
       .map((img, index) => {
@@ -77,7 +77,7 @@ export function Slide3UnifiedChat({ galleryRenders = [], longestChains = [] }: S
             prompt: img.render?.prompt || chainRender.prompt || '',
             status: 'completed' as const, // Ensure status is completed
             type: (img.render?.type || chainRender.type || 'image') as 'image' | 'video',
-          };
+          } as Render;
         }
         // If not found, create a mock render from the gallery item
         return {
@@ -91,13 +91,13 @@ export function Slide3UnifiedChat({ galleryRenders = [], longestChains = [] }: S
           outputUrl: outputUrl, // Always use gallery item's outputUrl
           uploadedImageUrl: uploadedImageUrl,
           createdAt: img.render?.createdAt || new Date(),
-          updatedAt: img.render?.updatedAt || new Date(),
+          updatedAt: (img.render as any)?.updatedAt || new Date(),
           settings: img.render?.settings || chainRender?.settings || {},
         } as Render;
       })
-      .filter((r): r is Render => r !== null && !!r && !!r.outputUrl) // Only include renders with outputUrl
-      .sort((a, b) => (a.chainPosition || 0) - (b.chainPosition || 0)), // Sort by chainPosition
-  } : undefined;
+      .filter((r) => r !== null && !!r && !!r.outputUrl) // Only include renders with outputUrl
+      .sort((a, b) => (a.chainPosition || 0) - (b.chainPosition || 0)) as Render[], // Sort by chainPosition
+  } as RenderChainWithRenders) : undefined;
 
   // Autopilot: Cycle through top 5 images sequentially
   // Slide duration: 30 seconds, so 12 seconds per image (60s / 5 = 12s) - slowed down 50%
@@ -168,7 +168,7 @@ export function Slide3UnifiedChat({ galleryRenders = [], longestChains = [] }: S
 
   // Create a filtered chain that only shows renders up to current index
   // Show renders progressively: user message (with uploaded image) -> thinking -> rendered image
-  const filteredChain: RenderChainWithRenders | undefined = demoChainWithTop5 ? {
+  const filteredChain: RenderChainWithRenders | undefined = demoChainWithTop5 ? ({
     ...demoChainWithTop5,
     renders: demoChainWithTop5.renders
       .map((render, originalIdx) => {
@@ -218,9 +218,9 @@ export function Slide3UnifiedChat({ galleryRenders = [], longestChains = [] }: S
           uploadedImageUrl: uploadedImageUrl,
         };
       })
-      .filter((render): render is Render => render !== null && !!render.outputUrl) // Only include renders with outputUrl
-      .sort((a, b) => (a.chainPosition || 0) - (b.chainPosition || 0)),
-  } : undefined;
+      .filter((render) => render !== null && !!render && !!render.outputUrl) // Only include renders with outputUrl
+      .sort((a, b) => (a.chainPosition || 0) - (b.chainPosition || 0)) as Render[]
+  } as RenderChainWithRenders) : undefined;
 
   // Get the current render being processed
   const currentRender = top5Images[currentImageIndex];

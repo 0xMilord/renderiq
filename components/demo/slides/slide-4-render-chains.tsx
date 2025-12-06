@@ -212,11 +212,11 @@ export function Slide4RenderChains() {
                             Version {message.version}
                           </div>
                         )}
-                        {message.type === 'user' && (message.renderUrl || message.uploadedImageUrl) && (
+                        {message.type === 'user' && message.renderUrl && (
                           <div className="relative w-full max-w-[200px] rounded-lg overflow-hidden border-2 border-primary-foreground/20 mb-2">
                             <div className="relative aspect-square w-full">
                               <Image
-                                src={message.renderUrl || message.uploadedImageUrl || ''}
+                                src={message.renderUrl || ''}
                                 alt="Uploaded image"
                                 fill
                                 className="object-cover"

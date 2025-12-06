@@ -191,14 +191,14 @@ export default function SignupPage() {
         <div className="w-full lg:w-1/4 flex flex-col border-r border-border relative z-20 bg-background/80 lg:bg-background backdrop-blur-sm lg:backdrop-blur-none">
            {/* Header Banner - matches SVG dimensions (1282x645), 0 padding */}
            <div className="w-full aspect-[1282/645] relative flex-shrink-0">
-             <Image
+              <Image
                src="/signup-form-hero.svg"
-               alt="Renderiq"
+                alt="Renderiq"
                fill
                className="object-contain object-top"
                priority
-             />
-           </div>
+              />
+            </div>
           
           {/* Form Content */}
           <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 overflow-y-auto">
@@ -262,149 +262,149 @@ export default function SignupPage() {
               </div>
             </div>
             <form className="space-y-6" onSubmit={handleSubmit}>
-                  <div className="space-y-4">
-                    <div>
-                      <label htmlFor="name" className="block text-sm font-medium text-foreground">
-                        Full name
-                      </label>
-                      <Input
-                        id="name"
-                        name="name"
-                        type="text"
-                        autoComplete="name"
-                        required
-                        value={formData.name}
-                        onChange={handleChange}
-                        className="mt-1"
-                        placeholder="Enter your full name"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label htmlFor="email" className="block text-sm font-medium text-foreground">
-                        Email address
-                      </label>
-                      <Input
-                        id="email"
-                        name="email"
-                        type="email"
-                        autoComplete="email"
-                        required
-                        value={formData.email}
-                        onChange={handleChange}
-                        className="mt-1"
-                        placeholder="Enter your email"
-                      />
-                    </div>
-                    
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-foreground">
+                  Full name
+                </label>
+                <Input
+                  id="name"
+                  name="name"
+                  type="text"
+                  autoComplete="name"
+                  required
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="mt-1"
+                  placeholder="Enter your full name"
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-foreground">
+                  Email address
+                </label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="mt-1"
+                  placeholder="Enter your email"
+                />
+              </div>
+              
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label htmlFor="password" className="block text-sm font-medium text-foreground">
-                          Password
-                        </label>
-                        <div className="mt-1 relative">
-                          <Input
-                            id="password"
-                            name="password"
-                            type={showPassword ? 'text' : 'password'}
-                            autoComplete="new-password"
-                            required
-                            value={formData.password}
-                            onChange={handleChange}
-                            className="pr-10"
-                            placeholder="Create a password"
-                          />
-                          <button
-                            type="button"
-                            className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                            onClick={() => setShowPassword(!showPassword)}
-                          >
-                            {showPassword ? (
-                              <EyeOff className="h-4 w-4 text-muted-foreground" />
-                            ) : (
-                              <Eye className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </button>
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-foreground">
+                  Password
+                </label>
+                <div className="mt-1 relative">
+                  <Input
+                    id="password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    required
+                    value={formData.password}
+                    onChange={handleChange}
+                    className="pr-10"
+                    placeholder="Create a password"
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </button>
+                </div>
+              </div>
+              
+              <div>
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground">
+                  Confirm password
+                </label>
+                <div className="mt-1 relative">
+                  <Input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    required
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    className="pr-10"
+                    placeholder="Confirm your password"
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </button>
                         </div>
-                      </div>
-                      
-                      <div>
-                        <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground">
-                          Confirm password
-                        </label>
-                        <div className="mt-1 relative">
-                          <Input
-                            id="confirmPassword"
-                            name="confirmPassword"
-                            type={showConfirmPassword ? 'text' : 'password'}
-                            autoComplete="new-password"
-                            required
-                            value={formData.confirmPassword}
-                            onChange={handleChange}
-                            className="pr-10"
-                            placeholder="Confirm your password"
-                          />
-                          <button
-                            type="button"
-                            className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          >
-                            {showConfirmPassword ? (
-                              <EyeOff className="h-4 w-4 text-muted-foreground" />
-                            ) : (
-                              <Eye className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                </div>
+              </div>
+            </div>
 
-                  {error && (
-                    <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3">
-                      <p className="text-sm text-destructive">{error}</p>
-                    </div>
-                  )}
+            {error && (
+              <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3">
+                <p className="text-sm text-destructive">{error}</p>
+              </div>
+            )}
 
                   <div className="grid grid-cols-[60%_40%] gap-4 items-center">
-                    <div className="flex items-center">
-                      <input
-                        id="terms"
-                        name="terms"
-                        type="checkbox"
-                        required
+            <div className="flex items-center">
+              <input
+                id="terms"
+                name="terms"
+                type="checkbox"
+                required
                         className="h-4 w-4 text-primary focus:ring-primary border-input rounded flex-shrink-0"
-                      />
-                      <label htmlFor="terms" className="ml-2 block text-sm text-foreground">
-                        I agree to the{' '}
-                        <Link href="/terms" className="text-primary hover:text-primary/80">
-                          Terms of Service
-                        </Link>{' '}
-                        and{' '}
-                        <Link href="/privacy" className="text-primary hover:text-primary/80">
-                          Privacy Policy
-                        </Link>
-                      </label>
-                    </div>
+              />
+              <label htmlFor="terms" className="ml-2 block text-sm text-foreground">
+                I agree to the{' '}
+                <Link href="/terms" className="text-primary hover:text-primary/80">
+                  Terms of Service
+                </Link>{' '}
+                and{' '}
+                <Link href="/privacy" className="text-primary hover:text-primary/80">
+                  Privacy Policy
+                </Link>
+              </label>
+            </div>
 
-                    <div>
-                      <Button
-                        type="submit"
-                        disabled={isLoading}
-                        className="w-full flex justify-center"
-                      >
-                        {isLoading ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            Creating account...
-                          </>
-                        ) : (
-                          'Create account'
-                        )}
-                      </Button>
+            <div>
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="w-full flex justify-center"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Creating account...
+                  </>
+                ) : (
+                  'Create account'
+                )}
+              </Button>
                     </div>
-                  </div>
-                </form>
+            </div>
+          </form>
           </div>
           </div>
           </div>

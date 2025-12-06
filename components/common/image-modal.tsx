@@ -132,7 +132,6 @@ export function ImageModal({
               <Tabs 
                 defaultValue="generated" 
                 className="w-full"
-                baseId={`image-modal-tabs-${item.id}`}
               >
                 <TabsList className="grid w-full grid-cols-2 mb-4">
                   <TabsTrigger value="uploaded">Before (Uploaded)</TabsTrigger>

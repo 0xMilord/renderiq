@@ -276,7 +276,6 @@ export function RenderPreview({
                     <Tabs 
                       value={activeTab} 
                       onValueChange={setActiveTab}
-                      baseId={`render-preview-tabs-${chainId || 'default'}`}
                     >
                       <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="current" className="flex items-center space-x-2">

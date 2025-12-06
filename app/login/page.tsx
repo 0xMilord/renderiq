@@ -107,14 +107,14 @@ export default function LoginPage() {
         <div className="w-full lg:w-1/4 flex flex-col border-r border-border relative z-20 bg-background/80 lg:bg-background backdrop-blur-sm lg:backdrop-blur-none">
           {/* Header Banner - matches SVG dimensions (1282x645), 0 padding */}
           <div className="w-full aspect-[1282/645] relative flex-shrink-0">
-            <Image
+              <Image
               src="/login-form-hero.svg"
-              alt="Renderiq"
+                alt="Renderiq"
               fill
               className="object-contain object-top"
               priority
-            />
-          </div>
+              />
+            </div>
           
           {/* Form Content */}
           <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 overflow-y-auto">
@@ -178,98 +178,98 @@ export default function LoginPage() {
               </div>
             </div>
             <form className="space-y-6" onSubmit={handleSubmit}>
-                  <div className="space-y-4">
-                    <div>
-                      <label htmlFor="email" className="block text-sm font-medium text-foreground">
-                        Email address
-                      </label>
-                      <Input
-                        id="email"
-                        name="email"
-                        type="email"
-                        autoComplete="email"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="mt-1"
-                        placeholder="Enter your email"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label htmlFor="password" className="block text-sm font-medium text-foreground">
-                        Password
-                      </label>
-                      <div className="mt-1 relative">
-                        <Input
-                          id="password"
-                          name="password"
-                          type={showPassword ? 'text' : 'password'}
-                          autoComplete="current-password"
-                          required
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className="pr-10"
-                          placeholder="Enter your password"
-                        />
-                        <button
-                          type="button"
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-4 w-4 text-muted-foreground" />
-                          ) : (
-                            <Eye className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-foreground">
+                  Email address
+                </label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="mt-1"
+                  placeholder="Enter your email"
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-foreground">
+                  Password
+                </label>
+                <div className="mt-1 relative">
+                  <Input
+                    id="password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pr-10"
+                    placeholder="Enter your password"
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
 
-                  {error && (
-                    <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3">
-                      <p className="text-sm text-destructive">{error}</p>
-                    </div>
-                  )}
+            {error && (
+              <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3">
+                <p className="text-sm text-destructive">{error}</p>
+              </div>
+            )}
 
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <input
-                        id="remember-me"
-                        name="remember-me"
-                        type="checkbox"
-                        className="h-4 w-4 text-primary focus:ring-primary border-input rounded"
-                      />
-                      <label htmlFor="remember-me" className="ml-2 block text-sm text-foreground">
-                        Remember me
-                      </label>
-                    </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <input
+                  id="remember-me"
+                  name="remember-me"
+                  type="checkbox"
+                  className="h-4 w-4 text-primary focus:ring-primary border-input rounded"
+                />
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-foreground">
+                  Remember me
+                </label>
+              </div>
 
-                    <div className="text-sm">
-                      <Link href="/forgot-password" className="font-medium text-primary hover:text-primary/80">
-                        Forgot your password?
-                      </Link>
-                    </div>
-                  </div>
+              <div className="text-sm">
+                <Link href="/forgot-password" className="font-medium text-primary hover:text-primary/80">
+                  Forgot your password?
+                </Link>
+              </div>
+            </div>
 
-                  <div>
-                    <Button
-                      type="submit"
-                      disabled={isLoading}
-                      className="w-full flex justify-center"
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          Signing in...
-                        </>
-                      ) : (
-                        'Sign in'
-                      )}
-                    </Button>
-                  </div>
-                </form>
+            <div>
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="w-full flex justify-center"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Signing in...
+                  </>
+                ) : (
+                  'Sign in'
+                )}
+              </Button>
+            </div>
+          </form>
           </div>
           </div>
           </div>

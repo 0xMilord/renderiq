@@ -335,7 +335,6 @@ export function GalleryImageCard({
             value={activeTab} 
             onValueChange={(value) => setActiveTab(value as 'generated' | 'comparison')} 
             className="w-full"
-            baseId={`gallery-tabs-${item.id}`}
           >
             <TabsList className="absolute top-2 left-2 z-20 grid w-auto grid-cols-2 bg-background/90 backdrop-blur-sm border border-border text-foreground">
               <TabsTrigger 

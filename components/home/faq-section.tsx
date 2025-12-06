@@ -226,7 +226,7 @@ export function FAQSection() {
           {/* Left Column - 60% - FAQ Content */}
           <div className="w-full lg:w-[60%] order-1 lg:order-1 px-4 sm:px-6 lg:px-8 py-8 bg-[hsl(72,87%,62%)] relative flex flex-col border-r-[5px] border-[hsl(0,0%,7%)]">
             <div className="w-full relative px-4 sm:px-6 lg:px-8 py-6 rounded-2xl bg-background flex-1 border-[5px] border-[hsl(0,0%,7%)]">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full" baseId="faq-tabs">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <div className="relative mb-8">
                   
                   {showLeftArrow && (
@@ -276,7 +276,6 @@ export function FAQSection() {
                       type="single" 
                       collapsible 
                       className="w-full space-y-4"
-                      baseId={`faq-accordion-${category.category}`}
                     >
                       {category.questions.map((faq, index) => (
                         <AccordionItem

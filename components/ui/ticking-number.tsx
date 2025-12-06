@@ -86,7 +86,8 @@ export function TickingNumber({ value, duration = 2000, className = '' }: Tickin
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting && !hasAnimated) {
-            const { num, suffix } = parseNumber(value);
+            const { num, hasPercent, hasPlus, isM, isK, originalValue } = parseNumber(value);
+            const suffix = hasPercent ? '%' : (isM ? 'M' : (isK ? 'K' : '')) + (hasPlus ? '+' : '');
             const startTime = Date.now();
             const startValue = 0;
 
