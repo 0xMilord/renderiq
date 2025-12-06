@@ -143,3 +143,4 @@ export function isSequentialEmail(email: string): boolean {
   return sequentialPatterns.some(pattern => pattern.test(email));
 }
 
+

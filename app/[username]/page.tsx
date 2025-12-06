@@ -13,42 +13,6 @@ interface PageProps {
   params: Promise<{ username: string }>;
 }
 
-// Generate static params for users with public gallery items
-export async function generateStaticParams() {
-  try {
-    // Get users who have public gallery items
-    const usersWithGallery = await db
-      .selectDistinct({
-        userId: galleryItems.userId,
-        userName: users.name,
-      })
-      .from(galleryItems)
-      .innerJoin(users, eq(galleryItems.userId, users.id))
-      .where(and(
-        eq(galleryItems.isPublic, true),
-        eq(users.isActive, true)
-      ))
-      .limit(500); // Pre-generate top 500 users
-
-    return usersWithGallery
-      .filter(u => u.userName)
-      .map((u) => {
-        const username = u.userName!
-          .toLowerCase()
-          .replace(/\s+/g, '-')
-          .replace(/[^a-z0-9-]/g, '')
-          .replace(/-+/g, '-')
-          .replace(/^-|-$/g, '');
-        return {
-          username: username,
-        };
-      });
-  } catch (error) {
-    console.error('Error generating static params for user profiles:', error);
-    return [];
-  }
-}
-
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { username } = await params;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';

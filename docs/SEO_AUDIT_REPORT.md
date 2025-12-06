@@ -448,3 +448,4 @@ async function getImageDimensions(imageUrl: string): Promise<{ width: number; he
 
 **Next Steps**: Review this audit and prioritize improvements based on business goals and resources.
 
+

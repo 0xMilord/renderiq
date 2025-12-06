@@ -13,3 +13,4 @@ CREATE INDEX IF NOT EXISTS user_likes_gallery_item_id_idx ON user_likes(gallery_
 CREATE INDEX IF NOT EXISTS user_likes_user_item_idx ON user_likes(user_id, gallery_item_id);
 CREATE INDEX IF NOT EXISTS user_likes_created_at_idx ON user_likes(created_at DESC);
 
+

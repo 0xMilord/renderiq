@@ -39,3 +39,4 @@ WHERE name = 'Enterprise Annual'
   AND interval = 'year' 
   AND price = 44999.00;
 
+

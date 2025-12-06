@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation';
-import { RendersDAL } from '@/lib/dal/renders';
 import { GalleryItemPageClient } from './gallery-item-client';
 import { Metadata } from 'next';
 import { getPublicGalleryItem, getSimilarGalleryItems } from '@/lib/actions/gallery.actions';
@@ -18,21 +17,6 @@ const getCachedGalleryItem = cache(async (id: string) => {
 
 interface PageProps {
   params: Promise<{ id: string }>;
-}
-
-// Generate static params for popular/recent gallery items
-export async function generateStaticParams() {
-  try {
-    // Pre-generate the most popular gallery items (top 500)
-    const itemIds = await RendersDAL.getAllPublicGalleryItemIds(500);
-    
-    return itemIds.map((id) => ({
-      id: id,
-    }));
-  } catch (error) {
-    console.error('Error generating static params for gallery items:', error);
-    return [];
-  }
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
