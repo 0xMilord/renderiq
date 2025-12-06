@@ -4,6 +4,9 @@ import { getUserRendersByProject } from '@/lib/actions/library.actions';
 import { LibraryClient } from './library-client';
 import type { Metadata } from 'next';
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Library | All Renders | Dashboard | Renderiq',
   description: 'View all your renders organized by project in your library.',
