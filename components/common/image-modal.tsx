@@ -129,7 +129,11 @@ export function ImageModal({
           {/* Image/Video Display - 3/4 width on desktop, full width on mobile */}
           <div className="lg:col-span-3 space-y-4">
             {hasComparison ? (
-              <Tabs defaultValue="generated" className="w-full">
+              <Tabs 
+                defaultValue="generated" 
+                className="w-full"
+                baseId={`image-modal-tabs-${item.id}`}
+              >
                 <TabsList className="grid w-full grid-cols-2 mb-4">
                   <TabsTrigger value="uploaded">Before (Uploaded)</TabsTrigger>
                   <TabsTrigger value="generated">After (Generated)</TabsTrigger>

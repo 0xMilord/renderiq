@@ -120,19 +120,19 @@ const faqs = [
     ],
   },
   {
-    category: 'AEC & Retail',
+    category: 'AEC Professionals',
     questions: [
       {
         question: 'Is Renderiq suitable for AEC (Architecture, Engineering, Construction) projects?',
         answer: 'Absolutely! Renderiq is specifically designed for AEC professionals with AEC finetunes that ensure technically correct renders. It\'s perfect for visualizing commercial buildings, industrial facilities, educational institutions, healthcare facilities, and more. The AI understands architectural elements and produces accurate, professional renders suitable for client presentations.',
       },
       {
-        question: 'Can I use Renderiq for retail store design?',
-        answer: 'Yes! Renderiq excels at retail visualization. Use it to design store layouts, visualize product displays, create marketing materials, and present retail concepts to stakeholders. Perfect for both physical retail and e-commerce visualization needs.',
-      },
-      {
         question: 'Does Renderiq support large-scale commercial projects?',
         answer: 'Yes! Renderiq handles projects of all scales, from small residential designs to large commercial complexes. Our AI understands architectural context and can visualize entire buildings, campuses, and developments. Perfect for AEC firms working on large-scale projects.',
+      },
+      {
+        question: 'Can Renderiq handle mixed-use developments and urban planning?',
+        answer: 'Yes! Renderiq excels at complex architectural projects including mixed-use developments, urban planning, and master planning. The AI understands spatial relationships, building scales, and can visualize entire developments with proper context and proportions.',
       },
     ],
   },
@@ -162,7 +162,7 @@ const tabNames: Record<string, string> = {
   'Technical': 'Technical',
   'Projects & Organization': 'Projects',
   'Pricing & Credits': 'Pricing',
-  'AEC & Retail': 'AEC & Retail',
+  'AEC Professionals': 'AEC',
   'Security & Privacy': 'Security',
 };
 
@@ -204,36 +204,36 @@ export function FAQSection() {
   };
 
   return (
-    <section id="faq" className="bg-primary w-full overflow-x-hidden relative">
-      <div className="w-full px-4 sm:px-6 lg:px-8 relative border-l-[5px] border-r-[5px] border-b-[5px] border-secondary">
+    <section id="faq" className="bg-[hsl(72,87%,62%)] w-full overflow-x-hidden relative">
+      <div className="w-full px-4 sm:px-6 lg:px-8 relative border-l-[5px] border-r-[5px] border-b-[5px] border-[hsl(0,0%,7%)]">
         <div className="w-full relative">
           <div className="text-left relative pt-8">
-            <h2 className="text-4xl md:text-5xl font-bold text-primary-foreground mb-6">
+            <h2 className="text-4xl md:text-5xl font-bold text-[hsl(0,0%,7%)] mb-6">
               Frequently Asked Questions
             </h2>
-            <p className="text-xl text-primary-foreground/80 max-w-3xl pb-6">
+            <p className="text-xl text-[hsl(0,0%,20%)] max-w-3xl pb-6">
               Everything you need to know about Renderiq
             </p>
           </div>
         </div>
       </div>
 
-      <div className="w-full relative border-l-[5px] border-b-[5px] border-secondary">
+      <div className="w-full relative border-l-[5px] border-b-[5px] border-[hsl(0,0%,7%)]">
         {/* Black container behind FAQ */}
         <div className="absolute inset-0 bg-black -z-10"></div>
         
         <div className="flex flex-col lg:flex-row w-full overflow-hidden relative">
           {/* Left Column - 60% - FAQ Content */}
-          <div className="w-full lg:w-[60%] order-1 lg:order-1 px-4 sm:px-6 lg:px-8 py-8 bg-primary relative flex flex-col border-r-[5px] border-secondary">
-            <div className="w-full relative px-4 sm:px-6 lg:px-8 py-6 rounded-2xl bg-background flex-1 border-[5px] border-secondary">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <div className="w-full lg:w-[60%] order-1 lg:order-1 px-4 sm:px-6 lg:px-8 py-8 bg-[hsl(72,87%,62%)] relative flex flex-col border-r-[5px] border-[hsl(0,0%,7%)]">
+            <div className="w-full relative px-4 sm:px-6 lg:px-8 py-6 rounded-2xl bg-background flex-1 border-[5px] border-[hsl(0,0%,7%)]">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full" baseId="faq-tabs">
                 <div className="relative mb-8">
                   
                   {showLeftArrow && (
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 bg-background/90 shadow-md hover:bg-background/80 text-primary-foreground"
+                      className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 bg-background/90 shadow-md hover:bg-background/80 text-foreground"
                       onClick={() => scroll('left')}
                     >
                       <ChevronLeft className="h-4 w-4" />
@@ -243,7 +243,7 @@ export function FAQSection() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 bg-background/90 shadow-md hover:bg-background/80 text-primary-foreground"
+                      className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 bg-background/90 shadow-md hover:bg-background/80 text-foreground"
                       onClick={() => scroll('right')}
                     >
                       <ChevronRight className="h-4 w-4" />
@@ -272,7 +272,12 @@ export function FAQSection() {
                     value={category.category}
                     className="mt-0"
                   >
-                    <Accordion type="single" collapsible className="w-full space-y-4">
+                    <Accordion 
+                      type="single" 
+                      collapsible 
+                      className="w-full space-y-4"
+                      baseId={`faq-accordion-${category.category}`}
+                    >
                       {category.questions.map((faq, index) => (
                         <AccordionItem
                           key={index}
@@ -295,7 +300,7 @@ export function FAQSection() {
           </div>
 
           {/* Right Column - 40% - FAQ Image - Extended to extreme right edge */}
-          <div className="w-full lg:w-[40%] flex items-center justify-end order-2 lg:order-2 bg-primary lg:ml-auto lg:mr-0 lg:pr-0 lg:relative border-r-[5px] border-secondary" style={{ marginRight: 'calc((100vw - 100%) / -2)' }}>
+          <div className="w-full lg:w-[40%] flex items-center justify-end order-2 lg:order-2 bg-[hsl(72,87%,62%)] lg:ml-auto lg:mr-0 lg:pr-0 lg:relative border-r-[5px] border-[hsl(0,0%,7%)]" style={{ marginRight: 'calc((100vw - 100%) / -2)' }}>
             <div className="relative w-full h-full min-h-[400px] lg:min-h-[600px]">
               <Image
                 src="/home/faq-section.svg"

@@ -33,7 +33,7 @@ export async function HomepagePricing() {
             Simple, Transparent Pricing
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-4">
-            Choose the plan that fits your needs. No hidden fees, cancel anytime. Perfect for AEC firms and retail businesses.
+            Choose the plan that fits your needs. No hidden fees, cancel anytime. Perfect for AEC firms and design professionals.
           </p>
         </div>
 

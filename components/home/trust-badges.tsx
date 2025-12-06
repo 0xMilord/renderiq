@@ -14,8 +14,8 @@ const badges = [
   },
   {
     icon: Users,
-    title: 'AEC & Retail Focused',
-    description: 'Built for Your Industry',
+    title: 'AEC Focused',
+    description: 'Built for AEC Professionals',
   },
   {
     icon: Clock,

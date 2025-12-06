@@ -28,22 +28,17 @@ import {
   Command
 } from 'lucide-react';
 import { 
-  FaGithub, 
   FaXTwitter, 
   FaLinkedin, 
-  FaInstagram, 
   FaYoutube, 
-  FaReddit, 
-  FaThreads,
-  FaQuora,
-  FaDiscord
+  FaReddit
 } from 'react-icons/fa6';
-import { SiBluesky } from 'react-icons/si';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { CreateProjectModal } from '@/components/projects/create-project-modal';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { ProjectTree } from '@/components/dashboard/project-tree';
 import type { Project, RenderChain } from '@/lib/db/schema';
 
 interface DashboardLayoutProps {
@@ -58,6 +53,7 @@ interface ChainWithRenders extends RenderChain {
 const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard Overview',
   '/dashboard/projects': 'Projects & Chains',
+  '/dashboard/library': 'Library',
   '/dashboard/billing': 'Billing & Subscription',
   '/dashboard/billing/history': 'Payment History & Invoices',
   '/dashboard/billing/history/credits': 'Credit Transactions',
@@ -70,6 +66,7 @@ const pageTitles: Record<string, string> = {
 const pageDescriptions: Record<string, string> = {
   '/dashboard': "Here's what's happening in your dashboard",
   '/dashboard/projects': 'Organize and manage your projects and render chains',
+  '/dashboard/library': 'View all your renders organized by project',
   '/dashboard/billing': 'Manage your subscription, credits, and payment history',
   '/dashboard/billing/history': 'View all your payment transactions and invoices',
   '/dashboard/billing/history/credits': 'Track all your credit transactions and usage',
@@ -82,6 +79,7 @@ const pageDescriptions: Record<string, string> = {
 const pageIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   '/dashboard': LayoutDashboard,
   '/dashboard/projects': FolderOpen,
+  '/dashboard/library': BookOpen,
   '/dashboard/billing': CreditCard,
   '/dashboard/billing/history': FileText,
   '/dashboard/billing/history/credits': RefreshCw,
@@ -149,6 +147,7 @@ function getPageIcon(pathname: string): React.ComponentType<{ className?: string
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/dashboard/projects', icon: FolderOpen, label: 'Projects' },
+  { href: '/dashboard/library', icon: BookOpen, label: 'Library' },
   { href: '/dashboard/billing', icon: CreditCard, label: 'Billing' },
   { href: '/dashboard/likes', icon: Heart, label: 'Likes' },
   { href: '/dashboard/profile', icon: User, label: 'Profile' },
@@ -458,104 +457,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                               </CreateProjectModal>
                             </div>
                           ) : (
-                            <Accordion 
-                              type="multiple" 
-                              className="w-full ml-7"
-                              value={Array.from(expandedProjects).filter(id => id !== 'projects')}
-                              onValueChange={(value) => {
-                                const projectIds = value.filter(id => id !== 'projects');
-                                setExpandedProjects(new Set(['projects', ...projectIds]));
-                              }}
-                            >
-                              {projects.map((project) => {
-                                const projectChains = chainsByProject[project.id] || [];
-                                const isProjectActive = pathname.includes(`/dashboard/projects/${project.slug}`);
-                                
-                                return (
-                                  <AccordionItem 
-                                    key={project.id} 
-                                    value={project.id}
-                                    className="border-0"
-                                  >
-                                    <AccordionTrigger 
-                                      className={cn(
-                                        "px-2 py-2 h-8 rounded-md hover:bg-accent hover:no-underline [&>svg:last-child]:hidden",
-                                        isProjectActive && "bg-accent text-accent-foreground",
-                                        "text-xs font-medium"
-                                      )}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                      }}
-                                    >
-                                      <div className="flex items-center gap-1.5 flex-1 min-w-0 relative pl-3">
-                                        {/* Tree line connector - vertical line */}
-                                        <div className="absolute left-0 top-0 bottom-0 w-px bg-border" />
-                                        {/* Tree line connector - horizontal line */}
-                                        <div className="absolute left-0 top-1/2 w-3 h-px bg-border" />
-                                        <ChevronRight className={cn(
-                                          "h-3 w-3 shrink-0 text-muted-foreground transition-transform duration-200 relative z-10",
-                                          expandedProjects.has(project.id) && "rotate-90"
-                                        )} />
-                                        <Folder className={cn(
-                                          "h-3.5 w-3.5 flex-shrink-0 relative z-10",
-                                          isProjectActive
-                                            ? "text-foreground"
-                                            : "text-primary"
-                                        )} />
-                                        <span className="truncate">{project.name}</span>
-                                      </div>
-                                    </AccordionTrigger>
-                                    <AccordionContent className="pt-0 pb-0">
-                                      {projectChains.length > 0 ? (
-                                        <div className="ml-4 space-y-0 relative pl-3">
-                                          {/* Vertical tree line for chains */}
-                                          <div className="absolute left-0 top-0 bottom-0 w-px bg-border" />
-                                          {projectChains.map((chain, index) => {
-                                            const chainPath = `/project/${project.slug}/chain/${chain.id}`;
-                                            const isChainActive = pathname === chainPath || pathname.includes(`/chain/${chain.id}`);
-                                            const isLast = index === projectChains.length - 1;
-                                            
-                                            return (
-                                              <div key={chain.id} className="relative">
-                                                {/* Horizontal tree line connector */}
-                                                <div className="absolute left-0 top-1/2 w-3 h-px bg-border" />
-                                                {/* Vertical line continuation - only if not last */}
-                                                {!isLast && (
-                                                  <div className="absolute left-0 top-1/2 bottom-0 w-px bg-border" />
-                                                )}
-                                                <Link
-                                                  href={chainPath}
-                                                  className={cn(
-                                                    "flex items-center gap-2 px-2 py-2 h-8 rounded-md hover:bg-accent transition-colors group relative z-10",
-                                                    isChainActive && "bg-accent text-accent-foreground"
-                                                  )}
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleSelectChain(chain.id);
-                                                  }}
-                                                >
-                                                  <MessageSquare className={cn(
-                                                    "h-3 w-3 flex-shrink-0",
-                                                    isChainActive
-                                                      ? "text-foreground"
-                                                      : "text-muted-foreground group-hover:text-foreground"
-                                                  )} />
-                                                  <span className="text-xs truncate">{chain.name}</span>
-                                                </Link>
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      ) : (
-                                        <div className="ml-4 px-2 py-2 h-8 text-xs text-muted-foreground flex items-center">
-                                          No chains yet
-                                        </div>
-                                      )}
-                                    </AccordionContent>
-                                  </AccordionItem>
-                                );
-                              })}
-                            </Accordion>
+                            <div className="w-full ml-7">
+                              <ProjectTree 
+                                projects={projects} 
+                                chains={chains.map(chain => ({
+                                  ...chain,
+                                  projectId: chain.projectId,
+                                }))}
+                              />
+                            </div>
                           )}
                         </div>
                       )}
@@ -619,7 +529,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           {isSidebarOpen ? (
             <>
               {/* Docs and Support Buttons */}
-              <div className="flex gap-2 mb-3">
+              <div className="flex gap-2 mb-1">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -645,19 +555,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
 
               {/* Separator */}
-              <div className="h-px bg-border mb-3" />
+              <div className="h-px bg-border mb-1" />
 
               {/* Community Socials */}
-              <div className="flex items-center justify-center gap-2 mb-3 flex-wrap">
-                <a
-                  href="https://bsky.app/profile/renderiq.bsky.social"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
-                  title="Bluesky"
-                >
-                  <SiBluesky className="h-4 w-4" />
-                </a>
+              <div className="flex items-center justify-center gap-2 mb-1 flex-wrap">
                 <a
                   href="https://x.com/renderiq_ai"
                   target="_blank"
@@ -668,15 +569,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   <FaXTwitter className="h-4 w-4" />
                 </a>
                 <a
-                  href="https://github.com/renderiq-ai"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
-                  title="GitHub"
-                >
-                  <FaGithub className="h-4 w-4" />
-                </a>
-                <a
                   href="https://www.linkedin.com/company/renderiq-ai"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -684,15 +576,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   title="LinkedIn"
                 >
                   <FaLinkedin className="h-4 w-4" />
-                </a>
-                <a
-                  href="https://www.instagram.com/renderiq.ai"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
-                  title="Instagram"
-                >
-                  <FaInstagram className="h-4 w-4" />
                 </a>
                 <a
                   href="https://www.youtube.com/@Renderiq_ai"
@@ -712,37 +595,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 >
                   <FaReddit className="h-4 w-4" />
                 </a>
-                <a
-                  href="https://www.threads.com/@renderiq.ai"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
-                  title="Threads"
-                >
-                  <FaThreads className="h-4 w-4" />
-                </a>
-                <a
-                  href="https://www.quora.com/profile/Renderiq"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
-                  title="Quora"
-                >
-                  <FaQuora className="h-4 w-4" />
-                </a>
-                <a
-                  href="https://discord.gg/KADV5pX3"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-muted-foreground transition-colors p-1.5 rounded hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-black"
-                  title="Discord"
-                >
-                  <FaDiscord className="h-4 w-4" />
-                </a>
               </div>
 
               {/* Separator */}
-              <div className="h-px bg-border mb-3" />
+              <div className="h-px bg-border mb-1" />
 
               {/* User Info and Sign Out */}
               <div className="flex items-center gap-3 min-w-0">
@@ -771,7 +627,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           ) : (
             <div className="flex flex-col items-center gap-2">
               {/* Docs and Support - Collapsed */}
-              <div className="flex flex-col gap-1 w-full">
+              <div className="flex flex-col gap-1 w-full py-1">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -795,7 +651,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
 
               {/* Separator */}
-              <div className="w-full h-px bg-border" />
+              <div className="w-full h-px bg-border my-1" />
 
               {/* User Avatar and Sign Out - Collapsed */}
               <div className="flex flex-col items-center gap-1">

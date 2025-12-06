@@ -25,7 +25,7 @@ const faqs = [
   },
   {
     question: "What types of projects can I create?",
-    answer: "You can create interior designs, exterior architecture, furniture layouts, site plans, and more. Our AI supports residential, commercial, hospitality, retail, educational facilities, landscape architecture, and urban planning projects."
+    answer: "You can create interior designs, exterior architecture, furniture layouts, site plans, and more. Our AI supports residential, commercial, hospitality, institutional, educational facilities, landscape architecture, and urban planning projects."
   },
   {
     question: "How fast is the rendering process?",

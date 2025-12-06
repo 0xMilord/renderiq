@@ -632,7 +632,12 @@ export function BaseToolComponent({
 
       {/* Mobile/Tablet: Tabs layout - Hidden below header */}
       <div className={cn("block lg:hidden", hintMessage ? "pt-20" : "pt-12")}>
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'tool' | 'output')} className="w-full">
+        <Tabs 
+          value={activeTab} 
+          onValueChange={(v) => setActiveTab(v as 'tool' | 'output')} 
+          className="w-full"
+          baseId={`tool-tabs-${tool.id}`}
+        >
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="tool" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />

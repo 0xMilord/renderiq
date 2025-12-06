@@ -138,7 +138,7 @@ export default function RootLayout({
         }} />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-y-auto`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-y-auto cursor-none`}
       >
         {/* Google tag (gtag.js) */}
         <Script

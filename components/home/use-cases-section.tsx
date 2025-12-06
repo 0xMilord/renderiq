@@ -1,4 +1,4 @@
-import { Building2, Store, Factory, Home, Hotel, School, Hospital, ShoppingBag } from 'lucide-react';
+import { Building2, Factory, Home, Hotel, School, Hospital, Building } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -6,7 +6,7 @@ const aecUseCases = [
   {
     icon: Building2,
     title: 'Commercial Architecture',
-    description: 'Create stunning visualizations for office buildings, retail spaces, and commercial developments.',
+    description: 'Create stunning visualizations for office buildings, commercial developments, and corporate facilities.',
     features: ['Exterior renders', 'Interior design', 'Material testing', 'Lighting studies'],
   },
   {
@@ -29,30 +29,30 @@ const aecUseCases = [
   },
 ];
 
-const retailUseCases = [
-  {
-    icon: Store,
-    title: 'Retail Store Design',
-    description: 'Design and visualize retail spaces, showrooms, and shopping environments.',
-    features: ['Store layouts', 'Product displays', 'Customer flow', 'Brand identity'],
-  },
-  {
-    icon: ShoppingBag,
-    title: 'E-commerce Visualization',
-    description: 'Create product visualizations and lifestyle images for online stores.',
-    features: ['Product renders', 'Lifestyle scenes', 'Background removal', 'Multiple angles'],
-  },
+const additionalAecUseCases = [
   {
     icon: Home,
-    title: 'Residential Design',
-    description: 'Visualize homes, apartments, and residential developments for marketing and sales.',
-    features: ['Interior design', 'Exterior renders', 'Virtual staging', 'Marketing materials'],
+    title: 'Residential Architecture',
+    description: 'Visualize homes, apartments, and residential developments for client presentations and marketing.',
+    features: ['Interior design', 'Exterior renders', 'Space planning', 'Client presentations'],
   },
   {
     icon: Hotel,
-    title: 'Hospitality Design',
-    description: 'Design hotels, restaurants, and hospitality spaces with immersive visualizations.',
-    features: ['Guest rooms', 'Common areas', 'Restaurant layouts', 'Ambiance creation'],
+    title: 'Hospitality Architecture',
+    description: 'Design hotels, restaurants, and hospitality spaces with immersive architectural visualizations.',
+    features: ['Guest rooms', 'Common areas', 'Restaurant layouts', 'Public spaces'],
+  },
+  {
+    icon: Building,
+    title: 'Mixed-Use Developments',
+    description: 'Plan and visualize complex mixed-use projects combining residential, commercial, and public spaces.',
+    features: ['Master planning', 'Urban design', 'Space integration', 'Site analysis'],
+  },
+  {
+    icon: Building2,
+    title: 'Institutional Buildings',
+    description: 'Create visualizations for government buildings, cultural centers, and institutional facilities.',
+    features: ['Public spaces', 'Facade design', 'Accessibility compliance', 'Cultural expression'],
   },
 ];
 
@@ -66,10 +66,10 @@ export function UseCasesSection() {
           </Badge>
           <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
             Built for Architecture, Engineering & Construction
-            <span className="block text-muted-foreground mt-2">and Retail Industries</span>
+            <span className="block text-muted-foreground mt-2">Professional AEC Solutions</span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Whether you&apos;re designing buildings or retail spaces, Renderiq adapts to your industry needs
+            Transform your architectural projects with AI-powered visualization tools designed for AEC professionals
           </p>
         </div>
 
@@ -107,14 +107,14 @@ export function UseCasesSection() {
           </div>
         </div>
 
-        {/* Retail Section */}
+        {/* Additional AEC Use Cases */}
         <div>
           <div className="flex items-center gap-3 mb-8">
-            <Store className="h-8 w-8 text-primary" />
-            <h3 className="text-3xl font-bold text-foreground">Retail & E-commerce</h3>
+            <Building2 className="h-8 w-8 text-primary" />
+            <h3 className="text-3xl font-bold text-foreground">Specialized AEC Applications</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {retailUseCases.map((useCase, index) => {
+            {additionalAecUseCases.map((useCase, index) => {
               const Icon = useCase.icon;
               return (
                 <Card key={index} className="hover:shadow-lg transition-shadow">

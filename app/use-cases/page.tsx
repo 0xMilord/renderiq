@@ -8,7 +8,6 @@ import {
   Building2, 
   Users, 
   Home, 
-  Store,
   School,
   Hotel,
   Warehouse,
@@ -261,7 +260,7 @@ const industryUseCases = [
     title: "Commercial Projects",
     slug: "commercial",
     description: "Visualize office spaces and commercial buildings",
-    applications: ["Office buildings", "Mixed-use", "Retail spaces", "Coworking"]
+    applications: ["Office buildings", "Mixed-use", "Corporate facilities", "Coworking"]
   },
   {
     icon: Hotel,
@@ -271,11 +270,11 @@ const industryUseCases = [
     applications: ["Hotels", "Resorts", "Restaurants", "Event venues"]
   },
   {
-    icon: Store,
-    title: "Retail Spaces",
-    slug: "retail",
-    description: "Design engaging retail environments",
-    applications: ["Boutiques", "Showrooms", "Shopping centers", "Pop-up stores"]
+    icon: Building2,
+    title: "Institutional Buildings",
+    slug: "institutional",
+    description: "Visualize government and institutional facilities",
+    applications: ["Government buildings", "Cultural centers", "Courthouses", "Public facilities"]
   },
   {
     icon: School,

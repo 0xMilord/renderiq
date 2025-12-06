@@ -3,18 +3,19 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Sparkles, Images, User, Settings, CreditCard, Info, Heart, FileText, HelpCircle, Layout, LayoutDashboard, Wrench, Layers, Square, Maximize2, Sofa, Box, Grid3x3, Split, RotateCw, Palette, Brush, Sun, Package, Replace, Image as ImageIcon, FileStack, LayoutGrid, Film } from 'lucide-react';
+import { Home, Sparkles, Images, User, CreditCard, Heart, FileText, HelpCircle, Layout, LayoutDashboard, Wrench, Layers, Square, Maximize2, Sofa, Box, Grid3x3, Split, RotateCw, Palette, Brush, Sun, Package, Replace, Image as ImageIcon, FileStack, LayoutGrid, Film } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/hooks/use-auth';
-import { getOnlineTools } from '@/lib/tools/registry';
+import { getAllTools } from '@/lib/tools/registry';
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 // Icon mapping for tools (same as navbar)
 const getToolIcon = (toolId: string) => {
@@ -92,8 +93,8 @@ export function BottomNav() {
     return null;
   }
 
-  // Get online tools for Apps dropdown
-  const onlineTools = getOnlineTools();
+  // Get all tools for Apps dropdown
+  const allTools = getAllTools();
   const isAppsActive = pathname.startsWith('/apps');
 
   // Use conditional nav items based on auth state
@@ -119,7 +120,7 @@ export function BottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border md:hidden z-50">
+    <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border md:hidden z-[9999]">
       <div className="relative flex items-center justify-between h-14 px-2">
         {/* Left side nav items */}
         <div className="flex items-center justify-between flex-1 gap-1 pr-6">
@@ -188,8 +189,8 @@ export function BottomNav() {
               })}
 
               {/* Apps Dropdown */}
-              <Sheet open={isAppsSheetOpen} onOpenChange={setIsAppsSheetOpen}>
-                <SheetTrigger asChild>
+              <Drawer open={isAppsSheetOpen} onOpenChange={setIsAppsSheetOpen}>
+                <DrawerTrigger asChild>
                   <button
                     className={cn(
                       'flex flex-col items-center justify-center space-y-0.5 transition-colors flex-1',
@@ -201,36 +202,53 @@ export function BottomNav() {
                     <Wrench className="h-[17px] w-[17px]" />
                     <span className="text-[10.5px] font-medium">Apps</span>
                   </button>
-                </SheetTrigger>
-                <SheetContent side="bottom" className="h-[80vh] rounded-t-xl">
-                  <SheetHeader>
-                    <SheetTitle>Select an App</SheetTitle>
-                  </SheetHeader>
-                  <div className="mt-6 overflow-y-auto">
-                    <div className="grid grid-cols-2 gap-3">
-                      {onlineTools.map((tool) => {
+                </DrawerTrigger>
+                <DrawerContent className="h-[80vh] rounded-t-xl">
+                  <DrawerHeader>
+                    <DrawerTitle>Select an App</DrawerTitle>
+                  </DrawerHeader>
+                  <div className="mt-6 overflow-y-auto px-4 pb-4">
+                    <div className="flex flex-col gap-1">
+                      {allTools.map((tool) => {
                         const ToolIcon = getToolIcon(tool.id);
+                        const isOnline = ('status' in tool ? tool.status : 'offline') === 'online';
+                        
                         return (
                           <Button
                             key={tool.id}
-                            variant="outline"
-                            className="h-auto flex-col items-start justify-start p-4 text-left"
-                            onClick={() => handleAppSelect(tool.slug)}
+                            variant="ghost"
+                            className={cn(
+                              "h-auto w-full justify-start gap-3 px-3 py-2 text-left",
+                              !isOnline && "opacity-60 cursor-not-allowed"
+                            )}
+                            onClick={() => {
+                              if (isOnline) {
+                                handleAppSelect(tool.slug);
+                              }
+                            }}
+                            disabled={!isOnline}
                           >
-                            <div className="flex items-center gap-2 mb-2">
-                              <ToolIcon className="h-4 w-4 shrink-0" />
-                              <span className="font-semibold text-sm">{tool.name}</span>
+                            <ToolIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-sm truncate">{tool.name}</span>
+                                {!isOnline && (
+                                  <Badge variant="secondary" className="text-xs shrink-0">
+                                    Coming Soon
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                                {tool.description}
+                              </p>
                             </div>
-                            <p className="text-xs text-muted-foreground line-clamp-2">
-                              {tool.description}
-                            </p>
                           </Button>
                         );
                       })}
                     </div>
                   </div>
-                </SheetContent>
-              </Sheet>
+                </DrawerContent>
+              </Drawer>
 
               {/* Profile */}
               {rightItems.slice(1).map((item) => {

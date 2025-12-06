@@ -1217,8 +1217,8 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
         desc: 'Visualize furniture and decor in real estate spaces for staging presentations. Product placement helps potential buyers or tenants see how spaces can be furnished, making properties more appealing.'
       },
       {
-        title: 'E-commerce & Online Retail',
-        desc: 'Create product visualization images for e-commerce websites or online retail. Placing products in realistic interior scenes helps customers understand scale, style, and how products fit into their spaces.'
+        title: 'Commercial Interior Visualization',
+        desc: 'Visualize products and furniture in commercial interior spaces for presentations and client approvals. Placing items in realistic architectural scenes helps stakeholders understand scale, style, and spatial relationships.'
       }
     ],
     keyFeatures: [

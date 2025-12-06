@@ -270,7 +270,7 @@ export const comprehensiveFAQSchema = {
       name: 'What types of architectural projects can I create?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'You can create interior designs, exterior architecture, furniture layouts, site plans, and more. Our AI supports residential, commercial, hospitality, retail, educational facilities, landscape architecture, urban planning, and renovation projects.'
+        text: 'You can create interior designs, exterior architecture, furniture layouts, site plans, and more. Our AI supports residential, commercial, hospitality, institutional, educational facilities, landscape architecture, urban planning, and renovation projects.'
       }
     },
     {

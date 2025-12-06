@@ -163,7 +163,7 @@ export function StructuredData({ type, data }: StructuredDataProps) {
               "name": "What types of projects can I create?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "You can create interior designs, exterior architecture, furniture layouts, site plans, and more. Our AI supports residential, commercial, hospitality, retail, and educational facility designs."
+                "text": "You can create interior designs, exterior architecture, furniture layouts, site plans, and more. Our AI supports residential, commercial, hospitality, institutional, and educational facility designs."
               }
             },
             {

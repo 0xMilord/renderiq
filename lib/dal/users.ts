@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
 import type { NewUser, User } from '@/lib/db/schema';
 
 export class UsersDAL {
@@ -39,5 +39,23 @@ export class UsersDAL {
     }
 
     return this.create(user);
+  }
+
+  static async getLatestUsers(limit: number = 10): Promise<User[]> {
+    const latestUsers = await db
+      .select()
+      .from(users)
+      .where(eq(users.isActive, true))
+      .orderBy(desc(users.createdAt))
+      .limit(limit);
+    return latestUsers;
+  }
+
+  static async getActiveUserCount(): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(users)
+      .where(eq(users.isActive, true));
+    return result[0]?.count || 0;
   }
 }

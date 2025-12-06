@@ -273,7 +273,11 @@ export function RenderPreview({
                 {/* Version Tabs */}
                 {versions.length > 0 && (
                   <div className="border-b border-border">
-                    <Tabs value={activeTab} onValueChange={setActiveTab}>
+                    <Tabs 
+                      value={activeTab} 
+                      onValueChange={setActiveTab}
+                      baseId={`render-preview-tabs-${chainId || 'default'}`}
+                    >
                       <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="current" className="flex items-center space-x-2">
                           <ImageIcon className="h-4 w-4" />
