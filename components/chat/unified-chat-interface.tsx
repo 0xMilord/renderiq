@@ -272,9 +272,10 @@ export function UnifiedChatInterface({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const isLocalRenderUpdateRef = useRef(false); // Track if we're updating from a local render completion
-  const lastChainRenderCountRef = useRef(0); // Track chain render count to detect external updates
-  const messagesRef = useRef<Message[]>([]); // Track messages via ref to avoid dependency issues
+  const lastChainRenderCountRef = useRef(0); // Track chain render count to detect new renders
+  const messagesRef = useRef<Message[]>([]); // Track messages via ref
+  const chainRendersRef = useRef(chain?.renders); // Track chain renders via ref to avoid dependency loops
+  const hasProcessingRendersRef = useRef(false); // Track if we have processing renders for polling
   
   // Hooks
   const { credits } = useCredits();
@@ -345,71 +346,48 @@ export function UnifiedChatInterface({
     }
   }, [isGenerating, isImageGenerating, isVideoGenerating, isVideoMode]);
 
-  // React 19 Best Practice: Initialize chain data only once per chainId
-  // Don't sync props to state in useEffect - only initialize on mount or chainId change
+  // ✅ SIMPLIFIED: Initialize chain data only when chainId changes (not when chain prop changes)
   useEffect(() => {
     const currentChainId = chainId || chain?.id;
     
-    // React 19: Only initialize once per chainId (don't re-sync on every chain prop change)
-    if (initializedChainIdRef.current === currentChainId && messages.length > 0) {
-      // Already initialized for this chainId and have messages - skip
-      return;
-    }
-    
-    // If this is a local render update, skip the reload
-    if (isLocalRenderUpdateRef.current) {
-      logger.log('⏭️ UnifiedChatInterface: Skipping reload - local render update in progress');
-      isLocalRenderUpdateRef.current = false;
-      if (chain?.renders) {
-        lastChainRenderCountRef.current = chain.renders.length;
-      }
+    // Only initialize once per chainId
+    if (initializedChainIdRef.current === currentChainId) {
       return;
     }
 
-    // Consolidated initialization log (reduced from multiple logs to one)
-    if (initializedChainIdRef.current !== currentChainId) {
-      logger.log('🔍 UnifiedChatInterface: Initializing chain data', {
-        chainId: currentChainId,
-        rendersCount: chain?.renders?.length || 0
-      });
-    }
+    logger.log('🔍 UnifiedChatInterface: Initializing chain data', {
+      chainId: currentChainId,
+      rendersCount: chain?.renders?.length || 0
+    });
     
     // Try to load from localStorage first as backup
-    const storageKey = getStorageKey();
     const storedMessages = restoreMessages();
     
-    // React 19: Only set state if chain has renders and we haven't initialized yet
+    // Convert renders to messages if chain has renders
     if (chain && chain.renders && chain.renders.length > 0) {
-      
-      // Convert renders to messages (optimized - removed verbose per-render logging)
       const chainMessages: Message[] = chain.renders
         .sort((a, b) => (a.chainPosition || 0) - (b.chainPosition || 0))
         .map((render) => {
-          // Create user message for the prompt
           const userMessage: Message = {
             id: `user-${render.id}`,
             type: 'user',
             content: render.prompt,
             timestamp: render.createdAt,
             referenceRenderId: render.referenceRenderId || undefined,
-            // Add uploaded image if it exists in the database
             uploadedImage: render.uploadedImageUrl ? {
               previewUrl: render.uploadedImageUrl,
               persistedUrl: render.uploadedImageUrl
             } : undefined
           };
 
-          // Create assistant message with the render (no constant text)
-          const contextMessage = render.status === 'failed'
-            ? 'Sorry, I couldn\'t generate your render. Please try again.'
-            : render.status === 'processing'
-            ? 'Generating your render...'
-            : ''; // Empty for completed renders - just show the render
-            
           const assistantMessage: Message = {
             id: `assistant-${render.id}`,
             type: 'assistant',
-            content: contextMessage,
+            content: render.status === 'failed'
+              ? 'Sorry, I couldn\'t generate your render. Please try again.'
+              : render.status === 'processing' || render.status === 'pending'
+              ? 'Generating your render...'
+              : '',
             timestamp: render.updatedAt,
             render: render.status === 'completed' ? render : undefined,
             isGenerating: render.status === 'processing' || render.status === 'pending'
@@ -418,20 +396,11 @@ export function UnifiedChatInterface({
           return [userMessage, assistantMessage];
         })
         .flat();
-
-      // Single consolidated log for initialization (reduced from 10+ logs to 1)
-      logger.log('✅ UnifiedChatInterface: Converted renders to messages', {
-        rendersCount: chain.renders.length,
-        messagesCount: chainMessages.length
-      });
       
       setMessages(chainMessages);
-      messagesRef.current = chainMessages; // Update ref
-      
-      // Save to localStorage as backup
+      messagesRef.current = chainMessages;
       saveMessages(chainMessages);
 
-      // Set the latest completed render as current
       const latestCompletedRender = chain.renders
         .filter(r => r.status === 'completed')
         .sort((a, b) => (b.chainPosition || 0) - (a.chainPosition || 0))[0];
@@ -439,104 +408,89 @@ export function UnifiedChatInterface({
       if (latestCompletedRender) {
         setCurrentRender(latestCompletedRender);
       }
+      
+      lastChainRenderCountRef.current = chain.renders.length;
     } else if (storedMessages) {
-      // Fallback to localStorage if chain data not available yet
       setMessages(storedMessages);
     } else {
       setMessages([]);
       setCurrentRender(null);
     }
     
-    // Mark as initialized for this chainId
     initializedChainIdRef.current = currentChainId;
-    
-    // Update ref to track chain render count after processing
-    if (chain?.renders) {
-      lastChainRenderCountRef.current = chain.renders.length;
-    }
-  }, [chainId, projectId, saveMessages, restoreMessages, getStorageKey]); // ✅ FIXED: Removed 'chain' from dependencies to prevent re-runs on every chain update
+  }, [chainId]); // ✅ SIMPLIFIED: Only depend on chainId - ignore chain prop changes
 
-  // ✅ NEW: Poll for processing renders and update UI when they complete
-  // This ensures the UI updates when renders complete on the server (e.g., video generation)
+  // ✅ FIXED: Update chain renders ref when it changes
   useEffect(() => {
-    if (!chainId || !onRefreshChain) return;
+    chainRendersRef.current = chain?.renders;
+  }, [chain?.renders]);
+
+  // ✅ FIXED: Update messages when chain renders change - use refs to prevent loops
+  useEffect(() => {
+    const currentChainRenders = chainRendersRef.current;
     
-    // Check if there are any processing/pending renders in messages
-    const hasProcessingRenders = messages.some(
-      m => m.isGenerating === true
-    ) || chain?.renders?.some(
-      r => r.status === 'processing' || r.status === 'pending'
-    );
-    
-    if (!hasProcessingRenders) {
-      // No processing renders - no need to poll
+    // Skip if not initialized or if chainId changed (handled by initialization useEffect)
+    if (initializedChainIdRef.current !== (chainId || chain?.id) || !currentChainRenders) {
       return;
     }
     
-    logger.log('🔄 UnifiedChatInterface: Starting polling for processing renders');
-    
-    // Poll every 3 seconds for processing renders
-    const pollInterval = setInterval(() => {
-      // Only poll if we're not in the middle of a local update
-      if (!isLocalRenderUpdateRef.current) {
-        logger.log('🔄 UnifiedChatInterface: Polling for render status updates');
-        onRefreshChain();
-      }
-    }, 3000); // Poll every 3 seconds
-    
-    return () => {
-      clearInterval(pollInterval);
-      logger.log('🔄 UnifiedChatInterface: Stopped polling for render status updates');
-    };
-  }, [chainId, chain?.renders, messages, onRefreshChain]); // Re-run when processing renders appear/disappear
-
-  // ✅ NEW: Update messages when chain renders change (e.g., status updates from processing to completed)
-  // This handles external updates (like video generation completing on server) without re-initializing everything
-  useEffect(() => {
-    // Skip if not initialized yet or if this is a local update
-    if (!chain?.renders || initializedChainIdRef.current !== (chainId || chain?.id) || isLocalRenderUpdateRef.current) {
-      return;
-    }
-    
-    // Check if render count changed or if any render status changed
-    const currentRenderCount = chain.renders.length;
+    const currentRenderCount = currentChainRenders.length;
     const previousRenderCount = lastChainRenderCountRef.current;
     
-    // Use messagesRef to avoid dependency on messages array
-    const currentMessages = messagesRef.current.length > 0 ? messagesRef.current : messages;
-    
-    // Check if any render status changed from processing/pending to completed
-    const hasStatusChange = chain.renders.some(render => {
-      const existingMessage = currentMessages.find(m => m.render?.id === render.id);
-      if (!existingMessage) return false; // New render - will be handled by initialization
+    // Only update if render count changed (new render added)
+    if (currentRenderCount > previousRenderCount) {
+      // New render added - add it to messages
+      const newRenders = currentChainRenders
+        .filter(r => r.chainPosition !== undefined && r.chainPosition >= Math.floor(messagesRef.current.length / 2))
+        .sort((a, b) => (a.chainPosition || 0) - (b.chainPosition || 0));
       
-      const wasProcessing = existingMessage.isGenerating;
-      const isCompleted = render.status === 'completed';
-      return wasProcessing && isCompleted;
-    });
-    
-    // Only update if render count changed or status changed
-    if (currentRenderCount !== previousRenderCount || hasStatusChange) {
-      logger.log('🔄 UnifiedChatInterface: Updating messages from chain changes', {
-        previousCount: previousRenderCount,
-        currentCount: currentRenderCount,
-        hasStatusChange
-      });
+      if (newRenders.length > 0) {
+        const newMessages: Message[] = newRenders.flatMap(render => {
+          const userMessage: Message = {
+            id: `user-${render.id}`,
+            type: 'user',
+            content: render.prompt,
+            timestamp: render.createdAt,
+            referenceRenderId: render.referenceRenderId || undefined,
+            uploadedImage: render.uploadedImageUrl ? {
+              previewUrl: render.uploadedImageUrl,
+              persistedUrl: render.uploadedImageUrl
+            } : undefined
+          };
+
+          const assistantMessage: Message = {
+            id: `assistant-${render.id}`,
+            type: 'assistant',
+            content: render.status === 'processing' || render.status === 'pending' ? 'Generating your render...' : '',
+            timestamp: render.updatedAt,
+            render: render.status === 'completed' ? render : undefined,
+            isGenerating: render.status === 'processing' || render.status === 'pending'
+          };
+
+          return [userMessage, assistantMessage];
+        });
+        
+        setMessages(prev => {
+          const updated = [...prev, ...newMessages];
+          messagesRef.current = updated;
+          return updated;
+        });
+      }
       
-      // Update messages to reflect new render statuses
+      lastChainRenderCountRef.current = currentRenderCount;
+    } else {
+      // Update existing messages if render status changed
       setMessages(prev => {
         const updated = prev.map(msg => {
           if (!msg.render) return msg;
           
-          // Find the updated render in chain
-          const updatedRender = chain.renders.find(r => r.id === msg.render?.id);
+          const updatedRender = currentChainRenders.find(r => r.id === msg.render?.id);
           if (!updatedRender) return msg;
           
-          // Update message if render status changed
           if (updatedRender.status === 'completed' && msg.isGenerating) {
             return {
               ...msg,
-              content: '', // Empty content for completed renders
+              content: '',
               isGenerating: false,
               render: updatedRender
             };
@@ -552,24 +506,39 @@ export function UnifiedChatInterface({
           return msg;
         });
         
-        // Update ref
         messagesRef.current = updated;
         return updated;
       });
-      
-      // Update current render if latest completed render changed
-      const latestCompletedRender = chain.renders
-        .filter(r => r.status === 'completed')
-        .sort((a, b) => (b.chainPosition || 0) - (a.chainPosition || 0))[0];
-      
-      if (latestCompletedRender) {
-        setCurrentRender(latestCompletedRender);
-      }
-      
-      // Update ref
-      lastChainRenderCountRef.current = currentRenderCount;
     }
-  }, [chain?.renders, chainId]); // ✅ FIXED: Removed 'messages' from dependencies to prevent loops
+  }, [chainId]); // ✅ FIXED: Only depend on chainId - use refs for chain.renders
+
+  // ✅ FIXED: Update processing renders ref when messages change
+  useEffect(() => {
+    hasProcessingRendersRef.current = messages.some(m => m.isGenerating === true);
+  }, [messages]);
+
+  // ✅ FIXED: Poll for processing renders - use refs to avoid dependency loops
+  useEffect(() => {
+    if (!chainId || !onRefreshChain) return;
+    
+    // Check if we have processing renders using ref
+    if (!hasProcessingRendersRef.current) {
+      return;
+    }
+    
+    // Poll every 5 seconds
+    const pollInterval = setInterval(() => {
+      // Check again using ref to avoid dependency on messages
+      if (hasProcessingRendersRef.current) {
+        onRefreshChain();
+      } else {
+        // No more processing renders - stop polling
+        clearInterval(pollInterval);
+      }
+    }, 5000);
+    
+    return () => clearInterval(pollInterval);
+  }, [chainId, onRefreshChain]); // ✅ FIXED: Removed messages dependency - use ref instead
 
   // localStorage save is now handled by useLocalStorageMessages hook
 
@@ -1117,20 +1086,9 @@ export function UnifiedChatInterface({
           return updated;
         });
         
-        // ✅ OPTIMIZED: Refresh chain data in the background to ensure persistence
-        // Only refresh once after a delay to avoid excessive calls
-        // The polling mechanism will handle checking for completion
-        if (onRefreshChain) {
-          isLocalRenderUpdateRef.current = true; // Mark as local update
-          setTimeout(() => {
-            logger.log('🔄 UnifiedChatInterface: Refreshing chain data (local render update)');
-            onRefreshChain();
-            // Reset flag after chain prop updates
-            setTimeout(() => {
-              isLocalRenderUpdateRef.current = false;
-            }, 500);
-          }, 2000); // Delay to allow server to process
-        }
+        // ✅ REMOVED: Don't call onRefreshChain() here - it causes page reload loops
+        // The polling useEffect will handle checking for completion
+        // The local state update above is sufficient for immediate UI feedback
 
         // Clear uploaded file after successful generation (but keep video mode)
         if (uploadedFile && !isVideoMode) {
@@ -1438,13 +1396,19 @@ export function UnifiedChatInterface({
                         onClick={() => setCurrentRender(message.render!)}
                       >
                         {message.render!.type === 'video' ? (
-                          <video
-                            src={message.render!.outputUrl}
-                            className="w-full h-full object-cover"
-                            muted
-                            playsInline
-                          />
-                        ) : (
+                          message.render!.outputUrl ? (
+                            <video
+                              src={message.render!.outputUrl}
+                              className="w-full h-full object-cover"
+                              muted
+                              playsInline
+                            />
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                              <Video className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                          )
+                        ) : message.render!.outputUrl ? (
                           // Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking
                           shouldUseRegularImg(message.render!.outputUrl) ? (
                             <img
@@ -1470,7 +1434,7 @@ export function UnifiedChatInterface({
                             />
                           ) : (
                             <Image
-                              src={message.render!.outputUrl || '/placeholder-image.jpg'}
+                              src={message.render!.outputUrl}
                               alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
                               fill
                               className="object-cover"
@@ -1480,6 +1444,10 @@ export function UnifiedChatInterface({
                               }}
                             />
                           )
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                            <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                          </div>
                         )}
                       </div>
                     ))}
@@ -1678,7 +1646,7 @@ export function UnifiedChatInterface({
                       const projectSlug = projectSlugMatch ? projectSlugMatch[1] : 'project';
                       
                       router.push(`/project/${projectSlug}/chain/${result.data.id}`);
-                      router.refresh();
+                      // ✅ REMOVED: router.refresh() causes page reload - navigation is enough
                     } else {
                       toast.error(result.error || 'Failed to create chat');
                     }
@@ -1820,7 +1788,7 @@ export function UnifiedChatInterface({
                   )}
                   
                   {/* Show uploaded image in user message */}
-                  {message.uploadedImage && (
+                  {message.uploadedImage && message.uploadedImage.previewUrl && (
                     <div className="mt-2">
                       <div className="relative w-24 h-16 sm:w-32 sm:h-20 bg-muted/20 rounded-lg overflow-hidden border border-white/20">
                         {shouldUseRegularImg(message.uploadedImage.previewUrl) ? (
@@ -1909,21 +1877,32 @@ export function UnifiedChatInterface({
                         }}
                       >
                         {message.render.type === 'video' ? (
-                          <video
-                            src={message.render.outputUrl}
-                            className="w-full h-full object-cover"
-                            controls
-                            loop
-                            muted
-                            playsInline
-                          />
+                          message.render.outputUrl ? (
+                            <video
+                              key={message.render.id + '-' + message.render.outputUrl} // ✅ FIXED: Key ensures re-render when URL changes
+                              src={message.render.outputUrl}
+                              className="w-full h-full object-cover"
+                              controls
+                              loop
+                              muted
+                              playsInline
+                              preload="metadata"
+                            />
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                              <Video className="h-8 w-8 text-muted-foreground" />
+                            </div>
+                          )
                         ) : message.render.outputUrl ? (
-                          // Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking
+                          // ✅ FIXED: Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking
+                          // Key prop ensures re-render when outputUrl changes
                           shouldUseRegularImg(message.render.outputUrl) ? (
                             <img
-                              src={message.render.outputUrl}
+                              key={message.render.id + '-' + message.render.outputUrl} // ✅ FIXED: Key ensures re-render when URL changes
+                              src={message.render.outputUrl || '/placeholder-image.jpg'}
                               alt="Generated render"
                               className="absolute inset-0 w-full h-full object-cover"
+                              loading="lazy"
                               onError={(e) => {
                                 const img = e.target as HTMLImageElement;
                                 const originalUrl = message.render.outputUrl;
@@ -1941,18 +1920,24 @@ export function UnifiedChatInterface({
                                 }
                               }}
                             />
-                          ) : (
+                          ) : message.render.outputUrl ? (
                             <Image
+                              key={message.render.id + '-' + message.render.outputUrl} // ✅ FIXED: Key ensures re-render when URL changes
                               src={message.render.outputUrl}
                               alt="Generated render"
                               fill
                               className="object-cover"
                               sizes="(max-width: 768px) 100vw, 95vw"
+                              loading="lazy"
                               onError={(e) => {
                                 console.error('Image load error:', message.render.outputUrl);
                                 logger.error('Failed to load image:', message.render.outputUrl);
                               }}
                             />
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                              <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                            </div>
                           )
                         ) : (
                           <div className="absolute inset-0 flex items-center justify-center bg-muted">
@@ -1982,12 +1967,18 @@ export function UnifiedChatInterface({
             {uploadedFile && previewUrl && (
               <div className="relative inline-block mb-1 sm:mb-2">
                 <div className="relative w-16 h-16 sm:w-24 sm:h-24 bg-muted rounded-lg overflow-hidden border border-border">
-                  <Image
-                    src={previewUrl}
-                    alt="Uploaded attachment"
-                    fill
-                    className="object-cover"
-                  />
+                  {previewUrl ? (
+                    <Image
+                      src={previewUrl}
+                      alt="Uploaded attachment"
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Upload className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                  )}
                   <Button 
                     variant="destructive" 
                     size="sm" 

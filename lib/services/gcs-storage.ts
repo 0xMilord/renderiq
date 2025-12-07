@@ -68,8 +68,24 @@ function getStorageConfig() {
 }
 
 // Initialize Google Cloud Storage client
-const storageConfig = getStorageConfig();
-const storage = new Storage(storageConfig);
+// ✅ FIXED: Lazy initialization to handle missing credentials gracefully
+let storage: Storage | null = null;
+
+function getStorageClient(): Storage {
+  if (!storage) {
+    const storageConfig = getStorageConfig();
+    try {
+      storage = new Storage(storageConfig);
+      logger.log('✅ GCS: Storage client initialized successfully');
+    } catch (error) {
+      logger.error('❌ GCS: Failed to initialize storage client:', error);
+      // Try with minimal config (ADC)
+      storage = new Storage({ projectId: storageConfig.projectId });
+      logger.warn('⚠️ GCS: Using minimal config, relying on Application Default Credentials');
+    }
+  }
+  return storage;
+}
 
 // Bucket names from environment
 const RENDERS_BUCKET = process.env.GOOGLE_CLOUD_STORAGE_BUCKET_RENDERS || 'renderiq-renders';
@@ -99,7 +115,7 @@ export class GCSStorageService {
     } else {
       bucket = UPLOADS_BUCKET;
     }
-    return storage.bucket(bucket);
+    return getStorageClient().bucket(bucket);
   }
 
   /**

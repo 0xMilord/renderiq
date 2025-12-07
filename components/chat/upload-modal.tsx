@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Camera, Upload, Images, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import { useObjectURL } from '@/lib/hooks/use-object-url';
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -18,7 +19,7 @@ interface UploadModalProps {
 
 export function UploadModal({ isOpen, onClose, onFileSelect, onGalleryOpen }: UploadModalProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const previewUrl = useObjectURL(selectedFile); // ✅ FIXED: Use useObjectURL hook for automatic cleanup
   const [activeTab, setActiveTab] = useState('upload');
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -40,8 +41,7 @@ export function UploadModal({ isOpen, onClose, onFileSelect, onGalleryOpen }: Up
 
   const handleFileSelect = (file: File) => {
     setSelectedFile(file);
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
+    // ✅ FIXED: previewUrl is automatically managed by useObjectURL hook
   };
 
   const handleCameraCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -52,11 +52,7 @@ export function UploadModal({ isOpen, onClose, onFileSelect, onGalleryOpen }: Up
   };
 
   const removeSelectedFile = () => {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
-    setSelectedFile(null);
-    setPreviewUrl(null);
+    setSelectedFile(null); // ✅ FIXED: useObjectURL hook handles URL cleanup automatically
     if (cameraInputRef.current) {
       cameraInputRef.current.value = '';
     }
@@ -135,12 +131,18 @@ export function UploadModal({ isOpen, onClose, onFileSelect, onGalleryOpen }: Up
               <div className="space-y-4">
                 <div className="relative">
                   <div className="relative w-full h-48 bg-muted rounded-lg overflow-hidden">
-                    <Image
-                      src={previewUrl!}
-                      alt="Selected file"
-                      fill
-                      className="object-cover"
-                    />
+                    {previewUrl ? (
+                      <Image
+                        src={previewUrl}
+                        alt="Selected file"
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Upload className="h-12 w-12 text-muted-foreground" />
+                      </div>
+                    )}
                   </div>
                   <Button
                     variant="destructive"
@@ -190,12 +192,18 @@ export function UploadModal({ isOpen, onClose, onFileSelect, onGalleryOpen }: Up
               <div className="space-y-4">
                 <div className="relative">
                   <div className="relative w-full h-48 bg-muted rounded-lg overflow-hidden">
-                    <Image
-                      src={previewUrl!}
-                      alt="Camera capture"
-                      fill
-                      className="object-cover"
-                    />
+                    {previewUrl ? (
+                      <Image
+                        src={previewUrl}
+                        alt="Camera capture"
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Camera className="h-12 w-12 text-muted-foreground" />
+                      </div>
+                    )}
                   </div>
                   <Button
                     variant="destructive"

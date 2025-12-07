@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { logger } from '@/lib/utils/logger';
 
 interface Message {
@@ -73,8 +73,9 @@ export function useLocalStorageMessages(
     };
   }, [messages, storageKey]);
 
+  // ✅ FIXED: Memoize functions to prevent recreation on every render
   // Save messages immediately (for initialization)
-  const saveMessages = (messagesToSave: Message[]) => {
+  const saveMessages = useCallback((messagesToSave: Message[]) => {
     if (typeof window === 'undefined') return;
     
     try {
@@ -90,10 +91,10 @@ export function useLocalStorageMessages(
     } catch (error) {
       logger.error('❌ useLocalStorageMessages: Failed to save messages to localStorage:', error);
     }
-  };
+  }, [storageKey]);
 
   // Restore messages from localStorage
-  const restoreMessages = (): Message[] | null => {
+  const restoreMessages = useCallback((): Message[] | null => {
     if (typeof window === 'undefined') return null;
     
     try {
@@ -115,10 +116,10 @@ export function useLocalStorageMessages(
       logger.error('❌ useLocalStorageMessages: Failed to restore messages from localStorage:', error);
       return null;
     }
-  };
+  }, [storageKey]);
 
   // Get storage key for external use
-  const getStorageKey = () => storageKey;
+  const getStorageKey = useCallback(() => storageKey, [storageKey]);
 
   return {
     saveMessages,
