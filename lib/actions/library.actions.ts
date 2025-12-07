@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { getCachedUser } from '@/lib/services/auth-cache';
 import { RendersDAL } from '@/lib/dal/renders';
 import { ProjectsDAL } from '@/lib/dal/projects';
 import { logger } from '@/lib/utils/logger';
@@ -14,14 +14,9 @@ export interface RendersByProject {
 
 export async function getUserRendersByProject() {
   try {
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError || !user) {
+    if (!user) {
       logger.error('Auth error in getUserRendersByProject:', authError);
       return { success: false, error: 'Authentication failed' };
     }

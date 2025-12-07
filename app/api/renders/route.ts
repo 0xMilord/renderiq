@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { getCachedUser } from '@/lib/services/auth-cache';
 import { AISDKService } from '@/lib/services/ai-sdk-service';
 import { addCredits, deductCredits } from '@/lib/actions/billing.actions';
 import { BillingDAL } from '@/lib/dal/billing';
@@ -49,10 +49,9 @@ export async function POST(request: NextRequest) {
 
     logger.log('🚀 Starting render generation API call');
     
-    const supabase = await createClient();
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+    const { user: authUser } = await getCachedUser();
     
-    if (authError || !authUser) {
+    if (!authUser) {
       securityLog('auth_failed', { error: 'Authentication required' }, 'warn');
       return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
     }
@@ -328,16 +327,48 @@ export async function POST(request: NextRequest) {
             if (mostRecentRender.outputUrl) {
               try {
                 logger.log('📥 Fetching reference render image:', mostRecentRender.outputUrl);
-                const imageResponse = await fetch(mostRecentRender.outputUrl);
+                let imageUrl = mostRecentRender.outputUrl;
+                let imageResponse = await fetch(imageUrl);
+                
+                // Check if response is valid (not an error XML)
+                const contentType = imageResponse.headers.get('content-type') || '';
+                const isErrorResponse = !imageResponse.ok || 
+                                       contentType.includes('xml') || 
+                                       contentType.includes('text/html') ||
+                                       (await imageResponse.clone().text()).trim().startsWith('<');
+                
+                // If CDN fails, try direct GCS fallback
+                if (isErrorResponse && imageUrl.includes('cdn.renderiq.io')) {
+                  logger.log('⚠️ CDN fetch failed, trying direct GCS fallback...');
+                  // Convert CDN URL to direct GCS URL
+                  imageUrl = imageUrl.replace('cdn.renderiq.io', 'storage.googleapis.com');
+                  imageResponse = await fetch(imageUrl);
+                }
+                
+                if (!imageResponse.ok) {
+                  throw new Error(`HTTP ${imageResponse.status}: ${imageResponse.statusText}`);
+                }
+                
                 const imageBuffer = await imageResponse.arrayBuffer();
+                const imageSize = imageBuffer.byteLength;
+                
+                // Validate it's actually an image (not error XML - should be > 1KB for real images)
+                if (imageSize < 1024) {
+                  const text = new TextDecoder().decode(imageBuffer);
+                  if (text.trim().startsWith('<') || text.includes('<Error>')) {
+                    throw new Error('Received error XML instead of image');
+                  }
+                }
+                
                 referenceRenderImageData = Buffer.from(imageBuffer).toString('base64');
                 referenceRenderImageType = mostRecentRender.outputUrl.includes('.png') ? 'image/png' : 
                                           mostRecentRender.outputUrl.includes('.jpg') || mostRecentRender.outputUrl.includes('.jpeg') ? 'image/jpeg' : 
                                           'image/png';
                 referenceRenderPrompt = mostRecentRender.prompt;
-                logger.log('✅ Reference render image fetched, size:', referenceRenderImageData.length);
+                logger.log('✅ Reference render image fetched, size:', imageSize, 'bytes, from:', imageUrl.includes('cdn.renderiq.io') ? 'CDN' : 'Direct GCS');
               } catch (error) {
                 logger.error('❌ Failed to fetch reference render image:', error);
+                logger.log('⚠️ Continuing without reference image - generation may not use reference');
               }
             }
           } else {
@@ -355,16 +386,48 @@ export async function POST(request: NextRequest) {
             if (referenceRender.outputUrl) {
               try {
                 logger.log('📥 Fetching reference render image:', referenceRender.outputUrl);
-                const imageResponse = await fetch(referenceRender.outputUrl);
+                let imageUrl = referenceRender.outputUrl;
+                let imageResponse = await fetch(imageUrl);
+                
+                // Check if response is valid (not an error XML)
+                const contentType = imageResponse.headers.get('content-type') || '';
+                const isErrorResponse = !imageResponse.ok || 
+                                       contentType.includes('xml') || 
+                                       contentType.includes('text/html') ||
+                                       (await imageResponse.clone().text()).trim().startsWith('<');
+                
+                // If CDN fails, try direct GCS fallback
+                if (isErrorResponse && imageUrl.includes('cdn.renderiq.io')) {
+                  logger.log('⚠️ CDN fetch failed, trying direct GCS fallback...');
+                  // Convert CDN URL to direct GCS URL
+                  imageUrl = imageUrl.replace('cdn.renderiq.io', 'storage.googleapis.com');
+                  imageResponse = await fetch(imageUrl);
+                }
+                
+                if (!imageResponse.ok) {
+                  throw new Error(`HTTP ${imageResponse.status}: ${imageResponse.statusText}`);
+                }
+                
                 const imageBuffer = await imageResponse.arrayBuffer();
+                const imageSize = imageBuffer.byteLength;
+                
+                // Validate it's actually an image (not error XML - should be > 1KB for real images)
+                if (imageSize < 1024) {
+                  const text = new TextDecoder().decode(imageBuffer);
+                  if (text.trim().startsWith('<') || text.includes('<Error>')) {
+                    throw new Error('Received error XML instead of image');
+                  }
+                }
+                
                 referenceRenderImageData = Buffer.from(imageBuffer).toString('base64');
                 referenceRenderImageType = referenceRender.outputUrl.includes('.png') ? 'image/png' : 
                                           referenceRender.outputUrl.includes('.jpg') || referenceRender.outputUrl.includes('.jpeg') ? 'image/jpeg' : 
                                           'image/png';
                 referenceRenderPrompt = referenceRender.prompt;
-                logger.log('✅ Reference render image fetched, size:', referenceRenderImageData.length);
+                logger.log('✅ Reference render image fetched, size:', imageSize, 'bytes, from:', imageUrl.includes('cdn.renderiq.io') ? 'CDN' : 'Direct GCS');
               } catch (error) {
                 logger.error('❌ Failed to fetch reference render image:', error);
+                logger.log('⚠️ Continuing without reference image - generation may not use reference');
               }
             }
           } else {
@@ -968,10 +1031,9 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
     }
 

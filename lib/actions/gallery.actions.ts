@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { RendersDAL } from '@/lib/dal/renders';
 import { RenderChainService } from '@/lib/services/render-chain';
-import { createClient } from '@/lib/supabase/server';
+import { getCachedUser } from '@/lib/services/auth-cache';
 import { db } from '@/lib/db';
 import { renders, renderChains, galleryItems } from '@/lib/db/schema';
 import { eq, and, isNotNull, desc, sql, ne, or, inArray } from 'drizzle-orm';
@@ -187,8 +187,7 @@ export async function viewGalleryItem(itemId: string) {
 
 export async function checkUserLiked(itemId: string) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     if (!user) {
       return { success: true, data: { liked: false } };
     }
@@ -205,8 +204,7 @@ export async function checkUserLiked(itemId: string) {
 
 export async function batchCheckUserLiked(itemIds: string[]) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     if (!user || itemIds.length === 0) {
       return { success: true, data: new Set<string>() };
     }
@@ -224,8 +222,7 @@ export async function batchCheckUserLiked(itemIds: string[]) {
 
 export async function likeGalleryItem(itemId: string) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     if (!user) {
       return { success: false, error: 'Authentication required' };
     }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { getCachedUser } from '@/lib/services/auth-cache';
 import { CanvasDAL } from '@/lib/dal/canvas';
 import { CanvasState } from '@/lib/types/canvas';
 import { logger } from '@/lib/utils/logger';
@@ -10,18 +10,9 @@ export async function GET(
 ) {
   try {
     const { chainId } = await params;
-    const supabase = await createClient();
+    const { user } = await getCachedUser();
 
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Failed to initialize database connection' },
-        { status: 500 }
-      );
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
         { status: 401 }
@@ -106,18 +97,9 @@ export async function POST(
 ) {
   try {
     const { chainId } = await params;
-    const supabase = await createClient();
+    const { user } = await getCachedUser();
 
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Failed to initialize database connection' },
-        { status: 500 }
-      );
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
         { status: 401 }

@@ -3,25 +3,15 @@
 import { ProfileStatsService } from '@/lib/services/profile-stats';
 import { UserActivityService } from '@/lib/services/user-activity';
 import { UserOnboardingService } from '@/lib/services/user-onboarding';
-import { createClient } from '@/lib/supabase/server';
+import { getCachedUser } from '@/lib/services/auth-cache';
 import type { ProfileStats } from '@/lib/services/profile-stats';
 import type { ActivityItem } from '@/lib/services/user-activity';
 import { logger } from '@/lib/utils/logger';
 
 export async function getProfileStats(): Promise<{ success: boolean; data?: ProfileStats; error?: string }> {
   try {
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError) {
-      logger.error('Auth error in getProfileStats:', authError);
-      return { success: false, error: 'Authentication failed' };
-    }
-
     if (!user) {
       return { success: false, error: 'Authentication required' };
     }
@@ -39,18 +29,8 @@ export async function getProfileStats(): Promise<{ success: boolean; data?: Prof
 
 export async function getUserActivity(): Promise<{ success: boolean; data?: ActivityItem[]; error?: string }> {
   try {
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError) {
-      logger.error('Auth error in getUserActivity:', authError);
-      return { success: false, error: 'Authentication failed' };
-    }
-
     if (!user) {
       return { success: false, error: 'Authentication required' };
     }
@@ -68,18 +48,8 @@ export async function getUserActivity(): Promise<{ success: boolean; data?: Acti
 
 export async function getUserRecentProjects(): Promise<{ success: boolean; data?: any[]; error?: string }> {
   try {
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError) {
-      logger.error('Auth error in getUserRecentProjects:', authError);
-      return { success: false, error: 'Authentication failed' };
-    }
-
     if (!user) {
       return { success: false, error: 'Authentication required' };
     }
@@ -102,23 +72,20 @@ export async function updateUserProfile(updates: {
   location?: string;
 }): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError) {
-      logger.error('Auth error in updateUserProfile:', authError);
-      return { success: false, error: 'Authentication failed' };
-    }
-
     if (!user) {
       return { success: false, error: 'Authentication required' };
     }
 
     const result = await UserOnboardingService.updateUserProfile(user.id, updates);
+    
+    // Invalidate auth cache after profile update
+    if (result.success) {
+      const { invalidateUserCache } = await import('@/lib/services/auth-cache');
+      await invalidateUserCache(user.id);
+    }
+    
     return result;
   } catch (error) {
     logger.error('Error in updateUserProfile:', error);

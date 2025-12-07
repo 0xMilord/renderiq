@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -42,7 +43,7 @@ interface ProjectCardProps {
   onDelete?: (project: Project) => void;
 }
 
-export function ProjectCard({ 
+function ProjectCardComponent({ 
   project, 
   viewMode, 
   onEdit, 
@@ -290,3 +291,6 @@ export function ProjectCard({
     </Card>
   );
 }
+
+// Memoize component to prevent unnecessary re-renders
+export const ProjectCard = React.memo(ProjectCardComponent);

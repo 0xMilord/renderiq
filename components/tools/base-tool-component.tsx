@@ -40,6 +40,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { FileUpload } from '@/components/ui/file-upload';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import Image from 'next/image';
+import { shouldUseRegularImg } from '@/lib/utils/storage-url';
+import { handleImageErrorWithFallback } from '@/lib/utils/cdn-fallback';
 
 interface BaseToolComponentProps {
   tool: ToolConfig;
@@ -954,20 +957,62 @@ export function BaseToolComponent({
                       </TabsList>
                       <TabsContent value="before" className="mt-0">
                         <div className="relative w-full bg-muted rounded-lg overflow-hidden flex items-center justify-center" style={{ aspectRatio: '4/3' }}>
-                          <img
-                            src={toolRenders[selectedRenderIndex].uploadedImageUrl || ''}
-                            alt="Before"
-                            className="w-full h-full object-contain"
-                          />
+                          {shouldUseRegularImg(toolRenders[selectedRenderIndex].uploadedImageUrl) ? (
+                            <img
+                              src={toolRenders[selectedRenderIndex].uploadedImageUrl || ''}
+                              alt="Before"
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                const img = e.target as HTMLImageElement;
+                                const originalUrl = toolRenders[selectedRenderIndex].uploadedImageUrl;
+                                if (originalUrl) {
+                                  const fallbackUrl = handleImageErrorWithFallback(originalUrl, e);
+                                  if (fallbackUrl && fallbackUrl !== '/placeholder-image.jpg') {
+                                    img.src = fallbackUrl;
+                                  } else {
+                                    img.src = '/placeholder-image.jpg';
+                                  }
+                                }
+                              }}
+                            />
+                          ) : (
+                            <Image
+                              src={toolRenders[selectedRenderIndex].uploadedImageUrl || '/placeholder-image.jpg'}
+                              alt="Before"
+                              fill
+                              className="object-contain"
+                            />
+                          )}
                         </div>
                       </TabsContent>
                       <TabsContent value="after" className="mt-0">
                         <div className="relative w-full bg-muted rounded-lg overflow-hidden flex items-center justify-center" style={{ aspectRatio: '4/3' }}>
-                          <img
-                            src={toolRenders[selectedRenderIndex].outputUrl || ''}
-                            alt="After"
-                            className="w-full h-full object-contain"
-                          />
+                          {shouldUseRegularImg(toolRenders[selectedRenderIndex].outputUrl) ? (
+                            <img
+                              src={toolRenders[selectedRenderIndex].outputUrl || ''}
+                              alt="After"
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                const img = e.target as HTMLImageElement;
+                                const originalUrl = toolRenders[selectedRenderIndex].outputUrl;
+                                if (originalUrl) {
+                                  const fallbackUrl = handleImageErrorWithFallback(originalUrl, e);
+                                  if (fallbackUrl && fallbackUrl !== '/placeholder-image.jpg') {
+                                    img.src = fallbackUrl;
+                                  } else {
+                                    img.src = '/placeholder-image.jpg';
+                                  }
+                                }
+                              }}
+                            />
+                          ) : (
+                            <Image
+                              src={toolRenders[selectedRenderIndex].outputUrl || '/placeholder-image.jpg'}
+                              alt="After"
+                              fill
+                              className="object-contain"
+                            />
+                          )}
                         </div>
                       </TabsContent>
                     </Tabs>

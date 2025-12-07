@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -51,6 +52,9 @@ export function RecentProjectsSection() {
     );
   }
 
+  // Memoize recent projects slice
+  const recentProjects = useMemo(() => projects.slice(0, 2), [projects]);
+
   return (
     <Card>
       <CardHeader>
@@ -71,7 +75,7 @@ export function RecentProjectsSection() {
             </div>
           ) : (
             <>
-              {projects.slice(0, 2).map((project) => (
+              {recentProjects.map((project) => (
                 <ProjectCard
                   key={project.id}
                   project={project}

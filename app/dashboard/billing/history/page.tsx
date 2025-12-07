@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -22,7 +22,8 @@ export default function PaymentHistoryPage() {
 
   const { payments, loading, total, limit, offset, loadMore, hasMore } = usePaymentHistory(filters);
 
-  const handleDownloadReceipt = async (paymentOrderId: string) => {
+  // Memoize download receipt handler
+  const handleDownloadReceipt = useCallback(async (paymentOrderId: string) => {
     try {
       // Fetch PDF with download parameter
       const response = await fetch(`/api/payments/receipt/${paymentOrderId}?download=true`, {
@@ -53,9 +54,10 @@ export default function PaymentHistoryPage() {
     } catch (error) {
       toast.error('Error downloading receipt');
     }
-  };
+  }, []);
 
-  const getStatusBadgeVariant = (status: string) => {
+  // Memoize status badge variant function
+  const getStatusBadgeVariant = useCallback((status: string) => {
     switch (status) {
       case 'completed':
         return 'default';
@@ -67,7 +69,7 @@ export default function PaymentHistoryPage() {
       default:
         return 'outline';
     }
-  };
+  }, []);
 
   return (
     <div className="h-full p-4 sm:p-6 lg:p-8">

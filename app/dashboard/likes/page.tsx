@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { GalleryImageCard } from '@/components/gallery/gallery-image-card';
@@ -49,6 +49,21 @@ export default function LikesPage() {
     );
   }
 
+  // Memoize like handler to prevent unnecessary re-renders
+  const handleLike = useCallback(async (id: string) => {
+    const result = await likeGalleryItem(id);
+    if (result.success && result.data && !result.data.liked) {
+      // Remove from list if unliked
+      setLikedItems(prev => prev.filter(i => i.id !== id));
+    }
+    return result;
+  }, []);
+
+  // Memoize view handler
+  const handleView = useCallback(async (id: string) => {
+    await viewGalleryItem(id);
+  }, []);
+
   return (
     <div className="h-full">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
@@ -60,17 +75,8 @@ export default function LikesPage() {
               <GalleryImageCard
                 key={item.id}
                 item={item}
-                onLike={async (id) => {
-                  const result = await likeGalleryItem(id);
-                  if (result.success && result.data && !result.data.liked) {
-                    // Remove from list if unliked
-                    setLikedItems(prev => prev.filter(i => i.id !== id));
-                  }
-                  return result;
-                }}
-                onView={async (id) => {
-                  await viewGalleryItem(id);
-                }}
+                onLike={handleLike}
+                onView={handleView}
               />
             ))}
           </div>

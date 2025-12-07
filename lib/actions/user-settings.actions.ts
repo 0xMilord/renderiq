@@ -1,23 +1,13 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { getCachedUser } from '@/lib/services/auth-cache';
 import { UserSettingsService, type UserPreferences } from '@/lib/services/user-settings';
 import { logger } from '@/lib/utils/logger';
 
 export async function getUserSettings(): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError) {
-      logger.error('Auth error in getUserSettings:', authError);
-      return { success: false, error: 'Authentication failed' };
-    }
-
     if (!user) {
       return { success: false, error: 'Authentication required' };
     }
@@ -35,18 +25,8 @@ export async function getUserSettings(): Promise<{ success: boolean; data?: any;
 
 export async function updateUserSettings(preferences: Partial<UserPreferences>): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError) {
-      logger.error('Auth error in updateUserSettings:', authError);
-      return { success: false, error: 'Authentication failed' };
-    }
-
     if (!user) {
       return { success: false, error: 'Authentication required' };
     }
@@ -64,18 +44,8 @@ export async function updateUserSettings(preferences: Partial<UserPreferences>):
 
 export async function updateNotificationSettings(notifications: Partial<UserPreferences['notifications']>): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError) {
-      logger.error('Auth error in updateNotificationSettings:', authError);
-      return { success: false, error: 'Authentication failed' };
-    }
-
     if (!user) {
       return { success: false, error: 'Authentication required' };
     }
@@ -93,18 +63,8 @@ export async function updateNotificationSettings(notifications: Partial<UserPref
 
 export async function updateRenderSettings(defaultRenderSettings: Partial<UserPreferences['defaultRenderSettings']>): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError) {
-      logger.error('Auth error in updateRenderSettings:', authError);
-      return { success: false, error: 'Authentication failed' };
-    }
-
     if (!user) {
       return { success: false, error: 'Authentication required' };
     }

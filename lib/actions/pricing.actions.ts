@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { getCachedUser } from '@/lib/services/auth-cache';
 import { db } from '@/lib/db';
 import { creditPackages, subscriptionPlans } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
@@ -63,10 +63,9 @@ export async function getSubscriptionPlansAction() {
  */
 export async function getUserCreditsAction() {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
 
-    if (authError || !user) {
+    if (!user) {
       return {
         success: false,
         error: 'Authentication required',

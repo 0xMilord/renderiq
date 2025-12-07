@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { ProjectRulesDAL } from '@/lib/dal/project-rules';
 import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { ProjectsDAL } from '@/lib/dal/projects';
-import { createClient } from '@/lib/supabase/server';
+import { getCachedUser } from '@/lib/services/auth-cache';
 import { logger } from '@/lib/utils/logger';
 
 const createProjectRuleSchema = z.object({
@@ -26,15 +26,13 @@ export async function getProjectRules(chainId: string) {
   try {
     logger.log('📋 [getProjectRules] Getting rules for chain:', chainId);
     
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    const { user } = await getCachedUser();
+    
+    if (!user) {
       return { success: false, error: 'Authentication required' };
     }
+    
+    const userId = user.id;
 
     // Verify chain belongs to user's project
     const chain = await RenderChainsDAL.getById(chainId);
@@ -43,7 +41,7 @@ export async function getProjectRules(chainId: string) {
     }
 
     const project = await ProjectsDAL.getById(chain.projectId);
-    if (!project || project.userId !== user.id) {
+    if (!project || project.userId !== userId) {
       return { success: false, error: 'Access denied' };
     }
 
@@ -59,15 +57,13 @@ export async function getActiveProjectRules(chainId: string) {
   try {
     logger.log('📋 [getActiveProjectRules] Getting active rules for chain:', chainId);
     
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    const { user } = await getCachedUser();
+    
+    if (!user) {
       return { success: false, error: 'Authentication required' };
     }
+    
+    const userId = user.id;
 
     // Verify chain belongs to user's project
     const chain = await RenderChainsDAL.getById(chainId);
@@ -76,7 +72,7 @@ export async function getActiveProjectRules(chainId: string) {
     }
 
     const project = await ProjectsDAL.getById(chain.projectId);
-    if (!project || project.userId !== user.id) {
+    if (!project || project.userId !== userId) {
       return { success: false, error: 'Access denied' };
     }
 
@@ -92,15 +88,13 @@ export async function createProjectRule(formData: FormData) {
   try {
     logger.log('📋 [createProjectRule] Creating new rule');
     
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    const { user } = await getCachedUser();
+    
+    if (!user) {
       return { success: false, error: 'Authentication required' };
     }
+    
+    const userId = user.id;
 
     const data = {
       chainId: formData.get('chainId') as string,
@@ -118,7 +112,7 @@ export async function createProjectRule(formData: FormData) {
     }
 
     const project = await ProjectsDAL.getById(chain.projectId);
-    if (!project || project.userId !== user.id) {
+    if (!project || project.userId !== userId) {
       return { success: false, error: 'Access denied' };
     }
 
@@ -139,15 +133,13 @@ export async function updateProjectRule(formData: FormData) {
   try {
     logger.log('📋 [updateProjectRule] Updating rule');
     
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    const { user } = await getCachedUser();
+    
+    if (!user) {
       return { success: false, error: 'Authentication required' };
     }
+    
+    const userId = user.id;
 
     const data = {
       id: formData.get('id') as string,
@@ -170,7 +162,7 @@ export async function updateProjectRule(formData: FormData) {
     }
 
     const project = await ProjectsDAL.getById(chain.projectId);
-    if (!project || project.userId !== user.id) {
+    if (!project || project.userId !== userId) {
       return { success: false, error: 'Access denied' };
     }
 
@@ -196,15 +188,13 @@ export async function deleteProjectRule(id: string) {
   try {
     logger.log('📋 [deleteProjectRule] Deleting rule:', id);
     
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    const { user } = await getCachedUser();
+    
+    if (!user) {
       return { success: false, error: 'Authentication required' };
     }
+    
+    const userId = user.id;
 
     // Verify rule belongs to user's project
     const existingRule = await ProjectRulesDAL.getById(id);
@@ -218,7 +208,7 @@ export async function deleteProjectRule(id: string) {
     }
 
     const project = await ProjectsDAL.getById(chain.projectId);
-    if (!project || project.userId !== user.id) {
+    if (!project || project.userId !== userId) {
       return { success: false, error: 'Access denied' };
     }
 

@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { getCachedUser } from '@/lib/services/auth-cache';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,10 +31,9 @@ import { RecentActivityPaginated } from '@/components/dashboard/recent-activity-
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const { user } = await getCachedUser();
 
-  if (error || !user) {
+  if (!user) {
     redirect('/login');
   }
 
@@ -48,21 +47,17 @@ export default async function DashboardPage() {
   
   try {
     // Fetch counts and recent items in parallel
+    // Optimized: Removed redundant project count query - can be derived from projectsData.length
     const [
       projectsData,
       activityData,
       creditsData,
-      projectCountResult,
       renderCountResult
     ] = await Promise.all([
       ProjectsDAL.getByUserId(user.id, 100), // All projects for pagination
       ActivityDAL.getUserActivity(user.id, 100), // Unified activity feed (renders + likes)
       BillingDAL.getUserCreditsWithReset(user.id), // User credits
-      // Get total project count
-      db.select({ count: sql<number>`COUNT(*)` })
-        .from(projects)
-        .where(eq(projects.userId, user.id)),
-      // Get total render count and completed count
+      // Get total render count and completed count in single query
       db.select({
         total: sql<number>`COUNT(*)`,
         completed: sql<number>`COUNT(*) FILTER (WHERE ${renders.status} = 'completed')`
@@ -74,7 +69,8 @@ export default async function DashboardPage() {
     recentProjects = projectsData || [];
     recentActivity = activityData || [];
     userCredits = creditsData?.balance || 0;
-    totalProjects = projectCountResult[0]?.count || 0;
+    // Derive project count from fetched data instead of separate query
+    totalProjects = projectsData?.length || 0;
     totalRenders = renderCountResult[0]?.total || 0;
     completedRenders = renderCountResult[0]?.completed || 0;
   } catch (error) {

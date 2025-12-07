@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
@@ -26,25 +26,45 @@ interface LibraryClientProps {
 
 export function LibraryClient({ rendersByProject }: LibraryClientProps) {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
-    new Set(rendersByProject.map(item => item.project.id))
+  
+  // Memoize project IDs set creation
+  const projectIds = useMemo(() => 
+    new Set(rendersByProject.map(item => item.project.id)),
+    [rendersByProject]
   );
+  
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(projectIds);
 
-  const toggleProject = (projectId: string) => {
-    const newExpanded = new Set(expandedProjects);
-    if (newExpanded.has(projectId)) {
-      newExpanded.delete(projectId);
-    } else {
-      newExpanded.add(projectId);
-    }
-    setExpandedProjects(newExpanded);
-  };
+  // Update expanded projects when projectIds change
+  useEffect(() => {
+    setExpandedProjects(projectIds);
+  }, [projectIds]);
 
-  const filteredProjects = selectedProjectId
-    ? rendersByProject.filter(item => item.project.id === selectedProjectId)
-    : rendersByProject;
+  // Memoize toggleProject with useCallback
+  const toggleProject = useCallback((projectId: string) => {
+    setExpandedProjects(prev => {
+      const newExpanded = new Set(prev);
+      if (newExpanded.has(projectId)) {
+        newExpanded.delete(projectId);
+      } else {
+        newExpanded.add(projectId);
+      }
+      return newExpanded;
+    });
+  }, []);
 
-  const totalRenders = rendersByProject.reduce((sum, item) => sum + item.renders.length, 0);
+  // Memoize filtered projects to avoid recalculating on every render
+  const filteredProjects = useMemo(() => {
+    return selectedProjectId
+      ? rendersByProject.filter(item => item.project.id === selectedProjectId)
+      : rendersByProject;
+  }, [rendersByProject, selectedProjectId]);
+
+  // Memoize total renders calculation
+  const totalRenders = useMemo(() => 
+    rendersByProject.reduce((sum, item) => sum + item.renders.length, 0),
+    [rendersByProject]
+  );
 
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString('en-US', {
@@ -56,7 +76,8 @@ export function LibraryClient({ rendersByProject }: LibraryClientProps) {
     });
   };
 
-  const handleDownload = async (render: Render) => {
+  // Memoize handleDownload with useCallback
+  const handleDownload = useCallback(async (render: Render) => {
     if (!render.outputUrl) return;
     try {
       const response = await fetch(render.outputUrl);
@@ -72,7 +93,7 @@ export function LibraryClient({ rendersByProject }: LibraryClientProps) {
     } catch (error) {
       console.error('Download failed:', error);
     }
-  };
+  }, []);
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">

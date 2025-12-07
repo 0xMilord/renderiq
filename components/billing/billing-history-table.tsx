@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -76,7 +76,8 @@ export function BillingHistoryTable() {
     }
   }, [loading, invoicesLoading]);
 
-  const handleDownloadReceipt = async (paymentOrderId: string) => {
+  // Memoize download receipt handler
+  const handleDownloadReceipt = useCallback(async (paymentOrderId: string) => {
     try {
       const response = await fetch(`/api/payments/receipt/${paymentOrderId}?download=true`, {
         method: 'GET',
@@ -102,9 +103,10 @@ export function BillingHistoryTable() {
     } catch (error) {
       toast.error('Error downloading receipt');
     }
-  };
+  }, []);
 
-  const handleDownloadInvoice = async (invoiceNumber: string) => {
+  // Memoize download invoice handler
+  const handleDownloadInvoice = useCallback(async (invoiceNumber: string) => {
     try {
       const invoice = allInvoices.find(inv => inv.invoiceNumber === invoiceNumber);
       if (!invoice?.pdfUrl) {
@@ -134,9 +136,10 @@ export function BillingHistoryTable() {
     } catch (error) {
       toast.error('Error downloading invoice');
     }
-  };
+  }, [allInvoices]);
 
-  const getStatusBadgeVariant = (status: string) => {
+  // Memoize status badge variant function
+  const getStatusBadgeVariant = useCallback((status: string) => {
     switch (status) {
       case 'completed':
         return 'default';
@@ -148,19 +151,43 @@ export function BillingHistoryTable() {
       default:
         return 'outline';
     }
-  };
+  }, []);
 
-  // Filter payments
-  const filteredPayments = allPayments.filter(payment => {
-    if (filters.type !== 'all' && payment.type !== filters.type) return false;
-    if (filters.status !== 'all' && payment.status !== filters.status) return false;
-    return true;
-  });
+  // Memoize filtered payments to avoid recalculating on every render
+  const filteredPayments = useMemo(() => {
+    return allPayments.filter(payment => {
+      if (filters.type !== 'all' && payment.type !== filters.type) return false;
+      if (filters.status !== 'all' && payment.status !== filters.status) return false;
+      return true;
+    });
+  }, [allPayments, filters.type, filters.status]);
 
-  // Sort by date (most recent first)
-  const sortedPayments = [...filteredPayments].sort((a, b) => 
-    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  // Memoize sorted payments to avoid recalculating on every render
+  const sortedPayments = useMemo(() => {
+    return [...filteredPayments].sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }, [filteredPayments]);
+
+  // Memoize summary calculations
+  const summaryStats = useMemo(() => {
+    if (sortedPayments.length === 0) {
+      return {
+        total: 0,
+        completed: 0,
+        totalAmount: 0,
+        invoices: 0,
+      };
+    }
+
+    const completedPayments = sortedPayments.filter(p => p.status === 'completed');
+    return {
+      total: sortedPayments.length,
+      completed: completedPayments.length,
+      totalAmount: completedPayments.reduce((sum, p) => sum + parseFloat(p.amount || '0'), 0),
+      invoices: sortedPayments.filter(p => p.invoiceNumber).length,
+    };
+  }, [sortedPayments]);
 
   const isLoading = loading || invoicesLoading;
 
@@ -339,7 +366,7 @@ export function BillingHistoryTable() {
                       {payment.invoiceNumber ? (
                         <div className="flex flex-col">
                           <span className="font-mono text-xs">{payment.invoiceNumber}</span>
-                          {allInvoices.find(inv => inv.invoiceNumber === payment.invoiceNumber) && (
+                          {allInvoices.some(inv => inv.invoiceNumber === payment.invoiceNumber) && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -383,27 +410,24 @@ export function BillingHistoryTable() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
               <div>
                 <div className="text-muted-foreground">Total Transactions</div>
-                <div className="text-lg font-semibold">{sortedPayments.length}</div>
+                <div className="text-lg font-semibold">{summaryStats.total}</div>
               </div>
               <div>
                 <div className="text-muted-foreground">Completed</div>
                 <div className="text-lg font-semibold text-green-600 dark:text-green-400">
-                  {sortedPayments.filter(p => p.status === 'completed').length}
+                  {summaryStats.completed}
                 </div>
               </div>
               <div>
                 <div className="text-muted-foreground">Total Amount</div>
                 <div className="text-lg font-semibold">
-                  {sortedPayments
-                    .filter(p => p.status === 'completed')
-                    .reduce((sum, p) => sum + parseFloat(p.amount || '0'), 0)
-                    .toFixed(2)} {sortedPayments[0]?.currency || 'INR'}
+                  {summaryStats.totalAmount.toFixed(2)} {sortedPayments[0]?.currency || 'INR'}
                 </div>
               </div>
               <div>
                 <div className="text-muted-foreground">Invoices</div>
                 <div className="text-lg font-semibold">
-                  {sortedPayments.filter(p => p.invoiceNumber).length}
+                  {summaryStats.invoices}
                 </div>
               </div>
             </div>

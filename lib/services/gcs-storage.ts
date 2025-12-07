@@ -15,27 +15,61 @@ function isValidKeyFile(filePath: string | undefined): boolean {
   }
 }
 
-// Helper function to get service account key path
-function getServiceAccountKeyPath(): string | undefined {
+// Helper function to get service account credentials
+// Supports both JSON env var (Vercel) and file path (local dev)
+function getStorageConfig() {
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || 'inheritage-viewer-sdk-v1';
+  
+  // ✅ VERCEL/Production: Check for JSON credentials in environment variable first
+  // This is the preferred method for production deployments
+  const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+  if (credentialsJson) {
+    try {
+      const credentials = JSON.parse(credentialsJson);
+      logger.log('✅ GCS: Using credentials from GOOGLE_APPLICATION_CREDENTIALS_JSON env var (Vercel-safe)');
+      return {
+        projectId,
+        credentials,
+      };
+    } catch (error) {
+      logger.error('❌ GCS: Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON:', error);
+      // Fall through to file-based method
+    }
+  }
+  
+  // ✅ Local Development: Fall back to file-based credentials
   let keyFilename = process.env.GOOGLE_APPLICATION_CREDENTIALS;
   
   // If not set or path is invalid/not a file, try to find service-account-key.json in project root
   if (!isValidKeyFile(keyFilename)) {
     const rootKeyPath = path.resolve(process.cwd(), 'service-account-key.json');
     if (isValidKeyFile(rootKeyPath)) {
-      return rootKeyPath;
+      keyFilename = rootKeyPath;
+      logger.log('✅ GCS: Using service account key from project root');
     }
-    return undefined;
+  } else {
+    keyFilename = path.resolve(keyFilename);
+    logger.log('✅ GCS: Using service account key from GOOGLE_APPLICATION_CREDENTIALS path');
   }
   
-  return path.resolve(keyFilename);
+  // Return config with keyFilename if we have one
+  if (keyFilename && isValidKeyFile(keyFilename)) {
+    return {
+      projectId,
+      keyFilename,
+    };
+  }
+  
+  // No credentials found - Storage client will try Application Default Credentials (ADC)
+  logger.warn('⚠️ GCS: No explicit credentials found, will use Application Default Credentials if available');
+  return {
+    projectId,
+  };
 }
 
 // Initialize Google Cloud Storage client
-const storage = new Storage({
-  projectId: process.env.GOOGLE_CLOUD_PROJECT_ID || 'inheritage-viewer-sdk-v1',
-  keyFilename: getServiceAccountKeyPath(),
-});
+const storageConfig = getStorageConfig();
+const storage = new Storage(storageConfig);
 
 // Bucket names from environment
 const RENDERS_BUCKET = process.env.GOOGLE_CLOUD_STORAGE_BUCKET_RENDERS || 'renderiq-renders';
@@ -62,16 +96,19 @@ export class GCSStorageService {
   /**
    * Generate public URL for a file
    * Uses CDN domain if configured, otherwise uses storage.googleapis.com
+   * CDN is configured for both renders and uploads buckets
    */
-  private static getPublicUrl(bucketName: string, filePath: string): string {
+      private static getPublicUrl(bucketName: string, filePath: string): string {
     const bucket = bucketName === 'renders' ? RENDERS_BUCKET : UPLOADS_BUCKET;
     
+    // Use CDN with simplified paths: /uploads/* and /renders/*
+    // URL rewrite in load balancer strips the prefix, so backend bucket receives just the filePath
     if (CDN_DOMAIN) {
-      // Use custom CDN domain
-      return `https://${CDN_DOMAIN}/${bucket}/${filePath}`;
+      const pathPrefix = bucketName === 'renders' ? 'renders' : 'uploads';
+      return `https://${CDN_DOMAIN}/${pathPrefix}/${filePath}`;
     }
     
-    // Use standard GCS public URL
+    // Use standard GCS public URL when CDN not configured
     return `https://storage.googleapis.com/${bucket}/${filePath}`;
   }
 

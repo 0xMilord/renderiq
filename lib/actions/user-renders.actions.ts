@@ -2,14 +2,13 @@
 
 import { revalidatePath } from 'next/cache';
 import { RendersDAL } from '@/lib/dal/renders';
-import { createClient } from '@/lib/supabase/server';
+import { getCachedUser } from '@/lib/services/auth-cache';
 import type { Render } from '@/lib/types/render';
 import { logger } from '@/lib/utils/logger';
 
 export async function getUserRenders(projectId?: string, limit = 50) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
 
     if (!user) {
       return {
@@ -35,8 +34,7 @@ export async function getUserRenders(projectId?: string, limit = 50) {
 
 export async function getUserRenderById(renderId: string) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
 
     if (!user) {
       return {

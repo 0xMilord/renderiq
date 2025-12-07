@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { getCachedUser } from '@/lib/services/auth-cache';
 import { getUserRendersByProject } from '@/lib/actions/library.actions';
 import { LibraryClient } from './library-client';
 import type { Metadata } from 'next';
@@ -13,10 +13,9 @@ export const metadata: Metadata = {
 };
 
 export default async function LibraryPage() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const { user } = await getCachedUser();
 
-  if (error || !user) {
+  if (!user) {
     redirect('/login');
   }
 

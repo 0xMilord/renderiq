@@ -74,6 +74,7 @@ import type { Render } from '@/lib/types/render';
 import type { RenderChainWithRenders } from '@/lib/types/render-chain';
 import Image from 'next/image';
 import { shouldUseRegularImg } from '@/lib/utils/storage-url';
+import { handleImageErrorWithFallback, isCDNUrl } from '@/lib/utils/cdn-fallback';
 import ReactBeforeSliderComponent from 'react-before-after-slider-component';
 import 'react-before-after-slider-component/dist/build.css';
 
@@ -1521,8 +1522,20 @@ export function UnifiedChatInterface({
                               alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
                               className="absolute inset-0 w-full h-full object-cover"
                               onError={(e) => {
-                                console.error('Image load error:', message.render!.outputUrl);
-                                logger.error('Failed to load image:', message.render!.outputUrl);
+                                const img = e.target as HTMLImageElement;
+                                const originalUrl = message.render!.outputUrl;
+                                console.error('Image load error:', originalUrl);
+                                logger.error('Failed to load image:', originalUrl);
+                                
+                                // Try CDN fallback to direct GCS URL
+                                const fallbackUrl = handleImageErrorWithFallback(originalUrl, e);
+                                if (fallbackUrl && fallbackUrl !== '/placeholder-image.jpg') {
+                                  console.log('Trying fallback to direct GCS URL:', fallbackUrl);
+                                  img.src = fallbackUrl;
+                                } else {
+                                  // No fallback available, use placeholder
+                                  img.src = '/placeholder-image.jpg';
+                                }
                               }}
                             />
                           ) : (
@@ -1641,18 +1654,28 @@ export function UnifiedChatInterface({
                             />
                           ) : message.render!.outputUrl ? (
                             // Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking
-                            shouldUseRegularImg(message.render!.outputUrl) ? (
-                              <img
-                                src={message.render!.outputUrl}
-                                alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
-                                className="absolute inset-0 w-full h-full object-cover"
-                                onError={(e) => {
-                                  console.error('Image load error:', message.render!.outputUrl);
-                                  logger.error('Failed to load image:', message.render!.outputUrl);
-                                  // Show placeholder on error
-                                  (e.target as HTMLImageElement).src = '/placeholder-image.jpg';
-                                }}
-                              />
+                          shouldUseRegularImg(message.render!.outputUrl) ? (
+                            <img
+                              src={message.render!.outputUrl}
+                              alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
+                              className="absolute inset-0 w-full h-full object-cover"
+                              onError={(e) => {
+                                const img = e.target as HTMLImageElement;
+                                const originalUrl = message.render!.outputUrl;
+                                console.error('Image load error:', originalUrl);
+                                logger.error('Failed to load image:', originalUrl);
+                                
+                                // Try CDN fallback to direct GCS URL
+                                const fallbackUrl = handleImageErrorWithFallback(originalUrl, e);
+                                if (fallbackUrl && fallbackUrl !== '/placeholder-image.jpg') {
+                                  console.log('Trying fallback to direct GCS URL:', fallbackUrl);
+                                  img.src = fallbackUrl;
+                                } else {
+                                  // No fallback available, use placeholder
+                                  img.src = '/placeholder-image.jpg';
+                                }
+                              }}
+                            />
                             ) : (
                               <Image
                                 src={message.render!.outputUrl}
@@ -1662,6 +1685,8 @@ export function UnifiedChatInterface({
                                 onError={(e) => {
                                   console.error('Image load error:', message.render!.outputUrl);
                                   logger.error('Failed to load image:', message.render!.outputUrl);
+                                  // Note: Next.js Image component doesn't support dynamic src changes
+                                  // Fallback is handled by using regular img tags for CDN URLs
                                 }}
                               />
                             )
@@ -1868,12 +1893,36 @@ export function UnifiedChatInterface({
                   {message.uploadedImage && (
                     <div className="mt-2">
                       <div className="relative w-24 h-16 sm:w-32 sm:h-20 bg-muted/20 rounded-lg overflow-hidden border border-white/20">
-                        <Image
-                          src={message.uploadedImage.previewUrl}
-                          alt="Uploaded image"
-                          fill
-                          className="object-cover"
-                        />
+                        {shouldUseRegularImg(message.uploadedImage.previewUrl) ? (
+                          <img
+                            src={message.uploadedImage.previewUrl}
+                            alt="Uploaded image"
+                            className="absolute inset-0 w-full h-full object-cover"
+                            onError={(e) => {
+                              const img = e.target as HTMLImageElement;
+                              const originalUrl = message.uploadedImage!.previewUrl;
+                              console.error('Uploaded image load error:', originalUrl);
+                              logger.error('Failed to load uploaded image:', originalUrl);
+                              
+                              // Try CDN fallback to direct GCS URL
+                              const fallbackUrl = handleImageErrorWithFallback(originalUrl, e);
+                              if (fallbackUrl && fallbackUrl !== '/placeholder-image.jpg') {
+                                console.log('Trying fallback to direct GCS URL:', fallbackUrl);
+                                img.src = fallbackUrl;
+                              } else {
+                                // No fallback available, use placeholder
+                                img.src = '/placeholder-image.jpg';
+                              }
+                            }}
+                          />
+                        ) : (
+                          <Image
+                            src={message.uploadedImage.previewUrl}
+                            alt="Uploaded image"
+                            fill
+                            className="object-cover"
+                          />
+                        )}
                       </div>
                       <p className="text-[10px] sm:text-xs text-white/70 mt-1">
                         {message.uploadedImage.persistedUrl ? 'Using uploaded image' : 'Working with uploaded image'}
@@ -1946,10 +1995,20 @@ export function UnifiedChatInterface({
                               alt="Generated render"
                               className="absolute inset-0 w-full h-full object-cover"
                               onError={(e) => {
-                                console.error('Image load error:', message.render.outputUrl);
-                                logger.error('Failed to load image:', message.render.outputUrl);
-                                // Show placeholder on error
-                                (e.target as HTMLImageElement).src = '/placeholder-image.jpg';
+                                const img = e.target as HTMLImageElement;
+                                const originalUrl = message.render.outputUrl;
+                                console.error('Image load error:', originalUrl);
+                                logger.error('Failed to load image:', originalUrl);
+                                
+                                // Try CDN fallback to direct GCS URL
+                                const fallbackUrl = handleImageErrorWithFallback(originalUrl, e);
+                                if (fallbackUrl && fallbackUrl !== '/placeholder-image.jpg') {
+                                  console.log('Trying fallback to direct GCS URL:', fallbackUrl);
+                                  img.src = fallbackUrl;
+                                } else {
+                                  // No fallback available, use placeholder
+                                  img.src = '/placeholder-image.jpg';
+                                }
                               }}
                             />
                           ) : (
@@ -2995,8 +3054,20 @@ export function UnifiedChatInterface({
                                 className="absolute inset-0 w-full h-full object-contain cursor-pointer"
                                 onClick={() => setIsFullscreen(true)}
                                 onError={(e) => {
-                                  console.error('Image load error:', currentRender.outputUrl);
-                                  logger.error('Failed to load image:', currentRender.outputUrl);
+                                  const img = e.target as HTMLImageElement;
+                                  const originalUrl = currentRender.outputUrl;
+                                  console.error('Image load error:', originalUrl);
+                                  logger.error('Failed to load image:', originalUrl);
+                                  
+                                  // Try CDN fallback to direct GCS URL
+                                  const fallbackUrl = handleImageErrorWithFallback(originalUrl, e);
+                                  if (fallbackUrl && fallbackUrl !== '/placeholder-image.jpg') {
+                                    console.log('Trying fallback to direct GCS URL:', fallbackUrl);
+                                    img.src = fallbackUrl;
+                                  } else {
+                                    // No fallback available, use placeholder
+                                    img.src = '/placeholder-image.jpg';
+                                  }
                                 }}
                               />
                             ) : (
@@ -3217,8 +3288,20 @@ export function UnifiedChatInterface({
                   className="max-w-full max-h-full object-contain"
                   onClick={(e) => e.stopPropagation()}
                   onError={(e) => {
-                    console.error('Image load error:', currentRender.outputUrl);
-                    logger.error('Failed to load image:', currentRender.outputUrl);
+                    const img = e.target as HTMLImageElement;
+                    const originalUrl = currentRender.outputUrl;
+                    console.error('Image load error:', originalUrl);
+                    logger.error('Failed to load image:', originalUrl);
+                    
+                    // Try CDN fallback to direct GCS URL
+                    const fallbackUrl = handleImageErrorWithFallback(originalUrl, e);
+                    if (fallbackUrl && fallbackUrl !== '/placeholder-image.jpg') {
+                      console.log('Trying fallback to direct GCS URL:', fallbackUrl);
+                      img.src = fallbackUrl;
+                    } else {
+                      // No fallback available, use placeholder
+                      img.src = '/placeholder-image.jpg';
+                    }
                   }}
                 />
               ) : (

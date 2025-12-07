@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,16 +34,15 @@ const transactionBgColors = {
 
 export default function CreditTransactionsPage() {
   const { transactions, loading, refreshTransactions } = useCreditTransactions();
-  const [filteredTransactions, setFilteredTransactions] = useState<any[]>([]);
   const [filters, setFilters] = useState({
     type: 'all' as 'earned' | 'spent' | 'refund' | 'bonus' | 'all',
     search: '',
   });
 
-  useEffect(() => {
+  // Memoize filtered transactions to avoid recalculating on every render
+  const filteredTransactions = useMemo(() => {
     if (!transactions) {
-      setFilteredTransactions([]);
-      return;
+      return [];
     }
 
     let filtered = [...transactions];
@@ -61,8 +60,31 @@ export default function CreditTransactionsPage() {
       );
     }
 
-    setFilteredTransactions(filtered);
+    return filtered;
   }, [transactions, filters]);
+
+  // Memoize summary calculations
+  const summaryStats = useMemo(() => {
+    if (filteredTransactions.length === 0) {
+      return {
+        totalEarned: 0,
+        totalSpent: 0,
+        refundCount: 0,
+        bonusCount: 0,
+      };
+    }
+
+    return {
+      totalEarned: filteredTransactions
+        .filter(t => t.type === 'earned' || t.type === 'bonus' || t.type === 'refund')
+        .reduce((sum, t) => sum + Math.abs(t.amount), 0),
+      totalSpent: filteredTransactions
+        .filter(t => t.type === 'spent')
+        .reduce((sum, t) => sum + Math.abs(t.amount), 0),
+      refundCount: filteredTransactions.filter(t => t.type === 'refund').length,
+      bonusCount: filteredTransactions.filter(t => t.type === 'bonus').length,
+    };
+  }, [filteredTransactions]);
 
   const getTransactionTypeLabel = (type: string) => {
     switch (type) {
@@ -230,29 +252,25 @@ export default function CreditTransactionsPage() {
               <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6 border-t">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    +{filteredTransactions
-                      .filter(t => t.type === 'earned' || t.type === 'bonus' || t.type === 'refund')
-                      .reduce((sum, t) => sum + Math.abs(t.amount), 0)}
+                    +{summaryStats.totalEarned}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">Total Earned</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-destructive">
-                    -{filteredTransactions
-                      .filter(t => t.type === 'spent')
-                      .reduce((sum, t) => sum + Math.abs(t.amount), 0)}
+                    -{summaryStats.totalSpent}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">Total Spent</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                    {filteredTransactions.filter(t => t.type === 'refund').length}
+                    {summaryStats.refundCount}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">Refunds</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                    {filteredTransactions.filter(t => t.type === 'bonus').length}
+                    {summaryStats.bonusCount}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">Bonuses</div>
                 </div>

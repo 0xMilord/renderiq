@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { getCachedUser } from '@/lib/services/auth-cache';
 import { ReceiptService } from '@/lib/services/receipt.service';
 import { db } from '@/lib/db';
 import { paymentOrders } from '@/lib/db/schema';
@@ -17,10 +17,9 @@ export async function GET(
     const { id } = await params;
     logger.log('🧾 API: Getting receipt for payment order:', id);
 
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
         { status: 401 }
@@ -164,10 +163,9 @@ export async function POST(
     const { id } = await params;
     logger.log('🧾 API: Generating receipt for payment order:', id);
 
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
         { status: 401 }

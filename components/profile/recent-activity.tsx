@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -50,9 +51,11 @@ export function RecentActivity() {
     );
   }
 
-  const userActivities = activities || [];
+  // Memoize user activities
+  const userActivities = useMemo(() => activities || [], [activities]);
 
-  const getActivityIcon = (type: string) => {
+  // Memoize activity icon function
+  const getActivityIcon = useCallback((type: string) => {
     switch (type) {
       case 'render':
         return <Image className="h-4 w-4" />;
@@ -65,9 +68,10 @@ export function RecentActivity() {
       default:
         return <Image className="h-4 w-4" />;
     }
-  };
+  }, []);
 
-  const getStatusColor = (status: string) => {
+  // Memoize status color function
+  const getStatusColor = useCallback((status: string) => {
     switch (status) {
       case 'completed':
         return 'bg-green-100 text-green-800';
@@ -78,7 +82,7 @@ export function RecentActivity() {
       default:
         return 'bg-muted text-muted-foreground';
     }
-  };
+  }, []);
 
   return (
     <Card>

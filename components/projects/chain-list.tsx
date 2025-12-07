@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { RenderChain, Render } from '@/lib/types/render';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,7 @@ interface ChainListProps {
   onCreateChain?: () => void;
 }
 
-export function ChainList({ chains, projectId, projectSlug, onCreateChain }: ChainListProps) {
+function ChainListComponent({ chains, projectId, projectSlug, onCreateChain }: ChainListProps) {
   if (chains.length === 0) {
     return (
       <Card>
@@ -132,4 +132,7 @@ export function ChainList({ chains, projectId, projectSlug, onCreateChain }: Cha
     </div>
   );
 }
+
+// Memoize component to prevent unnecessary re-renders
+export const ChainList = React.memo(ChainListComponent);
 

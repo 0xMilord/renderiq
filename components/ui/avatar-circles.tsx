@@ -32,6 +32,13 @@ export function AvatarCircles({
   const visibleAvatars = avatarUrls.slice(0, 5);
   const remainingCount = numPeople > visibleAvatars.length ? numPeople - visibleAvatars.length : 0;
 
+  // Helper to check if URL is from external storage (Supabase/GCS)
+  const isExternalStorageUrl = (url: string) => {
+    return url.includes('supabase.co') || 
+           url.includes('storage.googleapis.com') || 
+           url.includes(process.env.NEXT_PUBLIC_GCS_CDN_DOMAIN || '');
+  };
+
   return (
     <div className={cn("flex items-center -space-x-3", className)}>
       {visibleAvatars.map((avatar, index) => (
@@ -41,14 +48,26 @@ export function AvatarCircles({
           className="relative inline-block rounded-full ring-2 ring-background hover:z-10 transition-transform hover:scale-110"
           style={{ zIndex: visibleAvatars.length - index }}
         >
-          <Image
-            src={avatar.imageUrl}
-            alt={`User ${index + 1}`}
-            width={48}
-            height={48}
-            className="rounded-full object-cover"
-            unoptimized={avatar.imageUrl.includes('dicebear.com')}
-          />
+          {/* Use regular img tag for external storage URLs to avoid Next.js Image hostname issues */}
+          {isExternalStorageUrl(avatar.imageUrl) ? (
+            <img
+              src={avatar.imageUrl}
+              alt={`User ${index + 1}`}
+              width={48}
+              height={48}
+              className="rounded-full object-cover w-12 h-12"
+              loading="lazy"
+            />
+          ) : (
+            <Image
+              src={avatar.imageUrl}
+              alt={`User ${index + 1}`}
+              width={48}
+              height={48}
+              className="rounded-full object-cover"
+              unoptimized={avatar.imageUrl.includes('dicebear.com')}
+            />
+          )}
         </a>
       ))}
       {remainingCount > 0 && (

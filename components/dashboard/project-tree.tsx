@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import {
   syncDataLoaderFeature,
   selectionFeature,
@@ -27,7 +28,7 @@ interface ProjectTreeProps {
   chains: Array<RenderChain & { projectId: string }>;
 }
 
-export function ProjectTree({ projects, chains }: ProjectTreeProps) {
+function ProjectTreeComponent({ projects, chains }: ProjectTreeProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -168,4 +169,7 @@ export function ProjectTree({ projects, chains }: ProjectTreeProps) {
     </div>
   );
 }
+
+// Memoize component to prevent unnecessary re-renders
+export const ProjectTree = React.memo(ProjectTreeComponent);
 

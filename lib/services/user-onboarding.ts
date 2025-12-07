@@ -239,6 +239,10 @@ export class UserOnboardingService {
 
       logger.log('✅ UserOnboarding: User profile updated:', updatedUser.id);
 
+      // Invalidate auth cache after profile update
+      const { invalidateUserCache } = await import('@/lib/services/auth-cache');
+      await invalidateUserCache(userId);
+
       return { success: true, data: updatedUser };
     } catch (error) {
       logger.error('❌ UserOnboarding: Failed to update user profile:', error);

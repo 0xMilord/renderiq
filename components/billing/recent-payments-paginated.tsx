@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,7 +25,8 @@ export function RecentPaymentsPaginated() {
     [payments, startIndex, endIndex]
   );
 
-  const handleDownloadReceipt = async (paymentOrderId: string) => {
+  // Memoize download receipt handler
+  const handleDownloadReceipt = useCallback(async (paymentOrderId: string) => {
     try {
       const response = await fetch(`/api/payments/receipt/${paymentOrderId}?download=true`, {
         method: 'GET',
@@ -51,9 +52,10 @@ export function RecentPaymentsPaginated() {
     } catch (error) {
       toast.error('Error downloading receipt');
     }
-  };
+  }, []);
 
-  const getStatusBadgeVariant = (status: string) => {
+  // Memoize status badge variant function
+  const getStatusBadgeVariant = useCallback((status: string) => {
     switch (status) {
       case 'completed':
         return 'default';
@@ -65,7 +67,7 @@ export function RecentPaymentsPaginated() {
       default:
         return 'outline';
     }
-  };
+  }, []);
 
   if (loading) {
     return (

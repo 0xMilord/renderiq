@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,7 +36,15 @@ export default function ChainDetailPage({
   const { chain, renders, loading, error } = useRenderChain(chainId);
   const [selectedRenderId, setSelectedRenderId] = useState<string>();
 
-  const selectedRender = renders.find(r => r.id === selectedRenderId);
+  // Memoize selected render lookup to avoid recalculating on every render
+  const selectedRender = useMemo(() => {
+    return selectedRenderId ? renders.find(r => r.id === selectedRenderId) : undefined;
+  }, [renders, selectedRenderId]);
+
+  // Memoize setSelectedRenderId handler
+  const handleSelectRender = useCallback((renderId: string) => {
+    setSelectedRenderId(renderId);
+  }, []);
 
   if (loading) {
     return (
@@ -121,7 +129,7 @@ export default function ChainDetailPage({
               <RenderChainViz
                 renders={renders}
                 selectedRenderId={selectedRenderId}
-                onSelectRender={setSelectedRenderId}
+                onSelectRender={handleSelectRender}
               />
             </CardContent>
           </Card>

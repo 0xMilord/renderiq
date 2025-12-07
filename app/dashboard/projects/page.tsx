@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,28 +23,34 @@ export default function ProjectsPage() {
   const [sortBy, setSortBy] = useState('newest');
   const [filterStatus, setFilterStatus] = useState('all');
 
-  const filteredProjects = projects.filter(project => {
-    const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         project.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || project.status === filterStatus;
-    return matchesSearch && matchesStatus;
-  });
+  // Memoize filtered projects to avoid recalculating on every render
+  const filteredProjects = useMemo(() => {
+    return projects.filter(project => {
+      const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           project.description?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = filterStatus === 'all' || project.status === filterStatus;
+      return matchesSearch && matchesStatus;
+    });
+  }, [projects, searchQuery, filterStatus]);
 
-  const sortedProjects = [...filteredProjects].sort((a, b) => {
-    switch (sortBy) {
-      case 'newest':
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      case 'oldest':
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      case 'name':
-        return a.name.localeCompare(b.name);
-      default:
-        return 0;
-    }
-  });
+  // Memoize sorted projects to avoid recalculating on every render
+  const sortedProjects = useMemo(() => {
+    return [...filteredProjects].sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case 'oldest':
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case 'name':
+          return a.name.localeCompare(b.name);
+        default:
+          return 0;
+      }
+    });
+  }, [filteredProjects, sortBy]);
 
-
-  const getGridCols = () => {
+  // Memoize grid columns calculation
+  const gridCols = useMemo(() => {
     switch (viewMode) {
       case 'compact':
         return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8';
@@ -53,29 +59,30 @@ export default function ProjectsPage() {
       default:
         return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
     }
-  };
+  }, [viewMode]);
 
-  const handleDeleteProject = async (projectId: string) => {
+  // Memoize event handlers with useCallback
+  const handleDeleteProject = useCallback(async (projectId: string) => {
     if (confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
       const result = await removeProject(projectId);
       if (!result.success) {
         alert(result.error || 'Failed to delete project');
       }
     }
-  };
+  }, [removeProject]);
 
-  const handleDuplicateProject = async (projectId: string) => {
+  const handleDuplicateProject = useCallback(async (projectId: string) => {
     const result = await duplicateProject(projectId);
     if (!result.success) {
       alert(result.error || 'Failed to duplicate project');
     }
-  };
+  }, [duplicateProject]);
 
-  const handleEditProject = async () => {
+  const handleEditProject = useCallback(async () => {
     // This would open an edit modal or navigate to edit page
     // For now, just show an alert
     alert('Edit functionality coming soon!');
-  };
+  }, []);
 
   if (loading) {
     return (
@@ -186,7 +193,7 @@ export default function ProjectsPage() {
 
         {/* Projects Grid */}
         {sortedProjects.length > 0 ? (
-          <div className={cn("grid gap-4", getGridCols())}>
+          <div className={cn("grid gap-4", gridCols)}>
             {sortedProjects.map((project) => (
               <ProjectCard
                 key={project.id}

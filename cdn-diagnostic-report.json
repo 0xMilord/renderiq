@@ -1,0 +1,178 @@
+{
+  "timestamp": "2025-12-07T06:46:14.992Z",
+  "results": [
+    {
+      "name": "DNS Resolution",
+      "status": "pass",
+      "message": "cdn.renderiq.io resolves to 136.110.242.198",
+      "details": {
+        "domain": "cdn.renderiq.io",
+        "addresses": [
+          "136.110.242.198"
+        ]
+      }
+    },
+    {
+      "name": "Load Balancer",
+      "status": "pass",
+      "message": "Found forwarding rule: renderiq-cdn-rule",
+      "details": {
+        "name": "renderiq-cdn-rule",
+        "ipAddress": "136.110.226.162",
+        "target": "https://www.googleapis.com/compute/v1/projects/inheritage-viewer-sdk-v1/global/targetHttpsProxies/renderiq-cdn-https-proxy",
+        "portRange": "443-443",
+        "loadBalancingScheme": "EXTERNAL"
+      }
+    },
+    {
+      "name": "Backend Buckets",
+      "status": "pass",
+      "message": "Found both backend buckets: renderiq-renders-cdn-backend, renderiq-uploads-cdn-backend",
+      "details": {
+        "rendersBackend": {
+          "name": "renderiq-renders-cdn-backend",
+          "bucketName": "renderiq-renders",
+          "enableCdn": true,
+          "cdnPolicy": {
+            "cacheMode": "CACHE_ALL_STATIC",
+            "clientTtl": 3600,
+            "defaultTtl": 3600,
+            "maxTtl": 86400,
+            "negativeCaching": true,
+            "requestCoalescing": true,
+            "serveWhileStale": 86400,
+            "signedUrlCacheMaxAgeSec": "0"
+          }
+        },
+        "uploadsBackend": {
+          "name": "renderiq-uploads-cdn-backend",
+          "bucketName": "renderiq-uploads",
+          "enableCdn": true,
+          "cdnPolicy": {
+            "cacheMode": "CACHE_ALL_STATIC",
+            "clientTtl": 3600,
+            "defaultTtl": 3600,
+            "maxTtl": 86400,
+            "negativeCaching": true,
+            "requestCoalescing": true,
+            "serveWhileStale": 86400,
+            "signedUrlCacheMaxAgeSec": "0"
+          }
+        }
+      }
+    },
+    {
+      "name": "URL Map",
+      "status": "pass",
+      "message": "Found URL map: renderiq-cdn-map",
+      "details": {
+        "name": "renderiq-cdn-map",
+        "defaultService": "https://www.googleapis.com/compute/v1/projects/inheritage-viewer-sdk-v1/global/backendBuckets/renderiq-renders-cdn-backend",
+        "hostRules": [
+          {
+            "hosts": [
+              "*"
+            ],
+            "pathMatcher": "path-matcher-1"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SSL Certificate",
+      "status": "warning",
+      "message": "SSL Certificate: renderiq-cdn-ssl-cert - Status: PROVISIONING",
+      "details": {
+        "name": "renderiq-cdn-ssl-cert",
+        "status": "PROVISIONING",
+        "domains": [
+          "cdn.renderiq.io"
+        ],
+        "type": "MANAGED"
+      }
+    },
+    {
+      "name": "Bucket CORS",
+      "status": "warning",
+      "message": "CORS configuration exists but cannot parse: ERROR: (gsutil) Unable to read file [C:\\Program Files (x86)\\Google\\Cloud SDK\\google-cloud-sdk\\platform/gsutil\\VERSION]: [Errno 13] Permission denied: 'C:\\\\Program Files (x86)\\\\Google\\\\Cloud SDK\\\\google-cloud-sdk\\\\platform/gsutil\\\\VERSION'\r\n\"[]\"",
+      "details": {
+        "bucket": "renderiq-renders",
+        "raw": "ERROR: (gsutil) Unable to read file [C:\\Program Files (x86)\\Google\\Cloud SDK\\google-cloud-sdk\\platform/gsutil\\VERSION]: [Errno 13] Permission denied: 'C:\\\\Program Files (x86)\\\\Google\\\\Cloud SDK\\\\google-cloud-sdk\\\\platform/gsutil\\\\VERSION'\r\n\"[]\""
+      }
+    },
+    {
+      "name": "Bucket IAM",
+      "status": "warning",
+      "message": "IAM policy exists but cannot parse",
+      "details": {
+        "bucket": "renderiq-renders"
+      }
+    },
+    {
+      "name": "HTTPS Access (Renders)",
+      "status": "fail",
+      "message": "Cannot access https://cdn.renderiq.io/renders/test: read ECONNRESET",
+      "details": {
+        "url": "https://cdn.renderiq.io/renders/test",
+        "error": "read ECONNRESET",
+        "code": "ECONNRESET"
+      }
+    },
+    {
+      "name": "HTTPS Access (Uploads)",
+      "status": "fail",
+      "message": "Cannot access https://cdn.renderiq.io/uploads/test: read ECONNRESET",
+      "details": {
+        "url": "https://cdn.renderiq.io/uploads/test",
+        "error": "read ECONNRESET",
+        "code": "ECONNRESET"
+      }
+    },
+    {
+      "name": "Cache Headers (Renders)",
+      "status": "fail",
+      "message": "Cannot check cache headers: Client network socket disconnected before secure TLS connection was established",
+      "details": {
+        "url": "https://cdn.renderiq.io/renders/test",
+        "error": "Client network socket disconnected before secure TLS connection was established"
+      }
+    },
+    {
+      "name": "Cache Headers (Uploads)",
+      "status": "fail",
+      "message": "Cannot check cache headers: read ECONNRESET",
+      "details": {
+        "url": "https://cdn.renderiq.io/uploads/test",
+        "error": "read ECONNRESET"
+      }
+    },
+    {
+      "name": "List Renders Files",
+      "status": "fail",
+      "message": "Command failed: Command failed: gsutil ls gs://renderiq-renders/projects/**/*.png 2>&1 | head -1\n'head' is not recognized as an internal or external command,\r\noperable program or batch file.\r\n",
+      "details": {
+        "command": "gsutil ls gs://renderiq-renders/projects/**/*.png 2>&1 | head -1",
+        "error": "Command failed: gsutil ls gs://renderiq-renders/projects/**/*.png 2>&1 | head -1\n'head' is not recognized as an internal or external command,\r\noperable program or batch file.\r\n"
+      }
+    },
+    {
+      "name": "Real File Access (Renders)",
+      "status": "warning",
+      "message": "No test files found in renders bucket"
+    },
+    {
+      "name": "List Uploads Files",
+      "status": "fail",
+      "message": "Command failed: Command failed: gsutil ls gs://renderiq-uploads/projects/**/*.{png,jpg,jpeg} 2>&1 | head -1\n'head' is not recognized as an internal or external command,\r\noperable program or batch file.\r\n",
+      "details": {
+        "command": "gsutil ls gs://renderiq-uploads/projects/**/*.{png,jpg,jpeg} 2>&1 | head -1",
+        "error": "Command failed: gsutil ls gs://renderiq-uploads/projects/**/*.{png,jpg,jpeg} 2>&1 | head -1\n'head' is not recognized as an internal or external command,\r\noperable program or batch file.\r\n"
+      }
+    },
+    {
+      "name": "Real File Access (Uploads)",
+      "status": "warning",
+      "message": "No test files found in uploads bucket"
+    }
+  ]
+}

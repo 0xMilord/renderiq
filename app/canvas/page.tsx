@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { getCachedUser } from '@/lib/services/auth-cache';
 import { ProjectsDAL } from '@/lib/dal/projects';
 import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { CanvasPageClient } from './canvas-client';
@@ -10,17 +10,10 @@ export const revalidate = 0;
 
 export default async function CanvasPage() {
   try {
-    const supabase = await createClient();
-    
-    if (!supabase) {
-      console.error('❌ [CanvasPage SSR] Failed to create Supabase client');
-      redirect('/login');
-    }
+    const { user } = await getCachedUser();
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      console.error('❌ [CanvasPage SSR] Auth error:', authError);
+    if (!user) {
+      console.error('❌ [CanvasPage SSR] Auth error: No user');
       redirect('/login');
     }
 

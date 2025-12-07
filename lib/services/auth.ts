@@ -181,6 +181,10 @@ export class AuthService {
     try {
       const supabase = await createClient();
       
+      // Get user ID before signing out (needed for cache invalidation)
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id;
+      
       const { error } = await supabase.auth.signOut();
 
       if (error) {
@@ -189,6 +193,12 @@ export class AuthService {
           success: false,
           error: error.message,
         };
+      }
+
+      // Invalidate auth cache after successful logout
+      if (userId) {
+        const { invalidateUserCache } = await import('@/lib/services/auth-cache');
+        await invalidateUserCache(userId);
       }
 
       logger.log('✅ AuthService: Sign out successful');

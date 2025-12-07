@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { getCachedUser } from '@/lib/services/auth-cache';
 import { db } from '@/lib/db';
 import { paymentOrders } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -9,10 +9,9 @@ export async function POST(request: NextRequest) {
   try {
     logger.log('🚫 API: Cancelling payment order');
 
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
         { status: 401 }

@@ -18,6 +18,13 @@
     "gcs:setup": "tsx scripts/setup-gcs-buckets.ts",
     "gcs:iam-cdn": "tsx scripts/setup-gcs-iam-cdn.ts",
     "gcs:cdn": "tsx scripts/setup-gcs-cdn.ts",
+    "gcs:cdn:uploads": "tsx scripts/add-uploads-cdn.ts",
+    "gcs:fix-path-matcher": "tsx scripts/fix-renders-path-matcher.ts",
+    "gcs:reset-cdn": "tsx scripts/reset-cdn-infrastructure.ts",
+    "gcs:diagnose": "tsx scripts/diagnose-cdn.ts",
+    "gcs:test": "tsx scripts/test-cdn-endpoints.ts",
+    "gcs:fix-cdn": "tsx scripts/fix-cdn-issues.ts",
+    "gcs:verify-file": "tsx scripts/verify-cdn-file.ts",
     "gcs:migrate": "tsx scripts/migrate-storage-to-gcs.ts",
     "gcs:migrate:dry-run": "tsx scripts/migrate-storage-to-gcs.ts --dry-run",
     "gcs:update-urls": "tsx scripts/update-storage-urls.ts"

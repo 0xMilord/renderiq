@@ -86,6 +86,9 @@ export default function robots(): MetadataRoute.Robots {
     ],
     sitemap: [
       `${baseUrl}/sitemap.xml`,
+      `${baseUrl}/sitemap-use-cases.xml`,
+      `${baseUrl}/sitemap-apps.xml`,
+      `${baseUrl}/sitemap-docs.xml`,
       `${baseUrl}/sitemap-images.xml`,
       `${baseUrl}/sitemap-video.xml`,
     ],

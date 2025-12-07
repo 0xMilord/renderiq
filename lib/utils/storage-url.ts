@@ -16,16 +16,21 @@ export function isSupabaseUrl(url: string | null | undefined): boolean {
 export function isGCSUrl(url: string | null | undefined): boolean {
   if (!url) return false;
   return url.includes('storage.googleapis.com') || 
-         url.includes(process.env.NEXT_PUBLIC_GCS_CDN_DOMAIN || '');
+         url.includes(process.env.NEXT_PUBLIC_GCS_CDN_DOMAIN || '') ||
+         url.includes('cdn.renderiq.io'); // Hardcoded fallback for CDN domain
 }
 
 /**
  * Check if URL should use regular img tag (for external URLs)
- * Next.js Image component can have issues with external domains
+ * Next.js Image component can have issues with external domains and DNS resolution
  */
 export function shouldUseRegularImg(url: string | null | undefined): boolean {
   if (!url) return false;
-  return isSupabaseUrl(url) || isGCSUrl(url);
+  // Always use regular img for external storage URLs to avoid:
+  // 1. Next.js Image optimizer DNS resolution issues
+  // 2. Server-side fetch failures
+  // 3. CDN domain resolution problems
+  return isSupabaseUrl(url) || isGCSUrl(url) || url.includes('cdn.renderiq.io');
 }
 
 /**

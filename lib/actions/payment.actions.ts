@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { getCachedUser } from '@/lib/services/auth-cache';
 import { PaymentHistoryService } from '@/lib/services/payment-history.service';
 import { InvoiceService } from '@/lib/services/invoice.service';
 import { logger } from '@/lib/utils/logger';
@@ -14,10 +14,9 @@ export async function getPaymentHistoryAction(filters?: {
   offset?: number;
 }) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
 
-    if (authError || !user) {
+    if (!user) {
       return { success: false, error: 'Authentication required' };
     }
 
@@ -42,10 +41,9 @@ export async function getInvoicesAction(options?: {
   status?: string;
 }) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
 
-    if (authError || !user) {
+    if (!user) {
       return { success: false, error: 'Authentication required' };
     }
 
@@ -63,10 +61,9 @@ export async function getInvoicesAction(options?: {
 
 export async function getInvoiceByNumberAction(invoiceNumber: string) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
 
-    if (authError || !user) {
+    if (!user) {
       return { success: false, error: 'Authentication required' };
     }
 

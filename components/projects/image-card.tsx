@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { CommonImageCard } from '@/components/common/image-card';
 import type { Render } from '@/lib/types/render';
 
@@ -13,7 +14,7 @@ interface ImageCardProps {
   onRemix?: (render: Render) => void;
 }
 
-export function ImageCard({ 
+function ImageCardComponent({ 
   render, 
   viewMode, 
   onView, 
@@ -37,3 +38,6 @@ export function ImageCard({
     />
   );
 }
+
+// Memoize component to prevent unnecessary re-renders
+export const ImageCard = React.memo(ImageCardComponent);

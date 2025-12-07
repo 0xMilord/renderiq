@@ -2,6 +2,7 @@
 
 import { BillingDAL } from '@/lib/dal/billing';
 import { BillingService } from '@/lib/services/billing';
+import { getCachedUser } from '@/lib/services/auth-cache';
 import { logger } from '@/lib/utils/logger';
 
 export async function getUserSubscriptionAction(userId: string) {
@@ -54,14 +55,9 @@ export async function getUserCredits() {
   logger.log('💰 BillingAction: Getting user credits (no userId required)');
   
   try {
-    // This function should be called from client components that have user context
-    // We'll need to get the user ID from the auth context
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
+    const { user } = await getCachedUser();
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
+    if (!user) {
       logger.error('❌ BillingAction: No authenticated user');
       return {
         success: false,
@@ -155,11 +151,9 @@ export async function addCredits(
     // If no userId provided, get from auth context
     let finalUserId = userId;
     if (!finalUserId) {
-      const { createClient } = await import('@/lib/supabase/server');
-      const supabase = await createClient();
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const { user } = await getCachedUser();
       
-      if (authError || !user) {
+      if (!user) {
         logger.error('❌ BillingAction: No authenticated user');
         return {
           success: false,
@@ -198,12 +192,9 @@ export async function deductCredits(
   logger.log('💰 BillingAction: Deducting credits:', { amount, description, referenceId, referenceType });
   
   try {
-    // Get user from auth context
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError || !user) {
+    if (!user) {
       logger.error('❌ BillingAction: No authenticated user');
       return {
         success: false,

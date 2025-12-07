@@ -66,6 +66,8 @@ const nextConfig: NextConfig = {
       },
       // Support for custom GCS CDN domain (if configured)
       // Explicitly supports cdn.renderiq.io for fast image delivery
+      // Note: CDN URLs should use regular <img> tags, not Next.js Image
+      // This is just for allowing the domain if needed
       ...(process.env.GCS_CDN_DOMAIN ? [{
         protocol: 'https' as const,
         hostname: process.env.GCS_CDN_DOMAIN,
@@ -95,6 +97,9 @@ const nextConfig: NextConfig = {
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     minimumCacheTTL: 60,
+    // Disable image optimization for external CDN/storage URLs to avoid DNS issues
+    // These should use regular <img> tags via shouldUseRegularImg() utility
+    unoptimized: false, // Keep optimization enabled, but components should use <img> for CDN
   },
   
   // Performance optimizations for SEO
@@ -242,6 +247,45 @@ const nextConfig: NextConfig = {
       },
       {
         source: '/sitemap-video.xml',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'application/xml',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=3600',
+          },
+        ],
+      },
+      {
+        source: '/sitemap-use-cases.xml',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'application/xml',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=3600',
+          },
+        ],
+      },
+      {
+        source: '/sitemap-apps.xml',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'application/xml',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=3600',
+          },
+        ],
+      },
+      {
+        source: '/sitemap-docs.xml',
         headers: [
           {
             key: 'Content-Type',

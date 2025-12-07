@@ -6,7 +6,8 @@ import { RenderService } from '@/lib/services/render';
 import { ProjectsDAL } from '@/lib/dal/projects';
 import { RendersDAL } from '@/lib/dal/renders';
 import { RenderChainService } from '@/lib/services/render-chain';
-import { createClient } from '@/lib/supabase/server';
+import { getUserFromAction } from '@/lib/utils/get-user-from-action';
+import { getCachedUser } from '@/lib/services/auth-cache';
 import { uploadSchema, createRenderSchema } from '@/lib/types';
 import { logger } from '@/lib/utils/logger';
 
@@ -16,26 +17,16 @@ export async function createProject(formData: FormData) {
   try {
     logger.log('🚀 [createProject] Starting project creation action');
     
-    const supabase = await createClient();
-    if (!supabase) {
-      logger.error('❌ [createProject] Failed to initialize database connection');
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    logger.log('🔐 [createProject] Getting user authentication...');
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Try to get userId from formData first (passed from client store)
+    const userIdFromClient = formData.get('userId') as string | null;
+    const { user, userId } = await getUserFromAction(userIdFromClient);
     
-    if (authError) {
-      logger.error('❌ [createProject] Auth error:', authError);
-      return { success: false, error: 'Authentication failed' };
-    }
-
-    if (!user) {
-      logger.error('❌ [createProject] No user found');
+    if (!user || !userId) {
+      logger.error('❌ [createProject] Authentication required');
       return { success: false, error: 'Authentication required' };
     }
 
-    logger.log('✅ [createProject] User authenticated:', { userId: user.id, email: user.email });
+    logger.log('✅ [createProject] User authenticated:', { userId, email: user.email });
 
     const file = formData.get('file') as File;
     const projectName = formData.get('projectName') as string;
@@ -62,7 +53,7 @@ export async function createProject(formData: FormData) {
       logger.log('🎨 [createProject] Creating project with DiceBear URL:', dicebearUrl);
       
       const projectData = {
-        userId: user.id,
+        userId: userId,
         name: projectName,
         description: description || 'AI-generated project',
         originalImageId: null, // No file upload needed
@@ -88,7 +79,7 @@ export async function createProject(formData: FormData) {
       logger.log('🛠️ [createProject] Creating Tools project without file');
       
       const projectData = {
-        userId: user.id,
+        userId: userId,
         name: projectName,
         description: description || 'Default project for micro-tools and specialized AI tools',
         originalImageId: null, // No file upload needed
@@ -125,7 +116,7 @@ export async function createProject(formData: FormData) {
 
     logger.log('🎨 [createProject] Calling render service...');
     const result = await renderService.createProject(
-      user.id,
+      userId,
       validatedData.file,
       validatedData.projectName,
       validatedData.description
@@ -156,19 +147,11 @@ export async function createProject(formData: FormData) {
 
 export async function createRender(formData: FormData) {
   try {
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Try to get userId from formData first (passed from client store)
+    const userIdFromClient = formData.get('userId') as string | null;
+    const { user, userId } = await getUserFromAction(userIdFromClient);
     
-    if (authError) {
-      logger.error('Auth error in createRender:', authError);
-      return { success: false, error: 'Authentication failed' };
-    }
-
-    if (!user) {
+    if (!user || !userId) {
       return { success: false, error: 'Authentication required' };
     }
 
@@ -216,28 +199,20 @@ export async function createRender(formData: FormData) {
 
 export async function getProject(projectId: string) {
   try {
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError) {
-      logger.error('Auth error in getProject:', authError);
-      return { success: false, error: 'Authentication failed' };
-    }
-
     if (!user) {
       return { success: false, error: 'Authentication required' };
     }
+    
+    const userId = user.id;
 
     const project = await ProjectsDAL.getById(projectId);
     if (!project) {
       return { success: false, error: 'Project not found' };
     }
 
-    if (project.userId !== user.id) {
+    if (project.userId !== userId) {
       return { success: false, error: 'Access denied' };
     }
 
@@ -252,28 +227,20 @@ export async function getProject(projectId: string) {
 
 export async function getProjectBySlug(slug: string) {
   try {
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError) {
-      logger.error('Auth error in getProjectBySlug:', authError);
-      return { success: false, error: 'Authentication failed' };
-    }
-
     if (!user) {
       return { success: false, error: 'Authentication required' };
     }
+    
+    const userId = user.id;
 
     const project = await ProjectsDAL.getBySlug(slug);
     if (!project) {
       return { success: false, error: 'Project not found' };
     }
 
-    if (project.userId !== user.id) {
+    if (project.userId !== userId) {
       return { success: false, error: 'Access denied' };
     }
 
@@ -288,24 +255,16 @@ export async function getProjectBySlug(slug: string) {
 
 export async function getUserProjects() {
   try {
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError) {
-      logger.error('Auth error in getUserProjects:', authError);
-      return { success: false, error: 'Authentication failed' };
-    }
-
     if (!user) {
       return { success: false, error: 'Authentication required' };
     }
+    
+    const userId = user.id;
 
     // Get projects with render counts in a single query
-    const projects = await ProjectsDAL.getByUserIdWithRenderCounts(user.id);
+    const projects = await ProjectsDAL.getByUserIdWithRenderCounts(userId);
     
     if (projects.length === 0) {
       return { success: true, data: [] };
@@ -342,34 +301,26 @@ export async function getUserProjects() {
 
 export async function duplicateProject(projectId: string) {
   try {
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError) {
-      logger.error('Auth error in duplicateProject:', authError);
-      return { success: false, error: 'Authentication failed' };
-    }
-
     if (!user) {
       return { success: false, error: 'Authentication required' };
     }
+    
+    const userId = user.id;
 
     const project = await ProjectsDAL.getById(projectId);
     if (!project) {
       return { success: false, error: 'Project not found' };
     }
 
-    if (project.userId !== user.id) {
+    if (project.userId !== userId) {
       return { success: false, error: 'Access denied' };
     }
 
     // Create duplicate project
     const duplicateData = {
-      userId: user.id,
+      userId: userId,
       name: `${project.name} (Copy)`,
       description: project.description,
       originalImageId: project.originalImageId,
@@ -392,28 +343,20 @@ export async function duplicateProject(projectId: string) {
 
 export async function deleteProject(projectId: string) {
   try {
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError) {
-      logger.error('Auth error in deleteProject:', authError);
-      return { success: false, error: 'Authentication failed' };
-    }
-
     if (!user) {
       return { success: false, error: 'Authentication required' };
     }
+    
+    const userId = user.id;
 
     const project = await ProjectsDAL.getById(projectId);
     if (!project) {
       return { success: false, error: 'Project not found' };
     }
 
-    if (project.userId !== user.id) {
+    if (project.userId !== userId) {
       return { success: false, error: 'Access denied' };
     }
 
@@ -433,25 +376,15 @@ export async function getRendersByProject(projectId: string) {
   try {
     logger.log('🎨 [getRendersByProject] Starting to fetch renders for project:', projectId);
     
-    const supabase = await createClient();
-    if (!supabase) {
-      logger.error('❌ [getRendersByProject] Failed to initialize database connection');
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError) {
-      logger.error('❌ [getRendersByProject] Auth error:', authError);
-      return { success: false, error: 'Authentication failed' };
-    }
-
     if (!user) {
       logger.error('❌ [getRendersByProject] No user found');
       return { success: false, error: 'Authentication required' };
     }
 
-    logger.log('✅ [getRendersByProject] User authenticated:', { userId: user.id });
+    const userId = user.id;
+    logger.log('✅ [getRendersByProject] User authenticated:', { userId });
 
     logger.log('📞 [getRendersByProject] Calling RendersDAL.getByProjectId...');
     const renders = await RendersDAL.getByProjectId(projectId);
@@ -477,20 +410,17 @@ export async function createRenderChain(
   description?: string
 ) {
   try {
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError || !user) {
+    if (!user) {
       return { success: false, error: 'Authentication required' };
     }
+    
+    const userId = user.id;
 
     // Verify project ownership
     const project = await ProjectsDAL.getById(projectId);
-    if (!project || project.userId !== user.id) {
+    if (!project || project.userId !== userId) {
       return { success: false, error: 'Access denied' };
     }
 
@@ -508,20 +438,17 @@ export async function createRenderChain(
 
 export async function getProjectChains(projectId: string) {
   try {
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError || !user) {
+    if (!user) {
       return { success: false, error: 'Authentication required' };
     }
+    
+    const userId = user.id;
 
     // Verify project ownership
     const project = await ProjectsDAL.getById(projectId);
-    if (!project || project.userId !== user.id) {
+    if (!project || project.userId !== userId) {
       return { success: false, error: 'Access denied' };
     }
 
@@ -542,20 +469,17 @@ export async function addRenderToChain(
   position?: number
 ) {
   try {
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError || !user) {
+    if (!user) {
       return { success: false, error: 'Authentication required' };
     }
+    
+    const userId = user.id;
 
     // Verify render ownership
     const render = await RendersDAL.getById(renderId);
-    if (!render || render.userId !== user.id) {
+    if (!render || render.userId !== userId) {
       return { success: false, error: 'Access denied' };
     }
 
@@ -573,20 +497,17 @@ export async function addRenderToChain(
 
 export async function selectRenderVersion(renderId: string) {
   try {
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError || !user) {
+    if (!user) {
       return { success: false, error: 'Authentication required' };
     }
+    
+    const userId = user.id;
 
     // Verify render ownership
     const render = await RendersDAL.getById(renderId);
-    if (!render || render.userId !== user.id) {
+    if (!render || render.userId !== userId) {
       return { success: false, error: 'Access denied' };
     }
 
@@ -606,20 +527,15 @@ export async function getRenderChain(chainId: string) {
   try {
     logger.log('🔍 getRenderChain: Fetching chain:', chainId);
     
-    const supabase = await createClient();
-    if (!supabase) {
-      logger.log('❌ getRenderChain: Failed to initialize database connection');
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError || !user) {
+    if (!user) {
       logger.log('❌ getRenderChain: Authentication required');
       return { success: false, error: 'Authentication required' };
     }
 
-    logger.log('✅ getRenderChain: User authenticated:', user.id);
+    const userId = user.id;
+    logger.log('✅ getRenderChain: User authenticated:', userId);
 
     const chain = await RenderChainService.getChain(chainId);
     
@@ -646,7 +562,7 @@ export async function getRenderChain(chainId: string) {
 
     // Verify project ownership
     const project = await ProjectsDAL.getById(chain.projectId);
-    if (!project || project.userId !== user.id) {
+    if (!project || project.userId !== userId) {
       logger.log('❌ getRenderChain: Access denied');
       return { success: false, error: 'Access denied' };
     }
@@ -664,16 +580,13 @@ export async function getRenderChain(chainId: string) {
 
 export async function deleteRenderChain(chainId: string) {
   try {
-    const supabase = await createClient();
-    if (!supabase) {
-      return { success: false, error: 'Failed to initialize database connection' };
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError || !user) {
+    if (!user) {
       return { success: false, error: 'Authentication required' };
     }
+    
+    const userId = user.id;
 
     const chain = await RenderChainService.getChain(chainId);
     
@@ -683,7 +596,7 @@ export async function deleteRenderChain(chainId: string) {
 
     // Verify project ownership
     const project = await ProjectsDAL.getById(chain.projectId);
-    if (!project || project.userId !== user.id) {
+    if (!project || project.userId !== userId) {
       return { success: false, error: 'Access denied' };
     }
 

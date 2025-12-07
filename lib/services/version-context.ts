@@ -266,13 +266,40 @@ export class VersionContextService {
     if (render.outputUrl) {
       try {
         logger.log('📸 Downloading reference image...');
-        const response = await fetch(render.outputUrl);
+        let imageUrl = render.outputUrl;
+        let response = await fetch(imageUrl);
+        
+        // Check if response is valid (not an error XML)
+        const contentType = response.headers.get('content-type') || '';
+        const responseText = await response.clone().text();
+        const isErrorResponse = !response.ok || 
+                               contentType.includes('xml') || 
+                               contentType.includes('text/html') ||
+                               responseText.trim().startsWith('<');
+        
+        // If CDN fails, try direct GCS fallback
+        if (isErrorResponse && imageUrl.includes('cdn.renderiq.io')) {
+          logger.log('⚠️ CDN fetch failed, trying direct GCS fallback...');
+          imageUrl = imageUrl.replace('cdn.renderiq.io', 'storage.googleapis.com');
+          response = await fetch(imageUrl);
+        }
+        
         if (response.ok) {
           const arrayBuffer = await response.arrayBuffer();
+          const imageSize = arrayBuffer.byteLength;
+          
+          // Validate it's actually an image (not error XML)
+          if (imageSize < 1024) {
+            const text = new TextDecoder().decode(arrayBuffer);
+            if (text.trim().startsWith('<') || text.includes('<Error>')) {
+              throw new Error('Received error XML instead of image');
+            }
+          }
+          
           imageData = Buffer.from(arrayBuffer).toString('base64');
-          logger.log('✅ Image downloaded and encoded');
+          logger.log('✅ Image downloaded and encoded, size:', imageSize, 'bytes');
         } else {
-          logger.log('⚠️ Failed to download image');
+          logger.log('⚠️ Failed to download image:', response.status, response.statusText);
         }
       } catch (error) {
         logger.log('❌ Error downloading image:', error);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -81,26 +81,33 @@ export default function ProjectSlugPage() {
     }
   }, [slug, projects]);
 
-  const filteredRenders = renders.filter(render => {
-    const matchesSearch = render.prompt.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || render.status === filterStatus;
-    return matchesSearch && matchesStatus;
-  });
+  // Memoize filtered renders to avoid recalculating on every render
+  const filteredRenders = useMemo(() => {
+    return renders.filter(render => {
+      const matchesSearch = render.prompt.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = filterStatus === 'all' || render.status === filterStatus;
+      return matchesSearch && matchesStatus;
+    });
+  }, [renders, searchQuery, filterStatus]);
 
-  const sortedRenders = [...filteredRenders].sort((a, b) => {
-    switch (sortBy) {
-      case 'newest':
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      case 'oldest':
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      case 'status':
-        return a.status.localeCompare(b.status);
-      default:
-        return 0;
-    }
-  });
+  // Memoize sorted renders to avoid recalculating on every render
+  const sortedRenders = useMemo(() => {
+    return [...filteredRenders].sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case 'oldest':
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case 'status':
+          return a.status.localeCompare(b.status);
+        default:
+          return 0;
+      }
+    });
+  }, [filteredRenders, sortBy]);
 
-  const getGridCols = () => {
+  // Memoize grid columns calculation
+  const gridCols = useMemo(() => {
     switch (viewMode) {
       case 'compact':
         return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8';
@@ -109,14 +116,38 @@ export default function ProjectSlugPage() {
       default:
         return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
     }
-  };
+  }, [viewMode]);
 
-  const handleView = (render: Render) => {
+  // Optimize chain-render mapping: O(n*m) -> O(n+m) using Map
+  const rendersByChainId = useMemo(() => {
+    const map = new Map<string, Render[]>();
+    renders.forEach(render => {
+      if (render.chainId) {
+        if (!map.has(render.chainId)) {
+          map.set(render.chainId, []);
+        }
+        map.get(render.chainId)!.push(render);
+      }
+    });
+    return map;
+  }, [renders]);
+
+  // Memoize chains with renders to avoid expensive recalculation
+  const chainsWithRenders = useMemo(() => {
+    return chains.map(chain => ({
+      ...chain,
+      renderCount: rendersByChainId.get(chain.id)?.length || 0,
+      renders: rendersByChainId.get(chain.id)?.slice(0, 5) || []
+    }));
+  }, [chains, rendersByChainId]);
+
+  // Memoize event handlers with useCallback
+  const handleView = useCallback((render: Render) => {
     setSelectedRender(render);
     setIsModalOpen(true);
-  };
+  }, []);
 
-  const handleDownload = (render: Render) => {
+  const handleDownload = useCallback((render: Render) => {
     if (render.outputUrl) {
       const link = document.createElement('a');
       link.href = render.outputUrl;
@@ -125,19 +156,19 @@ export default function ProjectSlugPage() {
       link.click();
       document.body.removeChild(link);
     }
-  };
+  }, []);
 
-  const handleLike = (item: Render) => {
+  const handleLike = useCallback((item: Render) => {
     // Implement like functionality
     logger.log('Like render:', item.id);
-  };
+  }, []);
 
-  const handleShare = (item: Render) => {
+  const handleShare = useCallback((item: Render) => {
     // Implement share functionality
     logger.log('Share render:', item.id);
-  };
+  }, []);
 
-  const handleCreateChain = async () => {
+  const handleCreateChain = useCallback(async () => {
     if (!project) return;
     
     try {
@@ -155,7 +186,7 @@ export default function ProjectSlugPage() {
       console.error('Error creating chain:', error);
       alert('Failed to create chain');
     }
-  };
+  }, [project, router]);
 
   // Show loading state while projects are loading or project is not found yet
   if (!project && projects.length === 0) {
@@ -260,11 +291,7 @@ export default function ProjectSlugPage() {
 
           <TabsContent value="chains">
             <ChainList 
-              chains={chains.map(chain => ({
-                ...chain,
-                renderCount: renders.filter(r => r.chainId === chain.id).length,
-                renders: renders.filter(r => r.chainId === chain.id).slice(0, 5)
-              }))} 
+              chains={chainsWithRenders} 
               projectId={project.id}
               onCreateChain={handleCreateChain}
             />
@@ -325,7 +352,7 @@ export default function ProjectSlugPage() {
             </div>
           </div>
         ) : sortedRenders.length > 0 ? (
-          <div className={cn("grid gap-3 sm:gap-4", getGridCols())}>
+          <div className={cn("grid gap-3 sm:gap-4", gridCols)}>
             {sortedRenders.map((render) => (
               <ImageCard
                 key={render.id}

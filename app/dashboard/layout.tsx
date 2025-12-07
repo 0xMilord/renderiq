@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -170,11 +170,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const currentPageDescription = getPageDescription(pathname);
   const CurrentPageIcon = getPageIcon(pathname);
 
-  // Get user display info
-  const userName = userProfile?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
-  const userEmail = user?.email || '';
-  const userAvatar = userProfile?.avatar || user?.user_metadata?.avatar_url || '';
-  const userInitials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
+  // Get user display info - memoized to avoid recalculating on every render
+  const { userName, userEmail, userAvatar, userInitials } = useMemo(() => {
+    const name = userProfile?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
+    const email = user?.email || '';
+    const avatar = userProfile?.avatar || user?.user_metadata?.avatar_url || '';
+    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
+    return { userName: name, userEmail: email, userAvatar: avatar, userInitials: initials };
+  }, [userProfile, user]);
 
   // Initialize auth store
   useEffect(() => {
@@ -202,8 +205,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [pathname]);
 
-  // Fetch projects and chains
-  const fetchData = async () => {
+  // Fetch projects and chains - memoized with useCallback
+  const fetchData = useCallback(async () => {
     if (!user?.id) return;
     
     try {
@@ -227,13 +230,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     if (user?.id) {
       fetchData();
     }
-  }, [user?.id]);
+  }, [user?.id, fetchData]);
 
   // Group chains by project
   const chainsByProject = useMemo(() => 
@@ -247,19 +250,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     [chains]
   );
 
-  // Toggle project expansion
-  const toggleProject = (projectId: string) => {
-    const newExpanded = new Set(expandedProjects);
-    if (newExpanded.has(projectId)) {
-      newExpanded.delete(projectId);
-    } else {
-      newExpanded.add(projectId);
-    }
-    setExpandedProjects(newExpanded);
-  };
+  // Toggle project expansion - memoized with useCallback
+  const toggleProject = useCallback((projectId: string) => {
+    setExpandedProjects(prev => {
+      const newExpanded = new Set(prev);
+      if (newExpanded.has(projectId)) {
+        newExpanded.delete(projectId);
+      } else {
+        newExpanded.add(projectId);
+      }
+      return newExpanded;
+    });
+  }, []);
 
-  // Handle chain selection
-  const handleSelectChain = (chainId: string) => {
+  // Handle chain selection - memoized with useCallback
+  const handleSelectChain = useCallback((chainId: string) => {
     const chain = chains.find(c => c.id === chainId);
     if (chain) {
       const project = projects.find(p => p.id === chain.projectId);
@@ -267,13 +272,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         router.push(`/project/${project.slug}/chain/${chainId}`);
       }
     }
-  };
+  }, [chains, projects, router]);
 
-  // Handle sign out
-  const handleSignOut = async () => {
+  // Handle sign out - memoized with useCallback
+  const handleSignOut = useCallback(async () => {
     await signOut();
     router.push('/login');
-  };
+  }, [signOut, router]);
 
   // Auto-open sidebar on desktop, keep closed on mobile
   useEffect(() => {

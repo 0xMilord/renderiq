@@ -3,7 +3,7 @@
 import { VersionContextService, type ParsedPrompt, type VersionContext } from '@/lib/services/version-context';
 import { getUserRenders } from './user-renders.actions';
 import { getRenderChain } from './projects.actions';
-import { createClient } from '@/lib/supabase/server';
+import { getCachedUser } from '@/lib/services/auth-cache';
 import { logger } from '@/lib/utils/logger';
 
 export async function parsePromptWithMentions(
@@ -12,8 +12,7 @@ export async function parsePromptWithMentions(
   chainId?: string
 ): Promise<{ success: boolean; data?: ParsedPrompt; error?: string }> {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
 
     if (!user) {
       return {
@@ -60,8 +59,7 @@ export async function parsePromptWithMentions(
 
 export async function getVersionContext(renderId: string): Promise<{ success: boolean; data?: VersionContext; error?: string }> {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
 
     if (!user) {
       return {

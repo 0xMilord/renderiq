@@ -2,7 +2,6 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
 import { AISDKService } from '@/lib/services/ai-sdk-service';
 import { addCredits, deductCredits } from '@/lib/actions/billing.actions';
 import { BillingDAL } from '@/lib/dal/billing';
@@ -255,13 +254,45 @@ export async function createRenderAction(formData: FormData) {
             validatedReferenceRenderId = referenceRenderId;
             if (referenceRender.outputUrl) {
               try {
-                const imageResponse = await fetch(referenceRender.outputUrl);
+                let imageUrl = referenceRender.outputUrl;
+                let imageResponse = await fetch(imageUrl);
+                
+                // Check if response is valid (not an error XML)
+                const contentType = imageResponse.headers.get('content-type') || '';
+                const responseText = await imageResponse.clone().text();
+                const isErrorResponse = !imageResponse.ok || 
+                                       contentType.includes('xml') || 
+                                       contentType.includes('text/html') ||
+                                       responseText.trim().startsWith('<');
+                
+                // If CDN fails, try direct GCS fallback
+                if (isErrorResponse && imageUrl.includes('cdn.renderiq.io')) {
+                  logger.log('⚠️ CDN fetch failed, trying direct GCS fallback...');
+                  imageUrl = imageUrl.replace('cdn.renderiq.io', 'storage.googleapis.com');
+                  imageResponse = await fetch(imageUrl);
+                }
+                
+                if (!imageResponse.ok) {
+                  throw new Error(`HTTP ${imageResponse.status}: ${imageResponse.statusText}`);
+                }
+                
                 const imageBuffer = await imageResponse.arrayBuffer();
+                const imageSize = imageBuffer.byteLength;
+                
+                // Validate it's actually an image (not error XML - should be > 1KB for real images)
+                if (imageSize < 1024) {
+                  const text = new TextDecoder().decode(imageBuffer);
+                  if (text.trim().startsWith('<') || text.includes('<Error>')) {
+                    throw new Error('Received error XML instead of image');
+                  }
+                }
+                
                 referenceRenderImageData = Buffer.from(imageBuffer).toString('base64');
                 referenceRenderImageType = referenceRender.outputUrl.includes('.png') ? 'image/png' : 
                                           referenceRender.outputUrl.includes('.jpg') || referenceRender.outputUrl.includes('.jpeg') ? 'image/jpeg' : 
                                           'image/png';
                 referenceRenderPrompt = referenceRender.prompt;
+                logger.log('✅ Reference render image fetched, size:', imageSize, 'bytes');
               } catch (error) {
                 logger.error('❌ Failed to fetch reference render image:', error);
               }

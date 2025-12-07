@@ -356,6 +356,34 @@ Original prompt: "${originalPrompt}"`;
         candidates: response?.candidates?.length || 0
       });
 
+      // Check for errors in response first
+      if (response.promptFeedback?.blockReason) {
+        logger.error('❌ AISDKService: Response blocked', {
+          blockReason: response.promptFeedback.blockReason,
+          safetyRatings: response.promptFeedback.safetyRatings
+        });
+        return {
+          success: false,
+          error: `Generation blocked: ${response.promptFeedback.blockReason}. Please modify your prompt.`
+        };
+      }
+
+      // Check for finishReason that indicates failure
+      if (response.candidates && response.candidates.length > 0) {
+        const candidate = response.candidates[0];
+        if (candidate.finishReason && candidate.finishReason !== 'STOP') {
+          logger.error('❌ AISDKService: Generation finished with non-STOP reason', {
+            finishReason: candidate.finishReason,
+            finishMessage: candidate.finishMessage,
+            safetyRatings: candidate.safetyRatings
+          });
+          return {
+            success: false,
+            error: `Generation failed: ${candidate.finishReason}${candidate.finishMessage ? ` - ${candidate.finishMessage}` : ''}`
+          };
+        }
+      }
+
       // Extract image from response - check new SDK response structure
       // The new SDK might return data differently
       let imageData: string | null = null;
@@ -366,6 +394,17 @@ Original prompt: "${originalPrompt}"`;
         const candidate = response.candidates[0];
         if (candidate.content?.parts) {
           for (const part of candidate.content.parts) {
+            if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
+              imageData = part.inlineData.data;
+              mimeType = part.inlineData.mimeType;
+              break;
+            }
+          }
+        }
+        
+        // Also check if parts are directly on candidate
+        if (!imageData && (candidate as any).parts) {
+          for (const part of (candidate as any).parts) {
             if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
               imageData = part.inlineData.data;
               mimeType = part.inlineData.mimeType;
@@ -395,12 +434,19 @@ Original prompt: "${originalPrompt}"`;
       }
 
       if (!imageData) {
+        // Log full response structure for debugging (limit to 2000 chars to avoid huge logs)
+        const fullResponseStr = JSON.stringify(response, null, 2);
         logger.error('❌ AISDKService: No image data in response', {
-          responseStructure: JSON.stringify(response, null, 2).substring(0, 500)
+          responseStructure: fullResponseStr.substring(0, 2000),
+          responseLength: fullResponseStr.length,
+          hasCandidates: !!response.candidates,
+          candidatesLength: response.candidates?.length || 0,
+          firstCandidateKeys: response.candidates?.[0] ? Object.keys(response.candidates[0]) : [],
+          firstCandidateContent: response.candidates?.[0]?.content ? JSON.stringify(response.candidates[0].content).substring(0, 500) : 'no content'
         });
         return {
           success: false,
-          error: 'No image data returned from generation service. Response structure may have changed.'
+          error: 'No image data returned from generation service. Response structure may have changed. Check logs for details.'
         };
       }
 

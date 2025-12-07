@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { getCachedUser } from '@/lib/services/auth-cache';
 import { RazorpayService } from '@/lib/services/razorpay.service';
 import { BillingDAL } from '@/lib/dal/billing';
 import { logger } from '@/lib/utils/logger';
@@ -27,10 +27,9 @@ export async function POST(request: NextRequest) {
   try {
     logger.log('💳 API: Creating Razorpay subscription');
 
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
         { status: 401 }
@@ -127,10 +126,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get user details
-    const { data: { user: userData } } = await supabase.auth.getUser();
-    
-    if (!userData?.email) {
+    // Get user details (already have user from auth above)
+    if (!user?.email) {
       return NextResponse.json(
         { success: false, error: 'User email not found' },
         { status: 400 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { getCachedUser } from '@/lib/services/auth-cache';
 import { BillingDAL } from '@/lib/dal/billing';
 import { BillingService } from '@/lib/services/billing';
 import { RendersDAL } from '@/lib/dal/renders';
@@ -13,11 +13,10 @@ export async function POST(request: NextRequest) {
     logger.log('🎬 Video API: Starting video generation request');
 
     // Authenticate user
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
     
-    if (authError || !user) {
-      logger.error('🎬 Video API: Authentication failed:', authError);
+    if (!user) {
+      logger.error('🎬 Video API: Authentication failed');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
