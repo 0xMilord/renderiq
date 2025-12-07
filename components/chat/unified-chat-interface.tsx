@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { 
   Send, 
   Image as ImageIcon, 
@@ -61,7 +62,6 @@ import { useProjectRules } from '@/lib/hooks/use-project-rules';
 import { useUpscaling } from '@/lib/hooks/use-upscaling';
 import { useImageGeneration, useVideoGeneration } from '@/lib/hooks/use-ai-sdk';
 import { useVersionContext } from '@/lib/hooks/use-version-context';
-import { VideoPlayer } from '@/components/video/video-player';
 import { UploadModal } from './upload-modal';
 import { GalleryModal } from './gallery-modal';
 import { ProjectRulesModal } from './project-rules-modal';
@@ -75,14 +75,35 @@ import type { RenderChainWithRenders } from '@/lib/types/render-chain';
 import Image from 'next/image';
 import { shouldUseRegularImg } from '@/lib/utils/storage-url';
 import { handleImageErrorWithFallback, isCDNUrl } from '@/lib/utils/cdn-fallback';
-import ReactBeforeSliderComponent from 'react-before-after-slider-component';
-import 'react-before-after-slider-component/dist/build.css';
+
+// ✅ Dynamic imports for heavy components (Next.js 16 best practice)
+const VideoPlayer = dynamic(() => import('@/components/video/video-player').then(mod => ({ default: mod.VideoPlayer })), {
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center h-full"><Loader2 className="h-6 w-6 animate-spin" /></div>,
+});
+
 import { getRenderiqMessage } from '@/lib/utils/renderiq-messages';
 import { useLocalStorageMessages } from '@/lib/hooks/use-local-storage-messages';
 import { useObjectURL } from '@/lib/hooks/use-object-url';
 import { useModal } from '@/lib/hooks/use-modal';
 import { createRenderFormData } from '@/lib/utils/render-form-data';
 import { retryFetch } from '@/lib/utils/retry-fetch';
+import { convertRendersToMessages, convertRenderToMessages } from '@/lib/utils/render-to-messages';
+import {
+  POLLING_INTERVAL,
+  PROGRESS_INCREMENT_SLOW,
+  PROGRESS_INCREMENT_MEDIUM,
+  PROGRESS_INCREMENT_FAST,
+} from '@/lib/constants/chat-constants';
+import {
+  getCompletedRenders,
+  getLatestRender,
+  getRenderByVersion,
+  getVersionNumber,
+  getRenderById,
+} from '@/lib/utils/chain-helpers';
+import dynamic from 'next/dynamic';
+import React from 'react';
 
 interface Message {
   id: string;
@@ -184,7 +205,11 @@ function TruncatedMessage({
   );
 }
 
-export function UnifiedChatInterface({ 
+// ✅ Export Message type for use in utility functions
+export type { Message };
+
+// ✅ Memoize component to prevent unnecessary re-renders (React 19 best practice)
+export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({ 
   projectId, 
   chainId, 
   chain,
@@ -272,10 +297,9 @@ export function UnifiedChatInterface({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const lastChainRenderCountRef = useRef(0); // Track chain render count to detect new renders
   const messagesRef = useRef<Message[]>([]); // Track messages via ref
-  const chainRendersRef = useRef(chain?.renders); // Track chain renders via ref to avoid dependency loops
   const hasProcessingRendersRef = useRef(false); // Track if we have processing renders for polling
+  const userSelectedRenderIdRef = useRef<string | null>(null); // Track if user manually selected a render
   
   // Hooks
   const { credits } = useCredits();
@@ -327,7 +351,11 @@ export function UnifiedChatInterface({
           // Gradually increase progress, but cap at 90% until completion
           if (prev >= 90) return 90;
           // More realistic progress: slower at start, faster in middle
-          const increment = prev < 30 ? 2 : prev < 70 ? 5 : 3;
+          const increment = prev < 30 
+            ? PROGRESS_INCREMENT_SLOW 
+            : prev < 70 
+              ? PROGRESS_INCREMENT_MEDIUM 
+              : PROGRESS_INCREMENT_FAST;
           const newProgress = Math.min(prev + increment, 90);
           
               // Progress updates don't need to update messages array
@@ -346,11 +374,54 @@ export function UnifiedChatInterface({
     }
   }, [isGenerating, isImageGenerating, isVideoGenerating, isVideoMode]);
 
-  // ✅ SIMPLIFIED: Initialize chain data only when chainId changes (not when chain prop changes)
+  // ✅ SIMPLIFIED: Single source of truth - chain.renders
+  // Derive everything from chain.renders directly
+  
+  // Memoize completed renders (sorted by chainPosition)
+  const completedRenders = useMemo(() => {
+    return getCompletedRenders(chain?.renders);
+  }, [chain?.renders]);
+
+  // Memoize latest render
+  const latestRender = useMemo(() => {
+    return getLatestRender(chain?.renders);
+  }, [chain?.renders]);
+
+  // ✅ Memoize current render with latest data for main display area
+  const renderWithLatestData = useMemo(() => {
+    if (!currentRender) return null;
+    const latest = getRenderById(chain?.renders, currentRender.id) || currentRender;
+    logger.log('🖼️ [MAIN RENDER DEBUG] Computing renderWithLatestData', {
+      currentRenderId: currentRender.id,
+      renderWithLatestDataId: latest.id,
+      chainPosition: latest.chainPosition,
+      version: getVersionNumber(latest, chain?.renders),
+      type: latest.type,
+      outputUrl: latest.outputUrl?.substring(0, 50) + '...',
+      hasOutputUrl: !!latest.outputUrl,
+      status: latest.status,
+      latestRenderId: latestRender?.id,
+      latestRenderVersion: getVersionNumber(latestRender, chain?.renders),
+      isLatest: latest.id === latestRender?.id,
+      completedRendersCount: completedRenders.length
+    });
+    return latest;
+  }, [currentRender, chain?.renders, latestRender, completedRenders.length]);
+
+  const displayVersion = useMemo(() => {
+    return getVersionNumber(renderWithLatestData, chain?.renders) || 1;
+  }, [renderWithLatestData, chain?.renders]);
+
+  // Memoize messages from chain.renders
+  const chainMessages = useMemo(() => {
+    if (!chain?.renders || chain.renders.length === 0) return null;
+    return convertRendersToMessages(chain.renders);
+  }, [chain?.renders]);
+
+  // ✅ SIMPLIFIED: Initialize messages when chainId changes
   useEffect(() => {
     const currentChainId = chainId || chain?.id;
     
-    // Only initialize once per chainId
     if (initializedChainIdRef.current === currentChainId) {
       return;
     }
@@ -360,56 +431,25 @@ export function UnifiedChatInterface({
       rendersCount: chain?.renders?.length || 0
     });
     
-    // Try to load from localStorage first as backup
     const storedMessages = restoreMessages();
     
-    // Convert renders to messages if chain has renders
-    if (chain && chain.renders && chain.renders.length > 0) {
-      const chainMessages: Message[] = chain.renders
-        .sort((a, b) => (a.chainPosition || 0) - (b.chainPosition || 0))
-        .map((render) => {
-          const userMessage: Message = {
-            id: `user-${render.id}`,
-            type: 'user',
-            content: render.prompt,
-            timestamp: render.createdAt,
-            referenceRenderId: render.referenceRenderId || undefined,
-            uploadedImage: render.uploadedImageUrl ? {
-              previewUrl: render.uploadedImageUrl,
-              persistedUrl: render.uploadedImageUrl
-            } : undefined
-          };
-
-          const assistantMessage: Message = {
-            id: `assistant-${render.id}`,
-            type: 'assistant',
-            content: render.status === 'failed'
-              ? 'Sorry, I couldn\'t generate your render. Please try again.'
-              : render.status === 'processing' || render.status === 'pending'
-              ? 'Generating your render...'
-              : '',
-            timestamp: render.updatedAt,
-            render: render.status === 'completed' ? render : undefined,
-            isGenerating: render.status === 'processing' || render.status === 'pending'
-          };
-
-          return [userMessage, assistantMessage];
-        })
-        .flat();
-      
+    if (chainMessages) {
       setMessages(chainMessages);
       messagesRef.current = chainMessages;
       saveMessages(chainMessages);
-
-      const latestCompletedRender = chain.renders
-        .filter(r => r.status === 'completed')
-        .sort((a, b) => (b.chainPosition || 0) - (a.chainPosition || 0))[0];
       
-      if (latestCompletedRender) {
-        setCurrentRender(latestCompletedRender);
+      // Set latest render on initialization
+      if (latestRender) {
+        logger.log('🔍 UnifiedChatInterface: Setting latest render on initialization', {
+          renderId: latestRender.id,
+          chainPosition: latestRender.chainPosition,
+          versionNumber: getVersionNumber(latestRender, chain?.renders)
+        });
+        setCurrentRender(latestRender);
+        userSelectedRenderIdRef.current = null;
+      } else {
+        logger.log('⚠️ UnifiedChatInterface: No latest render found on initialization');
       }
-      
-      lastChainRenderCountRef.current = chain.renders.length;
     } else if (storedMessages) {
       setMessages(storedMessages);
     } else {
@@ -418,99 +458,126 @@ export function UnifiedChatInterface({
     }
     
     initializedChainIdRef.current = currentChainId;
-  }, [chainId]); // ✅ SIMPLIFIED: Only depend on chainId - ignore chain prop changes
+  }, [chainId, chainMessages]);
 
-  // ✅ FIXED: Update chain renders ref when it changes
+  // ✅ SIMPLIFIED: Update messages when chain.renders changes
   useEffect(() => {
-    chainRendersRef.current = chain?.renders;
+    if (!chain?.renders) return;
+    
+    // Always regenerate messages from chain.renders (single source of truth)
+    const newMessages = convertRendersToMessages(chain.renders);
+    setMessages(newMessages);
+    messagesRef.current = newMessages;
+    saveMessages(newMessages);
   }, [chain?.renders]);
 
-  // ✅ FIXED: Update messages when chain renders change - use refs to prevent loops
+  // ✅ Debug: Log when currentRender changes
   useEffect(() => {
-    const currentChainRenders = chainRendersRef.current;
-    
-    // Skip if not initialized or if chainId changed (handled by initialization useEffect)
-    if (initializedChainIdRef.current !== (chainId || chain?.id) || !currentChainRenders) {
+    logger.log('🔄 [SYNC DEBUG] currentRender state changed', {
+      currentRenderId: currentRender?.id,
+      currentRenderChainPosition: currentRender?.chainPosition,
+      currentRenderVersion: getVersionNumber(currentRender, chain?.renders),
+      currentRenderOutputUrl: currentRender?.outputUrl?.substring(0, 50) + '...',
+      latestRenderId: latestRender?.id,
+      latestRenderVersion: getVersionNumber(latestRender, chain?.renders),
+      isLatest: currentRender?.id === latestRender?.id,
+      userSelectedRenderId: userSelectedRenderIdRef.current
+    });
+  }, [currentRender?.id, chain?.renders]);
+
+  // ✅ SIMPLIFIED: Update currentRender when chain.renders changes
+  useEffect(() => {
+    if (!chain?.renders || chain.renders.length === 0) {
+      logger.log('🔄 [SYNC DEBUG] No renders, clearing currentRender');
+      setCurrentRender(null);
       return;
     }
     
-    const currentRenderCount = currentChainRenders.length;
-    const previousRenderCount = lastChainRenderCountRef.current;
+    logger.log('🔄 [SYNC DEBUG] currentRender useEffect triggered', {
+      totalRenders: chain.renders.length,
+      completedRendersCount: completedRenders.length,
+      latestRenderId: latestRender?.id,
+      latestRenderChainPosition: latestRender?.chainPosition,
+      latestRenderVersion: getVersionNumber(latestRender, chain?.renders),
+      userSelectedRenderId: userSelectedRenderIdRef.current,
+      completedRenders: completedRenders.map(r => ({
+        id: r.id,
+        chainPosition: r.chainPosition,
+        version: getVersionNumber(r, chain?.renders)
+      }))
+    });
     
-    // Only update if render count changed (new render added)
-    if (currentRenderCount > previousRenderCount) {
-      // New render added - add it to messages
-      const newRenders = currentChainRenders
-        .filter(r => r.chainPosition !== undefined && r.chainPosition >= Math.floor(messagesRef.current.length / 2))
-        .sort((a, b) => (a.chainPosition || 0) - (b.chainPosition || 0));
+    setCurrentRender(prevRender => {
+      logger.log('🔄 [SYNC DEBUG] setCurrentRender callback', {
+        prevRenderId: prevRender?.id,
+        prevRenderChainPosition: prevRender?.chainPosition,
+        prevRenderVersion: getVersionNumber(prevRender, chain?.renders),
+        userSelectedRenderId: userSelectedRenderIdRef.current
+      });
       
-      if (newRenders.length > 0) {
-        const newMessages: Message[] = newRenders.flatMap(render => {
-          const userMessage: Message = {
-            id: `user-${render.id}`,
-            type: 'user',
-            content: render.prompt,
-            timestamp: render.createdAt,
-            referenceRenderId: render.referenceRenderId || undefined,
-            uploadedImage: render.uploadedImageUrl ? {
-              previewUrl: render.uploadedImageUrl,
-              persistedUrl: render.uploadedImageUrl
-            } : undefined
-          };
-
-          const assistantMessage: Message = {
-            id: `assistant-${render.id}`,
-            type: 'assistant',
-            content: render.status === 'processing' || render.status === 'pending' ? 'Generating your render...' : '',
-            timestamp: render.updatedAt,
-            render: render.status === 'completed' ? render : undefined,
-            isGenerating: render.status === 'processing' || render.status === 'pending'
-          };
-
-          return [userMessage, assistantMessage];
-        });
-        
-        setMessages(prev => {
-          const updated = [...prev, ...newMessages];
-          messagesRef.current = updated;
-          return updated;
-        });
+      // If user manually selected a render, keep it (but update with latest data)
+      if (userSelectedRenderIdRef.current) {
+        const selectedRender = getRenderById(chain.renders, userSelectedRenderIdRef.current);
+        if (selectedRender && selectedRender.status === 'completed') {
+          logger.log('🔄 [SYNC DEBUG] Keeping user-selected render', {
+            renderId: selectedRender.id,
+            chainPosition: selectedRender.chainPosition,
+            version: getVersionNumber(selectedRender, chain?.renders)
+          });
+          return selectedRender; // Update with latest data
+        }
+        // Selected render no longer exists or isn't completed, clear selection
+        logger.log('🔄 [SYNC DEBUG] User-selected render no longer valid, clearing');
+        userSelectedRenderIdRef.current = null;
       }
       
-      lastChainRenderCountRef.current = currentRenderCount;
-    } else {
-      // Update existing messages if render status changed
-      setMessages(prev => {
-        const updated = prev.map(msg => {
-          if (!msg.render) return msg;
-          
-          const updatedRender = currentChainRenders.find(r => r.id === msg.render?.id);
-          if (!updatedRender) return msg;
-          
-          if (updatedRender.status === 'completed' && msg.isGenerating) {
-            return {
-              ...msg,
-              content: '',
-              isGenerating: false,
-              render: updatedRender
-            };
-          } else if (updatedRender.status === 'failed' && msg.isGenerating) {
-            return {
-              ...msg,
-              content: 'Sorry, I couldn\'t generate your render. Please try again.',
-              isGenerating: false,
-              render: undefined
-            };
-          }
-          
-          return msg;
-        });
-        
-        messagesRef.current = updated;
-        return updated;
+      // Auto-update to latest render if no manual selection
+      if (!userSelectedRenderIdRef.current && latestRender) {
+        // Only update if latest is newer than current
+        if (!prevRender || (latestRender.chainPosition || 0) > (prevRender.chainPosition || 0)) {
+          logger.log('🔄 [SYNC DEBUG] Auto-updating to latest render', {
+            renderId: latestRender.id,
+            chainPosition: latestRender.chainPosition,
+            versionNumber: getVersionNumber(latestRender, chain?.renders),
+            prevRenderId: prevRender?.id,
+            prevChainPosition: prevRender?.chainPosition,
+            prevVersion: getVersionNumber(prevRender, chain?.renders)
+          });
+          return latestRender;
+        } else {
+          logger.log('🔄 [SYNC DEBUG] Latest render not newer, keeping current', {
+            latestChainPosition: latestRender.chainPosition,
+            currentChainPosition: prevRender?.chainPosition
+          });
+        }
+      }
+      
+      // Update current render with latest data from chain (in case status/outputUrl changed)
+      if (prevRender) {
+        const updatedRender = getRenderById(chain.renders, prevRender.id);
+        if (updatedRender && updatedRender.status === 'completed') {
+          logger.log('🔄 [SYNC DEBUG] Updating current render with latest data', {
+            renderId: updatedRender.id,
+            chainPosition: updatedRender.chainPosition,
+            version: getVersionNumber(updatedRender, chain?.renders),
+            outputUrl: updatedRender.outputUrl?.substring(0, 50) + '...'
+          });
+          return updatedRender;
+        }
+      }
+      
+      // Fallback to latest if current render doesn't exist
+      const finalRender = latestRender || prevRender;
+      logger.log('🔄 [SYNC DEBUG] Final render selection', {
+        renderId: finalRender?.id,
+        chainPosition: finalRender?.chainPosition,
+        version: getVersionNumber(finalRender, chain?.renders),
+        isLatest: finalRender?.id === latestRender?.id,
+        isPrevious: finalRender?.id === prevRender?.id
       });
-    }
-  }, [chainId]); // ✅ FIXED: Only depend on chainId - use refs for chain.renders
+      return finalRender;
+    });
+  }, [chain?.renders, latestRender, completedRenders]);
 
   // ✅ FIXED: Update processing renders ref when messages change
   useEffect(() => {
@@ -526,7 +593,7 @@ export function UnifiedChatInterface({
       return;
     }
     
-    // Poll every 5 seconds
+    // ✅ Use constant for polling interval
     const pollInterval = setInterval(() => {
       // Check again using ref to avoid dependency on messages
       if (hasProcessingRendersRef.current) {
@@ -535,7 +602,7 @@ export function UnifiedChatInterface({
         // No more processing renders - stop polling
         clearInterval(pollInterval);
       }
-    }, 5000);
+    }, POLLING_INTERVAL);
     
     return () => clearInterval(pollInterval);
   }, [chainId, onRefreshChain]); // ✅ FIXED: Removed messages dependency - use ref instead
@@ -1382,23 +1449,52 @@ export function UnifiedChatInterface({
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 <div className="flex gap-2">
-                  {messages
-                    .filter(m => m.render && (m.render.type === 'image' || m.render.type === 'video'))
-                    .map((message, index) => (
+                  {/* ✅ SIMPLIFIED: Use completedRenders directly (already sorted by chainPosition) */}
+                  {(() => {
+                    const carouselRenders = completedRenders.filter(r => r.type === 'image' || r.type === 'video');
+                    logger.log('🖼️ [CAROUSEL DEBUG] Rendering carousel thumbnails', {
+                      totalCompleted: completedRenders.length,
+                      carouselRendersCount: carouselRenders.length,
+                      currentRenderId: currentRender?.id,
+                      currentRenderVersion: getVersionNumber(currentRender, chain?.renders),
+                      carouselRenders: carouselRenders.map((r, idx) => ({
+                        index: idx,
+                        id: r.id,
+                        chainPosition: r.chainPosition,
+                        version: getVersionNumber(r, chain?.renders),
+                        isSelected: r.id === currentRender?.id,
+                        outputUrl: r.outputUrl?.substring(0, 30) + '...'
+                      }))
+                    });
+                    return carouselRenders.map((render, index) => {
+                      const versionNumber = getVersionNumber(render, chain?.renders) || (index + 1);
+                      const isSelected = currentRender?.id === render.id;
+                      return (
                       <div
-                        key={message.id}
+                        key={render.id}
                         className={cn(
                           "relative w-8 h-8 rounded border-2 cursor-pointer transition-all shrink-0 overflow-hidden",
-                          currentRender?.id === message.render?.id
+                          isSelected
                             ? "border-primary ring-2 ring-primary/20"
                             : "border-border hover:border-primary/50"
                         )}
-                        onClick={() => setCurrentRender(message.render!)}
+                        onClick={() => {
+                          logger.log('🖼️ [CAROUSEL DEBUG] Thumbnail clicked', {
+                            renderId: render.id,
+                            chainPosition: render.chainPosition,
+                            version: versionNumber,
+                            previousCurrentRenderId: currentRender?.id,
+                            previousCurrentRenderVersion: getVersionNumber(currentRender, chain?.renders)
+                          });
+                          // ✅ SIMPLIFIED: Use render directly from completedRenders
+                          userSelectedRenderIdRef.current = render.id;
+                          setCurrentRender(render);
+                        }}
                       >
-                        {message.render!.type === 'video' ? (
-                          message.render!.outputUrl ? (
+                        {render.type === 'video' ? (
+                          render.outputUrl ? (
                             <video
-                              src={message.render!.outputUrl}
+                              src={render.outputUrl}
                               className="w-full h-full object-cover"
                               muted
                               playsInline
@@ -1408,40 +1504,28 @@ export function UnifiedChatInterface({
                               <Video className="h-4 w-4 text-muted-foreground" />
                             </div>
                           )
-                        ) : message.render!.outputUrl ? (
-                          // Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking
-                          shouldUseRegularImg(message.render!.outputUrl) ? (
+                        ) : render.outputUrl ? (
+                          shouldUseRegularImg(render.outputUrl) ? (
                             <img
-                              src={message.render!.outputUrl}
-                              alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
+                              src={render.outputUrl}
+                              alt={`Version ${versionNumber}`}
                               className="absolute inset-0 w-full h-full object-cover"
                               onError={(e) => {
                                 const img = e.target as HTMLImageElement;
-                                const originalUrl = message.render!.outputUrl;
-                                console.error('Image load error:', originalUrl);
-                                logger.error('Failed to load image:', originalUrl);
-                                
-                                // Try CDN fallback to direct GCS URL
-                                const fallbackUrl = handleImageErrorWithFallback(originalUrl, e);
+                                const fallbackUrl = handleImageErrorWithFallback(render.outputUrl!, e);
                                 if (fallbackUrl && fallbackUrl !== '/placeholder-image.jpg') {
-                                  console.log('Trying fallback to direct GCS URL:', fallbackUrl);
                                   img.src = fallbackUrl;
                                 } else {
-                                  // No fallback available, use placeholder
                                   img.src = '/placeholder-image.jpg';
                                 }
                               }}
                             />
                           ) : (
                             <Image
-                              src={message.render!.outputUrl}
-                              alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
+                              src={render.outputUrl}
+                              alt={`Version ${versionNumber}`}
                               fill
                               className="object-cover"
-                              onError={(e) => {
-                                console.error('Image load error:', message.render!.outputUrl);
-                                logger.error('Failed to load image:', message.render!.outputUrl);
-                              }}
                             />
                           )
                         ) : (
@@ -1450,7 +1534,9 @@ export function UnifiedChatInterface({
                           </div>
                         )}
                       </div>
-                    ))}
+                      );
+                    });
+                  })()}
                 </div>
               </div>
               <Button
@@ -1532,6 +1618,12 @@ export function UnifiedChatInterface({
                   <div className="flex gap-2">
                     {messages
                       .filter(m => m.render && (m.render.type === 'image' || m.render.type === 'video'))
+                      // ✅ FIXED: Sort by chainPosition to ensure correct order
+                      .sort((a, b) => {
+                        const aPos = a.render?.chainPosition ?? -1;
+                        const bPos = b.render?.chainPosition ?? -1;
+                        return aPos - bPos;
+                      })
                       .map((message, index) => (
                         <div
                           key={message.id}
@@ -1541,7 +1633,12 @@ export function UnifiedChatInterface({
                               ? "border-primary ring-2 ring-primary/20"
                               : "border-border hover:border-primary/50"
                           )}
-                          onClick={() => setCurrentRender(message.render!)}
+                          onClick={() => {
+                            // ✅ SIMPLIFIED: Get render from chain.renders (single source of truth)
+                            const render = getRenderById(chain?.renders, message.render!.id) || message.render!;
+                            userSelectedRenderIdRef.current = render.id;
+                            setCurrentRender(render);
+                          }}
                         >
                           {message.render!.type === 'video' ? (
                             <video
@@ -1555,7 +1652,7 @@ export function UnifiedChatInterface({
                           shouldUseRegularImg(message.render!.outputUrl) ? (
                             <img
                               src={message.render!.outputUrl}
-                              alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
+                              alt={`Version ${getVersionNumber(message.render, chain?.renders) || index + 1}`}
                               className="absolute inset-0 w-full h-full object-cover"
                               onError={(e) => {
                                 const img = e.target as HTMLImageElement;
@@ -1577,7 +1674,7 @@ export function UnifiedChatInterface({
                             ) : (
                               <Image
                                 src={message.render!.outputUrl}
-                                alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
+                                alt={`Version ${getVersionNumber(message.render, chain?.renders) || index + 1}`}
                                 fill
                                 className="object-cover"
                                 onError={(e) => {
@@ -1849,15 +1946,18 @@ export function UnifiedChatInterface({
                   {message.render && (
                     <div className="mt-2 w-full max-w-full overflow-hidden">
                       <div className="mb-1 flex items-center justify-between">
-                        <span className="text-[10px] sm:text-xs text-muted-foreground">Version {message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}</span>
+                        <span className="text-[10px] sm:text-xs text-muted-foreground">Version {getVersionNumber(message.render, chain?.renders) || index + 1}</span>
                       </div>
                       <div className="relative w-full max-w-full aspect-video rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity bg-muted animate-in fade-in-0 zoom-in-95 duration-500"
                         onClick={() => {
-                          setCurrentRender(message.render!);
+                          // ✅ SIMPLIFIED: Get render from chain.renders (single source of truth)
+                          const renderToSet = getRenderById(chain?.renders, message.render!.id) || message.render!;
+                          userSelectedRenderIdRef.current = renderToSet.id;
+                          setCurrentRender(renderToSet);
                           setMobileView('render');
                           
                           // If it's a video, switch to video mode on render tab
-                          if (message.render?.type === 'video') {
+                          if (renderToSet?.type === 'video') {
                             setIsVideoMode(true);
                             // Load the video as uploaded file for further editing
                             if (message.render.outputUrl) {
@@ -2715,9 +2815,23 @@ export function UnifiedChatInterface({
           <div className="px-4 py-1.5 h-11 flex items-center">
             {/* Toolbar - Only show when there's a render AND we're in output area (not chat) */}
             {currentRender && (() => {
-              const versionNumber = currentRender.chainPosition !== undefined 
-                ? currentRender.chainPosition + 1 
-                : messages.findIndex(m => m.render?.id === currentRender.id) + 1;
+              // ✅ SIMPLIFIED: Always use index in completed renders array for version number
+              // Get the latest data from chain.renders to ensure we have the correct data
+              const renderWithLatestData = getRenderById(chain?.renders, currentRender.id) || currentRender;
+              const versionNumber = getVersionNumber(renderWithLatestData, chain?.renders) || 1;
+              
+              // Debug logging
+              if (process.env.NODE_ENV === 'development') {
+                logger.log('🔍 UnifiedChatInterface: Displaying render', {
+                  renderId: renderWithLatestData.id,
+                  chainPosition: renderWithLatestData.chainPosition,
+                  versionNumber,
+                  latestRenderChainPosition: latestRender?.chainPosition,
+                  latestRenderVersion: getVersionNumber(latestRender, chain?.renders),
+                  completedRendersCount: completedRenders.length
+                });
+              }
+              
               return (
                 <div className="flex items-center gap-3 w-full">
                   {/* Sidebar Toggle Button - Only show on desktop when sidebar is visible */}
@@ -2747,8 +2861,12 @@ export function UnifiedChatInterface({
                     <Select 
                       value={currentRender?.id} 
                       onValueChange={(value) => {
-                        const render = messages.find(m => m.render?.id === value)?.render;
-                        if (render) setCurrentRender(render);
+                        // ✅ SIMPLIFIED: Get render from chain.renders (single source of truth)
+                        const render = getRenderById(chain?.renders, value);
+                        if (render) {
+                          userSelectedRenderIdRef.current = render.id;
+                          setCurrentRender(render);
+                        }
                       }}
                     >
                       <SelectTrigger className="h-7 px-2 text-[10px] sm:text-xs w-auto min-w-[80px] sm:min-w-[100px] shrink-0">
@@ -2757,18 +2875,17 @@ export function UnifiedChatInterface({
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        {messages
-                          .filter(m => m.render)
-                          .map((message, index) => {
-                            const msgVersionNumber = message.render?.chainPosition !== undefined 
-                              ? message.render.chainPosition + 1 
-                              : index + 1;
-                            return (
-                              <SelectItem key={message.id} value={message.render!.id} className="text-xs">
-                                Version {msgVersionNumber} - {message.content.substring(0, 30)}...
-                              </SelectItem>
-                            );
-                          })}
+                        {/* ✅ SIMPLIFIED: Use completedRenders directly (already sorted by chainPosition) */}
+                        {completedRenders.map((render, index) => {
+                          const versionNumber = getVersionNumber(render, chain?.renders) || (index + 1);
+                          // Find corresponding message for content
+                          const message = messages.find(m => m.render?.id === render.id);
+                          return (
+                            <SelectItem key={render.id} value={render.id} className="text-xs">
+                              Version {versionNumber} - {message?.content?.substring(0, 30) || render.prompt.substring(0, 30)}...
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                   )}
@@ -2930,60 +3047,177 @@ export function UnifiedChatInterface({
                       {/* Image/Video Display */}
                       <div className="flex-1 bg-muted rounded-t-lg overflow-hidden relative min-h-[200px] sm:min-h-[300px] min-w-0">
                         <div className="w-full h-full flex items-center justify-center relative p-0 overflow-hidden min-w-0">
-                        {currentRender.type === 'video' ? (
+                        {renderWithLatestData?.type === 'video' ? (
                           <video
-                            src={currentRender.outputUrl}
+                            src={renderWithLatestData.outputUrl || ''}
                             className="w-full h-full object-contain cursor-pointer"
                             controls
                             loop
                             muted
                             playsInline
                             onClick={() => setIsFullscreen(true)}
+                            onLoadStart={() => {
+                              logger.log('🖼️ [MAIN RENDER DEBUG] Video loading', {
+                                renderId: renderWithLatestData.id,
+                                outputUrl: renderWithLatestData.outputUrl?.substring(0, 50) + '...'
+                              });
+                            }}
                           />
-                        ) : previousRender && previousRender.outputUrl ? (
-                          // Before/After Comparison Slider
-                          <div className="w-full h-full relative">
-                            <ReactBeforeSliderComponent
-                              firstImage={{ imageUrl: previousRender.outputUrl }}
-                              secondImage={{ imageUrl: currentRender.outputUrl }}
-                              currentPercentPosition={75} // 3/4 shows new (75% = new image visible)
-                            />
-                            {/* Labels */}
-                            <div className="absolute top-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium">
-                              Previous
-                            </div>
-                            <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium">
-                              Current
-                            </div>
-                            {/* Fullscreen Toggle */}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setIsFullscreen(true)}
-                              className="absolute bottom-2 right-2 bg-black/50 hover:bg-black/70 text-white h-7 w-7 sm:h-auto sm:w-auto sm:px-3"
-                            >
-                              <Maximize className="h-3 w-3 sm:h-4 sm:w-4" />
-                            </Button>
-                          </div>
-                        ) : (
+                        ) : previousRender && previousRender.outputUrl && renderWithLatestData ? (
+                          // Before/After Comparison with Tabs
+                          <Tabs defaultValue="after" className="w-full h-full">
+                            <TabsList className="grid w-full grid-cols-2 mb-2 absolute top-2 left-1/2 -translate-x-1/2 z-10 bg-background/90 backdrop-blur-sm">
+                              <TabsTrigger value="before" className="text-xs sm:text-sm">Before</TabsTrigger>
+                              <TabsTrigger value="after" className="text-xs sm:text-sm">After</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="before" className="mt-0 h-full">
+                              <div className="w-full h-full flex items-center justify-center relative">
+                                {shouldUseRegularImg(previousRender.outputUrl) ? (
+                                  <img
+                                    src={previousRender.outputUrl}
+                                    alt="Previous render"
+                                    className="absolute inset-0 w-full h-full object-contain cursor-pointer"
+                                    onClick={() => setIsFullscreen(true)}
+                                    onError={(e) => {
+                                      const img = e.target as HTMLImageElement;
+                                      const originalUrl = previousRender.outputUrl;
+                                      logger.error('🖼️ [MAIN RENDER DEBUG] Previous image load error', {
+                                        originalUrl: originalUrl?.substring(0, 50) + '...'
+                                      });
+                                      const fallbackUrl = handleImageErrorWithFallback(originalUrl || '', e);
+                                      if (fallbackUrl && fallbackUrl !== '/placeholder-image.jpg') {
+                                        img.src = fallbackUrl;
+                                      } else {
+                                        img.src = '/placeholder-image.jpg';
+                                      }
+                                    }}
+                                  />
+                                ) : (
+                                  <Image
+                                    src={previousRender.outputUrl || '/placeholder-image.jpg'}
+                                    alt="Previous render"
+                                    fill
+                                    className="object-contain cursor-pointer"
+                                    sizes="100vw"
+                                    onClick={() => setIsFullscreen(true)}
+                                    onError={(e) => {
+                                      logger.error('🖼️ [MAIN RENDER DEBUG] Previous Next.js Image load error', {
+                                        outputUrl: previousRender.outputUrl?.substring(0, 50) + '...'
+                                      });
+                                    }}
+                                  />
+                                )}
+                                {/* Fullscreen Toggle */}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setIsFullscreen(true)}
+                                  className="absolute top-2 sm:top-4 right-2 sm:right-4 bg-black/50 hover:bg-black/70 text-white h-7 w-7 sm:h-auto sm:w-auto sm:px-3"
+                                >
+                                  <Maximize className="h-3 w-3 sm:h-4 sm:w-4" />
+                                </Button>
+                              </div>
+                            </TabsContent>
+                            <TabsContent value="after" className="mt-0 h-full">
+                              <div className="w-full h-full flex items-center justify-center relative">
+                                {shouldUseRegularImg(renderWithLatestData.outputUrl || '') ? (
+                                  <img
+                                    src={renderWithLatestData.outputUrl || ''}
+                                    alt={renderWithLatestData.prompt}
+                                    className="absolute inset-0 w-full h-full object-contain cursor-pointer"
+                                    onClick={() => setIsFullscreen(true)}
+                                    onLoad={() => {
+                                      logger.log('🖼️ [MAIN RENDER DEBUG] Image loaded successfully', {
+                                        renderId: renderWithLatestData.id,
+                                        version: displayVersion,
+                                        outputUrl: renderWithLatestData.outputUrl?.substring(0, 50) + '...'
+                                      });
+                                    }}
+                                    onError={(e) => {
+                                      const img = e.target as HTMLImageElement;
+                                      const originalUrl = renderWithLatestData.outputUrl;
+                                      logger.error('🖼️ [MAIN RENDER DEBUG] Image load error', {
+                                        renderId: renderWithLatestData.id,
+                                        version: displayVersion,
+                                        originalUrl: originalUrl?.substring(0, 50) + '...'
+                                      });
+                                      const fallbackUrl = handleImageErrorWithFallback(originalUrl || '', e);
+                                      if (fallbackUrl && fallbackUrl !== '/placeholder-image.jpg') {
+                                        logger.log('🖼️ [MAIN RENDER DEBUG] Trying fallback URL', {
+                                          fallbackUrl: fallbackUrl.substring(0, 50) + '...'
+                                        });
+                                        img.src = fallbackUrl;
+                                      } else {
+                                        img.src = '/placeholder-image.jpg';
+                                      }
+                                    }}
+                                  />
+                                ) : (
+                                  <Image
+                                    src={renderWithLatestData.outputUrl || '/placeholder-image.jpg'}
+                                    alt={renderWithLatestData.prompt}
+                                    fill
+                                    className="object-contain cursor-pointer"
+                                    sizes="100vw"
+                                    onClick={() => setIsFullscreen(true)}
+                                    onLoad={() => {
+                                      logger.log('🖼️ [MAIN RENDER DEBUG] Next.js Image loaded successfully', {
+                                        renderId: renderWithLatestData.id,
+                                        version: displayVersion
+                                      });
+                                    }}
+                                    onError={(e) => {
+                                      logger.error('🖼️ [MAIN RENDER DEBUG] Next.js Image load error', {
+                                        renderId: renderWithLatestData.id,
+                                        version: displayVersion,
+                                        outputUrl: renderWithLatestData.outputUrl?.substring(0, 50) + '...'
+                                      });
+                                    }}
+                                  />
+                                )}
+                                {/* Fullscreen Toggle */}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setIsFullscreen(true)}
+                                  className="absolute top-2 sm:top-4 right-2 sm:right-4 bg-black/50 hover:bg-black/70 text-white h-7 w-7 sm:h-auto sm:w-auto sm:px-3"
+                                >
+                                  <Maximize className="h-3 w-3 sm:h-4 sm:w-4" />
+                                </Button>
+                              </div>
+                            </TabsContent>
+                          </Tabs>
+                        ) : renderWithLatestData ? (
                           <>
                             {/* Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking */}
-                            {shouldUseRegularImg(currentRender.outputUrl) ? (
+                            {shouldUseRegularImg(renderWithLatestData.outputUrl || '') ? (
                               <img
-                                src={currentRender.outputUrl}
-                                alt={currentRender.prompt}
+                                src={renderWithLatestData.outputUrl || ''}
+                                alt={renderWithLatestData.prompt}
                                 className="absolute inset-0 w-full h-full object-contain cursor-pointer"
                                 onClick={() => setIsFullscreen(true)}
+                                onLoad={() => {
+                                  logger.log('🖼️ [MAIN RENDER DEBUG] Image loaded successfully', {
+                                    renderId: renderWithLatestData.id,
+                                    version: displayVersion,
+                                    outputUrl: renderWithLatestData.outputUrl?.substring(0, 50) + '...'
+                                  });
+                                }}
                                 onError={(e) => {
                                   const img = e.target as HTMLImageElement;
-                                  const originalUrl = currentRender.outputUrl;
-                                  console.error('Image load error:', originalUrl);
-                                  logger.error('Failed to load image:', originalUrl);
+                                  const originalUrl = renderWithLatestData.outputUrl;
+                                  logger.error('🖼️ [MAIN RENDER DEBUG] Image load error', {
+                                    renderId: renderWithLatestData.id,
+                                    version: displayVersion,
+                                    originalUrl: originalUrl?.substring(0, 50) + '...'
+                                  });
                                   
                                   // Try CDN fallback to direct GCS URL
-                                  const fallbackUrl = handleImageErrorWithFallback(originalUrl, e);
+                                  const fallbackUrl = handleImageErrorWithFallback(originalUrl || '', e);
                                   if (fallbackUrl && fallbackUrl !== '/placeholder-image.jpg') {
-                                    console.log('Trying fallback to direct GCS URL:', fallbackUrl);
+                                    logger.log('🖼️ [MAIN RENDER DEBUG] Trying fallback URL', {
+                                      fallbackUrl: fallbackUrl.substring(0, 50) + '...'
+                                    });
                                     img.src = fallbackUrl;
                                   } else {
                                     // No fallback available, use placeholder
@@ -2993,15 +3227,24 @@ export function UnifiedChatInterface({
                               />
                             ) : (
                               <Image
-                                src={currentRender.outputUrl || '/placeholder-image.jpg'}
-                                alt={currentRender.prompt}
+                                src={renderWithLatestData.outputUrl || '/placeholder-image.jpg'}
+                                alt={renderWithLatestData.prompt}
                                 fill
                                 className="object-contain cursor-pointer"
                                 sizes="100vw"
                                 onClick={() => setIsFullscreen(true)}
+                                onLoad={() => {
+                                  logger.log('🖼️ [MAIN RENDER DEBUG] Next.js Image loaded successfully', {
+                                    renderId: renderWithLatestData.id,
+                                    version: displayVersion
+                                  });
+                                }}
                                 onError={(e) => {
-                                  console.error('Image load error:', currentRender.outputUrl);
-                                  logger.error('Failed to load image:', currentRender.outputUrl);
+                                  logger.error('🖼️ [MAIN RENDER DEBUG] Next.js Image load error', {
+                                    renderId: renderWithLatestData.id,
+                                    version: displayVersion,
+                                    outputUrl: renderWithLatestData.outputUrl?.substring(0, 50) + '...'
+                                  });
                                 }}
                               />
                             )}
@@ -3015,7 +3258,7 @@ export function UnifiedChatInterface({
                               <Maximize className="h-3 w-3 sm:h-4 sm:w-4" />
                             </Button>
                           </>
-                        )}
+                        ) : null}
                         </div>
                       </div>
 
@@ -3266,4 +3509,14 @@ export function UnifiedChatInterface({
       )}
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // ✅ Custom comparison function for React.memo
+  // Only re-render if these props actually change
+  return (
+    prevProps.projectId === nextProps.projectId &&
+    prevProps.chainId === nextProps.chainId &&
+    prevProps.chain?.id === nextProps.chain?.id &&
+    prevProps.chain?.renders?.length === nextProps.chain?.renders?.length &&
+    prevProps.projectName === nextProps.projectName
+  );
+});
