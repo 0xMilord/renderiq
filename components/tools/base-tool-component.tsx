@@ -23,7 +23,8 @@ import {
   ExternalLink,
   Download,
   Eye,
-  HelpCircle
+  HelpCircle,
+  Maximize2
 } from 'lucide-react';
 import ReactBeforeSliderComponent from 'react-before-after-slider-component';
 import 'react-before-after-slider-component/dist/build.css';
@@ -32,6 +33,7 @@ import { TOOL_CONTENT } from '@/lib/tools/tool-content';
 import { createRenderAction } from '@/lib/actions/render.actions';
 import { useCredits } from '@/lib/hooks/use-credits';
 import { useRenders } from '@/lib/hooks/use-renders';
+import { useAuthStore } from '@/lib/stores/auth-store';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -50,6 +52,8 @@ interface BaseToolComponentProps {
   onHintChange?: (hint: string | null) => void;
   additionalButtonContent?: React.ReactNode;
   hintMessage?: string | null;
+  customCreditsCost?: number | ((quality: 'standard' | 'high' | 'ultra') => number);
+  expectedOutputCount?: number | (() => number); // Expected number of output images (for smart placeholders)
 }
 
 export function BaseToolComponent({
@@ -63,11 +67,15 @@ export function BaseToolComponent({
   onHintChange,
   additionalButtonContent,
   hintMessage,
+  customCreditsCost,
+  expectedOutputCount,
+  hideQualitySelector = false,
 }: BaseToolComponentProps) {
   // Get rich content for this tool, or use defaults
   const toolContent = TOOL_CONTENT[tool.id];
   const router = useRouter();
   const { credits, loading: creditsLoading, refreshCredits } = useCredits();
+  const user = useAuthStore((state) => state.user);
   
   // Use prop projectId only - no automatic project selection
   const projectId = propProjectId;
@@ -81,7 +89,7 @@ export function BaseToolComponent({
       return (render.settings as { imageType?: string }).imageType === tool.id;
     }
     return false;
-  }).filter(render => render.status === 'completed' && render.outputUrl).slice(0, 20); // Limit to 20 most recent
+  }).filter(render => render.status === 'completed' && render.outputUrl); // Show all completed renders from this tool
   
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
@@ -93,12 +101,88 @@ export function BaseToolComponent({
   const [activeTab, setActiveTab] = useState<'tool' | 'output'>('tool');
   const [selectedRenderIndex, setSelectedRenderIndex] = useState<number | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [fullscreenImage, setFullscreenImage] = useState<{ url: string; label?: string } | null>(null);
+  const [pollingRenderIds, setPollingRenderIds] = useState<Set<string>>(new Set());
   
   const [quality, setQuality] = useState<'standard' | 'high' | 'ultra'>('standard');
   const [aspectRatio, setAspectRatio] = useState<string>('16:9');
+  
+  // Poll for render updates
+  const pollForRenderUpdates = useCallback(async (renderIds: string[]) => {
+    if (!projectId) return;
+    
+    setPollingRenderIds(new Set(renderIds));
+    const pollInterval = 2000; // Poll every 2 seconds
+    const maxPollTime = 5 * 60 * 1000; // Max 5 minutes
+    const startTime = Date.now();
+    
+    const poll = async () => {
+      if (Date.now() - startTime > maxPollTime) {
+        setPollingRenderIds(new Set());
+        return;
+      }
+      
+      try {
+        // Refresh renders to get latest status
+        await refetchRenders();
+        
+        // Get updated renders from the hook
+        const updatedRenders = renders.filter(r => 
+          renderIds.includes(r.id) && 
+          r.status === 'completed' && 
+          r.outputUrl
+        );
+        
+        if (updatedRenders.length > 0) {
+          // Update results with completed renders
+          setResults(prev => prev.map(result => {
+            const updated = updatedRenders.find(r => r.id === result.renderId);
+            if (updated) {
+              return {
+                ...result,
+                outputUrl: updated.outputUrl || result.outputUrl,
+                isPolling: false
+              };
+            }
+            return result;
+          }));
+          
+          // Remove completed renders from polling set
+          const remainingIds = renderIds.filter(id => 
+            !updatedRenders.some(r => r.id === id)
+          );
+          
+          if (remainingIds.length === 0) {
+            // All renders completed
+            setPollingRenderIds(new Set());
+            await refreshCredits();
+            toast.success(`${renderIds.length} renders generated successfully!`);
+            refetchRenders();
+            setActiveTab('output');
+            return;
+          } else {
+            setPollingRenderIds(new Set(remainingIds));
+            // Continue polling for remaining renders
+            setTimeout(poll, pollInterval);
+          }
+        } else {
+          // No renders completed yet, continue polling
+          setTimeout(poll, pollInterval);
+        }
+      } catch (error) {
+        console.error('Error polling for renders:', error);
+        setPollingRenderIds(new Set());
+      }
+    };
+    
+    // Start polling
+    setTimeout(poll, pollInterval);
+  }, [projectId, renders, refetchRenders, refreshCredits]);
 
-  // Calculate credits cost
-  const creditsCost = quality === 'high' ? 10 : quality === 'ultra' ? 15 : 5;
+  // Calculate credits cost - use custom if provided, otherwise default calculation
+  const creditsCost = customCreditsCost 
+    ? (typeof customCreditsCost === 'function' ? customCreditsCost(quality) : customCreditsCost)
+    : (quality === 'high' ? 10 : quality === 'ultra' ? 15 : 5);
 
   // Handle file changes from FileUpload component
   const handleFilesChange = useCallback((files: File[]) => {
@@ -164,7 +248,8 @@ export function BaseToolComponent({
       // Create FormData
       const formData = new FormData();
       formData.append('prompt', prompt);
-      formData.append('style', 'realistic');
+      // Don't hardcode style - let the tool's custom handler or style reference handle it
+      // formData.append('style', 'realistic'); // REMOVED: Let style reference or custom handler set style
       formData.append('quality', quality);
       formData.append('aspectRatio', aspectRatio);
       formData.append('type', 'image');
@@ -172,6 +257,10 @@ export function BaseToolComponent({
       formData.append('uploadedImageData', imageBase64);
       formData.append('uploadedImageType', imageFile.type);
       formData.append('imageType', tool.id);
+      // Pass userId from store to avoid DB call in server action
+      if (user?.id) {
+        formData.append('userId', user.id);
+      }
 
       // If custom handler provided, use it
       if (onGenerate) {
@@ -185,12 +274,30 @@ export function BaseToolComponent({
             setProgress(100);
             // Check if result.data is an array (batch results) or single result
             if (Array.isArray(result.data)) {
-              setResults(result.data.map((r, idx) => ({
+              // Check if any items need polling (have isPolling flag or empty outputUrl)
+              const needsPolling = result.data.some((r: any) => r.isPolling || !r.outputUrl);
+              
+              // Initialize results immediately (with or without URLs)
+              setResults(result.data.map((r: any) => ({
                 renderId: r.renderId,
-                outputUrl: r.outputUrl,
-                label: r.label || `Result ${idx + 1}`
+                outputUrl: r.outputUrl || '',
+                label: r.label || `Result ${result.data.indexOf(r) + 1}`,
+                isPolling: needsPolling && !r.outputUrl
               })));
               setResult(null);
+              
+              // Switch to output tab immediately to show placeholders
+              setActiveTab('output');
+              
+              if (needsPolling) {
+                // Start polling for render updates
+                setPollingRenderIds(new Set(result.data.map((r: any) => r.renderId).filter((id: string) => id)));
+              } else {
+                // All renders are complete, show them immediately
+                await refreshCredits();
+                toast.success(`${result.data.length} renders generated successfully!`);
+                refetchRenders();
+              }
             } else {
               setResult({
                 renderId: result.data.renderId,
@@ -198,17 +305,11 @@ export function BaseToolComponent({
                 label: result.data.label
               });
               setResults([]);
+              await refreshCredits();
+              toast.success('Render generated successfully!');
+              refetchRenders();
+              setActiveTab('output');
             }
-            await refreshCredits();
-            toast.success(Array.isArray(result.data)
-              ? `${result.data.length} renders generated successfully!`
-              : 'Render generated successfully!');
-            
-            // Refresh renders list
-            refetchRenders();
-            
-            // Switch to output tab to show result
-            setActiveTab('output');
           } else if (result && !result.success) {
             throw new Error(result.error || 'Failed to generate render');
           } else {
@@ -325,7 +426,7 @@ export function BaseToolComponent({
 
   // Tool Panel Content
   const ToolPanelContent = () => (
-    <Card className="w-full min-h-[600px] lg:h-[calc(100vh-200px)] lg:sticky lg:top-20 overflow-y-auto overflow-x-hidden custom-scrollbar">
+    <Card className="w-full min-h-[90vh] lg:sticky lg:top-20 overflow-y-auto overflow-x-hidden custom-scrollbar">
       <CardContent className="space-y-6 pt-3 pb-3 px-3">
             {/* Upload Area - Using improved FileUpload component */}
             <FileUpload
@@ -386,30 +487,32 @@ export function BaseToolComponent({
                   <div className="h-px flex-1 bg-border"></div>
                 </div>
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="w-full">
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <Label htmlFor="quality" className="text-sm">Quality</Label>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="max-w-xs">Output quality affects resolution and detail. Higher quality uses more credits but produces better results.</p>
-                          </TooltipContent>
-                        </Tooltip>
+                  <div className={cn("grid gap-3", hideQualitySelector ? "grid-cols-1" : "grid-cols-2")}>
+                    {!hideQualitySelector && (
+                      <div className="w-full">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <Label htmlFor="quality" className="text-sm">Quality</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="max-w-xs">Output quality affects resolution and detail. Higher quality uses more credits but produces better results.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <Select value={quality} onValueChange={(v: 'standard' | 'high' | 'ultra') => setQuality(v)}>
+                          <SelectTrigger id="quality" className="h-10 w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="standard">1080p</SelectItem>
+                            <SelectItem value="high">2160p</SelectItem>
+                            <SelectItem value="ultra">4320p</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <Select value={quality} onValueChange={(v: 'standard' | 'high' | 'ultra') => setQuality(v)}>
-                        <SelectTrigger id="quality" className="h-10 w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="standard">1080p</SelectItem>
-                          <SelectItem value="high">2160p</SelectItem>
-                          <SelectItem value="ultra">4320p</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    )}
                     <div className="w-full">
                       <div className="flex items-center gap-1.5 mb-2">
                         <Label htmlFor="aspect-ratio" className="text-sm">Aspect Ratio</Label>
@@ -506,32 +609,76 @@ export function BaseToolComponent({
   const OutputPanelContent = () => {
     const hasMultipleResults = results.length > 1;
     const displayResults = hasMultipleResults ? results.slice(0, 8) : (result ? [result] : []);
-    const expectedCount = results.length > 0 ? results.length : (loading ? 1 : 0);
+    
+    // Calculate expected count for placeholders
+    // Priority: 1) actual results count, 2) expectedOutputCount prop, 3) fallback to 1
+    const getExpectedCount = (): number => {
+      if (results.length > 0) {
+        return results.length; // Use actual results if available
+      }
+      if (loading && expectedOutputCount !== undefined) {
+        // Use expectedOutputCount if provided (can be number or function)
+        return typeof expectedOutputCount === 'function' 
+          ? expectedOutputCount() 
+          : expectedOutputCount;
+      }
+      // Fallback: try to infer from customCreditsCost if it's a function
+      if (loading && typeof customCreditsCost === 'function') {
+        // For Render to CAD: credits = count * 5 * quality, so count = credits / (5 * quality)
+        const credits = customCreditsCost(quality);
+        const qualityMultiplier = quality === 'high' ? 2 : quality === 'ultra' ? 3 : 1;
+        const inferredCount = Math.floor(credits / (5 * qualityMultiplier));
+        return Math.max(1, Math.min(8, inferredCount)); // Clamp between 1 and 8
+      }
+      return 1; // Default to 1 placeholder
+    };
+    
+    const expectedCount = getExpectedCount();
     
     return (
-      <Card className="w-full min-h-[600px] lg:h-[calc(100vh-200px)]">
-        <CardContent className="p-6 lg:p-12 w-full">
+      <Card className="w-full min-h-[90vh]">
+        <CardContent className="p-6 lg:p-12 w-full min-h-[90vh]">
           {loading ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {Array.from({ length: Math.min(8, expectedCount || 1) }).map((_, idx) => (
+            <div className="grid grid-cols-2 gap-4 max-w-4xl mx-auto">
+              {Array.from({ length: Math.min(8, Math.max(1, expectedCount)) }).map((_, idx) => (
                 <ShimmerGridItem key={idx} />
               ))}
             </div>
           ) : displayResults.length > 0 ? (
             <div className="space-y-6">
               {hasMultipleResults ? (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 gap-4 max-w-4xl mx-auto">
                   {displayResults.map((res, idx) => (
                     <div key={res.renderId || idx} className="space-y-2">
-                      <div className="relative aspect-video rounded-lg overflow-hidden border bg-muted">
-                        <img 
-                          src={res.outputUrl} 
-                          alt={res.label || `Generated result ${idx + 1}`}
-                          className="w-full h-full object-contain"
-                        />
-                        {res.label && (
-                          <div className="absolute top-2 left-2 bg-background/90 backdrop-blur-sm border border-border text-foreground px-2 py-1 rounded text-xs font-medium">
-                            {res.label}
+                      <div 
+                        className="relative aspect-video rounded-lg overflow-hidden border bg-muted cursor-pointer group"
+                        onClick={() => res.outputUrl && setFullscreenImage({ url: res.outputUrl, label: res.label })}
+                      >
+                        {res.outputUrl ? (
+                          <>
+                            <img 
+                              src={res.outputUrl} 
+                              alt={res.label || `Generated result ${idx + 1}`}
+                              className="w-full h-full object-contain"
+                            />
+                            {res.label && (
+                              <div className="absolute top-2 left-2 bg-background/90 backdrop-blur-sm border border-border text-foreground px-2 py-1 rounded text-xs font-medium z-10">
+                                {res.label}
+                              </div>
+                            )}
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                              <Maximize2 className="h-8 w-8 text-white" />
+                            </div>
+                          </>
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+                            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                            <p className="text-xs text-muted-foreground">Generating...</p>
+                            {res.label && (
+                              <div className="absolute top-2 left-2 bg-background/90 backdrop-blur-sm border border-border text-foreground px-2 py-1 rounded text-xs font-medium z-10">
+                                {res.label}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -540,20 +687,31 @@ export function BaseToolComponent({
                           size="sm" 
                           variant="outline" 
                           className="flex-1"
-                          onClick={() => window.open(res.outputUrl, '_blank')}
+                          onClick={() => setFullscreenImage({ url: res.outputUrl, label: res.label })}
                         >
-                          <ExternalLink className="h-3 w-3 mr-1" />
+                          <Eye className="h-3 w-3 mr-1" />
                           View
                         </Button>
                         <Button 
                           size="sm" 
                           variant="outline" 
                           className="flex-1"
-                          onClick={() => {
-                            const link = document.createElement('a');
-                            link.href = res.outputUrl;
-                            link.download = `render-${res.renderId || idx}.png`;
-                            link.click();
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(res.outputUrl);
+                              const blob = await response.blob();
+                              const url = window.URL.createObjectURL(blob);
+                              const link = document.createElement('a');
+                              link.href = url;
+                              link.download = `render-${res.renderId || idx}.png`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                              window.URL.revokeObjectURL(url);
+                            } catch (error) {
+                              console.error('Download failed:', error);
+                              toast.error('Failed to download image');
+                            }
                           }}
                         >
                           <Download className="h-3 w-3 mr-1" />
@@ -565,21 +723,42 @@ export function BaseToolComponent({
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <img 
-                    src={displayResults[0].outputUrl} 
-                    alt="Generated result" 
-                    className="max-w-full max-h-[calc(100vh-300px)] mx-auto rounded-lg"
-                  />
+                  <div 
+                    className="relative max-w-full max-h-[calc(100vh-300px)] mx-auto rounded-lg cursor-pointer group"
+                    onClick={() => setFullscreenImage({ url: displayResults[0].outputUrl })}
+                  >
+                    <img 
+                      src={displayResults[0].outputUrl} 
+                      alt="Generated result" 
+                      className="max-w-full max-h-[calc(100vh-300px)] mx-auto rounded-lg"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 rounded-lg transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <Maximize2 className="h-8 w-8 text-white" />
+                    </div>
+                  </div>
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <Button onClick={() => window.open(displayResults[0].outputUrl, '_blank')}>
+                    <Button onClick={() => setFullscreenImage({ url: displayResults[0].outputUrl })}>
+                      <Eye className="h-4 w-4 mr-2" />
                       View Full Size
                     </Button>
-                    <Button variant="outline" onClick={() => {
-                      const link = document.createElement('a');
-                      link.href = displayResults[0].outputUrl;
-                      link.download = `render-${displayResults[0].renderId}.png`;
-                      link.click();
+                    <Button variant="outline" onClick={async () => {
+                      try {
+                        const response = await fetch(displayResults[0].outputUrl);
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = `render-${displayResults[0].renderId}.png`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        window.URL.revokeObjectURL(url);
+                      } catch (error) {
+                        console.error('Download failed:', error);
+                        toast.error('Failed to download image');
+                      }
                     }}>
+                      <Download className="h-4 w-4 mr-2" />
                       Download
                     </Button>
                   </div>
@@ -598,14 +777,14 @@ export function BaseToolComponent({
   };
 
   return (
-    <div className="w-full max-w-[1920px] mx-auto overflow-x-hidden">
+    <div className="w-full max-w-[1920px] mx-auto overflow-x-hidden min-h-[90vh]">
       {/* Desktop: Resizable Panels Layout */}
-      <div className="hidden lg:block">
-        <PanelGroup direction="horizontal" className="gap-6">
-          <Panel defaultSize={30} minSize={30} maxSize={40} className="min-w-0">
+      <div className="hidden lg:block min-h-[90vh]">
+        <PanelGroup direction="horizontal" className="gap-6 min-h-[90vh]">
+          <Panel defaultSize={30} minSize={30} maxSize={40} className="min-w-0 min-h-[90vh]">
             <ToolPanelContent />
           </Panel>
-          <PanelResizeHandle className="w-4 group relative flex items-center justify-center cursor-col-resize">
+          <PanelResizeHandle className="w-4 group relative flex items-center justify-center cursor-col-resize min-h-[90vh]">
             {/* Vertical line */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-full bg-border" />
             {/* Resize handle icon - Centered */}
@@ -622,8 +801,8 @@ export function BaseToolComponent({
               </div>
             </div>
           </PanelResizeHandle>
-          <Panel defaultSize={70} minSize={60} maxSize={70} className="min-w-0">
-            <div className="space-y-6 overflow-x-hidden">
+          <Panel defaultSize={70} minSize={60} maxSize={70} className="min-w-0 min-h-[90vh]">
+            <div className="space-y-6 overflow-x-hidden min-h-[90vh]">
               <OutputPanelContent />
             </div>
           </Panel>
@@ -631,11 +810,11 @@ export function BaseToolComponent({
       </div>
 
       {/* Mobile/Tablet: Tabs layout - Hidden below header */}
-      <div className={cn("block lg:hidden", hintMessage ? "pt-20" : "pt-12")}>
+      <div className={cn("block lg:hidden min-h-[90vh]", hintMessage ? "pt-20" : "pt-12")}>
         <Tabs 
           value={activeTab} 
           onValueChange={(v) => setActiveTab(v as 'tool' | 'output')} 
-          className="w-full"
+          className="w-full min-h-[90vh]"
         >
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="tool" className="flex items-center gap-2">
@@ -710,13 +889,24 @@ export function BaseToolComponent({
                               size="icon"
                               variant="secondary"
                               className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={(e) => {
+                              onClick={async (e) => {
                                 e.stopPropagation();
                                 if (render.outputUrl) {
-                                  const link = document.createElement('a');
-                                  link.href = render.outputUrl;
-                                  link.download = `render-${render.id}.png`;
-                                  link.click();
+                                  try {
+                                    const response = await fetch(render.outputUrl);
+                                    const blob = await response.blob();
+                                    const url = window.URL.createObjectURL(blob);
+                                    const link = document.createElement('a');
+                                    link.href = url;
+                                    link.download = `render-${render.id}.png`;
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                    window.URL.revokeObjectURL(url);
+                                  } catch (error) {
+                                    console.error('Download failed:', error);
+                                    toast.error('Failed to download image');
+                                  }
                                 }
                               }}
                             >
@@ -858,12 +1048,23 @@ export function BaseToolComponent({
                     <Button
                       variant="outline"
                       className="w-full"
-                      onClick={() => {
+                      onClick={async () => {
                         if (toolRenders[selectedRenderIndex].outputUrl) {
-                          const link = document.createElement('a');
-                          link.href = toolRenders[selectedRenderIndex].outputUrl || '';
-                          link.download = `render-${toolRenders[selectedRenderIndex].id}.png`;
-                          link.click();
+                          try {
+                            const response = await fetch(toolRenders[selectedRenderIndex].outputUrl || '');
+                            const blob = await response.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = `render-${toolRenders[selectedRenderIndex].id}.png`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            window.URL.revokeObjectURL(url);
+                          } catch (error) {
+                            console.error('Download failed:', error);
+                            toast.error('Failed to download image');
+                          }
                         }
                       }}
                     >
@@ -1028,6 +1229,56 @@ export function BaseToolComponent({
           })
         }}
       />
+
+      {/* Fullscreen Image Dialog */}
+      <Dialog open={!!fullscreenImage} onOpenChange={(open) => !open && setFullscreenImage(null)}>
+        <DialogContent className="!w-[95vw] !h-[95vh] !max-w-[95vw] !max-h-[95vh] p-0 overflow-hidden flex flex-col">
+          {fullscreenImage && (
+            <>
+              <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0">
+                <DialogTitle>{fullscreenImage.label || 'Generated Image'}</DialogTitle>
+              </DialogHeader>
+              <div className="flex-1 flex items-center justify-center p-6 overflow-hidden">
+                <img 
+                  src={fullscreenImage.url} 
+                  alt={fullscreenImage.label || 'Fullscreen image'}
+                  className="max-w-full max-h-full object-contain"
+                  style={{ aspectRatio: 'auto' }}
+                />
+              </div>
+              <div className="flex gap-4 justify-end px-6 pb-6 flex-shrink-0">
+                <Button 
+                  variant="outline"
+                  onClick={async () => {
+                    if (!fullscreenImage) return;
+                    try {
+                      const response = await fetch(fullscreenImage.url);
+                      const blob = await response.blob();
+                      const url = window.URL.createObjectURL(blob);
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = `render-${Date.now()}.png`;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      window.URL.revokeObjectURL(url);
+                    } catch (error) {
+                      console.error('Download failed:', error);
+                      toast.error('Failed to download image');
+                    }
+                  }}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </Button>
+                <Button onClick={() => setFullscreenImage(null)}>
+                  Close
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

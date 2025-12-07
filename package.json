@@ -14,12 +14,19 @@
     "contentlayer": "contentlayer dev",
     "pwa:icons": "tsx scripts/generate-pwa-icons.ts",
     "download-author-avatars": "tsx scripts/download-author-avatars.ts",
-    "optimize-use-cases": "tsx scripts/optimize-use-cases-images.ts"
+    "optimize-use-cases": "tsx scripts/optimize-use-cases-images.ts",
+    "gcs:setup": "tsx scripts/setup-gcs-buckets.ts",
+    "gcs:iam-cdn": "tsx scripts/setup-gcs-iam-cdn.ts",
+    "gcs:cdn": "tsx scripts/setup-gcs-cdn.ts",
+    "gcs:migrate": "tsx scripts/migrate-storage-to-gcs.ts",
+    "gcs:migrate:dry-run": "tsx scripts/migrate-storage-to-gcs.ts --dry-run",
+    "gcs:update-urls": "tsx scripts/update-storage-urls.ts"
   },
   "dependencies": {
     "@dicebear/collection": "^9.2.4",
     "@dicebear/core": "^9.2.4",
     "@dicebear/thumbs": "^9.2.4",
+    "@google-cloud/storage": "^7.18.0",
     "@google-cloud/vertexai": "^1.10.0",
     "@google/genai": "^1.27.0",
     "@google/generative-ai": "^0.21.0",

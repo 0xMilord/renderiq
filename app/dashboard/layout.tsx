@@ -163,7 +163,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [chains, setChains] = useState<ChainWithRenders[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user, userProfile, initialize, signOut } = useAuthStore();
+  const { user, userProfile, loading: authLoading, initialized, initialize, signOut } = useAuthStore();
 
   // Get current page title (for sidebar), description, and icon (for main content)
   const currentPageTitle = getPageTitle(pathname);
@@ -180,6 +180,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   useEffect(() => {
     initialize();
   }, [initialize]);
+
+  // Redirect to home if user logs out
+  useEffect(() => {
+    if (!authLoading && !user && initialized) {
+      router.push('/');
+    }
+  }, [user, authLoading, initialized, router]);
 
   // Auto-expand billing if on history page
   useEffect(() => {

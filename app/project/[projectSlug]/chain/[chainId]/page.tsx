@@ -9,15 +9,29 @@ import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { logger } from '@/lib/utils/logger';
+import { useAuthStore } from '@/lib/stores/auth-store';
 
 export default function ProjectChainPage() {
   const params = useParams();
   const router = useRouter();
   const projectSlug = params.projectSlug as string;
   const chainId = params.chainId as string;
+  const { user, loading: authLoading, initialized, initialize } = useAuthStore();
   
   const { project, loading: projectLoading } = useProjectBySlug(projectSlug);
   const { chain, loading: chainLoading, fetchChain } = useRenderChain(chainId);
+
+  // Initialize auth store
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  // Redirect to home if user logs out
+  useEffect(() => {
+    if (!authLoading && !user && initialized) {
+      router.push('/');
+    }
+  }, [user, authLoading, initialized, router]);
 
   // Debug logging
   useEffect(() => {

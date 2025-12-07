@@ -160,12 +160,21 @@ export function MentionTagger({ isOpen, onClose, onMentionSelect, searchTerm, re
                 {item.render ? (
                   <>
                     <div className="relative w-11 h-11 bg-muted rounded overflow-hidden flex-shrink-0">
-                      <Image
-                        src={item.render.outputUrl!}
-                        alt={item.text}
-                        fill
-                        className="object-cover"
-                      />
+                      {/* Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking */}
+                      {(item.render.outputUrl?.includes('supabase.co') || item.render.outputUrl?.includes('storage.googleapis.com') || item.render.outputUrl?.includes(process.env.NEXT_PUBLIC_GCS_CDN_DOMAIN || '')) ? (
+                        <img
+                          src={item.render.outputUrl}
+                          alt={item.text}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <Image
+                          src={item.render.outputUrl!}
+                          alt={item.text}
+                          fill
+                          className="object-cover"
+                        />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">{item.text}</p>

@@ -197,8 +197,8 @@ export function ToolLayout({ tool, children, onProjectChange, hintMessage }: Too
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="w-full max-w-[1920px] mx-auto px-4 py-8 pt-[calc(var(--navbar-height)+3.25rem+1.5rem)]">
+      {/* Main Content - Minimum 90vh height */}
+      <div className="w-full max-w-[1920px] mx-auto px-4 py-8 pt-[calc(var(--navbar-height)+3.25rem+1.5rem)] min-h-[90vh]">
         {children}
       </div>
     </div>

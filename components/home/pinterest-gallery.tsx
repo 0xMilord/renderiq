@@ -55,14 +55,24 @@ const PinterestGallery = memo(function PinterestGallery({ items }: PinterestGall
         <div className="relative w-full overflow-hidden rounded-lg bg-card border border-border hover:shadow-lg transition-all duration-300">
           <div className={`relative w-full ${aspectRatioClass}`}>
             {item.render.type === 'image' ? (
-              <Image
-                src={imageUrl}
-                alt={item.render.prompt || 'Architectural render'}
-                fill
-                className="object-cover group-hover:scale-105 transition-transform duration-300"
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                loading="lazy"
-              />
+              // Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking
+              (imageUrl?.includes('supabase.co') || imageUrl?.includes('storage.googleapis.com') || imageUrl?.includes(process.env.NEXT_PUBLIC_GCS_CDN_DOMAIN || '')) ? (
+                <img
+                  src={imageUrl}
+                  alt={item.render.prompt || 'Architectural render'}
+                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  loading="lazy"
+                />
+              ) : (
+                <Image
+                  src={imageUrl}
+                  alt={item.render.prompt || 'Architectural render'}
+                  fill
+                  className="object-cover group-hover:scale-105 transition-transform duration-300"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  loading="lazy"
+                />
+              )
             ) : (
               <video
                 src={imageUrl}

@@ -27,7 +27,7 @@ export function GallerySection({ galleryItems }: GallerySectionProps) {
 
   return (
     <section id="gallery" className="w-full overflow-x-hidden relative bg-[hsl(72,87%,62%)]">
-      <div className={`w-full px-4 sm:px-6 lg:px-8 relative border-l-[5px] border-r-[5px] border-b-[5px] ${borderClass}`}>
+      <div className={`w-full px-4 sm:px-6 lg:px-8 relative border-l-[2px] border-r-[2px] border-b-[2px] ${borderClass}`}>
         <div className="w-full relative">
           <div className="text-left relative pt-8">
             <Badge className="mb-4 bg-background text-foreground px-4 py-2">
@@ -49,13 +49,13 @@ export function GallerySection({ galleryItems }: GallerySectionProps) {
         </div>
       </div>
 
-      <div className={`w-full relative border-l-[5px] border-b-[5px] ${borderClass}`}>
+      <div className={`w-full relative border-l-[2px] border-b-[2px] ${borderClass}`}>
         {/* Black container behind gallery */}
         <div className="absolute inset-0 bg-black -z-10"></div>
         
         <div className="flex flex-col lg:flex-row w-full overflow-hidden relative">
           {/* Left Column - 40% - Gallery Illustration - Extended to extreme left edge */}
-          <div className={`w-full lg:w-[40%] flex items-center justify-start order-2 lg:order-1 lg:mr-auto lg:ml-0 lg:pl-0 lg:relative border-r-[5px] lg:border-r-[5px] ${borderClass} bg-[hsl(72,87%,62%)]`} style={{ marginLeft: 'calc((100vw - 100%) / -2)' }}>
+          <div className={`w-full lg:w-[40%] flex items-center justify-start order-2 lg:order-1 lg:mr-auto lg:ml-0 lg:pl-0 lg:relative border-r-[2px] lg:border-r-[2px] ${borderClass} bg-[hsl(72,87%,62%)]`} style={{ marginLeft: 'calc((100vw - 100%) / -2)' }}>
             <div className="relative w-full h-full min-h-[400px] lg:min-h-[600px]">
               <Image
                 src="/home/gallery-section.svg"
@@ -69,7 +69,7 @@ export function GallerySection({ galleryItems }: GallerySectionProps) {
 
           {/* Right Column - 100% on mobile, 60% on desktop - Gallery Content */}
           <div className="w-full lg:w-[60%] order-1 lg:order-2 px-2 sm:px-4 lg:px-4 py-4 relative flex flex-col bg-[hsl(72,87%,62%)]">
-            <div className={`w-full relative px-2 sm:px-4 lg:px-4 py-2 rounded-2xl bg-background flex-1 border-[5px] ${borderClass}`}>
+            <div className={`w-full relative px-2 sm:px-4 lg:px-4 py-2 rounded-2xl bg-background flex-1 border-[2px] ${borderClass}`}>
               {/* Pinterest-style Vertical Marquee Gallery */}
               <PinterestGallery items={galleryItems} />
             </div>

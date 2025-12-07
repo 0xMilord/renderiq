@@ -164,14 +164,22 @@ export function LibraryClient({ rendersByProject }: LibraryClientProps) {
                                           playsInline
                                         />
                                       ) : (
-                                        <Image
-                                          src={render.outputUrl}
-                                          alt={render.prompt || 'Render'}
-                                          fill
-                                          className="object-cover"
-                                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                                          unoptimized
-                                        />
+                                        // Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking
+                                        (render.outputUrl?.includes('supabase.co') || render.outputUrl?.includes('storage.googleapis.com') || render.outputUrl?.includes(process.env.NEXT_PUBLIC_GCS_CDN_DOMAIN || '')) ? (
+                                          <img
+                                            src={render.outputUrl}
+                                            alt={render.prompt || 'Render'}
+                                            className="absolute inset-0 w-full h-full object-cover"
+                                          />
+                                        ) : (
+                                          <Image
+                                            src={render.outputUrl}
+                                            alt={render.prompt || 'Render'}
+                                            fill
+                                            className="object-cover"
+                                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                                          />
+                                        )
                                       )
                                     ) : (
                                       <div className="w-full h-full flex items-center justify-center">

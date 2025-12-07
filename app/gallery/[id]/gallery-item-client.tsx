@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -43,35 +43,51 @@ export function GalleryItemPageClient({ item, similarItems }: GalleryItemPageCli
   const [promptExpanded, setPromptExpanded] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
   const [viewRecorded, setViewRecorded] = useState(false);
+  const viewRecordedRef = useRef(false);
+  const likeStatusCheckedRef = useRef(false);
 
   useEffect(() => {
     // Record view only once per item (prevent duplicate calls from React Strict Mode or re-renders)
-    if (!viewRecorded) {
+    if (!viewRecorded && !viewRecordedRef.current) {
+      viewRecordedRef.current = true;
       viewGalleryItem(item.id).then(() => {
         setViewsCount(prev => prev + 1);
         setViewRecorded(true);
       }).catch(() => {
         // Silently fail - view increment is not critical
+        viewRecordedRef.current = false; // Allow retry on error
       });
     }
 
-    // Check if user has liked this item
-    const fetchLikeStatus = async () => {
-      try {
-        const result = await checkUserLiked(item.id);
-        if (result.success && result.data) {
-          setIsLiked(result.data.liked);
+    // Check if user has liked this item (only once per item)
+    if (!likeStatusCheckedRef.current) {
+      likeStatusCheckedRef.current = true;
+      const fetchLikeStatus = async () => {
+        try {
+          const result = await checkUserLiked(item.id);
+          if (result.success && result.data) {
+            setIsLiked(result.data.liked);
+          }
+        } catch (error) {
+          // Silently fail - like status check is not critical
+          likeStatusCheckedRef.current = false; // Allow retry on error
         }
-      } catch (error) {
-        // Silently fail - like status check is not critical
-      }
-    };
-    fetchLikeStatus();
+      };
+      fetchLikeStatus();
+    }
 
     // Reset loading states when item changes
     setImageLoading(true);
     setImageError(false);
-    setViewRecorded(false); // Reset view tracking when item changes
+    
+    // Reset refs when item changes
+    if (viewRecordedRef.current) {
+      viewRecordedRef.current = false;
+      setViewRecorded(false);
+    }
+    if (likeStatusCheckedRef.current) {
+      likeStatusCheckedRef.current = false;
+    }
     
     // Set default dimensions (16:9)
     setImageDimensions({ width: 1920, height: 1080 });
@@ -182,7 +198,10 @@ export function GalleryItemPageClient({ item, similarItems }: GalleryItemPageCli
               {/* Back Button - Icon Only */}
               <Button
                 variant="ghost"
-                onClick={() => router.back()}
+                onClick={() => {
+                  // Navigate back to gallery (preserving scroll position via sessionStorage)
+                  router.push('/gallery');
+                }}
                 className="h-10 w-10 p-0"
                 aria-label="Go back to gallery"
               >
@@ -419,29 +438,48 @@ export function GalleryItemPageClient({ item, similarItems }: GalleryItemPageCli
                       </div>
                     )}
                     {!imageError ? (
-                      <Image
-                        src={item.render.outputUrl}
-                        alt={item.render.prompt || 'AI-generated architectural render'}
-                        fill
-                        className={cn(
-                          "object-contain transition-opacity duration-300",
-                          imageLoading ? "opacity-0" : "opacity-100"
-                        )}
-                        priority
-                        sizes="(max-width: 1024px) 100vw, 80vw"
-                        unoptimized={false}
-                        onLoad={() => {
-                          setImageLoading(false);
-                        }}
-                        onLoadingComplete={() => {
-                          setImageLoading(false);
-                        }}
-                        onError={() => {
-                          setImageError(true);
-                          setImageLoading(false);
-                        }}
-                        itemProp="image"
-                      />
+                      // Use regular img tag for Supabase URLs to avoid Next.js 16 private IP blocking
+                      item.render.outputUrl?.includes('supabase.co') ? (
+                        <img
+                          src={item.render.outputUrl}
+                          alt={item.render.prompt || 'AI-generated architectural render'}
+                          className={cn(
+                            "absolute inset-0 w-full h-full object-contain transition-opacity duration-300",
+                            imageLoading ? "opacity-0" : "opacity-100"
+                          )}
+                          onLoad={() => {
+                            setImageLoading(false);
+                          }}
+                          onError={() => {
+                            setImageError(true);
+                            setImageLoading(false);
+                          }}
+                          itemProp="image"
+                        />
+                      ) : (
+                        <Image
+                          src={item.render.outputUrl}
+                          alt={item.render.prompt || 'AI-generated architectural render'}
+                          fill
+                          className={cn(
+                            "object-contain transition-opacity duration-300",
+                            imageLoading ? "opacity-0" : "opacity-100"
+                          )}
+                          priority
+                          sizes="(max-width: 1024px) 100vw, 80vw"
+                          onLoad={() => {
+                            setImageLoading(false);
+                          }}
+                          onLoadingComplete={() => {
+                            setImageLoading(false);
+                          }}
+                          onError={() => {
+                            setImageError(true);
+                            setImageLoading(false);
+                          }}
+                          itemProp="image"
+                        />
+                      )
                     ) : (
                       // Fallback to regular img tag if Next.js Image fails
                       <img

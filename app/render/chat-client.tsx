@@ -27,6 +27,7 @@ import { ProjectChainsModal } from '@/components/projects/project-chains-modal';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { Project, RenderChain, Render } from '@/lib/db/schema';
+import { useAuthStore } from '@/lib/stores/auth-store';
 
 interface ChainWithRenders extends RenderChain {
   renders: Render[];
@@ -39,6 +40,19 @@ interface ChatPageClientProps {
 
 export function ChatPageClient({ initialProjects, initialChains }: ChatPageClientProps) {
   const router = useRouter();
+  const { user, loading: authLoading, initialized, initialize } = useAuthStore();
+
+  // Initialize auth store
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  // Redirect to home if user logs out
+  useEffect(() => {
+    if (!authLoading && !user && initialized) {
+      router.push('/');
+    }
+  }, [user, authLoading, initialized, router]);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [isCreatingChain, setIsCreatingChain] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');

@@ -19,6 +19,7 @@ interface MasonryFeedProps {
   onPageChange?: (page: number) => void;
   showPagination?: boolean;
   hideOwnerInfo?: boolean; // Hide user info when viewing owner's profile
+  likedItems?: Set<string>; // Set of item IDs that are liked by the current user
 }
 
 export function MasonryFeed({
@@ -33,7 +34,8 @@ export function MasonryFeed({
   totalPages,
   onPageChange,
   showPagination = false,
-  hideOwnerInfo = false
+  hideOwnerInfo = false,
+  likedItems = new Set()
 }: MasonryFeedProps) {
   const observerTarget = useRef<HTMLDivElement>(null);
   
@@ -72,6 +74,9 @@ export function MasonryFeed({
 
   // Intersection Observer for infinite scroll
   useEffect(() => {
+    const currentTarget = observerTarget.current;
+    if (!currentTarget) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         const target = entries[0];
@@ -87,17 +92,14 @@ export function MasonryFeed({
       }
     );
 
-    const currentTarget = observerTarget.current;
-    if (currentTarget) {
-      observer.observe(currentTarget);
-    }
+    observer.observe(currentTarget);
 
     return () => {
-      if (currentTarget) {
-        observer.unobserve(currentTarget);
-      }
+      observer.unobserve(currentTarget);
     };
-  }, [hasMore, loading, onLoadMore]);
+    // Only depend on hasMore and loading, not onLoadMore to prevent re-triggering
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasMore, loading]);
 
   if (loading && items.length === 0) {
     return (
@@ -139,6 +141,7 @@ export function MasonryFeed({
                 onView={onView}
                 priority={colIndex === 0 && itemIndex < 3}
                 hideOwnerInfo={hideOwnerInfo}
+                isLiked={likedItems.has(item.id)}
               />
             ))}
           </div>

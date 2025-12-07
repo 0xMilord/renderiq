@@ -50,13 +50,13 @@ const UseCasesSection = memo(function UseCasesSection() {
       {/* Content Section - Full Width Cards */}
       <div className={`w-full relative border-l-[5px] border-b-[5px] ${borderClass}`}>
         <div className="w-full px-4 sm:px-6 lg:px-8 py-8 bg-background">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
             {primaryUseCases.map((useCase) => {
               const isVideo = useCase.slug === 'rapid-concept-video';
               return (
-                <Link key={useCase.slug} href={`/use-cases/${useCase.slug}`} className="block">
-                  <Card className="hover:shadow-lg transition-all duration-300 group cursor-pointer overflow-hidden flex flex-col">
-                    <div className="relative w-full aspect-video overflow-hidden bg-muted">
+                <Link key={useCase.slug} href={`/use-cases/${useCase.slug}`} className="block h-full">
+                  <Card className="hover:shadow-lg transition-all duration-300 group cursor-pointer overflow-hidden flex flex-col h-full">
+                    <div className="relative w-full aspect-video overflow-hidden bg-muted flex-shrink-0">
                       {isVideo ? (
                         <video
                           src={`/use-cases/${useCase.slug}.mp4`}
@@ -72,15 +72,17 @@ const UseCasesSection = memo(function UseCasesSection() {
                           alt={useCase.title}
                           fill
                           className="object-cover group-hover:scale-105 transition-transform duration-300"
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 20vw"
                         />
                       )}
                     </div>
-                    <CardHeader className="p-6">
-                      <CardTitle className="text-xl group-hover:text-primary transition-colors">
+                    <CardHeader className="p-6 flex flex-col flex-1">
+                      <CardTitle className="text-xl group-hover:text-primary transition-colors mb-2 line-clamp-2 min-h-[3.5rem]">
                         {useCase.title}
                       </CardTitle>
-                      <CardDescription className="mt-2">{useCase.description}</CardDescription>
+                      <CardDescription className="mt-2 line-clamp-3 flex-1">
+                        {useCase.description}
+                      </CardDescription>
                     </CardHeader>
                   </Card>
                 </Link>

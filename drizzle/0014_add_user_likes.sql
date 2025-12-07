@@ -14,3 +14,4 @@ CREATE INDEX IF NOT EXISTS user_likes_user_item_idx ON user_likes(user_id, galle
 CREATE INDEX IF NOT EXISTS user_likes_created_at_idx ON user_likes(created_at DESC);
 
 
+

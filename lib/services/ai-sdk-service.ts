@@ -208,6 +208,7 @@ Original prompt: "${originalPrompt}"`;
     styleTransferImageType?: string;
     temperature?: number;
     mediaResolution?: 'LOW' | 'MEDIUM' | 'HIGH' | 'UNSPECIFIED';
+    imageSize?: '1K' | '2K' | '4K';
   }): Promise<{ success: boolean; data?: ImageGenerationResult; error?: string }> {
     logger.log('🎨 AISDKService: Starting image generation with Gemini Native Image', {
       prompt: request.prompt.substring(0, 100),
@@ -252,8 +253,9 @@ Original prompt: "${originalPrompt}"`;
         }
         
         // Add effect/style if provided and not already mentioned
-        // Follow best practice: avoid redundancy
-        if (request.effect && request.effect !== 'none') {
+        // IMPORTANT: If style reference image is provided, DO NOT add effect/style to prompt
+        // The style reference image should be the primary style guide
+        if (request.effect && request.effect !== 'none' && !request.styleTransferImageData) {
           // Check if style/effect is already mentioned in prompt
           const styleKeywords = ['photoreal', 'realistic', 'illustration', 'wireframe', 'sketch', 'painting', 'digital art', 'style', 'effect'];
           const effectValue = request.effect.toLowerCase();
@@ -307,11 +309,12 @@ Original prompt: "${originalPrompt}"`;
 
       // For Gemini 3 Pro Image, determine image size based on mediaResolution request
       // Map mediaResolution to imageSize: HIGH -> 4K (for upscaling), MEDIUM -> 2K, LOW -> 1K
-      // Note: mediaResolution parameter is NOT for image generation models
-      // It's only for multimodal models processing input media
-      // For image generation, we use imageSize in imageConfig instead
+      // Use imageSize if provided directly, otherwise map from mediaResolution
+      // imageSize takes precedence as it's the direct parameter for Gemini image generation
       let imageSize: '1K' | '2K' | '4K' = '1K'; // Default to 1K
-      if (request.mediaResolution === 'HIGH') {
+      if (request.imageSize) {
+        imageSize = request.imageSize; // Use direct imageSize parameter (preferred)
+      } else if (request.mediaResolution === 'HIGH') {
         imageSize = '4K'; // Use 4K for high quality requests (upscaling, maximum detail)
       } else if (request.mediaResolution === 'MEDIUM') {
         imageSize = '2K'; // Use 2K for medium quality

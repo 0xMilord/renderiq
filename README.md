@@ -142,7 +142,7 @@ Renderiq/
 │   ├── supabase/        # Supabase client configuration
 │   └── types/           # TypeScript type definitions
 ├── drizzle.config.ts     # Drizzle ORM configuration
-├── middleware.ts         # Next.js middleware
+├── proxy.ts              # Next.js proxy (formerly middleware)
 └── package.json
 ```
 

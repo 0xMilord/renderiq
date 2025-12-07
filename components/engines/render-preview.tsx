@@ -375,13 +375,22 @@ export function RenderPreview({
                       {/* Version Image */}
                       <div className="flex-1 flex items-center justify-center">
                         {versions[currentVersionIndex] && (
-                          <Image
-                            src={versions[currentVersionIndex].imageUrl || '/placeholder-image.jpg'}
-                            alt={`Version ${currentVersionIndex + 1}`}
-                            width={800}
-                            height={450}
-                            className="max-w-full max-h-full object-contain rounded-lg"
-                          />
+                          // Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking
+                          (versions[currentVersionIndex].imageUrl?.includes('supabase.co') || versions[currentVersionIndex].imageUrl?.includes('storage.googleapis.com') || versions[currentVersionIndex].imageUrl?.includes(process.env.NEXT_PUBLIC_GCS_CDN_DOMAIN || '')) ? (
+                            <img
+                              src={versions[currentVersionIndex].imageUrl || '/placeholder-image.jpg'}
+                              alt={`Version ${currentVersionIndex + 1}`}
+                              className="max-w-full max-h-full object-contain rounded-lg"
+                            />
+                          ) : (
+                            <Image
+                              src={versions[currentVersionIndex].imageUrl || '/placeholder-image.jpg'}
+                              alt={`Version ${currentVersionIndex + 1}`}
+                              width={800}
+                              height={450}
+                              className="max-w-full max-h-full object-contain rounded-lg"
+                            />
+                          )
                         )}
                       </div>
                     </div>

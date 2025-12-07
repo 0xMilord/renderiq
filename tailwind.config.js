@@ -70,9 +70,15 @@ module.exports = {
         },
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        none: "0",
+        sm: "calc(var(--radius) - 4px)", // 0.75rem (12px)
+        DEFAULT: "calc(var(--radius) - 2px)", // 0.875rem (14px)
+        md: "calc(var(--radius) - 2px)", // 0.875rem (14px)
+        lg: "var(--radius)", // 1rem (16px)
+        xl: "calc(var(--radius) + 0.25rem)", // 1.25rem (20px)
+        "2xl": "calc(var(--radius) + 0.5rem)", // 1.5rem (24px)
+        "3xl": "calc(var(--radius) + 1rem)", // 2rem (32px)
+        full: "9999px",
       },
       fontFamily: {
         sans: ["var(--font-sans)"],

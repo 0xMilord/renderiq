@@ -121,12 +121,21 @@ export const RenderChainViz: React.FC<RenderChainVizProps> = ({
                   )}
                 >
                   {render.outputUrl ? (
-                    <Image
-                      src={render.outputUrl}
-                      alt={`Version ${index + 1}`}
-                      fill
-                      className="object-cover"
-                    />
+                    // Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking
+                    (render.outputUrl.includes('supabase.co') || render.outputUrl.includes('storage.googleapis.com') || render.outputUrl.includes(process.env.NEXT_PUBLIC_GCS_CDN_DOMAIN || '')) ? (
+                      <img
+                        src={render.outputUrl}
+                        alt={`Version ${index + 1}`}
+                        className="absolute inset-0 w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Image
+                        src={render.outputUrl}
+                        alt={`Version ${index + 1}`}
+                        fill
+                        className="object-cover"
+                      />
+                    )
                   ) : (
                     <div className="w-full h-full bg-muted flex items-center justify-center">
                       <span className="text-xs text-muted-foreground">No image</span>

@@ -49,15 +49,26 @@ export function HeroGallerySlideshow({ items, interval = 4000 }: HeroGallerySlid
             className="w-full h-full object-cover transition-opacity duration-1000"
           />
         ) : (
-          <Image
-            src={imageUrl}
-            alt={currentItem.render.prompt || 'Architectural render'}
-            fill
-            className="object-cover transition-opacity duration-1000"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 40vw"
-            priority={currentIndex === 0}
-            loading={currentIndex === 0 ? 'eager' : 'lazy'}
-          />
+          // Use regular img tag for external URLs (Supabase/GCS) to avoid Next.js 16 private IP blocking
+          // and to work around hostname configuration issues
+          imageUrl?.includes('supabase.co') || imageUrl?.includes('storage.googleapis.com') || imageUrl?.includes(process.env.NEXT_PUBLIC_GCS_CDN_DOMAIN || '') ? (
+            <img
+              src={imageUrl}
+              alt={currentItem.render.prompt || 'Architectural render'}
+              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
+              loading={currentIndex === 0 ? 'eager' : 'lazy'}
+            />
+          ) : (
+            <Image
+              src={imageUrl}
+              alt={currentItem.render.prompt || 'Architectural render'}
+              fill
+              className="object-cover transition-opacity duration-1000"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 40vw"
+              priority={currentIndex === 0}
+              loading={currentIndex === 0 ? 'eager' : 'lazy'}
+            />
+          )
         )}
         
         {/* Gradient overlay for better text visibility */}

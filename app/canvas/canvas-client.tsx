@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Project } from '@/lib/db/schema';
@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { useAuthStore } from '@/lib/stores/auth-store';
 
 interface ChainWithRenders extends RenderChain {
   renders: any[];
@@ -24,6 +25,19 @@ interface CanvasPageClientProps {
 
 export function CanvasPageClient({ initialProjects, initialChains }: CanvasPageClientProps) {
   const router = useRouter();
+  const { user, loading: authLoading, initialized, initialize } = useAuthStore();
+
+  // Initialize auth store
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  // Redirect to home if user logs out
+  useEffect(() => {
+    if (!authLoading && !user && initialized) {
+      router.push('/');
+    }
+  }, [user, authLoading, initialized, router]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');

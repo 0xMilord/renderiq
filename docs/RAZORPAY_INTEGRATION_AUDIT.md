@@ -266,3 +266,4 @@ All issues have been fixed. The credit package purchase buttons should now work 
 3. Razorpay account is active and configured
 
 
+

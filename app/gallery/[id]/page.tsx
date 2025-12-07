@@ -11,8 +11,14 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
 export const revalidate = 60;
 
 // Cache the gallery item fetch to avoid duplicate queries between generateMetadata and page component
+// This cache persists across requests in the same render pass
 const getCachedGalleryItem = cache(async (id: string) => {
   return await getPublicGalleryItem(id);
+});
+
+// Cache similar items query to prevent duplicate calls
+const getCachedSimilarItems = cache(async (itemId: string, currentItem: any) => {
+  return await getSimilarGalleryItems(itemId, 18, currentItem);
 });
 
 interface PageProps {
@@ -120,9 +126,9 @@ export default async function GalleryItemPage({ params }: PageProps) {
 
   const item = result.data;
   
-  // Get similar items for "More like this" section - pass current item to avoid redundant query
-  // Run in parallel with the cached item fetch (though it's already cached, this optimizes the similar items query)
-  const similarResult = await getSimilarGalleryItems(id, 18, item);
+  // Get similar items for "More like this" section - use cached version to prevent duplicate queries
+  // Pass current item to avoid redundant query in getSimilarGalleryItems
+  const similarResult = await getCachedSimilarItems(id, item);
 
   const pageUrl = `${siteUrl}/gallery/${id}`;
   const imageUrl = item.render.outputUrl || '';

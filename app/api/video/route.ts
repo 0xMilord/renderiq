@@ -226,14 +226,52 @@ export async function POST(request: NextRequest) {
 
       logger.log('🎬 Video API: Video generation completed:', {
         videoUrl: result.data.videoUrl,
+        videoData: !!result.data.videoData,
         processingTime: result.data.processingTime
       });
+
+      // Upload video to storage (same pipeline as images)
+      let uploadResult;
+      if (result.data.videoData) {
+        // Use base64 video data
+        logger.log('📤 Uploading video from base64 data to storage');
+        const buffer = Buffer.from(result.data.videoData, 'base64');
+        uploadResult = await StorageService.uploadFile(
+          buffer,
+          'renders',
+          user.id,
+          `render_${render.id}.mp4`,
+          projectId
+        );
+      } else if (result.data.videoUrl) {
+        // Fetch video from URL and upload to storage
+        logger.log('📤 Fetching video from URL and uploading to storage');
+        const response = await fetch(result.data.videoUrl);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch video: ${response.statusText}`);
+        }
+        const blob = await response.blob();
+        const videoFile = new File([blob], `render_${render.id}.mp4`, {
+          type: 'video/mp4'
+        });
+        uploadResult = await StorageService.uploadFile(
+          videoFile,
+          'renders',
+          user.id,
+          undefined,
+          projectId
+        );
+      } else {
+        throw new Error('No video data or URL received from generation service');
+      }
+
+      logger.log('✅ Video uploaded to storage:', uploadResult.url);
 
       // Update render record with results
       await RendersDAL.updateOutput(
         render.id,
-        result.data.videoUrl || '',
-        '', // outputKey - not available from video generation
+        uploadResult.url,
+        uploadResult.key,
         'completed',
         result.data.processingTime || 0
       );
@@ -275,7 +313,7 @@ export async function POST(request: NextRequest) {
         success: true,
         data: {
           id: render.id,
-          outputUrl: result.data.videoUrl,
+          outputUrl: uploadResult.url,
           status: 'completed',
           processingTime: result.data.processingTime
         }

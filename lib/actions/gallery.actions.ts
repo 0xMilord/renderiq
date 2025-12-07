@@ -12,8 +12,8 @@ import type { GalleryItemWithDetails } from '@/lib/types';
 export async function getPublicGallery(page = 1, limit = 20) {
   try {
     const offset = (page - 1) * limit;
-    // RendersDAL.getPublicGallery already sorts by popularity in SQL, so we can use it directly
-    // Only fetch what we need (no need to fetch 10x and sort in memory)
+    // RendersDAL.getPublicGallery sorts by newest first (createdAt DESC) in SQL
+    // Frontend can re-sort client-side as needed
     const items = await RendersDAL.getPublicGallery(limit, offset);
     
     return { success: true, data: items };
@@ -139,12 +139,40 @@ export async function getLongestChains(limit = 5) {
   }
 }
 
+// Track view increments to prevent duplicate calls within a short time window
+const viewIncrementCache = new Map<string, number>();
+const VIEW_INCREMENT_COOLDOWN = 60 * 1000; // 1 minute cooldown per item
+
 export async function viewGalleryItem(itemId: string) {
   try {
+    // Check if we've recently incremented views for this item
+    const lastIncrement = viewIncrementCache.get(itemId);
+    const now = Date.now();
+    
+    if (lastIncrement && now - lastIncrement < VIEW_INCREMENT_COOLDOWN) {
+      // Recently incremented, skip to prevent duplicate DB calls
+      return { success: true };
+    }
+    
+    // Mark as incremented
+    viewIncrementCache.set(itemId, now);
+    
+    // Clean up old cache entries
+    if (viewIncrementCache.size > 1000) {
+      const cutoff = now - VIEW_INCREMENT_COOLDOWN;
+      for (const [id, timestamp] of viewIncrementCache.entries()) {
+        if (timestamp < cutoff) {
+          viewIncrementCache.delete(id);
+        }
+      }
+    }
+    
     // Fire and forget - don't block the response
     // Views are not critical for page functionality
     RendersDAL.incrementViews(itemId).catch(() => {
       // Silently fail - view increment is not critical
+      // Remove from cache on error to allow retry
+      viewIncrementCache.delete(itemId);
     });
     
     // Revalidate in the background (non-blocking)
@@ -175,6 +203,25 @@ export async function checkUserLiked(itemId: string) {
   }
 }
 
+export async function batchCheckUserLiked(itemIds: string[]) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user || itemIds.length === 0) {
+      return { success: true, data: new Set<string>() };
+    }
+
+    const likedSet = await RendersDAL.batchCheckUserLiked(itemIds, user.id);
+    return { success: true, data: likedSet };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to batch check like status',
+      data: new Set<string>(),
+    };
+  }
+}
+
 export async function likeGalleryItem(itemId: string) {
   try {
     const supabase = await createClient();
@@ -194,12 +241,32 @@ export async function likeGalleryItem(itemId: string) {
   }
 }
 
+// Cache gallery item lookups to prevent duplicate DB queries
+const galleryItemCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL = 60 * 1000; // 1 minute cache
+
 export async function getPublicGalleryItem(itemId: string) {
   try {
+    // Check cache first
+    const cached = galleryItemCache.get(itemId);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return { success: true, data: cached.data };
+    }
+
     const item = await RendersDAL.getGalleryItemById(itemId);
     
     if (!item) {
       return { success: false, error: 'Gallery item not found' };
+    }
+    
+    // Cache the result
+    galleryItemCache.set(itemId, { data: item, timestamp: Date.now() });
+    
+    // Clean up old cache entries (keep cache size reasonable)
+    if (galleryItemCache.size > 100) {
+      const oldestKey = Array.from(galleryItemCache.entries())
+        .sort((a, b) => a[1].timestamp - b[1].timestamp)[0][0];
+      galleryItemCache.delete(oldestKey);
     }
     
     return { success: true, data: item };

@@ -73,6 +73,7 @@ import { MentionTagger } from './mention-tagger';
 import type { Render } from '@/lib/types/render';
 import type { RenderChainWithRenders } from '@/lib/types/render-chain';
 import Image from 'next/image';
+import { shouldUseRegularImg } from '@/lib/utils/storage-url';
 import ReactBeforeSliderComponent from 'react-before-after-slider-component';
 import 'react-before-after-slider-component/dist/build.css';
 
@@ -309,17 +310,8 @@ export function UnifiedChatInterface({
           const increment = prev < 30 ? 2 : prev < 70 ? 5 : 3;
           const newProgress = Math.min(prev + increment, 90);
           
-          // Update Dominique's message based on progress
-          setMessages(prevMessages => prevMessages.map(msg => {
-            if (msg.isGenerating) {
-              return {
-                ...msg,
-                content: getRenderiqMessage(newProgress, isVideoMode)
-              };
-            }
-            return msg;
-          }));
-          
+              // Progress updates don't need to update messages array
+          // Message content is handled separately to avoid re-renders
           return newProgress;
         });
       }, 500); // Update every 500ms for smoother progress
@@ -355,14 +347,13 @@ export function UnifiedChatInterface({
       return;
     }
 
-    logger.log('🔍 UnifiedChatInterface: Initializing chain data', {
-      hasChain: !!chain,
-      rendersCount: chain?.renders?.length || 0,
-      chainId: currentChainId,
-      chainName: chain?.name,
-      projectId,
-      isInitialization: initializedChainIdRef.current !== currentChainId
-    });
+    // Consolidated initialization log (reduced from multiple logs to one)
+    if (initializedChainIdRef.current !== currentChainId) {
+      logger.log('🔍 UnifiedChatInterface: Initializing chain data', {
+        chainId: currentChainId,
+        rendersCount: chain?.renders?.length || 0
+      });
+    }
     
     // Try to load from localStorage first as backup
     const storageKey = `chat-messages-${projectId}-${currentChainId || 'default'}`;
@@ -370,25 +361,11 @@ export function UnifiedChatInterface({
     
     // React 19: Only set state if chain has renders and we haven't initialized yet
     if (chain && chain.renders && chain.renders.length > 0) {
-      logger.log('✅ UnifiedChatInterface: Chain has renders, converting to messages', {
-        rendersCount: chain.renders.length,
-        renderIds: chain.renders.map(r => r.id),
-        renderStatuses: chain.renders.map(r => ({ id: r.id, status: r.status, chainPosition: r.chainPosition })),
-        renderPrompts: chain.renders.map(r => ({ id: r.id, prompt: r.prompt?.substring(0, 50) + '...' }))
-      });
       
-      // Convert renders to messages
+      // Convert renders to messages (optimized - removed verbose per-render logging)
       const chainMessages: Message[] = chain.renders
         .sort((a, b) => (a.chainPosition || 0) - (b.chainPosition || 0))
-        .map((render, index) => {
-          logger.log(`📦 UnifiedChatInterface: Processing render ${index + 1}/${chain.renders.length}`, {
-            renderId: render.id,
-            prompt: render.prompt?.substring(0, 50) + '...',
-            status: render.status,
-            chainPosition: render.chainPosition,
-            hasOutputUrl: !!render.outputUrl
-          });
-
+        .map((render) => {
           // Create user message for the prompt
           const userMessage: Message = {
             id: `user-${render.id}`,
@@ -402,12 +379,6 @@ export function UnifiedChatInterface({
               persistedUrl: render.uploadedImageUrl
             } : undefined
           };
-
-          logger.log(`👤 UnifiedChatInterface: Created user message for render ${render.id}`, {
-            messageId: userMessage.id,
-            content: userMessage.content?.substring(0, 50) + '...',
-            hasUploadedImage: !!userMessage.uploadedImage
-          });
 
           // Create assistant message with the render (no constant text)
           const contextMessage = render.status === 'failed'
@@ -425,41 +396,17 @@ export function UnifiedChatInterface({
             isGenerating: render.status === 'processing' || render.status === 'pending'
           };
 
-          logger.log(`🤖 UnifiedChatInterface: Created assistant message for render ${render.id}`, {
-            messageId: assistantMessage.id,
-            hasRender: !!assistantMessage.render,
-            renderId: assistantMessage.render?.id,
-            renderStatus: assistantMessage.render?.status,
-            isGenerating: assistantMessage.isGenerating
-          });
-
           return [userMessage, assistantMessage];
         })
         .flat();
 
-      logger.log('📝 UnifiedChatInterface: Created messages summary:', {
-        totalMessages: chainMessages.length,
-        userMessages: chainMessages.filter(m => m.type === 'user').length,
-        assistantMessages: chainMessages.filter(m => m.type === 'assistant').length,
-        withRenders: chainMessages.filter(m => m.render).length,
-        messageIds: chainMessages.map(m => ({ id: m.id, type: m.type, hasRender: !!m.render })),
-        messageContents: chainMessages.map(m => ({ id: m.id, type: m.type, content: m.content?.substring(0, 30) + '...' }))
-      });
-
-      logger.log('💾 UnifiedChatInterface: Setting messages state', {
-        messagesCount: chainMessages.length,
-        willSetMessages: true
+      // Single consolidated log for initialization (reduced from 10+ logs to 1)
+      logger.log('✅ UnifiedChatInterface: Converted renders to messages', {
+        rendersCount: chain.renders.length,
+        messagesCount: chainMessages.length
       });
       
       setMessages(chainMessages);
-      
-      // Verify messages were set
-      setTimeout(() => {
-        logger.log('✅ UnifiedChatInterface: Messages state after set', {
-          // Note: This will log the previous state, but helps verify the flow
-          message: 'Messages should be set in state now'
-        });
-      }, 100);
       
       // Save to localStorage as backup
       if (typeof window !== 'undefined') {
@@ -474,10 +421,6 @@ export function UnifiedChatInterface({
             } : undefined
           }));
           localStorage.setItem(storageKey, JSON.stringify(messagesToStore));
-          logger.log('💾 UnifiedChatInterface: Saved messages to localStorage', {
-            storageKey,
-            messagesCount: messagesToStore.length
-          });
         } catch (error) {
           logger.error('❌ UnifiedChatInterface: Failed to save messages to localStorage:', error);
         }
@@ -489,14 +432,10 @@ export function UnifiedChatInterface({
         .sort((a, b) => (b.chainPosition || 0) - (a.chainPosition || 0))[0];
       
       if (latestCompletedRender) {
-        logger.log('✅ UnifiedChatInterface: Set current render:', latestCompletedRender.id);
         setCurrentRender(latestCompletedRender);
-      } else {
-        logger.log('⚠️ UnifiedChatInterface: No completed renders found');
       }
     } else if (storedMessages) {
       // Fallback to localStorage if chain data not available yet
-      logger.log('📦 UnifiedChatInterface: Loading messages from localStorage');
       try {
         const parsed = JSON.parse(storedMessages);
         const restoredMessages: Message[] = parsed.map((msg: any) => ({
@@ -509,14 +448,12 @@ export function UnifiedChatInterface({
           } : undefined
         }));
         setMessages(restoredMessages);
-        logger.log('✅ UnifiedChatInterface: Restored messages from localStorage:', restoredMessages.length);
       } catch (error) {
         logger.error('Failed to restore messages from localStorage:', error);
         setMessages([]);
         setCurrentRender(null);
       }
     } else {
-      logger.log('⚠️ UnifiedChatInterface: No chain data and no stored messages, starting fresh');
       setMessages([]);
       setCurrentRender(null);
     }
@@ -530,19 +467,22 @@ export function UnifiedChatInterface({
     }
   }, [chainId, projectId, chain]); // React 19: Only re-run when chainId changes, not on every chain prop update
 
-  // Save messages to localStorage whenever they change
+  // Debounced localStorage save - prevents UI blocking on every message change
+  const localStorageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Save messages to localStorage with debouncing (1 second delay) - React 19 optimized
   useEffect(() => {
-    logger.log('💾 UnifiedChatInterface: Messages changed, saving to localStorage', {
-      messagesCount: messages.length,
-      userMessages: messages.filter(m => m.type === 'user').length,
-      assistantMessages: messages.filter(m => m.type === 'assistant').length,
-      withRenders: messages.filter(m => m.render).length,
-      projectId,
-      chainId
-    });
+    if (!messages.length || typeof window === 'undefined') return;
     
-    if (messages.length > 0 && typeof window !== 'undefined') {
-      const storageKey = `chat-messages-${projectId}-${chainId || 'default'}`;
+    // Clear previous timeout
+    if (localStorageTimeoutRef.current) {
+      clearTimeout(localStorageTimeoutRef.current);
+    }
+    
+    const storageKey = `chat-messages-${projectId}-${chainId || 'default'}`;
+    
+    // Debounce localStorage writes to prevent UI blocking
+    localStorageTimeoutRef.current = setTimeout(() => {
       try {
         const messagesToStore = messages.map(msg => ({
           ...msg,
@@ -554,36 +494,32 @@ export function UnifiedChatInterface({
           } : undefined
         }));
         localStorage.setItem(storageKey, JSON.stringify(messagesToStore));
-        logger.log('✅ UnifiedChatInterface: Saved messages to localStorage', {
-          storageKey,
-          messagesCount: messagesToStore.length
-        });
       } catch (error) {
         logger.error('❌ UnifiedChatInterface: Failed to save messages to localStorage:', error);
       }
-    } else if (messages.length === 0) {
-      logger.log('⚠️ UnifiedChatInterface: Messages array is empty, not saving to localStorage');
-    }
+    }, 1000); // 1 second debounce
+    
+    // Cleanup on unmount - save immediately
+    return () => {
+      if (localStorageTimeoutRef.current) {
+        clearTimeout(localStorageTimeoutRef.current);
+        // Immediate save on unmount
+        try {
+          const messagesToStore = messages.map(msg => ({
+            ...msg,
+            timestamp: msg.timestamp.toISOString(),
+            uploadedImage: msg.uploadedImage ? {
+              previewUrl: msg.uploadedImage.previewUrl,
+              persistedUrl: msg.uploadedImage.persistedUrl
+            } : undefined
+          }));
+          localStorage.setItem(storageKey, JSON.stringify(messagesToStore));
+        } catch (error) {
+          // Silent fail on unmount
+        }
+      }
+    };
   }, [messages, projectId, chainId]);
-
-  // Log messages state for debugging
-  useEffect(() => {
-    logger.log('📊 UnifiedChatInterface: Current messages state', {
-      totalMessages: messages.length,
-      userMessages: messages.filter(m => m.type === 'user').length,
-      assistantMessages: messages.filter(m => m.type === 'assistant').length,
-      withRenders: messages.filter(m => m.render).length,
-      messageDetails: messages.map(m => ({
-        id: m.id,
-        type: m.type,
-        hasContent: !!m.content,
-        contentPreview: m.content?.substring(0, 30) + '...',
-        hasRender: !!m.render,
-        renderId: m.render?.id,
-        renderStatus: m.render?.status
-      }))
-    });
-  }, [messages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -1578,12 +1514,29 @@ export function UnifiedChatInterface({
                             playsInline
                           />
                         ) : (
-                          <Image
-                            src={message.render!.outputUrl}
-                            alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
-                            fill
-                            className="object-cover"
-                          />
+                          // Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking
+                          shouldUseRegularImg(message.render!.outputUrl) ? (
+                            <img
+                              src={message.render!.outputUrl}
+                              alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
+                              className="absolute inset-0 w-full h-full object-cover"
+                              onError={(e) => {
+                                console.error('Image load error:', message.render!.outputUrl);
+                                logger.error('Failed to load image:', message.render!.outputUrl);
+                              }}
+                            />
+                          ) : (
+                            <Image
+                              src={message.render!.outputUrl || '/placeholder-image.jpg'}
+                              alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
+                              fill
+                              className="object-cover"
+                              onError={(e) => {
+                                console.error('Image load error:', message.render!.outputUrl);
+                                logger.error('Failed to load image:', message.render!.outputUrl);
+                              }}
+                            />
+                          )
                         )}
                       </div>
                     ))}
@@ -1686,13 +1639,36 @@ export function UnifiedChatInterface({
                               muted
                               playsInline
                             />
+                          ) : message.render!.outputUrl ? (
+                            // Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking
+                            shouldUseRegularImg(message.render!.outputUrl) ? (
+                              <img
+                                src={message.render!.outputUrl}
+                                alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
+                                className="absolute inset-0 w-full h-full object-cover"
+                                onError={(e) => {
+                                  console.error('Image load error:', message.render!.outputUrl);
+                                  logger.error('Failed to load image:', message.render!.outputUrl);
+                                  // Show placeholder on error
+                                  (e.target as HTMLImageElement).src = '/placeholder-image.jpg';
+                                }}
+                              />
+                            ) : (
+                              <Image
+                                src={message.render!.outputUrl}
+                                alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
+                                fill
+                                className="object-cover"
+                                onError={(e) => {
+                                  console.error('Image load error:', message.render!.outputUrl);
+                                  logger.error('Failed to load image:', message.render!.outputUrl);
+                                }}
+                              />
+                            )
                           ) : (
-                            <Image
-                              src={message.render!.outputUrl}
-                              alt={`Version ${message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}`}
-                              fill
-                              className="object-cover"
-                            />
+                            <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                              <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                            </div>
                           )}
                         </div>
                       ))}
@@ -1799,18 +1775,8 @@ export function UnifiedChatInterface({
                 }
                 
                 return messages.map((message, index) => {
-                // Log each message being rendered
-                logger.log(`🎨 UnifiedChatInterface: Rendering message ${index + 1}/${messages.length}`, {
-                  messageId: message.id,
-                  type: message.type,
-                  hasContent: !!message.content,
-                  content: message.content?.substring(0, 50) + '...',
-                  contentLength: message.content?.length || 0,
-                  hasRender: !!message.render,
-                  renderId: message.render?.id,
-                  renderStatus: message.render?.status,
-                  timestamp: message.timestamp
-                });
+                // Removed verbose per-message logging for performance
+                // Logger is production-safe, but too many logs slow down rendering
               
                 return (
                 <div
@@ -1937,11 +1903,6 @@ export function UnifiedChatInterface({
                     <div className="mt-2 w-full max-w-full overflow-hidden">
                       <div className="mb-1 flex items-center justify-between">
                         <span className="text-[10px] sm:text-xs text-muted-foreground">Version {message.render?.chainPosition !== undefined ? message.render.chainPosition + 1 : index + 1}</span>
-                        {message.render.status === 'completed' && message.render.creditsCost && (
-                          <span className="text-[9px] sm:text-[10px] text-muted-foreground">
-                            Used {message.render.creditsCost} credit{message.render.creditsCost !== 1 ? 's' : ''}
-                          </span>
-                        )}
                       </div>
                       <div className="relative w-full max-w-full aspect-video rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity bg-muted animate-in fade-in-0 zoom-in-95 duration-500"
                         onClick={() => {
@@ -1977,14 +1938,37 @@ export function UnifiedChatInterface({
                             muted
                             playsInline
                           />
+                        ) : message.render.outputUrl ? (
+                          // Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking
+                          shouldUseRegularImg(message.render.outputUrl) ? (
+                            <img
+                              src={message.render.outputUrl}
+                              alt="Generated render"
+                              className="absolute inset-0 w-full h-full object-cover"
+                              onError={(e) => {
+                                console.error('Image load error:', message.render.outputUrl);
+                                logger.error('Failed to load image:', message.render.outputUrl);
+                                // Show placeholder on error
+                                (e.target as HTMLImageElement).src = '/placeholder-image.jpg';
+                              }}
+                            />
+                          ) : (
+                            <Image
+                              src={message.render.outputUrl}
+                              alt="Generated render"
+                              fill
+                              className="object-cover"
+                              sizes="(max-width: 768px) 100vw, 95vw"
+                              onError={(e) => {
+                                console.error('Image load error:', message.render.outputUrl);
+                                logger.error('Failed to load image:', message.render.outputUrl);
+                              }}
+                            />
+                          )
                         ) : (
-                          <Image
-                            src={message.render.outputUrl}
-                            alt="Generated render"
-                            fill
-                            className="object-cover"
-                            sizes="(max-width: 768px) 100vw, 95vw"
-                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                            <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                          </div>
                         )}
                       </div>
                       {/* No action buttons in assistant message bubble - removed per user request */}
@@ -3003,14 +2987,32 @@ export function UnifiedChatInterface({
                           </div>
                         ) : (
                           <>
-                            <Image
-                              src={currentRender.outputUrl}
-                              alt={currentRender.prompt}
-                              fill
-                              className="object-contain cursor-pointer"
-                              sizes="100vw"
-                              onClick={() => setIsFullscreen(true)}
-                            />
+                            {/* Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking */}
+                            {shouldUseRegularImg(currentRender.outputUrl) ? (
+                              <img
+                                src={currentRender.outputUrl}
+                                alt={currentRender.prompt}
+                                className="absolute inset-0 w-full h-full object-contain cursor-pointer"
+                                onClick={() => setIsFullscreen(true)}
+                                onError={(e) => {
+                                  console.error('Image load error:', currentRender.outputUrl);
+                                  logger.error('Failed to load image:', currentRender.outputUrl);
+                                }}
+                              />
+                            ) : (
+                              <Image
+                                src={currentRender.outputUrl || '/placeholder-image.jpg'}
+                                alt={currentRender.prompt}
+                                fill
+                                className="object-contain cursor-pointer"
+                                sizes="100vw"
+                                onClick={() => setIsFullscreen(true)}
+                                onError={(e) => {
+                                  console.error('Image load error:', currentRender.outputUrl);
+                                  logger.error('Failed to load image:', currentRender.outputUrl);
+                                }}
+                              />
+                            )}
                             {/* Fullscreen Toggle */}
                             <Button
                               variant="ghost"
@@ -3206,15 +3208,37 @@ export function UnifiedChatInterface({
                 autoPlay
                 onClick={(e) => e.stopPropagation()}
               />
+            ) : currentRender.outputUrl ? (
+              // Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking
+              shouldUseRegularImg(currentRender.outputUrl) ? (
+                <img
+                  src={currentRender.outputUrl}
+                  alt={currentRender.prompt}
+                  className="max-w-full max-h-full object-contain"
+                  onClick={(e) => e.stopPropagation()}
+                  onError={(e) => {
+                    console.error('Image load error:', currentRender.outputUrl);
+                    logger.error('Failed to load image:', currentRender.outputUrl);
+                  }}
+                />
+              ) : (
+                <Image
+                  src={currentRender.outputUrl}
+                  alt={currentRender.prompt}
+                  width={1200}
+                  height={800}
+                  className="max-w-full max-h-full object-contain"
+                  onClick={(e) => e.stopPropagation()}
+                  onError={(e) => {
+                    console.error('Image load error:', currentRender.outputUrl);
+                    logger.error('Failed to load image:', currentRender.outputUrl);
+                  }}
+                />
+              )
             ) : (
-              <Image
-                src={currentRender.outputUrl}
-                alt={currentRender.prompt}
-                width={1200}
-                height={800}
-                className="max-w-full max-h-full object-contain"
-                onClick={(e) => e.stopPropagation()}
-              />
+              <div className="flex items-center justify-center text-white">
+                <ImageIcon className="h-16 w-16 text-muted-foreground" />
+              </div>
             )}
             
             {/* Close Button */}

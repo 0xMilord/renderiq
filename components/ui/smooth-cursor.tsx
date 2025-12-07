@@ -83,13 +83,14 @@ const DefaultCursorSVG: FC = () => {
 export function SmoothCursor({
   cursor = <DefaultCursorSVG />,
   springConfig = {
-    damping: 45,
-    stiffness: 400,
-    mass: 1,
+    damping: 30,
+    stiffness: 600,
+    mass: 0.8,
     restDelta: 0.001,
   },
 }: SmoothCursorProps) {
   const [isMoving, setIsMoving] = useState(false)
+  const [isVisible, setIsVisible] = useState(true)
   const lastMousePos = useRef<Position>({ x: 0, y: 0 })
   const velocity = useRef<Position>({ x: 0, y: 0 })
   const lastUpdateTime = useRef(Date.now())
@@ -100,16 +101,56 @@ export function SmoothCursor({
   const cursorY = useSpring(0, springConfig)
   const rotation = useSpring(0, {
     ...springConfig,
-    damping: 60,
-    stiffness: 300,
+    damping: 40,
+    stiffness: 450,
   })
   const scale = useSpring(1, {
     ...springConfig,
-    stiffness: 500,
-    damping: 35,
+    stiffness: 700,
+    damping: 25,
   })
 
   useEffect(() => {
+    // Check if mouse is over navbar, footer, or hamburger menu
+    const checkShouldHideCursor = (x: number, y: number): boolean => {
+      // Check if hamburger menu (Sheet) is open
+      const sheetContent = document.querySelector('[data-radix-portal] [role="dialog"]')
+      if (sheetContent) {
+        const rect = sheetContent.getBoundingClientRect()
+        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+          return true
+        }
+      }
+
+      // Check navbar - look for nav element with fixed positioning
+      const navbar = document.querySelector('nav[class*="fixed"][class*="top-0"]')
+      if (navbar) {
+        const rect = navbar.getBoundingClientRect()
+        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+          return true
+        }
+      }
+
+      // Check footer
+      const footer = document.querySelector('footer')
+      if (footer) {
+        const rect = footer.getBoundingClientRect()
+        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+          return true
+        }
+      }
+
+      // Check bottom nav (mobile)
+      const bottomNav = document.querySelector('nav[class*="fixed"][class*="bottom-0"]')
+      if (bottomNav) {
+        const rect = bottomNav.getBoundingClientRect()
+        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+          return true
+        }
+      }
+
+      return false
+    }
     const updateVelocity = (currentPos: Position) => {
       const currentTime = Date.now()
       const deltaTime = currentTime - lastUpdateTime.current
@@ -128,6 +169,21 @@ export function SmoothCursor({
     const smoothMouseMove = (e: MouseEvent) => {
       const currentPos = { x: e.clientX, y: e.clientY }
       updateVelocity(currentPos)
+
+      // First check if Sheet is open globally
+      const sheetContent = document.querySelector('[data-radix-portal] [role="dialog"]')
+      const isSheetOpen = !!sheetContent
+
+      // Check if cursor should be hidden
+      const shouldHide = isSheetOpen || checkShouldHideCursor(currentPos.x, currentPos.y)
+      setIsVisible(!shouldHide)
+
+      // If hidden, restore default cursor on those elements
+      if (shouldHide) {
+        document.body.style.cursor = 'auto'
+      } else {
+        document.body.style.cursor = 'none'
+      }
 
       const speed = Math.sqrt(
         Math.pow(velocity.current.x, 2) + Math.pow(velocity.current.y, 2)
@@ -170,12 +226,45 @@ export function SmoothCursor({
       })
     }
 
+    // Also check for Sheet open state changes
+    const checkSheetState = () => {
+      const sheetContent = document.querySelector('[data-radix-portal] [role="dialog"]')
+      if (sheetContent) {
+        setIsVisible(false)
+        document.body.style.cursor = 'auto'
+        return true
+      }
+      return false
+    }
+
+    // Use MutationObserver to watch for Sheet open/close
+    const observer = new MutationObserver(() => {
+      const isSheetOpen = checkSheetState()
+      // If sheet is not open, check current mouse position to restore cursor if needed
+      if (!isSheetOpen) {
+        // Trigger a mousemove event to re-check visibility
+        const lastEvent = new MouseEvent('mousemove', {
+          bubbles: true,
+          cancelable: true,
+          clientX: lastMousePos.current.x,
+          clientY: lastMousePos.current.y,
+        })
+        window.dispatchEvent(lastEvent)
+      }
+    })
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    })
+
     document.body.style.cursor = "none"
     window.addEventListener("mousemove", throttledMouseMove)
 
     return () => {
       window.removeEventListener("mousemove", throttledMouseMove)
       document.body.style.cursor = "auto"
+      observer.disconnect()
       if (rafId) cancelAnimationFrame(rafId)
     }
   }, [cursorX, cursorY, rotation, scale])
@@ -193,9 +282,10 @@ export function SmoothCursor({
         zIndex: 100,
         pointerEvents: "none",
         willChange: "transform",
+        opacity: isVisible ? 1 : 0,
       }}
       initial={{ scale: 0 }}
-      animate={{ scale: 1 }}
+      animate={{ scale: isVisible ? 1 : 0, opacity: isVisible ? 1 : 0 }}
       transition={{
         type: "spring",
         stiffness: 400,

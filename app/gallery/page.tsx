@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { MasonryFeed } from '@/components/gallery/masonry-feed';
 import { type SortOption, type FilterOption } from '@/components/gallery/gallery-filters';
 import { useGallery } from '@/lib/hooks/use-gallery';
@@ -52,7 +52,65 @@ export default function GalleryPage() {
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [filters, setFilters] = useState<FilterOption>({});
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { items, loading, hasMore, loadMore, likeItem, viewItem } = useGallery();
+  const { items, loading, hasMore, loadMore, likeItem, viewItem, likedItems } = useGallery();
+  const scrollRestoredRef = useRef(false);
+  const containerRef = useRef<HTMLElement | null>(null);
+
+  // Restore scroll position when returning from gallery item page
+  useEffect(() => {
+    // Only restore once on mount
+    if (scrollRestoredRef.current) return;
+
+    const savedScrollPosition = sessionStorage.getItem('gallery-scroll-position');
+    if (savedScrollPosition && !loading) {
+      const scrollY = parseInt(savedScrollPosition, 10);
+      // Use requestAnimationFrame to ensure DOM is ready
+      requestAnimationFrame(() => {
+        window.scrollTo({
+          top: scrollY,
+          behavior: 'instant' as ScrollBehavior, // Instant to avoid animation
+        });
+        scrollRestoredRef.current = true;
+        // Clear the saved position after restoring
+        sessionStorage.removeItem('gallery-scroll-position');
+      });
+    } else if (!loading) {
+      scrollRestoredRef.current = true;
+    }
+  }, [loading]);
+
+  // Save scroll position before navigating away
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Only save if we're on the gallery page (not navigating to a gallery item)
+      if (window.location.pathname === '/gallery') {
+        sessionStorage.setItem('gallery-scroll-position', window.scrollY.toString());
+      }
+    };
+
+    // Save scroll position periodically while scrolling
+    const handleScroll = () => {
+      if (window.location.pathname === '/gallery') {
+        sessionStorage.setItem('gallery-scroll-position', window.scrollY.toString());
+      }
+    };
+
+    // Throttle scroll events
+    let scrollTimeout: NodeJS.Timeout;
+    const throttledScroll = () => {
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(handleScroll, 100);
+    };
+
+    window.addEventListener('scroll', throttledScroll, { passive: true });
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('scroll', throttledScroll);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      clearTimeout(scrollTimeout);
+    };
+  }, []);
 
   const handleLoadMore = () => {
     loadMore();
@@ -177,17 +235,17 @@ export default function GalleryPage() {
     result.sort((a, b) => {
       switch (sortBy) {
         case 'newest':
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          return new Date(b.render.createdAt).getTime() - new Date(a.render.createdAt).getTime();
         case 'oldest':
-          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          return new Date(a.render.createdAt).getTime() - new Date(b.render.createdAt).getTime();
         case 'most_liked':
           return b.likes - a.likes;
         case 'most_viewed':
           return b.views - a.views;
         case 'trending':
           // Trending = combination of recent views and likes
-          const aScore = a.likes * 2 + a.views + (Date.now() - new Date(a.createdAt).getTime()) / (1000 * 60 * 60 * 24);
-          const bScore = b.likes * 2 + b.views + (Date.now() - new Date(b.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+          const aScore = a.likes * 2 + a.views + (Date.now() - new Date(a.render.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+          const bScore = b.likes * 2 + b.views + (Date.now() - new Date(b.render.createdAt).getTime()) / (1000 * 60 * 60 * 24);
           return bScore - aScore;
         default:
           return 0;
@@ -428,7 +486,11 @@ export default function GalleryPage() {
       </header>
 
       {/* Content */}
-      <section className="container mx-auto px-4 py-8 pt-[calc(1rem+2.75rem+3.5rem+1.5rem)]" aria-label="Gallery content">
+      <section 
+        ref={containerRef}
+        className="container mx-auto px-4 py-8 pt-[calc(1rem+2.75rem+3.5rem+1.5rem)]" 
+        aria-label="Gallery content"
+      >
         {/* Masonry Feed */}
         <MasonryFeed
           items={filteredAndSortedItems}
@@ -437,6 +499,7 @@ export default function GalleryPage() {
           onLoadMore={handleLoadMore}
           onLike={likeItem}
           onView={viewItem}
+          likedItems={likedItems}
         />
       </section>
     </main>

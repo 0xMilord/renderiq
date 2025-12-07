@@ -59,28 +59,28 @@ const HeroSection = memo(function HeroSection({ avatarData, totalUsers, galleryI
 
   return (
     <section className="relative overflow-hidden w-full bg-[hsl(72,87%,62%)]" style={{ paddingTop: 'var(--navbar-height)' }}>
-      {/* Diagonal Stripe Pattern on Sides - Responsive */}
+      {/* Diagonal Stripe Pattern on Sides - Responsive - 2px width to match stroke */}
       <div className="absolute inset-y-0 left-0 hidden md:block md:w-16 lg:w-32 -z-0" style={{ 
-        backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 10px, ${borderColor} 10px, ${borderColor} 20px)`
+        backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 8px, ${borderColor} 8px, ${borderColor} 10px)`
       }}></div>
       <div className="absolute inset-y-0 right-0 hidden md:block md:w-16 lg:w-32 -z-0" style={{ 
-        backgroundImage: `repeating-linear-gradient(-45deg, transparent, transparent 10px, ${borderColor} 10px, ${borderColor} 20px)`
+        backgroundImage: `repeating-linear-gradient(-45deg, transparent, transparent 8px, ${borderColor} 8px, ${borderColor} 10px)`
       }}></div>
 
       {/* Main Container - Full Width with Grid */}
       <div className="w-full relative z-10">
         {/* Hero Content Section - Bordered Container */}
-        <div className={`w-full border-t-[5px] border-b-[5px] border-l-[5px] border-r-[5px] ${borderClass}`}>
+        <div className={`w-full border-t-[2px] border-b-[2px] border-l-[2px] border-r-[2px] ${borderClass}`}>
           <div className="pl-6 pr-6 sm:pl-[9.5rem] sm:pr-[9.5rem] md:pl-[10rem] md:pr-[10rem] lg:pl-[11rem] lg:pr-[11rem] py-12">
             {/* Main Headline Container */}
-            <div className={`border-b-[5px] ${borderClass} pb-8 mb-8`}>
+            <div className={`border-b-[2px] ${borderClass} pb-8 mb-8`}>
               <h1 className="text-5xl md:text-7xl lg:text-8xl font-black text-[hsl(0,0%,7%)] mb-6 leading-tight text-left">
                 Idea to approval ready design in seconds
               </h1>
             </div>
 
             {/* Description Container */}
-            <div className={`border-b-[5px] ${borderClass} pb-8 mb-8`}>
+            <div className={`border-b-[2px] ${borderClass} pb-8 mb-8`}>
               <p className="text-xl md:text-2xl text-[hsl(0,0%,20%)] max-w-4xl leading-relaxed text-left">
                 Transform architectural sketches and 3D models into photorealistic renders and videos with AI. 
                 Industry-leading AI render pipelines for AEC firms. The leading <strong>architecture render software</strong> trusted by architects, engineers, and visualizers worldwide.
@@ -88,9 +88,9 @@ const HeroSection = memo(function HeroSection({ avatarData, totalUsers, galleryI
             </div>
 
             {/* CTA Buttons Container */}
-            <div className={`border-b-[5px] ${borderClass} pb-8 mb-8`}>
+            <div className={`border-b-[2px] ${borderClass} pb-8 mb-8`}>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
-                <div className={`flex flex-col sm:flex-row gap-4 sm:col-span-2 border-b-[5px] sm:border-b-0 sm:border-r-[5px] ${borderClass} pb-4 sm:pb-0 pr-0 sm:pr-4 mb-0`}>
+                <div className={`flex flex-col sm:flex-row gap-4 sm:col-span-2 border-b-[2px] sm:border-b-0 sm:border-r-[2px] ${borderClass} pb-4 sm:pb-0 pr-0 sm:pr-4 mb-0`}>
                   <Link href="/render">
                     <Button 
                       size="lg" 
@@ -126,40 +126,40 @@ const HeroSection = memo(function HeroSection({ avatarData, totalUsers, galleryI
             {/* Stats Section - Two Column Layout: Table (40%) + Hero Illustration (60%) */}
             <div className="grid grid-cols-1 lg:grid-cols-[40%_60%] gap-0">
               {/* Left Column - Table (40% max width) */}
-              <div className={`border-b-[5px] lg:border-b-0 lg:border-r-[5px] ${borderClass} pr-6 sm:pr-8 pb-6 sm:pb-8 lg:pb-0`}>
+              <div className={`border-b-[2px] lg:border-b-0 lg:border-r-[2px] ${borderClass} pr-6 sm:pr-8 pb-6 sm:pb-8 lg:pb-0`}>
                 <table className="w-full border-collapse">
                   <colgroup>
                     <col style={{ width: '40%' }} />
                     <col style={{ width: '60%' }} />
                   </colgroup>
                   <tbody>
-                    <tr className={`border-b-[5px] ${borderClass}`}>
+                    <tr className={`border-b-[2px] ${borderClass}`}>
                       <td className="py-6 pr-4 align-middle">
                         <div className="text-5xl md:text-6xl font-black text-[hsl(0,0%,7%)]">
                           <TickingNumber value="50K+" duration={2000} />
                         </div>
                       </td>
-                      <td className={`py-6 pl-4 align-middle border-l-[5px] ${borderClass}`}>
+                      <td className={`py-6 pl-4 align-middle border-l-[2px] ${borderClass}`}>
                         <div className="text-base font-semibold text-[hsl(0,0%,20%)]">Renders Created</div>
                       </td>
                     </tr>
-                    <tr className={`border-b-[5px] ${borderClass}`}>
+                    <tr className={`border-b-[2px] ${borderClass}`}>
                       <td className="py-6 pr-4 align-middle">
                         <div className="text-5xl md:text-6xl font-black text-[hsl(0,0%,7%)]">
                           <TickingNumber value="2.5M" duration={2000} />
                         </div>
                       </td>
-                      <td className={`py-6 pl-4 align-middle border-l-[5px] ${borderClass}`}>
+                      <td className={`py-6 pl-4 align-middle border-l-[2px] ${borderClass}`}>
                         <div className="text-base font-semibold text-[hsl(0,0%,20%)]">Minutes Saved</div>
                       </td>
                     </tr>
-                    <tr className={`border-b-[5px] ${borderClass}`}>
+                    <tr className={`border-b-[2px] ${borderClass}`}>
                       <td className="py-6 pr-4 align-middle">
                         <div className="text-5xl md:text-6xl font-black text-[hsl(0,0%,7%)]">
                           <TickingNumber value="10K+" duration={2000} />
                         </div>
                       </td>
-                      <td className={`py-6 pl-4 align-middle border-l-[5px] ${borderClass}`}>
+                      <td className={`py-6 pl-4 align-middle border-l-[2px] ${borderClass}`}>
                         <div className="text-base font-semibold text-[hsl(0,0%,20%)]">AEC Professionals</div>
                       </td>
                     </tr>
@@ -169,7 +169,7 @@ const HeroSection = memo(function HeroSection({ avatarData, totalUsers, galleryI
                           <TickingNumber value="99%" duration={2000} />
                         </div>
                       </td>
-                      <td className={`py-6 pl-4 align-middle border-l-[5px] ${borderClass}`}>
+                      <td className={`py-6 pl-4 align-middle border-l-[2px] ${borderClass}`}>
                         <div className="text-base font-semibold text-[hsl(0,0%,20%)]">Platform Uptime</div>
                       </td>
                     </tr>
@@ -186,12 +186,12 @@ const HeroSection = memo(function HeroSection({ avatarData, totalUsers, galleryI
         </div>
 
         {/* Used By Section - Full Width Marquee with Border */}
-        <div className={`w-full border-b-[5px] border-l-[5px] border-r-[5px] ${borderClass} bg-[hsl(72,87%,62%)]`}>
+        <div className={`w-full border-b-[2px] border-l-[2px] border-r-[2px] ${borderClass} bg-[hsl(72,87%,62%)]`}>
           <div className="py-8">
             <p className="text-xl md:text-3xl text-[hsl(0,0%,20%)] text-center mb-6 font-semibold mx-auto">
               Used by top Architects, Engineers, and Visualizers at
             </p>
-            <div className={`border-b-[5px] ${borderClass} mb-6 mx-auto max-w-7xl`}></div>
+            <div className={`border-b-[2px] ${borderClass} mb-6 mx-auto max-w-7xl`}></div>
             <div className="relative flex w-full flex-col items-center justify-center overflow-hidden">
               <Marquee pauseOnHover className="[--duration:30s]">
                 {firms.map((firm, index) => (

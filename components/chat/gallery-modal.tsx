@@ -196,13 +196,22 @@ export function GalleryModal({ isOpen, onClose, onImageSelect }: GalleryModalPro
                     onClick={() => handleImageSelect(item)}
                   >
                     <div className="aspect-square relative bg-muted">
-                      <Image
-                        src={item.url}
-                        alt={item.prompt}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
-                      />
+                      {/* Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking */}
+                      {(item.url?.includes('supabase.co') || item.url?.includes('storage.googleapis.com') || item.url?.includes(process.env.NEXT_PUBLIC_GCS_CDN_DOMAIN || '')) ? (
+                        <img
+                          src={item.url}
+                          alt={item.prompt}
+                          className="absolute inset-0 w-full h-full object-cover"
+                        />
+                      ) : (
+                        <Image
+                          src={item.url}
+                          alt={item.prompt}
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+                        />
+                      )}
                       
                       {/* Overlay */}
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
@@ -250,12 +259,21 @@ export function GalleryModal({ isOpen, onClose, onImageSelect }: GalleryModalPro
             <div className="border-t pt-4">
               <div className="flex items-start space-x-4">
                 <div className="relative w-16 h-16 bg-muted rounded-lg overflow-hidden flex-shrink-0">
-                  <Image
-                    src={selectedItem.url}
-                    alt={selectedItem.prompt}
-                    fill
-                    className="object-cover"
-                  />
+                  {/* Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking */}
+                  {(selectedItem.url?.includes('supabase.co') || selectedItem.url?.includes('storage.googleapis.com') || selectedItem.url?.includes(process.env.NEXT_PUBLIC_GCS_CDN_DOMAIN || '')) ? (
+                    <img
+                      src={selectedItem.url}
+                      alt={selectedItem.prompt}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Image
+                      src={selectedItem.url}
+                      alt={selectedItem.prompt}
+                      fill
+                      className="object-cover"
+                    />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="font-medium text-sm line-clamp-2">

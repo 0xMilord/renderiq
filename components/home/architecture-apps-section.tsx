@@ -5,22 +5,103 @@ import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { getAllTools } from '@/lib/tools/registry';
 import { getEffectiveToolStatus } from '@/lib/tools/feature-flags';
-import { Wrench, ImageIcon, Video, Box } from 'lucide-react';
+import { 
+  FaWrench, 
+  FaHome, 
+  FaLayerGroup, 
+  FaPaintBrush, 
+  FaCouch, 
+  FaCube, 
+  FaFileAlt, 
+  FaVideo,
+  FaArrowRight,
+  FaExpand,
+  FaMagic,
+  FaSquare,
+  FaBox,
+  FaThLarge,
+  FaCut,
+  FaSync,
+  FaPalette,
+  FaBrush,
+  FaSun,
+  FaBoxOpen,
+  FaExchangeAlt,
+  FaImage,
+  FaFile,
+  FaFilm,
+  FaTh
+} from 'react-icons/fa';
 
-const getToolIcon = (tool: { category: string; outputType: string }) => {
+// Icon mapping for each specific tool (matching navbar mapping)
+const getToolIcon = (tool: { id: string; category: string; outputType: string }) => {
   if (tool.outputType === 'video') {
-    return Video;
+    return FaVideo;
   }
+  
+  const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+    // Transformation tools
+    'render-section-drawing': FaLayerGroup,
+    'render-to-cad': FaSquare,
+    'render-upscale': FaExpand,
+    'render-effects': FaMagic,
+    
+    // Floorplan tools
+    'floorplan-to-furnished': FaCouch,
+    'floorplan-to-3d': FaBox,
+    'floorplan-technical-diagrams': FaThLarge,
+    
+    // Diagram tools
+    'exploded-diagram': FaCut,
+    'multi-angle-view': FaSync,
+    
+    // Material tools
+    'change-texture': FaPalette,
+    'material-alteration': FaBrush,
+    'change-lighting': FaSun,
+    
+    // Interior tools
+    'upholstery-change': FaCouch,
+    'product-placement': FaBoxOpen,
+    'item-change': FaExchangeAlt,
+    'moodboard-to-render': FaImage,
+    
+    // 3D tools
+    '3d-to-render': FaBox,
+    'sketch-to-render': FaFile,
+    
+    // Presentation tools
+    'presentation-board-maker': FaTh,
+    'portfolio-layout-generator': FaFile,
+    'presentation-sequence-creator': FaFilm,
+  };
+  
+  // Return specific icon or fallback to category-based icon
+  if (iconMap[tool.id]) {
+    return iconMap[tool.id];
+  }
+  
+  // Fallback to category-based icons
   switch (tool.category) {
     case 'transformation':
-      return Wrench;
+      return FaWrench;
+    case 'floorplan':
+      return FaHome;
+    case 'diagram':
+      return FaLayerGroup;
     case 'material':
-      return Box;
+      return FaPaintBrush;
+    case 'interior':
+      return FaCouch;
+    case '3d':
+      return FaCube;
+    case 'presentation':
+      return FaFileAlt;
     default:
-      return ImageIcon;
+      return FaFileAlt;
   }
 };
 
@@ -98,31 +179,26 @@ export function ArchitectureAppsSection() {
 
                   return (
                     <Link key={tool.id} href={`/apps/${tool.slug}`} className="block">
-                      <Card className={`hover:shadow-lg transition-all duration-300 group cursor-pointer overflow-hidden flex flex-col ${isOffline ? 'opacity-75' : ''}`}>
-                        <CardHeader className="p-4">
+                      <Card className={`hover:shadow-lg transition-all duration-300 group cursor-pointer overflow-hidden flex flex-col h-full ${isOffline ? 'opacity-75' : ''}`}>
+                        <CardHeader className="p-4 flex flex-col h-full">
                           {/* Image and Title in Same Row - 2 Column Format */}
-                          <div className="grid grid-cols-[auto_1fr] gap-3 items-center mb-2">
+                          <div className="grid grid-cols-[auto_1fr] gap-3 items-start mb-2 flex-shrink-0">
                             <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${tool.color || 'bg-primary'} bg-opacity-10`}>
                               <Icon className={`h-5 w-5 ${tool.color || 'text-primary'}`} />
                             </div>
-                            <CardTitle className="text-sm font-semibold group-hover:text-primary transition-colors leading-tight">
+                            <CardTitle className="text-sm font-semibold group-hover:text-primary transition-colors leading-tight line-clamp-2 min-h-[2.5rem]">
                               {tool.name}
                             </CardTitle>
                           </div>
                           
                           {/* Badge Below */}
-                          {isOffline && (
-                            <div className="mb-2">
+                          <div className="mt-auto">
+                            {isOffline && (
                               <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
                                 Coming Soon
                               </Badge>
-                            </div>
-                          )}
-                          
-                          {/* Description - Full Width Below */}
-                          <CardDescription className="text-xs text-muted-foreground leading-relaxed mt-2">
-                            {tool.description}
-                          </CardDescription>
+                            )}
+                          </div>
                         </CardHeader>
                       </Card>
                     </Link>
@@ -130,15 +206,16 @@ export function ArchitectureAppsSection() {
                 })}
                 {/* Explore All Apps Card */}
                 <Link href="/apps" className="block">
-                  <Card className="hover:shadow-lg transition-all duration-300 group cursor-pointer overflow-hidden flex flex-col bg-[hsl(72,87%,62%)] border-[hsl(72,87%,62%)]">
-                    <CardHeader className="p-4 flex items-center justify-center h-full">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-[hsl(0,0%,7%)] mb-2 group-hover:scale-105 transition-transform">
+                  <Card className="hover:shadow-lg transition-all duration-300 group cursor-pointer overflow-hidden flex flex-col h-full">
+                    <CardHeader className="p-4 flex flex-col h-full">
+                      {/* Image and Title in Same Row - 2 Column Format */}
+                      <div className="grid grid-cols-[auto_1fr] gap-3 items-start mb-2 flex-shrink-0">
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-primary bg-opacity-10">
+                          <FaArrowRight className="h-5 w-5 text-primary" />
+                        </div>
+                        <CardTitle className="text-sm font-semibold group-hover:text-primary transition-colors leading-tight line-clamp-2 min-h-[2.5rem]">
                           Explore All Apps
-                        </div>
-                        <div className="text-sm text-[hsl(0,0%,20%)]">
-                          View all 21 tools
-                        </div>
+                        </CardTitle>
                       </div>
                     </CardHeader>
                   </Card>

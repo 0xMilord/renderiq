@@ -62,6 +62,21 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
+        hostname: 'storage.googleapis.com',
+      },
+      // Support for custom GCS CDN domain (if configured)
+      // Explicitly supports cdn.renderiq.io for fast image delivery
+      ...(process.env.GCS_CDN_DOMAIN ? [{
+        protocol: 'https' as const,
+        hostname: process.env.GCS_CDN_DOMAIN,
+      }] : []),
+      // Explicit CDN domain support (fallback if env var not set but domain is used)
+      {
+        protocol: 'https',
+        hostname: 'cdn.renderiq.io',
+      },
+      {
+        protocol: 'https',
         hostname: 'lh3.googleusercontent.com',
       },
       {
@@ -76,6 +91,10 @@ const nextConfig: NextConfig = {
     formats: ['image/webp', 'image/avif'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    minimumCacheTTL: 60,
   },
   
   // Performance optimizations for SEO

@@ -20,6 +20,7 @@ interface GalleryImageCardProps {
   onView?: (itemId: string) => void;
   priority?: boolean;
   hideOwnerInfo?: boolean; // Hide user info when viewing owner's profile
+  isLiked?: boolean; // Pre-computed liked status from parent (optional, falls back to checking)
 }
 
 export function GalleryImageCard({ 
@@ -27,7 +28,8 @@ export function GalleryImageCard({
   onLike, 
   onView,
   priority = false,
-  hideOwnerInfo = false
+  hideOwnerInfo = false,
+  isLiked: initialIsLiked
 }: GalleryImageCardProps) {
   const router = useRouter();
   const [imageLoading, setImageLoading] = useState(true);
@@ -36,7 +38,7 @@ export function GalleryImageCard({
   const [imageError, setImageError] = useState(false);
   const [videoError, setVideoError] = useState(false);
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
-  const [isLiked, setIsLiked] = useState(false);
+  const [isLiked, setIsLiked] = useState(initialIsLiked ?? false);
   const [likesCount, setLikesCount] = useState(item.likes);
   const [showUserCard, setShowUserCard] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -68,10 +70,12 @@ export function GalleryImageCard({
     }
   }, [item.id, item.render.type, item.render.outputUrl, isVideo]);
   
-  // Check if URL is from Supabase or external domain
+  // Check if URL is from external storage (Supabase or GCS)
   const isExternalUrl = item.render.outputUrl 
     ? (item.render.outputUrl.includes('supabase.co') || 
-       item.render.outputUrl.includes('http') && !item.render.outputUrl.includes(process.env.NEXT_PUBLIC_SITE_URL || 'renderiq.io'))
+       item.render.outputUrl.includes('storage.googleapis.com') ||
+       item.render.outputUrl.includes(process.env.NEXT_PUBLIC_GCS_CDN_DOMAIN || '') ||
+       (item.render.outputUrl.includes('http') && !item.render.outputUrl.includes(process.env.NEXT_PUBLIC_SITE_URL || 'renderiq.io')))
     : false;
 
   useEffect(() => {
@@ -108,16 +112,35 @@ export function GalleryImageCard({
     return () => clearTimeout(timeoutId);
   }, [item.render.outputUrl, isVideo]);
 
+  // Use ref to prevent duplicate calls
+  const likeStatusCheckedRef = useRef(false);
+  
+  // Update liked status when prop changes (from batched check)
   useEffect(() => {
-    // Check if user has liked this item
+    if (initialIsLiked !== undefined) {
+      setIsLiked(initialIsLiked);
+      likeStatusCheckedRef.current = true; // Mark as checked if provided from parent
+    }
+  }, [initialIsLiked]);
+  
+  useEffect(() => {
+    // Only check if not provided from parent and not already checked
+    if (initialIsLiked !== undefined || likeStatusCheckedRef.current) return;
+    
     const fetchLikeStatus = async () => {
-      const result = await checkUserLiked(item.id);
-      if (result.success && result.data) {
-        setIsLiked(result.data.liked);
+      likeStatusCheckedRef.current = true;
+      try {
+        const result = await checkUserLiked(item.id);
+        if (result.success && result.data) {
+          setIsLiked(result.data.liked);
+        }
+      } catch (err) {
+        console.error('Failed to check like status:', err);
+        likeStatusCheckedRef.current = false; // Allow retry on error
       }
     };
     fetchLikeStatus();
-  }, [item.id]);
+  }, [item.id, initialIsLiked]);
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -137,6 +160,10 @@ export function GalleryImageCard({
     const target = e.target as HTMLElement;
     if (target.closest('a') || target.closest('button') || target.closest('[data-view-image]')) {
       return;
+    }
+    // Save scroll position before navigating
+    if (typeof window !== 'undefined' && window.location.pathname === '/gallery') {
+      sessionStorage.setItem('gallery-scroll-position', window.scrollY.toString());
     }
     router.push(`/gallery/${item.id}`);
     if (onView) {

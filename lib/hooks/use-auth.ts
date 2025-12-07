@@ -1,9 +1,11 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { signInAction, signUpAction, signOutAction, signInWithGoogleAction, signInWithGithubAction } from '@/lib/actions/auth.actions';
 
 export function useAuth() {
+  const router = useRouter();
   const { user, loading, signIn: storeSignIn, signUp: storeSignUp, signOut: storeSignOut } = useAuthStore();
 
   const signIn = async (email: string, password: string) => {
@@ -16,6 +18,8 @@ export function useAuth() {
 
   const signOut = async () => {
     await storeSignOut();
+    // Redirect to home immediately after logout
+    router.push('/');
     return { error: null };
   };
 

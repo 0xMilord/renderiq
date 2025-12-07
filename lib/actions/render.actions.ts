@@ -11,6 +11,8 @@ import { RendersDAL } from '@/lib/dal/renders';
 import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { StorageService } from '@/lib/services/storage';
 import { logger } from '@/lib/utils/logger';
+import { getCachedUser } from '@/lib/services/auth-cache';
+import { getUserFromAction } from '@/lib/utils/get-user-from-action';
 
 const aiService = AISDKService.getInstance();
 
@@ -46,15 +48,20 @@ export async function createRenderAction(formData: FormData) {
   try {
     logger.log('🚀 Starting render generation server action');
     
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Try to get userId from formData first (passed from client store)
+    const userIdFromClient = formData.get('userId') as string | null;
+    const { userId: userIdFromAuth, user } = await getUserFromAction(userIdFromClient);
     
-    if (authError || !user) {
-      logger.error('❌ Authentication failed:', authError?.message);
+    // Use userId from auth
+    const userId = userIdFromAuth;
+    
+    // If not provided, use cached auth (avoids DB call)
+    if (!userId || !user) {
+      logger.error('❌ Authentication failed: No user found');
       return { success: false, error: 'Authentication required' };
     }
     
-    logger.log('✅ User authenticated:', user.id);
+    logger.log('✅ User authenticated:', userId);
 
     // Extract form data
     const prompt = formData.get('prompt') as string;
@@ -74,7 +81,7 @@ export async function createRenderAction(formData: FormData) {
     // Check if user has pro subscription
     // Free users: renders are public (added to gallery)
     // Pro users: renders are private (not added to gallery)
-    const isPro = await BillingDAL.isUserPro(user.id);
+    const isPro = await BillingDAL.isUserPro(userId);
     const isPublic = !isPro; // Free users = public, Pro users = private
     logger.log(`📸 Render visibility: ${isPublic ? 'PUBLIC' : 'PRIVATE'} (User is ${isPro ? 'PRO' : 'FREE'})`);
     const seedParam = formData.get('seed') as string | null;
@@ -82,10 +89,12 @@ export async function createRenderAction(formData: FormData) {
     const versionContextData = formData.get('versionContext') as string | null;
     const environment = formData.get('environment') as string | null;
     const effect = formData.get('effect') as string | null;
-    const styleTransferImageData = formData.get('styleTransferImageData') as string | null;
-    const styleTransferImageType = formData.get('styleTransferImageType') as string | null;
+    // Support both styleTransferImageData (from chat) and styleReferenceImageData (from tools)
+    const styleTransferImageData = formData.get('styleTransferImageData') as string | null || formData.get('styleReferenceImageData') as string | null;
+    const styleTransferImageType = formData.get('styleTransferImageType') as string | null || formData.get('styleReferenceImageType') as string | null;
     const temperatureParam = formData.get('temperature') as string | null;
     const temperature = temperatureParam ? parseFloat(temperatureParam) : 0.7;
+    const imageSize = formData.get('imageSize') as '1K' | '2K' | '4K' | null;
 
     // Validate required fields
     if (!prompt || !style || !quality || !aspectRatio || !type || !projectId) {
@@ -104,7 +113,21 @@ export async function createRenderAction(formData: FormData) {
 
     // Calculate credits cost
     // Image: 5 credits base (standard), 10 credits (high), 15 credits (ultra)
+    // For upscaling: multiply by resolution multiplier (1K=1x, 2K=2x, 4K=4x)
+    // Note: For upscale tool, quality is forced to 'standard' and only resolution matters
     // Video: 30 credits per second (based on Veo 3.1 pricing with 2x markup and 100 INR/USD conversion)
+    // For batch requests: multiply by number of requests
+    // Define these outside the if/else so they're accessible for batch processing
+    const baseCreditsPerImage = 5;
+    
+    // Resolution multiplier for upscaling (1K=1x, 2K=2x, 4K=4x)
+    const resolutionMultiplier = imageSize === '4K' ? 4 : imageSize === '2K' ? 2 : 1;
+    
+    // For upscaling (when imageSize is provided), don't use quality multiplier
+    // Quality multiplier only applies to non-upscale tools
+    const isUpscaleTool = !!imageSize;
+    const qualityMultiplier = isUpscaleTool ? 1 : (quality === 'high' ? 2 : quality === 'ultra' ? 3 : 1);
+    
     let creditsCost: number;
     if (type === 'video') {
       // Video: 30 credits per second
@@ -112,10 +135,35 @@ export async function createRenderAction(formData: FormData) {
       const creditsPerSecond = 30;
       creditsCost = creditsPerSecond * duration;
     } else {
-      // Image: 5 credits base, multiplied by quality
-      const baseCreditsPerImage = 5;
-      const qualityMultiplier = quality === 'high' ? 2 : quality === 'ultra' ? 3 : 1;
-      creditsCost = baseCreditsPerImage * qualityMultiplier;
+      // Check if this is a batch request
+      const useBatchAPI = formData.get('useBatchAPI') === 'true';
+      let numberOfRequests = 1;
+      
+      if (useBatchAPI) {
+        const batchRequestsStr = formData.get('batchRequests') as string | null;
+        if (batchRequestsStr) {
+          try {
+            const batchRequests = JSON.parse(batchRequestsStr);
+            numberOfRequests = Array.isArray(batchRequests) ? batchRequests.length : 1;
+          } catch (e) {
+            logger.warn('Failed to parse batchRequests, defaulting to 1');
+            numberOfRequests = 1;
+          }
+        }
+      }
+      
+      // Image: 5 credits base, multiplied by quality (if not upscale), multiplied by resolution (if upscale), multiplied by number of requests
+      if (isUpscaleTool) {
+        // For upscaling: base × resolution × requests (no quality multiplier)
+        creditsCost = baseCreditsPerImage * resolutionMultiplier * numberOfRequests;
+        logger.log(`💰 Upscale credits cost calculation: ${baseCreditsPerImage} base × ${resolutionMultiplier} resolution (${imageSize}) × ${numberOfRequests} requests = ${creditsCost} credits`);
+      } else {
+        // For regular tools: base × quality × requests (no resolution multiplier)
+        creditsCost = baseCreditsPerImage * qualityMultiplier * numberOfRequests;
+        if (useBatchAPI) {
+          logger.log(`💰 Batch credits cost calculation: ${numberOfRequests} requests × ${baseCreditsPerImage} base × ${qualityMultiplier} quality = ${creditsCost} credits`);
+        }
+      }
     }
 
     logger.log('💰 Credits cost:', creditsCost);
@@ -135,7 +183,7 @@ export async function createRenderAction(formData: FormData) {
 
     // Verify project exists and belongs to user
     const project = await ProjectsDAL.getById(projectId);
-    if (!project || project.userId !== user.id) {
+    if (!project || project.userId !== userId) {
       logger.warn('❌ Project not found or access denied');
       return { success: false, error: 'Project not found or access denied' };
     }
@@ -239,7 +287,7 @@ export async function createRenderAction(formData: FormData) {
         const uploadResult = await StorageService.uploadFile(
           uploadedImageFile,
           'uploads',
-          user.id,
+          userId,
           undefined,
           project.slug
         );
@@ -254,11 +302,217 @@ export async function createRenderAction(formData: FormData) {
       }
     }
 
+    // Handle batch requests - process multiple renders
+    // CRITICAL: This check must happen BEFORE single render creation
+    const useBatchAPI = type === 'image' ? formData.get('useBatchAPI') === 'true' : false;
+    let batchRequests: Array<{ key: string; prompt: string; drawingType?: string; elevationSide?: string }> = [];
+    
+    if (useBatchAPI) {
+      const batchRequestsStr = formData.get('batchRequests') as string | null;
+      logger.log('📦 Server Action: Batch API flag detected, parsing batchRequests:', { 
+        hasBatchRequestsStr: !!batchRequestsStr,
+        batchRequestsStrLength: batchRequestsStr?.length || 0
+      });
+      if (batchRequestsStr) {
+        try {
+          batchRequests = JSON.parse(batchRequestsStr);
+          logger.log('📦 Server Action: Batch request parsed successfully:', { 
+            numberOfRequests: batchRequests.length, 
+            batchKeys: batchRequests.map((r: any) => r.key),
+            isArray: Array.isArray(batchRequests)
+          });
+        } catch (e) {
+          logger.warn('❌ Server Action: Failed to parse batchRequests:', e);
+          logger.warn('Batch requests string:', batchRequestsStr.substring(0, 200));
+        }
+      } else {
+        logger.warn('⚠️ Server Action: useBatchAPI is true but batchRequests is missing from formData');
+      }
+    }
+
+    // Process batch requests if detected
+    logger.log('🔍 Server Action: Checking batch processing conditions:', {
+      useBatchAPI,
+      batchRequestsLength: batchRequests.length,
+      type,
+      willProcessBatch: useBatchAPI && batchRequests.length > 0 && type === 'image'
+    });
+    
+    if (useBatchAPI && batchRequests.length > 0 && type === 'image') {
+      logger.log('📦 Server Action: Processing batch request - ENTERING BATCH MODE:', { 
+        count: batchRequests.length,
+        batchKeys: batchRequests.map(r => r.key),
+        batchDrawingTypes: batchRequests.map(r => `${r.drawingType}${r.elevationSide ? `-${r.elevationSide}` : ''}`)
+      });
+      
+      const batchResults: Array<{ renderId: string; outputUrl: string; label?: string }> = [];
+      let currentChainPosition = chainPosition;
+      
+      // First, create all render records and return IDs immediately
+      // Then process them asynchronously in the background
+      const renderRecords: Array<{ renderId: string; batchRequest: any; label: string }> = [];
+      
+      for (const batchRequest of batchRequests) {
+        try {
+          // Use the isolated, specific prompt from batchRequest
+          const isolatedPrompt = batchRequest.prompt;
+          
+          // Create render record for this batch item
+          const batchRender = await RendersDAL.create({
+            projectId,
+            userId: userId,
+            type,
+            prompt: isolatedPrompt,
+            settings: {
+              style,
+              quality,
+              aspectRatio,
+              ...(imageType && { imageType }),
+              ...(negativePrompt && { negativePrompt }),
+              ...(environment && { environment }),
+              ...(effect && { effect }),
+              ...(batchRequest.drawingType && { drawingType: batchRequest.drawingType }),
+              ...(batchRequest.elevationSide && { elevationSide: batchRequest.elevationSide }),
+            },
+            status: 'pending',
+            chainId: finalChainId!,
+            chainPosition: currentChainPosition++,
+            referenceRenderId: validatedReferenceRenderId,
+            uploadedImageUrl,
+            uploadedImageKey,
+            uploadedImageId,
+          });
+
+          logger.log('✅ Server Action: Batch render record created:', {
+            renderId: batchRender.id,
+            key: batchRequest.key,
+            drawingType: batchRequest.drawingType,
+            elevationSide: batchRequest.elevationSide,
+            promptLength: isolatedPrompt.length
+          });
+
+          // Create label for this batch item
+          const label = batchRequest.drawingType === 'elevation' && batchRequest.elevationSide
+            ? `${batchRequest.drawingType.charAt(0).toUpperCase() + batchRequest.drawingType.slice(1)} - ${batchRequest.elevationSide.charAt(0).toUpperCase() + batchRequest.elevationSide.slice(1)}`
+            : batchRequest.drawingType === 'floor-plan' ? 'Floor Plan'
+            : batchRequest.drawingType === 'section' ? 'Section'
+            : batchRequest.key;
+
+          // Return render ID immediately (without waiting for processing)
+          batchResults.push({
+            renderId: batchRender.id,
+            outputUrl: '', // Will be populated when render completes
+            label
+          });
+          
+          // Store for async processing
+          renderRecords.push({
+            renderId: batchRender.id,
+            batchRequest,
+            label
+          });
+        } catch (error) {
+          logger.error('❌ Server Action: Error creating batch render record:', { 
+            key: batchRequest.key, 
+            error 
+          });
+        }
+      }
+      
+      // Process renders asynchronously (don't await - let them process in background)
+      // This allows the server action to return immediately with render IDs
+      Promise.all(renderRecords.map(async ({ renderId, batchRequest, label }) => {
+        try {
+          // Update render status to processing
+          await RendersDAL.updateStatus(renderId, 'processing');
+
+          // Generate image for this batch item using the isolated prompt
+          const imageDataToUse = uploadedImageData || referenceRenderImageData;
+          const imageTypeToUse = uploadedImageType || referenceRenderImageType;
+          
+          let contextualPrompt = batchRequest.prompt;
+          const isUsingReferenceRender = !uploadedImageData && referenceRenderImageData && referenceRenderPrompt;
+          
+          if (isUsingReferenceRender) {
+            contextualPrompt = `Based on the previous render (${referenceRenderPrompt}), ${batchRequest.prompt}`;
+          }
+
+          logger.log('🎨 Server Action: Generating batch item with ISOLATED prompt:', { 
+            key: batchRequest.key, 
+            drawingType: batchRequest.drawingType,
+            elevationSide: batchRequest.elevationSide,
+            promptLength: contextualPrompt.length,
+            promptPreview: contextualPrompt.substring(0, 150),
+            hasStyleReference: !!styleTransferImageData
+          });
+
+          // Process this batch item
+          const batchRenderResult = await processRenderAsync(renderId, {
+            type,
+            prompt: contextualPrompt, // Use isolated prompt
+            style,
+            quality,
+            aspectRatio,
+            negativePrompt,
+            seed,
+            environment,
+            effect,
+            styleTransferImageData,
+            styleTransferImageType,
+            temperature,
+            uploadedImageData: imageDataToUse || undefined,
+            uploadedImageType: imageTypeToUse || undefined,
+            referenceRenderPrompt,
+            imageType: imageType || null,
+            imageSize: imageSize || null,
+            projectId,
+            userId: userId,
+            creditsCost: baseCreditsPerImage * qualityMultiplier * resolutionMultiplier, // Single item cost with resolution multiplier
+            isPublic,
+          });
+
+          if (!batchRenderResult.success || !batchRenderResult.data) {
+            logger.error('❌ Server Action: Batch item generation failed:', { 
+              key: batchRequest.key, 
+              error: batchRenderResult.error 
+            });
+          } else {
+            logger.log('✅ Server Action: Batch item completed:', { 
+              key: batchRequest.key, 
+              renderId 
+            });
+          }
+        } catch (error) {
+          logger.error('❌ Server Action: Error processing batch item:', { 
+            key: batchRequest.key, 
+            error 
+          });
+        }
+      })).catch(error => {
+        logger.error('❌ Server Action: Error in batch processing:', error);
+      });
+
+      logger.log('🎉 Server Action: Batch processing completed:', { 
+        successCount: batchResults.length, 
+        totalCount: batchRequests.length 
+      });
+
+      // Revalidate paths
+      revalidatePath('/render');
+      revalidatePath(`/project/${project.slug}`);
+      
+      return {
+        success: true,
+        data: batchResults,
+      };
+    }
+
+    // Single render processing (existing logic)
     // Create render record in database
     logger.log('💾 Creating render record in database');
     const render = await RendersDAL.create({
       projectId,
-      userId: user.id,
+      userId: userId,
       type,
       prompt,
       settings: {
@@ -302,8 +556,9 @@ export async function createRenderAction(formData: FormData) {
       uploadedImageType: uploadedImageType || referenceRenderImageType,
       referenceRenderPrompt,
       imageType: imageType || null,
+      imageSize: imageSize || null,
       projectId,
-      userId: user.id,
+      userId: userId,
       creditsCost,
       isPublic,
     });
@@ -355,6 +610,7 @@ async function processRenderAsync(
     uploadedImageType?: string;
     referenceRenderPrompt?: string;
     imageType?: string | null;
+    imageSize?: '1K' | '2K' | '4K' | null;
     projectId: string;
     userId: string;
     creditsCost: number;
@@ -387,6 +643,10 @@ async function processRenderAsync(
         logger.log('🔧 Tool prompt detected - skipping reference render context modification to preserve structured XML format');
       }
       
+      // Map imageSize to mediaResolution for backward compatibility, or pass imageSize directly
+      // For upscaling, we want to use imageSize directly in the AI service
+      const mediaResolution = renderData.imageSize === '4K' ? 'HIGH' : renderData.imageSize === '2K' ? 'MEDIUM' : 'LOW';
+      
       result = await aiService.generateImage({
         prompt: contextualPrompt,
         aspectRatio: renderData.aspectRatio,
@@ -399,6 +659,8 @@ async function processRenderAsync(
         styleTransferImageData: renderData.styleTransferImageData || undefined,
         styleTransferImageType: renderData.styleTransferImageType || undefined,
         temperature: renderData.temperature,
+        mediaResolution: renderData.imageSize ? mediaResolution : undefined,
+        imageSize: renderData.imageSize || undefined,
       });
     }
 

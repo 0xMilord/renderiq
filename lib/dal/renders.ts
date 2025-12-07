@@ -327,11 +327,11 @@ export class RendersDAL {
       .innerJoin(renders, eq(galleryItems.renderId, renders.id))
       .innerJoin(users, eq(galleryItems.userId, users.id))
       .where(eq(galleryItems.isPublic, true))
-      .orderBy(desc(sql`COALESCE(${galleryItems.likes}, 0) + COALESCE(${galleryItems.views}, 0)`), desc(galleryItems.createdAt))
+      .orderBy(desc(renders.createdAt))
       .limit(limit)
       .offset(offset);
 
-    logger.log(`✅ Found ${items.length} public gallery items (sorted by popularity)`);
+    logger.log(`✅ Found ${items.length} public gallery items (sorted by newest first)`);
     return items;
   }
 
@@ -439,6 +439,26 @@ export class RendersDAL {
       .limit(1);
     
     return like.length > 0;
+  }
+
+  /**
+   * Batch check which items a user has liked
+   * Returns a Set of item IDs that the user has liked
+   */
+  static async batchCheckUserLiked(itemIds: string[], userId: string): Promise<Set<string>> {
+    if (itemIds.length === 0) {
+      return new Set();
+    }
+
+    const likedItems = await db
+      .select({ galleryItemId: userLikes.galleryItemId })
+      .from(userLikes)
+      .where(and(
+        inArray(userLikes.galleryItemId, itemIds),
+        eq(userLikes.userId, userId)
+      ));
+    
+    return new Set(likedItems.map(item => item.galleryItemId));
   }
 
   static async toggleLike(itemId: string, userId: string) {

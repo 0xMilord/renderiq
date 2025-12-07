@@ -124,8 +124,9 @@ export async function POST(request: NextRequest) {
     const versionContextData = formData.get('versionContext') as string | null;
     const environment = sanitizeInput(formData.get('environment') as string | null);
     const effect = sanitizeInput(formData.get('effect') as string | null);
-    const styleTransferImageData = formData.get('styleTransferImageData') as string | null;
-    const styleTransferImageType = formData.get('styleTransferImageType') as string | null;
+    // Support both styleTransferImageData (from chat) and styleReferenceImageData (from tools)
+    const styleTransferImageData = formData.get('styleTransferImageData') as string | null || formData.get('styleReferenceImageData') as string | null;
+    const styleTransferImageType = formData.get('styleTransferImageType') as string | null || formData.get('styleReferenceImageType') as string | null;
     
     if (styleTransferImageType && !isValidImageType(styleTransferImageType)) {
       securityLog('invalid_style_image_type', { type: styleTransferImageType }, 'warn');
@@ -168,6 +169,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Missing required parameters' }, { status: 400 });
     }
 
+    // Check if this is a batch request (for images only)
+    const useBatchAPI = type === 'image' ? formData.get('useBatchAPI') === 'true' : false;
+    let batchRequests: Array<{ key: string; prompt: string; drawingType?: string; elevationSide?: string }> = [];
+    
+    if (useBatchAPI) {
+      const batchRequestsStr = formData.get('batchRequests') as string | null;
+      logger.log('📦 Batch API flag detected, parsing batchRequests:', { 
+        hasBatchRequestsStr: !!batchRequestsStr,
+        batchRequestsStrLength: batchRequestsStr?.length || 0
+      });
+      if (batchRequestsStr) {
+        try {
+          batchRequests = JSON.parse(batchRequestsStr);
+          logger.log('📦 Batch request parsed successfully:', { 
+            numberOfRequests: batchRequests.length, 
+            batchKeys: batchRequests.map((r: any) => r.key),
+            isArray: Array.isArray(batchRequests)
+          });
+        } catch (e) {
+          logger.warn('❌ Failed to parse batchRequests:', e);
+          logger.warn('Batch requests string:', batchRequestsStr.substring(0, 200));
+        }
+      } else {
+        logger.warn('⚠️ useBatchAPI is true but batchRequests is missing from formData');
+      }
+    } else {
+      logger.log('📝 Single request mode (useBatchAPI=false or type!=image)');
+    }
+
     // Calculate credits cost FIRST
     // For videos: Based on Google Veo 3.1 pricing ($0.75/second) with 2x markup
     // 1 credit = 5 INR, 1 USD = 100 INR (updated conversion rate)
@@ -187,13 +217,18 @@ export async function POST(request: NextRequest) {
       // Image generation: Based on Google Gemini 3 Pro Image Preview pricing ($0.134/image) with 2x markup
       // 1 credit = 5 INR, 1 USD = 100 INR (updated conversion rate)
       // Base cost: $0.134 × 2 (markup) × 100 (INR/USD) / 5 (INR/credit) = 5.36 credits/image (round to 5)
+      // For batch: multiply by number of requests
+      const numberOfRequests = useBatchAPI && batchRequests.length > 0 ? batchRequests.length : 1;
       const baseCreditsPerImage = 5;
       const qualityMultiplier = quality === 'high' ? 2 : quality === 'ultra' ? 3 : 1;
-      creditsCost = baseCreditsPerImage * qualityMultiplier;
+      creditsCost = baseCreditsPerImage * qualityMultiplier * numberOfRequests;
+      
       logger.log('💰 Image credits cost calculation:', {
         quality,
         baseCreditsPerImage,
         qualityMultiplier,
+        numberOfRequests: useBatchAPI ? numberOfRequests : 1,
+        isBatch: useBatchAPI,
         totalCredits: creditsCost
       });
     }
@@ -390,6 +425,195 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Handle batch requests - process multiple renders
+    // CRITICAL: This check must happen BEFORE single render creation
+    // CRITICAL: Each batch request has its own isolated, specific prompt - do NOT modify or combine them
+    if (useBatchAPI && batchRequests.length > 0 && type === 'image') {
+      logger.log('📦 Processing batch request - ENTERING BATCH MODE:', { 
+        count: batchRequests.length,
+        batchKeys: batchRequests.map(r => r.key),
+        batchDrawingTypes: batchRequests.map(r => `${r.drawingType}${r.elevationSide ? `-${r.elevationSide}` : ''}`),
+        type,
+        useBatchAPI
+      });
+      
+      // Verify each batch request has its own unique, isolated prompt
+      batchRequests.forEach((req, idx) => {
+        logger.log(`📋 Batch request ${idx + 1}/${batchRequests.length} - VERIFYING ISOLATION:`, {
+          key: req.key,
+          drawingType: req.drawingType,
+          elevationSide: req.elevationSide,
+          promptLength: req.prompt.length,
+          promptStartsWith: req.prompt.substring(0, 100),
+          // Verify prompt contains only the specific drawing type
+          containsFloorPlan: req.prompt.includes('floor plan') && req.drawingType === 'floor-plan',
+          containsSection: req.prompt.includes('section') && req.drawingType === 'section',
+          containsElevation: req.prompt.includes('elevation') && req.drawingType === 'elevation',
+        });
+      });
+      
+      const batchResults: Array<{ renderId: string; outputUrl: string; label?: string }> = [];
+      let currentChainPosition = chainPosition;
+      
+      // Process each batch request sequentially - each with its OWN isolated prompt
+      // DO NOT modify, combine, or append to batchRequest.prompt - use it AS IS
+      for (const batchRequest of batchRequests) {
+        try {
+          // CRITICAL: Use ONLY batchRequest.prompt - this is already specific to this drawing type/elevation side
+          // DO NOT use finalPrompt, DO NOT append project rules, DO NOT combine with other prompts
+          const isolatedPrompt = batchRequest.prompt; // This is the ONLY prompt for this specific request
+          
+          // Create render record for this batch item
+          const batchRender = await RendersDAL.create({
+            projectId,
+            userId: user.id,
+            type,
+            prompt: isolatedPrompt, // Use the isolated, specific prompt
+            settings: {
+              style,
+              quality,
+              aspectRatio,
+              ...(imageType && { imageType }),
+              ...(negativePrompt && { negativePrompt }),
+              ...(environment && { environment }),
+              ...(effect && { effect }),
+              ...(batchRequest.drawingType && { drawingType: batchRequest.drawingType }),
+              ...(batchRequest.elevationSide && { elevationSide: batchRequest.elevationSide }),
+            },
+            status: 'pending',
+            chainId: finalChainId,
+            chainPosition: currentChainPosition++,
+            referenceRenderId: validatedReferenceRenderId,
+            uploadedImageUrl,
+            uploadedImageKey,
+            uploadedImageId,
+          });
+
+          logger.log('✅ Batch render record created:', {
+            renderId: batchRender.id,
+            key: batchRequest.key,
+            drawingType: batchRequest.drawingType,
+            elevationSide: batchRequest.elevationSide
+          });
+
+          // Update render status to processing
+          await RendersDAL.updateStatus(batchRender.id, 'processing');
+
+          // Generate image for this batch item
+          const imageDataToUse = uploadedImageData || referenceRenderImageData;
+          const imageTypeToUse = uploadedImageType || referenceRenderImageType;
+          
+          // CRITICAL: Use ONLY the isolated prompt from batchRequest - this is already specific to this drawing type/elevation side
+          // DO NOT append project rules, DO NOT use finalPrompt, DO NOT combine with other prompts
+          // Each batch request has its own complete, isolated prompt (floor-plan, section, or elevation-specific)
+          let contextualPrompt = isolatedPrompt; // Use the isolated prompt we stored above
+          const isUsingReferenceRender = !uploadedImageData && referenceRenderImageData && referenceRenderPrompt;
+          
+          if (isUsingReferenceRender) {
+            // Only prepend reference context - do NOT modify the core prompt
+            contextualPrompt = `Based on the previous render (${referenceRenderPrompt}), ${isolatedPrompt}`;
+          }
+
+          // Log the prompt to verify it's specific and isolated (not bloated with other drawing types)
+          logger.log('🎨 Generating batch item with ISOLATED prompt:', { 
+            key: batchRequest.key, 
+            drawingType: batchRequest.drawingType,
+            elevationSide: batchRequest.elevationSide,
+            promptLength: contextualPrompt.length,
+            promptPreview: contextualPrompt.substring(0, 150),
+            // Verify prompt is specific to this drawing type only
+            isIsolated: contextualPrompt.includes(batchRequest.drawingType === 'floor-plan' ? 'floor plan' : 
+                                                  batchRequest.drawingType === 'section' ? 'section' : 
+                                                  'elevation'),
+            hasStyleReference: !!styleTransferImageData
+          });
+
+          // For batch processing, use ONLY the isolated prompt (already specific to this drawing type)
+          // DO NOT use finalPrompt, DO NOT append project rules, DO NOT combine prompts
+          // The style reference is passed as styleTransferImageData (inline base64 per Gemini docs)
+          const batchResult = await aiService.generateImage({
+            prompt: contextualPrompt, // This is the isolated, specific prompt for THIS drawing type only
+            aspectRatio,
+            uploadedImageData: imageDataToUse || undefined,
+            uploadedImageType: imageTypeToUse || undefined,
+            negativePrompt: negativePrompt || undefined,
+            seed,
+            environment: environment || undefined,
+            effect: effect || undefined,
+            styleTransferImageData: styleTransferImageData || undefined,
+            styleTransferImageType: styleTransferImageType || undefined,
+            temperature,
+          });
+
+          if (!batchResult.success || !batchResult.data) {
+            logger.error('❌ Batch item generation failed:', { key: batchRequest.key, error: batchResult.error });
+            await RendersDAL.updateStatus(batchRender.id, 'failed', batchResult.error || 'Generation failed');
+            continue; // Skip this item but continue with others
+          }
+
+          // Process image with watermark for free users
+          let processedImageData: string | undefined = undefined;
+          if (batchResult.data.imageData) {
+            if (!isPro) {
+              const { WatermarkService } = await import('@/lib/services/watermark');
+              processedImageData = await WatermarkService.addWatermark(batchResult.data.imageData, {
+                text: 'Renderiq',
+                position: 'bottom-right',
+                opacity: 0.5,
+                useLogo: true
+              });
+            } else {
+              processedImageData = batchResult.data.imageData;
+            }
+          }
+
+          // Upload generated image
+          const buffer = Buffer.from(processedImageData || batchResult.data.imageData || '', 'base64');
+          const uploadResult = await StorageService.uploadFile(
+            buffer,
+            'renders',
+            user.id,
+            `render_${batchRender.id}.png`,
+            project.slug
+          );
+
+          // Update render with output URL
+          await RendersDAL.updateOutput(batchRender.id, uploadResult.url, uploadResult.key, 'completed', Math.round(batchResult.data.processingTime || 0));
+
+          // Add to gallery if public
+          if (isPublic) {
+            await RendersDAL.addToGallery(batchRender.id, user.id, true);
+          }
+
+          // Create label for this batch item
+          const label = batchRequest.drawingType === 'elevation' && batchRequest.elevationSide
+            ? `${batchRequest.drawingType.charAt(0).toUpperCase() + batchRequest.drawingType.slice(1)} - ${batchRequest.elevationSide.charAt(0).toUpperCase() + batchRequest.elevationSide.slice(1)}`
+            : batchRequest.drawingType === 'floor-plan' ? 'Floor Plan'
+            : batchRequest.drawingType === 'section' ? 'Section'
+            : batchRequest.key;
+
+          batchResults.push({
+            renderId: batchRender.id,
+            outputUrl: uploadResult.url,
+            label
+          });
+
+          logger.log('✅ Batch item completed:', { key: batchRequest.key, renderId: batchRender.id });
+        } catch (error) {
+          logger.error('❌ Error processing batch item:', { key: batchRequest.key, error });
+          // Continue with next item
+        }
+      }
+
+      logger.log('🎉 Batch processing completed:', { successCount: batchResults.length, totalCount: batchRequests.length });
+
+      return NextResponse.json({
+        success: true,
+        data: batchResults,
+      });
+    }
+
+    // Single render processing (existing logic)
     // Create render record in database
     logger.log('💾 Creating render record in database', {
       projectId,

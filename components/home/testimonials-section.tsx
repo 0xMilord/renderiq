@@ -32,7 +32,7 @@ export function TestimonialsSection({ testimonials }: TestimonialsSectionProps) 
 
   return (
     <section id="testimonials" className="w-full overflow-x-hidden relative bg-[hsl(72,87%,62%)]">
-      <div className={`w-full px-4 sm:px-6 lg:px-8 relative border-l-[5px] border-r-[5px] border-b-[5px] ${borderClass}`}>
+      <div className={`w-full px-4 sm:px-6 lg:px-8 relative border-l-[2px] border-r-[2px] border-b-[2px] ${borderClass}`}>
         <div className="w-full relative">
           <div className="text-left relative pt-8">
             <Badge className="mb-4 bg-background text-foreground px-4 py-2">
@@ -48,14 +48,14 @@ export function TestimonialsSection({ testimonials }: TestimonialsSectionProps) 
         </div>
       </div>
 
-      <div className={`w-full relative border-l-[5px] border-b-[5px] ${borderClass}`}>
+      <div className={`w-full relative border-l-[2px] border-b-[2px] ${borderClass}`}>
         {/* Black container behind testimonials */}
         <div className="absolute inset-0 bg-black -z-10"></div>
         
         <div className="flex flex-col lg:flex-row w-full overflow-hidden relative">
           {/* Left Column - 100% on mobile, 60% on desktop - Testimonials Content */}
-          <div className={`w-full lg:w-[60%] order-1 lg:order-1 px-4 sm:px-6 lg:px-8 py-8 relative flex flex-col border-r-[5px] ${borderClass} bg-[hsl(72,87%,62%)]`}>
-            <div className={`w-full relative px-4 sm:px-6 lg:px-8 py-6 rounded-2xl bg-background flex-1 border-[5px] ${borderClass}`}>
+          <div className={`w-full lg:w-[60%] order-1 lg:order-1 px-4 sm:px-6 lg:px-8 py-8 relative flex flex-col border-r-[2px] ${borderClass} bg-[hsl(72,87%,62%)]`}>
+            <div className={`w-full relative px-4 sm:px-6 lg:px-8 py-6 rounded-2xl bg-background flex-1 border-[2px] ${borderClass}`}>
               {/* Twitter Testimonials - Masonry Layout */}
               <div>
                 <TwitterTestimonialsGrid testimonials={testimonials} />
@@ -64,7 +64,7 @@ export function TestimonialsSection({ testimonials }: TestimonialsSectionProps) 
           </div>
 
           {/* Right Column - 40% - Testimonials Image - Extended to extreme right edge */}
-          <div className={`w-full lg:w-[40%] flex items-center justify-end order-2 lg:order-2 lg:ml-auto lg:mr-0 lg:pr-0 lg:relative border-r-[5px] ${borderClass} bg-[hsl(72,87%,62%)]`} style={{ marginRight: 'calc((100vw - 100%) / -2)' }}>
+          <div className={`w-full lg:w-[40%] flex items-center justify-end order-2 lg:order-2 lg:ml-auto lg:mr-0 lg:pr-0 lg:relative border-r-[2px] ${borderClass} bg-[hsl(72,87%,62%)]`} style={{ marginRight: 'calc((100vw - 100%) / -2)' }}>
             <div className="relative w-full h-full min-h-[400px] lg:min-h-[600px]">
               <Image
                 src="/home/testimonials-section.svg"

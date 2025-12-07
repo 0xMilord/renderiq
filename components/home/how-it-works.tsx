@@ -41,17 +41,17 @@ export function HowItWorksSection() {
   }, []);
 
   const isDarkMode = mounted && (resolvedTheme === 'dark' || theme === 'dark');
-  // In light mode: white hatches (matching main background), in dark mode: dark gray - matching hero section
-  const hatchColor = isDarkMode ? 'hsl(0,0%,7%)' : 'hsl(0,0%,100%)';
+  // Hatch color: 2 tones lighter than background (light mode: 100% lightness, dark mode: 12% lightness)
+  const hatchColor = isDarkMode ? 'hsl(220,20%,12%)' : 'hsl(220,30%,100%)';
 
   return (
-    <section id="how-it-works" className="relative py-20 px-4 sm:px-6 lg:px-8 bg-card overflow-hidden">
-      {/* Diagonal Stripe Pattern on Sides - Theme-aware - Responsive - Solid like hero section */}
+    <section id="how-it-works" className="relative py-20 px-4 sm:px-6 lg:px-8 bg-[hsl(220,30%,96%)] dark:bg-[hsl(220,20%,8%)] overflow-hidden">
+      {/* Diagonal Stripe Pattern on Sides - Theme-aware - Responsive - 2px width to match stroke */}
       <div className="absolute inset-y-0 left-0 hidden md:block md:w-16 lg:w-32 -z-0 overflow-hidden" style={{ 
-        backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 10px, ${hatchColor} 10px, ${hatchColor} 20px)`
+        backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 8px, ${hatchColor} 8px, ${hatchColor} 10px)`
       }}></div>
       <div className="absolute inset-y-0 right-0 hidden md:block md:w-16 lg:w-32 -z-0 overflow-hidden" style={{ 
-        backgroundImage: `repeating-linear-gradient(-45deg, transparent, transparent 10px, ${hatchColor} 10px, ${hatchColor} 20px)`
+        backgroundImage: `repeating-linear-gradient(-45deg, transparent, transparent 8px, ${hatchColor} 8px, ${hatchColor} 10px)`
       }}></div>
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="text-center mb-16">

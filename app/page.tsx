@@ -462,7 +462,7 @@ export default async function Home() {
 
       {/* CTA Section - Conversion Optimized */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-[hsl(72,87%,62%)] relative overflow-hidden">
-        <div className="max-w-7xl mx-auto text-center relative border-[5px] border-[hsl(0,0%,7%)] p-8">
+        <div className="max-w-7xl mx-auto text-center relative border-[2px] border-[hsl(0,0%,7%)] p-8">
           <h2 className="text-4xl md:text-6xl font-bold text-[hsl(0,0%,7%)] mb-6">
             Ready to transform your architectural designs?
           </h2>
