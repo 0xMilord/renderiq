@@ -72,8 +72,8 @@ export default function PaymentHistoryPage() {
   }, []);
 
   return (
-    <div className="h-full p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
+    <div className="h-full w-full p-4 sm:p-6 lg:p-8">
+      <div className="w-full space-y-4 sm:space-y-6">
         {/* Header */}
         <div>
           <p className="text-muted-foreground mt-2 text-sm sm:text-base">

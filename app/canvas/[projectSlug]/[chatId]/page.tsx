@@ -1,15 +1,17 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useProjectBySlug } from '@/lib/hooks/use-projects';
-import { useRenderChain } from '@/lib/hooks/use-render-chain';
+import { getProjectBySlug } from '@/lib/actions/projects.actions';
+import { getRenderChain } from '@/lib/actions/projects.actions';
 import { CanvasEditor } from '@/components/canvas/canvas-editor';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { logger } from '@/lib/utils/logger';
 import { useAuthStore } from '@/lib/stores/auth-store';
+import type { Project } from '@/lib/db/schema';
+import type { RenderChainWithRenders } from '@/lib/types/render-chain';
 
 export default function CanvasEditorPage() {
   const params = useParams();
@@ -18,8 +20,48 @@ export default function CanvasEditorPage() {
   const chatId = params.chatId as string;
   const { user, loading: authLoading, initialized, initialize } = useAuthStore();
   
-  const { project, loading: projectLoading } = useProjectBySlug(projectSlug);
-  const { chain, loading: chainLoading, fetchChain } = useRenderChain(chatId);
+  // ✅ OPTIMIZED: Combined state for parallel loading
+  const [project, setProject] = useState<Project | null>(null);
+  const [chain, setChain] = useState<RenderChainWithRenders | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // ✅ OPTIMIZED: Fetch project and chain in parallel
+  const fetchData = useCallback(async () => {
+    if (!projectSlug || !chatId) return;
+    
+    setLoading(true);
+    setError(null);
+
+    try {
+      // ✅ OPTIMIZED: Parallelize project and chain fetching
+      const [projectResult, chainResult] = await Promise.all([
+        getProjectBySlug(projectSlug),
+        getRenderChain(chatId),
+      ]);
+
+      if (projectResult.success && projectResult.data) {
+        setProject(projectResult.data);
+      } else {
+        setError(projectResult.error || 'Failed to load project');
+      }
+
+      if (chainResult.success && chainResult.data) {
+        setChain(chainResult.data);
+      } else {
+        setError(chainResult.error || 'Failed to load chain');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      logger.error('❌ CanvasEditorPage: Error fetching data:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [projectSlug, chatId]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   // Initialize auth store
   useEffect(() => {
@@ -34,18 +76,19 @@ export default function CanvasEditorPage() {
   }, [user, authLoading, initialized, router]);
 
   useEffect(() => {
-    logger.log('🔍 CanvasEditorPage: Component state', {
-      projectSlug,
-      chatId,
-      hasProject: !!project,
-      projectId: project?.id,
-      hasChain: !!chain,
-      projectLoading,
-      chainLoading
-    });
-  }, [projectSlug, chatId, project, chain, projectLoading, chainLoading]);
+    if (project && chain) {
+      logger.log('🔍 CanvasEditorPage: Component state', {
+        projectSlug,
+        chatId,
+        hasProject: !!project,
+        projectId: project?.id,
+        hasChain: !!chain,
+        loading
+      });
+    }
+  }, [projectSlug, chatId, project, chain, loading]);
 
-  if (projectLoading || chainLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="w-96 bg-card border-border">

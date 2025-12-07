@@ -134,6 +134,42 @@ export class RenderChainsDAL {
   }
 
   /**
+   * ✅ OPTIMIZED: Get chain with all renders in parallel queries
+   * This reduces from sequential 2 queries to parallel 2 queries
+   * Note: Can't use single JOIN because one chain has many renders (1-to-many relationship)
+   */
+  static async getChainWithRenders(chainId: string) {
+    logger.log('🔍 [OPTIMIZED] Fetching chain with renders in parallel:', chainId);
+    
+    // ✅ OPTIMIZED: Fetch chain and renders in parallel (2 queries simultaneously)
+    const [chainResult, rendersResult] = await Promise.all([
+      db
+        .select()
+        .from(renderChains)
+        .where(eq(renderChains.id, chainId))
+        .limit(1),
+      db
+        .select()
+        .from(renders)
+        .where(eq(renders.chainId, chainId))
+        .orderBy(renders.chainPosition)
+    ]);
+
+    const [chain] = chainResult;
+    
+    if (!chain) {
+      return null;
+    }
+
+    logger.log(`✅ [OPTIMIZED] Found chain with ${rendersResult.length} renders (parallel fetch)`);
+
+    return {
+      ...chain,
+      renders: rendersResult,
+    };
+  }
+
+  /**
    * Batch remove multiple renders from a chain in ONE query
    * ✅ OPTIMIZED: Prevents N+1 queries when deleting chains
    */

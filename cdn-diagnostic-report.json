@@ -1,14 +1,14 @@
 {
-  "timestamp": "2025-12-07T06:46:14.992Z",
+  "timestamp": "2025-12-07T07:09:33.234Z",
   "results": [
     {
       "name": "DNS Resolution",
       "status": "pass",
-      "message": "cdn.renderiq.io resolves to 136.110.242.198",
+      "message": "cdn.renderiq.io resolves to 136.110.226.162",
       "details": {
         "domain": "cdn.renderiq.io",
         "addresses": [
-          "136.110.242.198"
+          "136.110.226.162"
         ]
       }
     },
@@ -80,11 +80,11 @@
     },
     {
       "name": "SSL Certificate",
-      "status": "warning",
-      "message": "SSL Certificate: renderiq-cdn-ssl-cert - Status: PROVISIONING",
+      "status": "pass",
+      "message": "SSL Certificate: renderiq-cdn-ssl-cert - Status: ACTIVE",
       "details": {
         "name": "renderiq-cdn-ssl-cert",
-        "status": "PROVISIONING",
+        "status": "ACTIVE",
         "domains": [
           "cdn.renderiq.io"
         ],
@@ -110,40 +110,52 @@
     },
     {
       "name": "HTTPS Access (Renders)",
-      "status": "fail",
-      "message": "Cannot access https://cdn.renderiq.io/renders/test: read ECONNRESET",
+      "status": "pass",
+      "message": "HTTP 404 - Not Found",
       "details": {
         "url": "https://cdn.renderiq.io/renders/test",
-        "error": "read ECONNRESET",
-        "code": "ECONNRESET"
+        "statusCode": 404,
+        "headers": {
+          "content-type": "application/xml; charset=UTF-8",
+          "cache-control": "private, max-age=0",
+          "server": "UploadServer"
+        }
       }
     },
     {
       "name": "HTTPS Access (Uploads)",
-      "status": "fail",
-      "message": "Cannot access https://cdn.renderiq.io/uploads/test: read ECONNRESET",
+      "status": "pass",
+      "message": "HTTP 404 - Not Found",
       "details": {
         "url": "https://cdn.renderiq.io/uploads/test",
-        "error": "read ECONNRESET",
-        "code": "ECONNRESET"
+        "statusCode": 404,
+        "headers": {
+          "content-type": "application/xml; charset=UTF-8",
+          "cache-control": "private, max-age=0",
+          "server": "UploadServer"
+        }
       }
     },
     {
       "name": "Cache Headers (Renders)",
-      "status": "fail",
-      "message": "Cannot check cache headers: Client network socket disconnected before secure TLS connection was established",
+      "status": "warning",
+      "message": "Cache-Control: private, max-age=0",
       "details": {
         "url": "https://cdn.renderiq.io/renders/test",
-        "error": "Client network socket disconnected before secure TLS connection was established"
+        "cache-control": "private, max-age=0",
+        "expires": "Sun, 07 Dec 2025 07:09:31 GMT",
+        "cdn-status": "Direct"
       }
     },
     {
       "name": "Cache Headers (Uploads)",
-      "status": "fail",
-      "message": "Cannot check cache headers: read ECONNRESET",
+      "status": "warning",
+      "message": "Cache-Control: private, max-age=0",
       "details": {
         "url": "https://cdn.renderiq.io/uploads/test",
-        "error": "read ECONNRESET"
+        "cache-control": "private, max-age=0",
+        "expires": "Sun, 07 Dec 2025 07:09:31 GMT",
+        "cdn-status": "Direct"
       }
     },
     {

@@ -8,8 +8,8 @@ import { SecuritySettings } from '@/components/profile/security-settings';
 
 export default function ProfileSettingsPage() {
   return (
-    <div className="h-full">
-      <div className="max-w-[2400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+    <div className="h-full w-full">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         <Tabs defaultValue="profile" className="w-full">
           <div className="flex justify-center mb-8">
             <TabsList className="grid w-full max-w-md grid-cols-2 sm:grid-cols-4">

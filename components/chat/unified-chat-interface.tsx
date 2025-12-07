@@ -77,6 +77,12 @@ import { shouldUseRegularImg } from '@/lib/utils/storage-url';
 import { handleImageErrorWithFallback, isCDNUrl } from '@/lib/utils/cdn-fallback';
 import ReactBeforeSliderComponent from 'react-before-after-slider-component';
 import 'react-before-after-slider-component/dist/build.css';
+import { getRenderiqMessage } from '@/lib/utils/renderiq-messages';
+import { useLocalStorageMessages } from '@/lib/hooks/use-local-storage-messages';
+import { useObjectURL } from '@/lib/hooks/use-object-url';
+import { useModal } from '@/lib/hooks/use-modal';
+import { createRenderFormData } from '@/lib/utils/render-form-data';
+import { retryFetch } from '@/lib/utils/retry-fetch';
 
 interface Message {
   id: string;
@@ -207,7 +213,8 @@ export function UnifiedChatInterface({
   // Fixed aspect ratio for better quality
   const aspectRatio = DEFAULT_ASPECT_RATIO;
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // Use custom hook for object URL management
+  const previewUrl = useObjectURL(uploadedFile);
   
   
   // Style settings
@@ -226,14 +233,22 @@ export function UnifiedChatInterface({
   
   // Render visibility - Free users default to public, Pro users default to private
   const [isPublic, setIsPublic] = useState(true); // Will be updated based on isPro
-  const [isUpgradeDialogOpen, setIsUpgradeDialogOpen] = useState(false);
   
-  // Modal states
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [isLowBalanceModalOpen, setIsLowBalanceModalOpen] = useState(false);
-  const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false);
-  const [isProjectRulesModalOpen, setIsProjectRulesModalOpen] = useState(false);
-  const [isMentionTaggerOpen, setIsMentionTaggerOpen] = useState(false);
+  // Modal state management (extracted to custom hook)
+  const {
+    isUploadModalOpen,
+    isGalleryModalOpen,
+    isLowBalanceModalOpen,
+    isProjectRulesModalOpen,
+    isMentionTaggerOpen,
+    isUpgradeDialogOpen,
+    setIsUploadModalOpen,
+    setIsGalleryModalOpen,
+    setIsLowBalanceModalOpen,
+    setIsProjectRulesModalOpen,
+    setIsMentionTaggerOpen,
+    setIsUpgradeDialogOpen,
+  } = useModal();
   const [mentionSearchTerm, setMentionSearchTerm] = useState('');
   
   // Mention state
@@ -267,6 +282,9 @@ export function UnifiedChatInterface({
   const { profile } = useUserProfile();
   const { data: isPro, loading: proLoading } = useIsPro(profile?.id);
   const { upscaleImage, isUpscaling, upscalingResult, error: upscalingError } = useUpscaling();
+  
+  // LocalStorage management hook
+  const { saveMessages, restoreMessages, getStorageKey } = useLocalStorageMessages(messages, projectId, chainId);
   
   // Update isPublic based on pro status: Free users = public (true), Pro users = private (false)
   useEffect(() => {
@@ -357,8 +375,8 @@ export function UnifiedChatInterface({
     }
     
     // Try to load from localStorage first as backup
-    const storageKey = `chat-messages-${projectId}-${currentChainId || 'default'}`;
-    const storedMessages = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
+    const storageKey = getStorageKey();
+    const storedMessages = restoreMessages();
     
     // React 19: Only set state if chain has renders and we haven't initialized yet
     if (chain && chain.renders && chain.renders.length > 0) {
@@ -408,24 +426,10 @@ export function UnifiedChatInterface({
       });
       
       setMessages(chainMessages);
+      messagesRef.current = chainMessages; // Update ref
       
       // Save to localStorage as backup
-      if (typeof window !== 'undefined') {
-        try {
-          const messagesToStore = chainMessages.map(msg => ({
-            ...msg,
-            timestamp: msg.timestamp.toISOString(),
-            // Don't store File objects, only URLs
-            uploadedImage: msg.uploadedImage ? {
-              previewUrl: msg.uploadedImage.previewUrl,
-              persistedUrl: msg.uploadedImage.persistedUrl
-            } : undefined
-          }));
-          localStorage.setItem(storageKey, JSON.stringify(messagesToStore));
-        } catch (error) {
-          logger.error('❌ UnifiedChatInterface: Failed to save messages to localStorage:', error);
-        }
-      }
+      saveMessages(chainMessages);
 
       // Set the latest completed render as current
       const latestCompletedRender = chain.renders
@@ -437,23 +441,7 @@ export function UnifiedChatInterface({
       }
     } else if (storedMessages) {
       // Fallback to localStorage if chain data not available yet
-      try {
-        const parsed = JSON.parse(storedMessages);
-        const restoredMessages: Message[] = parsed.map((msg: any) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp),
-          // Restore uploaded image URLs
-          uploadedImage: msg.uploadedImage ? {
-            previewUrl: msg.uploadedImage.previewUrl,
-            persistedUrl: msg.uploadedImage.persistedUrl
-          } : undefined
-        }));
-        setMessages(restoredMessages);
-      } catch (error) {
-        logger.error('Failed to restore messages from localStorage:', error);
-        setMessages([]);
-        setCurrentRender(null);
-      }
+      setMessages(storedMessages);
     } else {
       setMessages([]);
       setCurrentRender(null);
@@ -466,61 +454,124 @@ export function UnifiedChatInterface({
     if (chain?.renders) {
       lastChainRenderCountRef.current = chain.renders.length;
     }
-  }, [chainId, projectId, chain]); // React 19: Only re-run when chainId changes, not on every chain prop update
+  }, [chainId, projectId, saveMessages, restoreMessages, getStorageKey]); // ✅ FIXED: Removed 'chain' from dependencies to prevent re-runs on every chain update
 
-  // Debounced localStorage save - prevents UI blocking on every message change
-  const localStorageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Save messages to localStorage with debouncing (1 second delay) - React 19 optimized
+  // ✅ NEW: Poll for processing renders and update UI when they complete
+  // This ensures the UI updates when renders complete on the server (e.g., video generation)
   useEffect(() => {
-    if (!messages.length || typeof window === 'undefined') return;
+    if (!chainId || !onRefreshChain) return;
     
-    // Clear previous timeout
-    if (localStorageTimeoutRef.current) {
-      clearTimeout(localStorageTimeoutRef.current);
+    // Check if there are any processing/pending renders in messages
+    const hasProcessingRenders = messages.some(
+      m => m.isGenerating === true
+    ) || chain?.renders?.some(
+      r => r.status === 'processing' || r.status === 'pending'
+    );
+    
+    if (!hasProcessingRenders) {
+      // No processing renders - no need to poll
+      return;
     }
     
-    const storageKey = `chat-messages-${projectId}-${chainId || 'default'}`;
+    logger.log('🔄 UnifiedChatInterface: Starting polling for processing renders');
     
-    // Debounce localStorage writes to prevent UI blocking
-    localStorageTimeoutRef.current = setTimeout(() => {
-      try {
-        const messagesToStore = messages.map(msg => ({
-          ...msg,
-          timestamp: msg.timestamp.toISOString(),
-          // Don't store File objects, only URLs
-          uploadedImage: msg.uploadedImage ? {
-            previewUrl: msg.uploadedImage.previewUrl,
-            persistedUrl: msg.uploadedImage.persistedUrl
-          } : undefined
-        }));
-        localStorage.setItem(storageKey, JSON.stringify(messagesToStore));
-      } catch (error) {
-        logger.error('❌ UnifiedChatInterface: Failed to save messages to localStorage:', error);
+    // Poll every 3 seconds for processing renders
+    const pollInterval = setInterval(() => {
+      // Only poll if we're not in the middle of a local update
+      if (!isLocalRenderUpdateRef.current) {
+        logger.log('🔄 UnifiedChatInterface: Polling for render status updates');
+        onRefreshChain();
       }
-    }, 1000); // 1 second debounce
+    }, 3000); // Poll every 3 seconds
     
-    // Cleanup on unmount - save immediately
     return () => {
-      if (localStorageTimeoutRef.current) {
-        clearTimeout(localStorageTimeoutRef.current);
-        // Immediate save on unmount
-        try {
-          const messagesToStore = messages.map(msg => ({
-            ...msg,
-            timestamp: msg.timestamp.toISOString(),
-            uploadedImage: msg.uploadedImage ? {
-              previewUrl: msg.uploadedImage.previewUrl,
-              persistedUrl: msg.uploadedImage.persistedUrl
-            } : undefined
-          }));
-          localStorage.setItem(storageKey, JSON.stringify(messagesToStore));
-        } catch (error) {
-          // Silent fail on unmount
-        }
-      }
+      clearInterval(pollInterval);
+      logger.log('🔄 UnifiedChatInterface: Stopped polling for render status updates');
     };
-  }, [messages, projectId, chainId]);
+  }, [chainId, chain?.renders, messages, onRefreshChain]); // Re-run when processing renders appear/disappear
+
+  // ✅ NEW: Update messages when chain renders change (e.g., status updates from processing to completed)
+  // This handles external updates (like video generation completing on server) without re-initializing everything
+  useEffect(() => {
+    // Skip if not initialized yet or if this is a local update
+    if (!chain?.renders || initializedChainIdRef.current !== (chainId || chain?.id) || isLocalRenderUpdateRef.current) {
+      return;
+    }
+    
+    // Check if render count changed or if any render status changed
+    const currentRenderCount = chain.renders.length;
+    const previousRenderCount = lastChainRenderCountRef.current;
+    
+    // Use messagesRef to avoid dependency on messages array
+    const currentMessages = messagesRef.current.length > 0 ? messagesRef.current : messages;
+    
+    // Check if any render status changed from processing/pending to completed
+    const hasStatusChange = chain.renders.some(render => {
+      const existingMessage = currentMessages.find(m => m.render?.id === render.id);
+      if (!existingMessage) return false; // New render - will be handled by initialization
+      
+      const wasProcessing = existingMessage.isGenerating;
+      const isCompleted = render.status === 'completed';
+      return wasProcessing && isCompleted;
+    });
+    
+    // Only update if render count changed or status changed
+    if (currentRenderCount !== previousRenderCount || hasStatusChange) {
+      logger.log('🔄 UnifiedChatInterface: Updating messages from chain changes', {
+        previousCount: previousRenderCount,
+        currentCount: currentRenderCount,
+        hasStatusChange
+      });
+      
+      // Update messages to reflect new render statuses
+      setMessages(prev => {
+        const updated = prev.map(msg => {
+          if (!msg.render) return msg;
+          
+          // Find the updated render in chain
+          const updatedRender = chain.renders.find(r => r.id === msg.render?.id);
+          if (!updatedRender) return msg;
+          
+          // Update message if render status changed
+          if (updatedRender.status === 'completed' && msg.isGenerating) {
+            return {
+              ...msg,
+              content: '', // Empty content for completed renders
+              isGenerating: false,
+              render: updatedRender
+            };
+          } else if (updatedRender.status === 'failed' && msg.isGenerating) {
+            return {
+              ...msg,
+              content: 'Sorry, I couldn\'t generate your render. Please try again.',
+              isGenerating: false,
+              render: undefined
+            };
+          }
+          
+          return msg;
+        });
+        
+        // Update ref
+        messagesRef.current = updated;
+        return updated;
+      });
+      
+      // Update current render if latest completed render changed
+      const latestCompletedRender = chain.renders
+        .filter(r => r.status === 'completed')
+        .sort((a, b) => (b.chainPosition || 0) - (a.chainPosition || 0))[0];
+      
+      if (latestCompletedRender) {
+        setCurrentRender(latestCompletedRender);
+      }
+      
+      // Update ref
+      lastChainRenderCountRef.current = currentRenderCount;
+    }
+  }, [chain?.renders, chainId]); // ✅ FIXED: Removed 'messages' from dependencies to prevent loops
+
+  // localStorage save is now handled by useLocalStorageMessages hook
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -531,16 +582,7 @@ export function UnifiedChatInterface({
   }, [messages]);
 
 
-  // Create preview URL for uploaded file
-  useEffect(() => {
-    if (uploadedFile) {
-      const url = URL.createObjectURL(uploadedFile);
-      setPreviewUrl(url);
-      return () => URL.revokeObjectURL(url);
-    } else {
-      setPreviewUrl(null);
-    }
-  }, [uploadedFile]);
+  // Preview URL is now managed by useObjectURL hook
 
   // Dropzone for file upload
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -556,8 +598,7 @@ export function UnifiedChatInterface({
     // Single image upload
     const file = validFiles[0];
     setUploadedFile(file);
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
+    // previewUrl is automatically managed by useObjectURL hook
   }, []);
 
   const { getRootProps, getInputProps } = useDropzone({
@@ -571,11 +612,8 @@ export function UnifiedChatInterface({
   });
 
   const removeFile = () => {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
     setUploadedFile(null);
-    setPreviewUrl(null);
+    // previewUrl cleanup is automatically handled by useObjectURL hook
   };
 
   const getCreditsCost = () => {
@@ -598,73 +636,7 @@ export function UnifiedChatInterface({
     return `${cost} credit${cost !== 1 ? 's' : ''}`;
   };
 
-  // Whimsical messages from Renderiq (our mascot) with Japanese kaomojis
-  // Messages change at specific stages: 0%, 25%, 50%, 90%
-  const getRenderiqMessage = (progress: number, isVideo: boolean = false, failed: boolean = false): string => {
-    if (failed) {
-      const failedMessages = [
-        "Oops! I tripped (´･ω･`) Retrying...",
-        "My bad! Dropped it (´；ω；`) One sec!",
-        "Whoops! Got distracted (´∀｀) Again!",
-        "Sorry I fell! Trying now (＾▽＾)",
-        "Fumbled it! Let me fix that (´･_･`)"
-      ];
-      return failedMessages[Math.floor(Math.random() * failedMessages.length)];
-    }
-
-    // Stage 1: 0-24% - Starting
-    if (progress < 25) {
-      const startMessages = [
-        "Asking viz lords... (◕‿◕)",
-        "Running to AI... (｡◕‿◕｡)",
-        "Delivering prompt... (＾ω＾)",
-        "Summoning magic... (≧▽≦)",
-        "Knocking on AI door... (◕‿-｡)",
-        "Waking up the AI... (´∀｀) zzz",
-        "Bribing the algorithm... (¬‿¬)"
-      ];
-      return startMessages[Math.floor(Math.random() * startMessages.length)];
-    } 
-    // Stage 2: 25-49% - Working
-    else if (progress < 50) {
-      const midMessages = [
-        "Viz lords working... (◕‿◕)",
-        "Cooking render... (＾▽＾)",
-        "AI thinking... (´･ω･`)",
-        "Making it pretty... (｡◕‿◕｡)",
-        "Adding sparkles... (≧▽≦)",
-        "Pixels assembling... (◕‿-｡)",
-        "Magic happening... (＾ω＾)"
-      ];
-      return midMessages[Math.floor(Math.random() * midMessages.length)];
-    } 
-    // Stage 3: 50-89% - Almost there
-    else if (progress < 90) {
-      const lateMessages = [
-        "Almost done! (◕‿◕)",
-        "Final touches... (＾▽＾)",
-        "On my way back... (｡◕‿◕｡)",
-        "Polishing... (≧▽≦)",
-        "Just a sec... (´∀｀)",
-        "Almost there! (◕‿-｡)",
-        "Wrapping up... (＾ω＾)"
-      ];
-      return lateMessages[Math.floor(Math.random() * lateMessages.length)];
-    } 
-    // Stage 4: 90-100% - Final
-    else {
-      const finalMessages = [
-        "Almost there! (≧▽≦)",
-        "One last check... (◕‿◕)",
-        "Wrapping it up... (＾▽＾)",
-        "Final polish... (｡◕‿◕｡)",
-        "Almost ready! (◕‿-｡)",
-        "Just finishing... (＾ω＾)",
-        "Last touches... (´∀｀)"
-      ];
-      return finalMessages[Math.floor(Math.random() * finalMessages.length)];
-    }
-  };
+  // getRenderiqMessage is now imported from lib/utils/renderiq-messages.ts
 
 
   // Upload modal handlers
@@ -678,8 +650,7 @@ export function UnifiedChatInterface({
 
   const handleFileSelect = (file: File) => {
     setUploadedFile(file);
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
+    // previewUrl is automatically managed by useObjectURL hook
   };
 
 
@@ -696,14 +667,14 @@ export function UnifiedChatInterface({
     // Convert URL to File if needed
     if (image.file) {
       setUploadedFile(image.file);
-      const url = URL.createObjectURL(image.file);
-      setPreviewUrl(url);
+      // previewUrl is automatically managed by useObjectURL hook
     } else if (image.url) {
       // For gallery images, we'll use the URL directly
       // Create a placeholder file object
       const file = new File([''], 'gallery-image.png', { type: 'image/png' });
       setUploadedFile(file);
-      setPreviewUrl(image.url);
+      // Note: For external URLs, we might need to handle differently
+      // But useObjectURL will handle File objects automatically
     }
   };
 
@@ -886,7 +857,7 @@ export function UnifiedChatInterface({
     // Clear uploaded file after adding to message
     if (uploadedFile) {
       setUploadedFile(null);
-      setPreviewUrl(null);
+      // previewUrl is automatically cleared by useObjectURL hook when file is null
     }
     
     setIsGenerating(true);
@@ -951,51 +922,32 @@ export function UnifiedChatInterface({
        }
        
        // Helper to create FormData (used for initial request and retries)
-       const createFormData = () => {
-         const fd = new FormData();
-         fd.append('prompt', enhancedPrompt);
-         fd.append('style', 'realistic');
-         fd.append('quality', quality);
-         fd.append('aspectRatio', aspectRatio);
-         fd.append('type', generationType);
-         
-         if (isVideoMode) {
-           fd.append('duration', videoDuration.toString());
-           fd.append('resolution', videoDuration === 8 ? '1080p' : '720p');
-           if (videoKeyframes.length > 0) {
-             fd.append('keyframes', JSON.stringify(videoKeyframes.map(kf => ({
-               imageData: kf.imageData,
-               imageType: kf.imageType
-             }))));
-           }
-           if (videoLastFrame) {
-             fd.append('lastFrame', JSON.stringify({
-               imageData: videoLastFrame.imageData,
-               imageType: videoLastFrame.imageType
-             }));
-           }
-         }
-         
-         fd.append('projectId', projectId || '');
-         if (chainId) fd.append('chainId', chainId);
-         if (referenceRenderId) fd.append('referenceRenderId', referenceRenderId);
-         if (versionContext) fd.append('versionContext', JSON.stringify(versionContext));
-         fd.append('isPublic', isPublic.toString());
-         if (environment && environment !== 'none') fd.append('environment', environment);
-         if (effect && effect !== 'none') fd.append('effect', effect);
-         if (uploadedImageBase64) {
-           fd.append('uploadedImageData', uploadedImageBase64);
-           fd.append('uploadedImageType', userMessage.uploadedImage!.file!.type);
-         }
-         if (styleTransferBase64) {
-           fd.append('styleTransferImageData', styleTransferBase64);
-           fd.append('styleTransferImageType', styleTransferImage.type);
-         }
-         fd.append('temperature', temperature);
-         return fd;
+       // Note: FormData can only be read once, so we recreate it for retries
+       const createFormDataForRequest = () => {
+         return createRenderFormData({
+           prompt: enhancedPrompt,
+           quality,
+           aspectRatio,
+           type: generationType,
+           projectId: projectId || '',
+           chainId,
+           referenceRenderId,
+           versionContext,
+           isPublic,
+           environment,
+           effect,
+           temperature,
+           videoDuration: isVideoMode ? videoDuration : undefined,
+           videoKeyframes: isVideoMode && videoKeyframes.length > 0 
+             ? videoKeyframes.map(kf => ({ imageData: kf.imageData, imageType: kf.imageType }))
+             : undefined,
+           videoLastFrame: isVideoMode ? videoLastFrame : undefined,
+           uploadedImageBase64,
+           uploadedImageType: userMessage.uploadedImage?.file?.type,
+           styleTransferBase64,
+           styleTransferImageType: styleTransferImage?.type,
+         });
        };
-       
-       const formData = createFormData();
         
         // Call the API with absolute URL for mobile compatibility and robust error handling
         const apiUrl = typeof window !== 'undefined' 
@@ -1009,86 +961,67 @@ export function UnifiedChatInterface({
           hasKeyframes: videoKeyframes.length > 0
         });
         
-        // Retry logic for network failures (up to 3 attempts)
-        // Note: FormData can only be read once, so we recreate it for retries
-        let lastError: Error | null = null;
+        // Use retryFetch utility with FormData recreation for each attempt
         let response: Response | null = null;
         let apiResult: any = null;
         
-        for (let attempt = 1; attempt <= 3; attempt++) {
-          try {
-            logger.log(`🔄 Chat: Attempt ${attempt}/3 to fetch render API`);
-            
-            // Recreate FormData for each attempt (FormData can only be read once)
-            const requestFormData = createFormData();
-            
-            response = await fetch(apiUrl, {
-              method: 'POST',
-              body: requestFormData,
-              // Add timeout signal for mobile networks
-              signal: AbortSignal.timeout(300000), // 5 minutes timeout
-            });
-            
-            // Check response status before parsing
-            if (!response.ok) {
-              let errorText: string;
-              try {
-                errorText = await response.text();
-              } catch {
-                errorText = `HTTP ${response.status} ${response.statusText}`;
-              }
-              logger.error(`❌ Chat: API returned error status ${response.status}:`, errorText);
-              
-              // Try to parse error JSON if available
-              try {
-                const errorJson = JSON.parse(errorText);
-                if (errorJson.refunded) {
-                  logger.log('✅ Credits were refunded by server');
-                }
-              } catch {
-                // Not JSON, use text error
-              }
-              
-              throw new Error(`API request failed: ${response.status} ${response.statusText}`);
-            }
-            
-            // Parse JSON response with error handling
+        try {
+          // Retry logic: recreate FormData for each attempt
+          let lastError: Error | null = null;
+          for (let attempt = 1; attempt <= 3; attempt++) {
             try {
-              apiResult = await response.json();
-            } catch (jsonError) {
-              logger.error('❌ Chat: Failed to parse JSON response:', jsonError);
-              const textResponse = await response.text();
-              logger.error('❌ Chat: Response text:', textResponse.substring(0, 500));
-              throw new Error('Invalid JSON response from server');
-            }
-            
-            break; // Success, exit retry loop
-            
-          } catch (error) {
-            lastError = error instanceof Error ? error : new Error(String(error));
-            logger.error(`❌ Chat: Fetch attempt ${attempt} failed:`, lastError);
-            
-            // If it's an abort error (timeout) or network error, retry
-            if (attempt < 3 && (
-              lastError.message.includes('aborted') || 
-              lastError.message.includes('timeout') ||
-              lastError.message.includes('network') ||
-              lastError.message.includes('Failed to fetch') ||
-              lastError.message.includes('ERR_')
-            )) {
-              // Wait before retry (exponential backoff)
-              logger.log(`⏳ Waiting ${1000 * attempt}ms before retry...`);
-              await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-              continue;
-            } else {
-              // Don't retry on other errors or if max attempts reached
-              throw lastError;
+              logger.log(`🔄 Chat: Attempt ${attempt}/3 to fetch render API`);
+              
+              // Recreate FormData for each attempt (FormData can only be read once)
+              const requestFormData = createFormDataForRequest();
+              
+              response = await retryFetch(apiUrl, {
+                method: 'POST',
+                body: requestFormData,
+                maxAttempts: 1, // We handle retries manually here
+                shouldRetry: () => false, // Disable automatic retry, we handle it manually
+              });
+              
+              // Parse JSON response with error handling
+              try {
+                apiResult = await response.json();
+                break; // Success, exit retry loop
+              } catch (jsonError) {
+                logger.error('❌ Chat: Failed to parse JSON response:', jsonError);
+                const textResponse = await response.text();
+                logger.error('❌ Chat: Response text:', textResponse.substring(0, 500));
+                throw new Error('Invalid JSON response from server');
+              }
+              
+            } catch (error) {
+              lastError = error instanceof Error ? error : new Error(String(error));
+              logger.error(`❌ Chat: Fetch attempt ${attempt} failed:`, lastError);
+              
+              // If it's a network error and we have attempts left, retry
+              const isNetworkError = lastError.message.includes('aborted') || 
+                                    lastError.message.includes('timeout') ||
+                                    lastError.message.includes('network') ||
+                                    lastError.message.includes('Failed to fetch') ||
+                                    lastError.message.includes('ERR_');
+              
+              if (attempt < 3 && isNetworkError) {
+                // Wait before retry (exponential backoff)
+                logger.log(`⏳ Waiting ${1000 * attempt}ms before retry...`);
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+                continue;
+              } else {
+                // Don't retry on other errors or if max attempts reached
+                throw lastError;
+              }
             }
           }
-        }
-        
-        if (!response || !apiResult) {
-          throw lastError || new Error('Failed to get response from API');
+          
+          if (!response || !apiResult) {
+            throw new Error('Failed to get response from API');
+          }
+        } catch (error) {
+          // Re-throw to be caught by outer catch block
+          throw error;
         }
         
         logger.log('🎯 Chat: API response received', {
@@ -1169,43 +1102,40 @@ export function UnifiedChatInterface({
         onRenderComplete?.(newRender);
         
         // Update the assistant message with the result and render (no constant text)
-        setMessages(prev => prev.map(msg => 
-          msg.id === assistantMessage.id 
-            ? { 
-                ...msg, 
-                content: '', // Empty content - just show the render
-                isGenerating: false, 
-                render: newRender 
-              }
-            : msg
-        ));
+        setMessages(prev => {
+          const updated = prev.map(msg => 
+            msg.id === assistantMessage.id 
+              ? { 
+                  ...msg, 
+                  content: '', // Empty content - just show the render
+                  isGenerating: false, 
+                  render: newRender 
+                }
+              : msg
+          );
+          messagesRef.current = updated; // Update ref
+          return updated;
+        });
         
-        // Refresh chain data in the background to ensure persistence (without causing page reload)
-        // This ensures messages are persisted to the database
-        // CRITICAL: Set flag to prevent useEffect from reloading all messages
+        // ✅ OPTIMIZED: Refresh chain data in the background to ensure persistence
+        // Only refresh once after a delay to avoid excessive calls
+        // The polling mechanism will handle checking for completion
         if (onRefreshChain) {
           isLocalRenderUpdateRef.current = true; // Mark as local update
           setTimeout(() => {
-            // Only refresh if we don't already have this render in messages
-            const hasRenderInMessages = messages.some(m => m.render?.id === newRender.id);
-            if (!hasRenderInMessages) {
-              logger.log('🔄 UnifiedChatInterface: Refreshing chain data (local render update)');
-              onRefreshChain();
-              // Reset flag after a short delay to allow chain prop to update
-              setTimeout(() => {
-                isLocalRenderUpdateRef.current = false;
-              }, 100);
-            } else {
-              // Reset flag if we're not refreshing
+            logger.log('🔄 UnifiedChatInterface: Refreshing chain data (local render update)');
+            onRefreshChain();
+            // Reset flag after chain prop updates
+            setTimeout(() => {
               isLocalRenderUpdateRef.current = false;
-            }
-          }, 2000); // Longer delay to avoid blocking UI and prevent unnecessary reloads
+            }, 500);
+          }, 2000); // Delay to allow server to process
         }
 
         // Clear uploaded file after successful generation (but keep video mode)
         if (uploadedFile && !isVideoMode) {
           setUploadedFile(null);
-          setPreviewUrl(null);
+          // previewUrl is automatically cleared by useObjectURL hook when file is null
         }
         // Clear keyframes after successful generation
         if (isVideoMode) {
@@ -1969,7 +1899,7 @@ export function UnifiedChatInterface({
                                 .then(blob => {
                                   const file = new File([blob], `video-${Date.now()}.mp4`, { type: 'video/mp4' });
                                   setUploadedFile(file);
-                                  setPreviewUrl(message.render!.outputUrl);
+                                  // previewUrl is automatically managed by useObjectURL hook
                                 })
                                 .catch(error => {
                                   logger.error('Failed to load video for editing:', error);
@@ -2906,7 +2836,7 @@ export function UnifiedChatInterface({
                           
                           // Set as uploaded file
                           setUploadedFile(file);
-                          setPreviewUrl(currentRender.outputUrl);
+                          // previewUrl is automatically managed by useObjectURL hook
                           
                           // Enable video mode
                           setIsVideoMode(true);

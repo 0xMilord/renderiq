@@ -135,12 +135,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Create subscription
+    // ✅ FIXED: Use 'user' instead of 'userData' (variable name from getCachedUser)
     const result = await RazorpayService.createSubscription(
       user.id,
       planId,
       {
-        name: userData.user_metadata?.name || userData.email.split('@')[0],
-        email: userData.email,
+        name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+        email: user.email,
       }
     );
 

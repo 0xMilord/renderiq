@@ -319,13 +319,15 @@ export class ReceiptService {
         
         logger.log('✅ ReceiptService: PDF generated successfully using pdf-lib');
 
-        // Upload PDF to storage (using uploads bucket for receipts)
+        // ✅ FIXED: Upload PDF to receipts bucket (private, uses signed URLs, no CDN)
         const fileName = `receipt_${invoice.invoiceNumber}_${Date.now()}.pdf`;
         const uploadResult = await StorageService.uploadFile(
           pdfBuffer,
-          'uploads',
+          'receipts', // Use receipts bucket (private, no CDN)
           paymentOrder.userId,
-          fileName
+          fileName,
+          undefined, // No project slug for receipts
+          'application/pdf' // Explicit content type
         );
 
         // Update invoice and payment order with PDF URL

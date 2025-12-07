@@ -48,8 +48,8 @@ export default function ChainDetailPage({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="max-w-[2400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+      <div className="h-full w-full flex items-center justify-center">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
@@ -63,8 +63,8 @@ export default function ChainDetailPage({
 
   if (error || !chain) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="max-w-[2400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+      <div className="h-full w-full">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
           <div className="text-center py-8 sm:py-12">
             <div className="text-destructive mb-4 text-sm sm:text-base">Chain not found</div>
             <p className="text-muted-foreground mb-4 text-sm sm:text-base">{error || 'The chain you are looking for does not exist.'}</p>
@@ -81,8 +81,8 @@ export default function ChainDetailPage({
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-[2400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+    <div className="h-full w-full">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 space-y-4 sm:space-y-0">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 min-w-0 flex-1">

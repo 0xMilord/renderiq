@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +26,7 @@ interface LibraryClientProps {
 }
 
 export function LibraryClient({ rendersByProject }: LibraryClientProps) {
+  const router = useRouter();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   
   // Memoize project IDs set creation
@@ -96,7 +98,7 @@ export function LibraryClient({ rendersByProject }: LibraryClientProps) {
   }, []);
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+    <div className="h-full w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       {/* Header */}
       <div className="mb-6 sm:mb-8">
         <h1 className="text-3xl md:text-4xl font-bold mb-2">Library</h1>
@@ -171,94 +173,106 @@ export function LibraryClient({ rendersByProject }: LibraryClientProps) {
                             : `/dashboard/projects/${project.slug}`;
                           
                           return (
-                            <Card key={render.id} className="group overflow-hidden hover:shadow-lg transition-shadow">
+                            <Card key={render.id} className="group overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
                               <CardContent className="p-0">
                                 {/* Render Image/Video */}
-                                <Link href={chainPath}>
-                                  <div className="relative aspect-square bg-muted overflow-hidden">
-                                    {render.outputUrl ? (
-                                      isVideo ? (
-                                        <video
+                                {/* ✅ FIXED: Removed nested Link - use onClick for navigation instead */}
+                                <div 
+                                  className="relative aspect-square bg-muted overflow-hidden cursor-pointer"
+                                  onClick={() => router.push(chainPath)}
+                                >
+                                  {render.outputUrl ? (
+                                    isVideo ? (
+                                      // ✅ FIXED: Video element with proper attributes
+                                      <video
+                                        src={render.outputUrl}
+                                        className="absolute inset-0 w-full h-full object-cover"
+                                        muted
+                                        playsInline
+                                        preload="metadata"
+                                        loop
+                                        onMouseEnter={(e) => e.currentTarget.play()}
+                                        onMouseLeave={(e) => {
+                                          e.currentTarget.pause();
+                                          e.currentTarget.currentTime = 0;
+                                        }}
+                                      />
+                                    ) : (
+                                      // Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking
+                                      (render.outputUrl?.includes('supabase.co') || render.outputUrl?.includes('storage.googleapis.com') || render.outputUrl?.includes(process.env.NEXT_PUBLIC_GCS_CDN_DOMAIN || '')) ? (
+                                        <img
                                           src={render.outputUrl}
-                                          className="w-full h-full object-cover"
-                                          muted
-                                          playsInline
+                                          alt={render.prompt || 'Render'}
+                                          className="absolute inset-0 w-full h-full object-cover"
                                         />
                                       ) : (
-                                        // Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking
-                                        (render.outputUrl?.includes('supabase.co') || render.outputUrl?.includes('storage.googleapis.com') || render.outputUrl?.includes(process.env.NEXT_PUBLIC_GCS_CDN_DOMAIN || '')) ? (
-                                          <img
-                                            src={render.outputUrl}
-                                            alt={render.prompt || 'Render'}
-                                            className="absolute inset-0 w-full h-full object-cover"
-                                          />
-                                        ) : (
-                                          <Image
-                                            src={render.outputUrl}
-                                            alt={render.prompt || 'Render'}
-                                            fill
-                                            className="object-cover"
-                                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                                          />
-                                        )
+                                        <Image
+                                          src={render.outputUrl}
+                                          alt={render.prompt || 'Render'}
+                                          fill
+                                          className="object-cover"
+                                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                                        />
                                       )
-                                    ) : (
-                                      <div className="w-full h-full flex items-center justify-center">
-                                        {isVideo ? (
-                                          <Video className="h-12 w-12 text-muted-foreground" />
-                                        ) : (
-                                          <ImageIcon className="h-12 w-12 text-muted-foreground" />
-                                        )}
-                                      </div>
-                                    )}
-                                    
-                                    {/* Status Badge */}
-                                    {render.status !== 'completed' && (
-                                      <div className="absolute top-2 right-2">
-                                        <Badge 
-                                          variant={render.status === 'failed' ? 'destructive' : 'secondary'}
-                                          className="text-xs"
-                                        >
-                                          {render.status}
-                                        </Badge>
-                                      </div>
-                                    )}
-
-                                    {/* Type Indicator */}
-                                    <div className="absolute top-2 left-2">
-                                      <Badge variant="secondary" className="text-xs">
-                                        {isVideo ? <Video className="h-3 w-3 mr-1" /> : <ImageIcon className="h-3 w-3 mr-1" />}
-                                        {isVideo ? 'Video' : 'Image'}
+                                    )
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                      {isVideo ? (
+                                        <Video className="h-12 w-12 text-muted-foreground" />
+                                      ) : (
+                                        <ImageIcon className="h-12 w-12 text-muted-foreground" />
+                                      )}
+                                    </div>
+                                  )}
+                                  
+                                  {/* Status Badge */}
+                                  {render.status !== 'completed' && (
+                                    <div className="absolute top-2 right-2 z-10">
+                                      <Badge 
+                                        variant={render.status === 'failed' ? 'destructive' : 'secondary'}
+                                        className="text-xs"
+                                      >
+                                        {render.status}
                                       </Badge>
                                     </div>
+                                  )}
 
-                                    {/* Hover Overlay */}
-                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                      <div className="flex gap-2">
-                                        <Button
-                                          size="sm"
-                                          variant="secondary"
-                                          onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            handleDownload(render);
-                                          }}
-                                        >
-                                          <Download className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                          size="sm"
-                                          variant="secondary"
-                                          asChild
-                                        >
-                                          <Link href={chainPath}>
-                                            <Eye className="h-4 w-4" />
-                                          </Link>
-                                        </Button>
-                                      </div>
+                                  {/* Type Indicator */}
+                                  <div className="absolute top-2 left-2 z-10">
+                                    <Badge variant="secondary" className="text-xs">
+                                      {isVideo ? <Video className="h-3 w-3 mr-1" /> : <ImageIcon className="h-3 w-3 mr-1" />}
+                                      {isVideo ? 'Video' : 'Image'}
+                                    </Badge>
+                                  </div>
+
+                                  {/* Hover Overlay */}
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 z-20">
+                                    <div className="flex gap-2">
+                                      <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          handleDownload(render);
+                                        }}
+                                      >
+                                        <Download className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          router.push(chainPath);
+                                        }}
+                                      >
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
                                     </div>
                                   </div>
-                                </Link>
+                                </div>
 
                                 {/* Render Info */}
                                 <div className="p-3 space-y-2">

@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { RenderService } from '@/lib/services/render';
 import { ProjectsDAL } from '@/lib/dal/projects';
 import { RendersDAL } from '@/lib/dal/renders';
+import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { RenderChainService } from '@/lib/services/render-chain';
 import { getUserFromAction } from '@/lib/utils/get-user-from-action';
 import { getCachedUser } from '@/lib/services/auth-cache';
@@ -537,38 +538,31 @@ export async function getRenderChain(chainId: string) {
     const userId = user.id;
     logger.log('✅ getRenderChain: User authenticated:', userId);
 
-    const chain = await RenderChainService.getChain(chainId);
+    // ✅ OPTIMIZED: Fetch chain with renders (uses optimized JOIN query)
+    const chainWithRenders = await RenderChainService.getChain(chainId);
     
-    if (!chain) {
+    if (!chainWithRenders) {
       logger.log('❌ getRenderChain: Chain not found:', chainId);
       return { success: false, error: 'Chain not found' };
     }
 
-    logger.log('✅ getRenderChain: Chain found', {
-      chainId: chain.id,
-      chainName: chain.name,
-      projectId: chain.projectId,
-      rendersCount: chain.renders?.length || 0,
-      renderDetails: chain.renders?.map(r => ({
-        id: r.id,
-        prompt: r.prompt?.substring(0, 50) + '...',
-        status: r.status,
-        chainPosition: r.chainPosition,
-        type: r.type,
-        hasOutputUrl: !!r.outputUrl,
-        createdAt: r.createdAt
-      })) || []
-    });
-
-    // Verify project ownership
-    const project = await ProjectsDAL.getById(chain.projectId);
+    // ✅ OPTIMIZED: Verify project ownership (sequential but necessary - need chain.projectId first)
+    // Note: Can't parallelize because we need chain.projectId to fetch project
+    const project = await ProjectsDAL.getById(chainWithRenders.projectId);
+    
     if (!project || project.userId !== userId) {
       logger.log('❌ getRenderChain: Access denied');
       return { success: false, error: 'Access denied' };
     }
 
-    logger.log('✅ getRenderChain: Access granted, returning chain data');
-    return { success: true, data: chain };
+    logger.log('✅ getRenderChain: Access granted, returning chain data', {
+      chainId: chainWithRenders.id,
+      chainName: chainWithRenders.name,
+      projectId: chainWithRenders.projectId,
+      rendersCount: chainWithRenders.renders?.length || 0,
+    });
+
+    return { success: true, data: chainWithRenders };
   } catch (error) {
     logger.error('❌ getRenderChain: Error:', error);
     return {

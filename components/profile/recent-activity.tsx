@@ -10,6 +10,40 @@ import { useUserActivity } from '@/lib/hooks/use-user-activity';
 export function RecentActivity() {
   const { activities, loading, error } = useUserActivity();
 
+  // ✅ FIXED: Hooks must be called before any early returns
+  // Memoize user activities
+  const userActivities = useMemo(() => activities || [], [activities]);
+
+  // Memoize activity icon function
+  const getActivityIcon = useCallback((type: string) => {
+    switch (type) {
+      case 'render':
+        return <Image className="h-4 w-4" />;
+      case 'video':
+        return <Video className="h-4 w-4" />;
+      case 'download':
+        return <Download className="h-4 w-4" />;
+      case 'share':
+        return <Share className="h-4 w-4" />;
+      default:
+        return <Image className="h-4 w-4" />;
+    }
+  }, []);
+
+  // Memoize status color function
+  const getStatusColor = useCallback((status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'processing':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'failed':
+        return 'bg-destructive/10 text-destructive';
+      default:
+        return 'bg-muted text-muted-foreground';
+    }
+  }, []);
+
   if (loading) {
     return (
       <Card>
@@ -50,39 +84,6 @@ export function RecentActivity() {
       </Card>
     );
   }
-
-  // Memoize user activities
-  const userActivities = useMemo(() => activities || [], [activities]);
-
-  // Memoize activity icon function
-  const getActivityIcon = useCallback((type: string) => {
-    switch (type) {
-      case 'render':
-        return <Image className="h-4 w-4" />;
-      case 'video':
-        return <Video className="h-4 w-4" />;
-      case 'download':
-        return <Download className="h-4 w-4" />;
-      case 'share':
-        return <Share className="h-4 w-4" />;
-      default:
-        return <Image className="h-4 w-4" />;
-    }
-  }, []);
-
-  // Memoize status color function
-  const getStatusColor = useCallback((status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'processing':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'failed':
-        return 'bg-destructive/10 text-destructive';
-      default:
-        return 'bg-muted text-muted-foreground';
-    }
-  }, []);
 
   return (
     <Card>

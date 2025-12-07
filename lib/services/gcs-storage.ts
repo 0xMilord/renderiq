@@ -74,8 +74,10 @@ const storage = new Storage(storageConfig);
 // Bucket names from environment
 const RENDERS_BUCKET = process.env.GOOGLE_CLOUD_STORAGE_BUCKET_RENDERS || 'renderiq-renders';
 const UPLOADS_BUCKET = process.env.GOOGLE_CLOUD_STORAGE_BUCKET_UPLOADS || 'renderiq-uploads';
+const RECEIPTS_BUCKET = process.env.GOOGLE_CLOUD_STORAGE_BUCKET_RECEIPTS || 'renderiq-receipts';
 
 // CDN domain (optional, falls back to storage.googleapis.com)
+// Note: CDN is NOT used for receipts bucket (private, uses signed URLs)
 const CDN_DOMAIN = process.env.GCS_CDN_DOMAIN;
 
 export interface UploadResult {
@@ -89,7 +91,14 @@ export class GCSStorageService {
    * Get the appropriate bucket based on bucket name
    */
   private static getBucket(bucketName: string) {
-    const bucket = bucketName === 'renders' ? RENDERS_BUCKET : UPLOADS_BUCKET;
+    let bucket: string;
+    if (bucketName === 'renders') {
+      bucket = RENDERS_BUCKET;
+    } else if (bucketName === 'receipts') {
+      bucket = RECEIPTS_BUCKET;
+    } else {
+      bucket = UPLOADS_BUCKET;
+    }
     return storage.bucket(bucket);
   }
 
@@ -99,10 +108,18 @@ export class GCSStorageService {
    * CDN is configured for both renders and uploads buckets
    */
       private static getPublicUrl(bucketName: string, filePath: string): string {
+    // Receipts bucket is private - should use signed URLs, not public URLs
+    // This method should not be called for receipts, but we handle it gracefully
+    if (bucketName === 'receipts') {
+      // For receipts, return the storage URL (will need signed URL for access)
+      return `https://storage.googleapis.com/${RECEIPTS_BUCKET}/${filePath}`;
+    }
+    
     const bucket = bucketName === 'renders' ? RENDERS_BUCKET : UPLOADS_BUCKET;
     
     // Use CDN with simplified paths: /uploads/* and /renders/*
     // URL rewrite in load balancer strips the prefix, so backend bucket receives just the filePath
+    // Note: CDN is NOT used for receipts (private bucket)
     if (CDN_DOMAIN) {
       const pathPrefix = bucketName === 'renders' ? 'renders' : 'uploads';
       return `https://${CDN_DOMAIN}/${pathPrefix}/${filePath}`;
@@ -139,11 +156,14 @@ export class GCSStorageService {
       }
 
       // Create organized file path (same structure as Supabase)
-      const filePath = projectSlug
-        ? `projects/${projectSlug}/${userId}/${finalFileName}`
-        : bucket === 'uploads'
-          ? `uploads/${userId}/${finalFileName}`
-          : `renders/${userId}/${finalFileName}`;
+      // Receipts bucket has different structure: receipts/{userId}/{fileName}
+      const filePath = bucket === 'receipts'
+        ? `receipts/${userId}/${finalFileName}`
+        : projectSlug
+          ? `projects/${projectSlug}/${userId}/${finalFileName}`
+          : bucket === 'uploads'
+            ? `uploads/${userId}/${finalFileName}`
+            : `renders/${userId}/${finalFileName}`;
 
       const gcsBucket = this.getBucket(bucket);
       const gcsFile = gcsBucket.file(filePath);
@@ -152,10 +172,14 @@ export class GCSStorageService {
       // Note: With uniform bucket-level access enabled, we can't use legacy ACLs
       // The bucket's IAM policy controls public access, not per-file ACLs
       // Extended cache headers for better CDN performance (1 year for images, 1 hour for dynamic content)
+      // Receipts bucket is private, so no cache headers needed (uses signed URLs)
       const isImage = contentType?.startsWith('image/');
-      const cacheControl = isImage 
-        ? 'public, max-age=31536000, immutable' // 1 year for images (they don't change)
-        : 'public, max-age=3600'; // 1 hour for other content
+      const isReceipt = bucket === 'receipts';
+      const cacheControl = isReceipt
+        ? 'private, no-cache, no-store, must-revalidate' // Private receipts - no caching
+        : isImage 
+          ? 'public, max-age=31536000, immutable' // 1 year for images (they don't change)
+          : 'public, max-age=3600'; // 1 hour for other content
       
       await gcsFile.save(fileBuffer, {
         metadata: {
@@ -166,9 +190,19 @@ export class GCSStorageService {
       });
 
       // Note: With uniform bucket-level access, files are automatically public
-      // if the bucket has public IAM permissions. No need to call makePublic().
+      // if the bucket has public IAM permissions. Receipts bucket is private.
+      // For receipts, we store the file path and generate signed URLs on-demand
+      // (GCS max signed URL expiration is 7 days, so we can't use 1 year)
 
-      const publicUrl = this.getPublicUrl(bucket, filePath);
+      // For receipts bucket, generate signed URL on-demand (max 7 days expiration)
+      // GCS max signed URL expiration is 7 days (604800 seconds)
+      let publicUrl: string;
+      if (bucket === 'receipts') {
+        // Generate signed URL with max 7 days expiration for receipts
+        publicUrl = await this.getSignedUrl(bucket, filePath, 604800); // 7 days (max allowed)
+      } else {
+        publicUrl = this.getPublicUrl(bucket, filePath);
+      }
 
       logger.log('✅ GCS: File uploaded successfully:', { bucket, filePath, publicUrl });
 
@@ -266,8 +300,16 @@ export class GCSStorageService {
 
   /**
    * Get public URL for a file
+   * For receipts bucket, returns signed URL (private bucket, no CDN)
+   * GCS max signed URL expiration is 7 days (604800 seconds)
    */
-  static getPublicUrlForFile(bucket: string, key: string): string {
+  static async getPublicUrlForFile(bucket: string, key: string): Promise<string> {
+    // Receipts bucket is private - use signed URL (no CDN)
+    // Generate signed URL on-demand with max 7 days expiration
+    if (bucket === 'receipts') {
+      // GCS max signed URL expiration is 7 days (604800 seconds)
+      return await this.getSignedUrl(bucket, key, 604800); // 7 days (max allowed)
+    }
     return this.getPublicUrl(bucket, key);
   }
 

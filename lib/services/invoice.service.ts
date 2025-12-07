@@ -57,24 +57,27 @@ export class InvoiceService {
     try {
       logger.log('📄 InvoiceService: Creating invoice for payment order:', paymentOrderId);
 
-      // Get payment order
-      const [paymentOrder] = await db
-        .select()
-        .from(paymentOrders)
-        .where(eq(paymentOrders.id, paymentOrderId))
-        .limit(1);
+      // ✅ OPTIMIZED: Fetch payment order and check for existing invoice in parallel
+      const [paymentOrderResult, existingInvoiceResult] = await Promise.all([
+        db
+          .select()
+          .from(paymentOrders)
+          .where(eq(paymentOrders.id, paymentOrderId))
+          .limit(1),
+        db
+          .select()
+          .from(invoices)
+          .where(eq(invoices.paymentOrderId, paymentOrderId))
+          .limit(1),
+      ]);
 
+      const [paymentOrder] = paymentOrderResult;
       if (!paymentOrder) {
         return { success: false, error: 'Payment order not found' };
       }
 
       // Check if invoice already exists
-      const [existingInvoice] = await db
-        .select()
-        .from(invoices)
-        .where(eq(invoices.paymentOrderId, paymentOrderId))
-        .limit(1);
-
+      const [existingInvoice] = existingInvoiceResult;
       if (existingInvoice) {
         logger.log('📄 InvoiceService: Invoice already exists:', existingInvoice.id);
         return { success: true, data: existingInvoice };
@@ -89,28 +92,38 @@ export class InvoiceService {
       const discountAmount = parseFloat(paymentOrder.discountAmount || '0');
       const totalAmount = amount + taxAmount - discountAmount;
 
-      // Get user details
-      const [user] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, paymentOrder.userId))
-        .limit(1);
+      // ✅ OPTIMIZED: Fetch user and reference details in parallel
+      const [userResult, referenceDetailsResult] = await Promise.all([
+        db
+          .select()
+          .from(users)
+          .where(eq(users.id, paymentOrder.userId))
+          .limit(1),
+        // Fetch reference details based on payment type
+        paymentOrder.type === 'credit_package' && paymentOrder.referenceId
+          ? db
+              .select()
+              .from(creditPackages)
+              .where(eq(creditPackages.id, paymentOrder.referenceId))
+              .limit(1)
+          : paymentOrder.type === 'subscription' && paymentOrder.referenceId
+          ? db
+              .select()
+              .from(subscriptionPlans)
+              .where(eq(subscriptionPlans.id, paymentOrder.referenceId))
+              .limit(1)
+          : Promise.resolve([]),
+      ]);
 
+      const [user] = userResult;
+      
       // Get reference details
       let referenceDetails: any = {};
       if (paymentOrder.type === 'credit_package' && paymentOrder.referenceId) {
-        const [packageData] = await db
-          .select()
-          .from(creditPackages)
-          .where(eq(creditPackages.id, paymentOrder.referenceId))
-          .limit(1);
+        const [packageData] = referenceDetailsResult as any[];
         referenceDetails = packageData;
       } else if (paymentOrder.type === 'subscription' && paymentOrder.referenceId) {
-        const [plan] = await db
-          .select()
-          .from(subscriptionPlans)
-          .where(eq(subscriptionPlans.id, paymentOrder.referenceId))
-          .limit(1);
+        const [plan] = referenceDetailsResult as any[];
         referenceDetails = plan;
       }
 

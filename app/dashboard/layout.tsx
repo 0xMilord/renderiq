@@ -689,7 +689,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Header */}
         <div className="px-4 border-b shrink-0 h-16 flex items-center pointer-events-auto">
           <div className="min-w-0 flex-1 overflow-hidden flex items-center gap-3">
@@ -698,8 +698,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </div>
 
-        {/* Page Content */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Page Content - ✅ FIXED: Full width and height */}
+        <div className="flex-1 overflow-y-auto w-full min-h-0">
           {children}
         </div>
       </div>

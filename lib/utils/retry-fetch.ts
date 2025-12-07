@@ -1,0 +1,101 @@
+import { logger } from './logger';
+
+export interface RetryFetchOptions extends RequestInit {
+  maxAttempts?: number;
+  retryDelay?: number;
+  shouldRetry?: (error: Error, attempt: number) => boolean;
+}
+
+/**
+ * Utility function to retry fetch requests with exponential backoff
+ * Handles network errors, timeouts, and other retryable errors
+ */
+export async function retryFetch(
+  url: string,
+  options: RetryFetchOptions = {}
+): Promise<Response> {
+  const {
+    maxAttempts = 3,
+    retryDelay = 1000,
+    shouldRetry,
+    ...fetchOptions
+  } = options;
+
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      logger.log(`🔄 retryFetch: Attempt ${attempt}/${maxAttempts} for ${url}`);
+      
+      const response = await fetch(url, {
+        ...fetchOptions,
+        // Add timeout signal for mobile networks
+        signal: AbortSignal.timeout(300000), // 5 minutes timeout
+      });
+      
+      // Check response status before returning
+      if (!response.ok) {
+        let errorText: string;
+        try {
+          errorText = await response.text();
+        } catch {
+          errorText = `HTTP ${response.status} ${response.statusText}`;
+        }
+        logger.error(`❌ retryFetch: API returned error status ${response.status}:`, errorText);
+        
+        // Try to parse error JSON if available
+        try {
+          const errorJson = JSON.parse(errorText);
+          if (errorJson.refunded) {
+            logger.log('✅ Credits were refunded by server');
+          }
+        } catch {
+          // Not JSON, use text error
+        }
+        
+        const error = new Error(`API request failed: ${response.status} ${response.statusText}`);
+        
+        // Check if we should retry
+        if (shouldRetry) {
+          if (!shouldRetry(error, attempt)) {
+            throw error;
+          }
+        } else {
+          // Default: don't retry on HTTP errors
+          throw error;
+        }
+      }
+      
+      return response;
+      
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      logger.error(`❌ retryFetch: Attempt ${attempt} failed:`, lastError);
+      
+      // Check if we should retry
+      const shouldRetryError = shouldRetry 
+        ? shouldRetry(lastError, attempt)
+        : (
+            lastError.message.includes('aborted') || 
+            lastError.message.includes('timeout') ||
+            lastError.message.includes('network') ||
+            lastError.message.includes('Failed to fetch') ||
+            lastError.message.includes('ERR_')
+          );
+      
+      if (attempt < maxAttempts && shouldRetryError) {
+        // Wait before retry (exponential backoff)
+        const delay = retryDelay * attempt;
+        logger.log(`⏳ retryFetch: Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      } else {
+        // Don't retry on other errors or if max attempts reached
+        throw lastError;
+      }
+    }
+  }
+  
+  throw lastError || new Error('Failed to get response from API');
+}
+

@@ -15,6 +15,22 @@ export default function LikesPage() {
   const [likedItems, setLikedItems] = useState<GalleryItemWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // ✅ FIXED: Hooks must be called before any early returns
+  // Memoize like handler to prevent unnecessary re-renders
+  const handleLike = useCallback(async (id: string) => {
+    const result = await likeGalleryItem(id);
+    if (result.success && result.data && !result.data.liked) {
+      // Remove from list if unliked
+      setLikedItems(prev => prev.filter(i => i.id !== id));
+    }
+    return result;
+  }, []);
+
+  // Memoize view handler
+  const handleView = useCallback(async (id: string) => {
+    await viewGalleryItem(id);
+  }, []);
+
   useEffect(() => {
     if (!authLoading) {
       if (!user) {
@@ -43,30 +59,15 @@ export default function LikesPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="h-full w-full flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  // Memoize like handler to prevent unnecessary re-renders
-  const handleLike = useCallback(async (id: string) => {
-    const result = await likeGalleryItem(id);
-    if (result.success && result.data && !result.data.liked) {
-      // Remove from list if unliked
-      setLikedItems(prev => prev.filter(i => i.id !== id));
-    }
-    return result;
-  }, []);
-
-  // Memoize view handler
-  const handleView = useCallback(async (id: string) => {
-    await viewGalleryItem(id);
-  }, []);
-
   return (
-    <div className="h-full">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+    <div className="h-full w-full">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
 
         {/* Gallery Grid */}
         {likedItems.length > 0 ? (

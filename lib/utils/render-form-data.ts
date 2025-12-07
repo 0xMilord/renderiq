@@ -1,0 +1,81 @@
+/**
+ * Utility to create FormData for render generation API requests
+ */
+export interface RenderFormDataOptions {
+  prompt: string;
+  quality: string;
+  aspectRatio: string;
+  type: 'image' | 'video';
+  projectId: string;
+  chainId?: string;
+  referenceRenderId?: string;
+  versionContext?: any;
+  isPublic: boolean;
+  environment?: string;
+  effect?: string;
+  temperature: string;
+  // Video-specific
+  videoDuration?: number;
+  videoKeyframes?: Array<{ imageData: string; imageType: string }>;
+  videoLastFrame?: { imageData: string; imageType: string };
+  // Image data
+  uploadedImageBase64?: string | null;
+  uploadedImageType?: string;
+  styleTransferBase64?: string | null;
+  styleTransferImageType?: string;
+}
+
+/**
+ * Creates FormData for render generation API request
+ */
+export function createRenderFormData(options: RenderFormDataOptions): FormData {
+  const fd = new FormData();
+  fd.append('prompt', options.prompt);
+  fd.append('style', 'realistic');
+  fd.append('quality', options.quality);
+  fd.append('aspectRatio', options.aspectRatio);
+  fd.append('type', options.type);
+  
+  if (options.type === 'video') {
+    if (options.videoDuration) {
+      fd.append('duration', options.videoDuration.toString());
+      fd.append('resolution', options.videoDuration === 8 ? '1080p' : '720p');
+    }
+    if (options.videoKeyframes && options.videoKeyframes.length > 0) {
+      fd.append('keyframes', JSON.stringify(options.videoKeyframes.map(kf => ({
+        imageData: kf.imageData,
+        imageType: kf.imageType
+      }))));
+    }
+    if (options.videoLastFrame) {
+      fd.append('lastFrame', JSON.stringify({
+        imageData: options.videoLastFrame.imageData,
+        imageType: options.videoLastFrame.imageType
+      }));
+    }
+  }
+  
+  fd.append('projectId', options.projectId || '');
+  if (options.chainId) fd.append('chainId', options.chainId);
+  if (options.referenceRenderId) fd.append('referenceRenderId', options.referenceRenderId);
+  if (options.versionContext) fd.append('versionContext', JSON.stringify(options.versionContext));
+  fd.append('isPublic', options.isPublic.toString());
+  if (options.environment && options.environment !== 'none') fd.append('environment', options.environment);
+  if (options.effect && options.effect !== 'none') fd.append('effect', options.effect);
+  if (options.uploadedImageBase64) {
+    fd.append('uploadedImageData', options.uploadedImageBase64);
+    if (options.uploadedImageType) {
+      fd.append('uploadedImageType', options.uploadedImageType);
+    }
+  }
+  if (options.styleTransferBase64) {
+    fd.append('styleTransferImageData', options.styleTransferBase64);
+    if (options.styleTransferImageType) {
+      fd.append('styleTransferImageType', options.styleTransferImageType);
+    }
+  }
+  fd.append('temperature', options.temperature);
+  
+  return fd;
+}
+

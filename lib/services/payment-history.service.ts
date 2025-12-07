@@ -52,50 +52,56 @@ export class PaymentHistoryService {
         conditions.push(eq(paymentOrders.status, filters.status));
       }
 
-      // Get total count
-      const totalResult = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(paymentOrders)
-        .where(and(...conditions));
+      // ✅ OPTIMIZED: Get total count and payments with reference details in parallel
+      const [totalResult, paymentsWithDetails] = await Promise.all([
+        // Get total count
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(paymentOrders)
+          .where(and(...conditions)),
+        // ✅ OPTIMIZED: Get payments with reference details using LEFT JOIN (single query instead of N+1)
+        db
+          .select({
+            payment: paymentOrders,
+            package: creditPackages,
+            plan: subscriptionPlans,
+          })
+          .from(paymentOrders)
+          .leftJoin(
+            creditPackages,
+            and(
+              eq(paymentOrders.referenceId, creditPackages.id),
+              eq(paymentOrders.type, 'credit_package')
+            )
+          )
+          .leftJoin(
+            subscriptionPlans,
+            and(
+              eq(paymentOrders.referenceId, subscriptionPlans.id),
+              eq(paymentOrders.type, 'subscription')
+            )
+          )
+          .where(and(...conditions))
+          .orderBy(desc(paymentOrders.createdAt))
+          .limit(limit)
+          .offset(offset),
+      ]);
 
       const total = Number(totalResult[0]?.count || 0);
 
-      // Get payments
-      const payments = await db
-        .select()
-        .from(paymentOrders)
-        .where(and(...conditions))
-        .orderBy(desc(paymentOrders.createdAt))
-        .limit(limit)
-        .offset(offset);
+      // Enrich payments with reference details (already joined, just format)
+      const enrichedPayments = paymentsWithDetails.map((row) => {
+        const referenceDetails = row.payment.type === 'credit_package' 
+          ? row.package 
+          : row.payment.type === 'subscription'
+          ? row.plan
+          : null;
 
-      // Enrich payments with reference details
-      const enrichedPayments = await Promise.all(
-        payments.map(async (payment) => {
-          let referenceDetails: any = null;
-
-          if (payment.type === 'credit_package' && payment.referenceId) {
-            const [packageData] = await db
-              .select()
-              .from(creditPackages)
-              .where(eq(creditPackages.id, payment.referenceId))
-              .limit(1);
-            referenceDetails = packageData;
-          } else if (payment.type === 'subscription' && payment.referenceId) {
-            const [plan] = await db
-              .select()
-              .from(subscriptionPlans)
-              .where(eq(subscriptionPlans.id, payment.referenceId))
-              .limit(1);
-            referenceDetails = plan;
-          }
-
-          return {
-            ...payment,
-            referenceDetails,
-          };
-        })
-      );
+        return {
+          ...row.payment,
+          referenceDetails,
+        };
+      });
 
       return {
         success: true,
@@ -130,31 +136,26 @@ export class PaymentHistoryService {
     error?: string;
   }> {
     try {
-      const payments = await db
-        .select()
+      // ✅ OPTIMIZED: Use SQL aggregation instead of fetching all payments and filtering in JavaScript
+      const [stats] = await db
+        .select({
+          totalSpent: sql<number>`COALESCE(SUM(CASE WHEN ${paymentOrders.status} = 'completed' THEN ${paymentOrders.amount}::numeric ELSE 0 END), 0)`,
+          totalPayments: sql<number>`COUNT(*)`,
+          successfulPayments: sql<number>`COUNT(CASE WHEN ${paymentOrders.status} = 'completed' THEN 1 END)`,
+          failedPayments: sql<number>`COUNT(CASE WHEN ${paymentOrders.status} = 'failed' THEN 1 END)`,
+          lastPaymentDate: sql<Date | null>`MAX(${paymentOrders.createdAt})`,
+        })
         .from(paymentOrders)
         .where(eq(paymentOrders.userId, userId));
-
-      const totalSpent = payments
-        .filter((p) => p.status === 'completed')
-        .reduce((sum, p) => sum + parseFloat(p.amount || '0'), 0);
-
-      const successfulPayments = payments.filter((p) => p.status === 'completed').length;
-      const failedPayments = payments.filter((p) => p.status === 'failed').length;
-
-      const sortedPayments = [...payments].sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      const lastPaymentDate = sortedPayments[0]?.createdAt;
 
       return {
         success: true,
         data: {
-          totalSpent,
-          totalPayments: payments.length,
-          successfulPayments,
-          failedPayments,
-          lastPaymentDate,
+          totalSpent: Number(stats?.totalSpent || 0),
+          totalPayments: Number(stats?.totalPayments || 0),
+          successfulPayments: Number(stats?.successfulPayments || 0),
+          failedPayments: Number(stats?.failedPayments || 0),
+          lastPaymentDate: stats?.lastPaymentDate || undefined,
         },
       };
     } catch (error) {

@@ -109,6 +109,7 @@ export function BaseToolComponent({
   
   const [quality, setQuality] = useState<'standard' | 'high' | 'ultra'>('standard');
   const [aspectRatio, setAspectRatio] = useState<string>('16:9');
+  const [style, setStyle] = useState<string>('realistic'); // ✅ FIXED: Add style state with default value
   
   // Poll for render updates
   const pollForRenderUpdates = useCallback(async (renderIds: string[]) => {
@@ -251,8 +252,8 @@ export function BaseToolComponent({
       // Create FormData
       const formData = new FormData();
       formData.append('prompt', prompt);
-      // Don't hardcode style - let the tool's custom handler or style reference handle it
-      // formData.append('style', 'realistic'); // REMOVED: Let style reference or custom handler set style
+      // ✅ FIXED: Add style parameter (required by API validation)
+      formData.append('style', style);
       formData.append('quality', quality);
       formData.append('aspectRatio', aspectRatio);
       formData.append('type', 'image');

@@ -12,6 +12,10 @@ import { useRecentProjects } from '@/lib/hooks/use-recent-projects';
 export function RecentProjectsSection() {
   const { projects, loading, error } = useRecentProjects();
 
+  // ✅ FIXED: Hooks must be called before any early returns
+  // Memoize recent projects slice
+  const recentProjects = useMemo(() => projects.slice(0, 2), [projects]);
+
   if (loading) {
     return (
       <Card>
@@ -51,9 +55,6 @@ export function RecentProjectsSection() {
       </Card>
     );
   }
-
-  // Memoize recent projects slice
-  const recentProjects = useMemo(() => projects.slice(0, 2), [projects]);
 
   return (
     <Card>

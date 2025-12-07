@@ -44,11 +44,14 @@ export class StorageService {
       }
 
       // Create organized file path (same structure for both providers)
-      const filePath = projectSlug 
-        ? `projects/${projectSlug}/${userId}/${finalFileName}`
-        : bucket === 'uploads' 
-          ? `uploads/${userId}/${finalFileName}`
-          : `renders/${userId}/${finalFileName}`;
+      // Receipts bucket has different structure: receipts/{userId}/{fileName}
+      const filePath = bucket === 'receipts'
+        ? `receipts/${userId}/${finalFileName}`
+        : projectSlug 
+          ? `projects/${projectSlug}/${userId}/${finalFileName}`
+          : bucket === 'uploads' 
+            ? `uploads/${userId}/${finalFileName}`
+            : `renders/${userId}/${finalFileName}`;
 
       let publicUrl: string;
       let storageKey: string;
@@ -97,6 +100,8 @@ export class StorageService {
       }
 
       // Create file storage record
+      // Receipts bucket is private, so isPublic should be false
+      const isPublic = bucket !== 'receipts';
       const fileRecord = await db.insert(fileStorage).values({
         userId,
         fileName: finalFileName,
@@ -106,7 +111,7 @@ export class StorageService {
         url: publicUrl,
         key: storageKey,
         bucket,
-        isPublic: true,
+        isPublic, // Receipts are private
         metadata: {
           provider: STORAGE_PROVIDER,
           uploadedAt: new Date().toISOString(),
@@ -258,16 +263,30 @@ export class StorageService {
       
       const file = fileRecord[0];
       
-      // If URL is already stored and it's a GCS URL, return it directly
-      // Otherwise, generate URL based on current provider
-      if (file.url && (file.url.includes('storage.googleapis.com') || file.url.includes(process.env.GCS_CDN_DOMAIN || ''))) {
+      // If URL is already stored and it's a valid GCS URL (not a receipt reference), return it directly
+      // Receipts use signed URLs that expire, so we need to regenerate them
+      if (file.url && 
+          (file.url.includes('storage.googleapis.com') || file.url.includes(process.env.GCS_CDN_DOMAIN || '')) &&
+          !file.url.includes('gcs://receipts/') && // Don't use stored receipt references
+          file.bucket !== 'receipts') { // Don't use stored URLs for receipts (they expire)
         return file.url;
       }
 
       // Generate URL based on current provider
       if (STORAGE_PROVIDER === 'gcs') {
-        return GCSStorageService.getPublicUrlForFile(file.bucket, file.key);
+        // For receipts bucket, this will return a signed URL (private bucket, no CDN)
+        // GCS max signed URL expiration is 7 days (604800 seconds)
+        return await GCSStorageService.getPublicUrlForFile(file.bucket, file.key);
       } else {
+        // For Supabase, receipts bucket also needs signed URLs
+        if (file.bucket === 'receipts') {
+          // Supabase also has max expiration limits, use 7 days (604800 seconds)
+          const { data, error } = await supabase.storage
+            .from(file.bucket)
+            .createSignedUrl(file.key, 604800); // 7 days (max allowed)
+          if (error) throw error;
+          return data.signedUrl;
+        }
         const { data: { publicUrl } } = supabase.storage
           .from(file.bucket)
           .getPublicUrl(file.key);

@@ -35,36 +35,27 @@ export class RenderChainService {
 
   /**
    * Get chain with all its renders
+   * ✅ OPTIMIZED: Uses JOIN query to fetch chain + renders in single query
    */
   static async getChain(chainId: string): Promise<RenderChainWithRenders | null> {
     logger.log('🔍 RenderChainService.getChain: Fetching chain with renders:', chainId);
     
-    const chain = await RenderChainsDAL.getById(chainId);
+    // ✅ OPTIMIZED: Use JOIN query to fetch chain + renders in single query
+    const chainWithRenders = await RenderChainsDAL.getChainWithRenders(chainId);
     
-    if (!chain) {
+    if (!chainWithRenders) {
       logger.log('❌ RenderChainService.getChain: Chain not found:', chainId);
       return null;
     }
 
-    logger.log('✅ RenderChainService.getChain: Chain found, fetching renders', {
-      chainId: chain.id,
-      chainName: chain.name,
-      projectId: chain.projectId
-    });
-
-    const renders = await RendersDAL.getByChainId(chainId);
-
     logger.log('✅ RenderChainService.getChain: Returning chain with renders', {
-      chainId: chain.id,
-      rendersCount: renders.length,
-      renderIds: renders.map(r => r.id),
-      renderStatuses: renders.map(r => ({ id: r.id, status: r.status, chainPosition: r.chainPosition }))
+      chainId: chainWithRenders.id,
+      rendersCount: chainWithRenders.renders.length,
+      renderIds: chainWithRenders.renders.map(r => r.id),
+      renderStatuses: chainWithRenders.renders.map(r => ({ id: r.id, status: r.status, chainPosition: r.chainPosition }))
     });
 
-    return {
-      ...chain,
-      renders,
-    };
+    return chainWithRenders;
   }
 
   /**

@@ -1,15 +1,17 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { UnifiedChatInterface } from '@/components/chat/unified-chat-interface';
-import { useProjectBySlug } from '@/lib/hooks/use-projects';
-import { useRenderChain } from '@/lib/hooks/use-render-chain';
+import { getProjectBySlug } from '@/lib/actions/projects.actions';
+import { getRenderChain } from '@/lib/actions/projects.actions';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { logger } from '@/lib/utils/logger';
 import { useAuthStore } from '@/lib/stores/auth-store';
+import type { Project } from '@/lib/db/schema';
+import type { RenderChainWithRenders } from '@/lib/types/render-chain';
 
 export default function ProjectChainPage() {
   const params = useParams();
@@ -18,8 +20,52 @@ export default function ProjectChainPage() {
   const chainId = params.chainId as string;
   const { user, loading: authLoading, initialized, initialize } = useAuthStore();
   
-  const { project, loading: projectLoading } = useProjectBySlug(projectSlug);
-  const { chain, loading: chainLoading, fetchChain } = useRenderChain(chainId);
+  // ✅ OPTIMIZED: Combined state for parallel loading
+  const [project, setProject] = useState<Project | null>(null);
+  const [chain, setChain] = useState<RenderChainWithRenders | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // ✅ OPTIMIZED: Fetch project and chain in parallel
+  const fetchData = useCallback(async () => {
+    if (!projectSlug || !chainId) return;
+    
+    setLoading(true);
+    setError(null);
+
+    try {
+      // ✅ OPTIMIZED: Parallelize project and chain fetching
+      const [projectResult, chainResult] = await Promise.all([
+        getProjectBySlug(projectSlug),
+        getRenderChain(chainId),
+      ]);
+
+      if (projectResult.success && projectResult.data) {
+        setProject(projectResult.data);
+      } else {
+        setError(projectResult.error || 'Failed to load project');
+      }
+
+      if (chainResult.success && chainResult.data) {
+        setChain(chainResult.data);
+      } else {
+        setError(chainResult.error || 'Failed to load chain');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      logger.error('❌ ProjectChainPage: Error fetching data:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [projectSlug, chainId]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const fetchChain = useCallback(() => {
+    return fetchData();
+  }, [fetchData]);
 
   // Initialize auth store
   useEffect(() => {
@@ -35,17 +81,18 @@ export default function ProjectChainPage() {
 
   // Debug logging
   useEffect(() => {
-    logger.log('🔍 ProjectChainPage: Component state', {
-      projectSlug,
-      chainId,
-      hasProject: !!project,
-      projectId: project?.id,
-      hasChain: !!chain,
-      chainRendersCount: chain?.renders?.length || 0,
-      projectLoading,
-      chainLoading
-    });
-  }, [projectSlug, chainId, project, chain, projectLoading, chainLoading]);
+    if (project && chain) {
+      logger.log('🔍 ProjectChainPage: Component state', {
+        projectSlug,
+        chainId,
+        hasProject: !!project,
+        projectId: project?.id,
+        hasChain: !!chain,
+        chainRendersCount: chain?.renders?.length || 0,
+        loading
+      });
+    }
+  }, [projectSlug, chainId, project, chain, loading]);
 
   const handleRenderComplete = (render: any) => {
     logger.log('Render completed:', render);
@@ -59,7 +106,7 @@ export default function ProjectChainPage() {
     // Render start is handled by UnifiedChatInterface
   };
 
-  if (projectLoading || chainLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="w-96">

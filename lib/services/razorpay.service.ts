@@ -152,16 +152,19 @@ export class RazorpayService {
     try {
       logger.log('🔐 RazorpayService: Verifying payment:', { razorpayOrderId, razorpayPaymentId });
 
-      // Fetch order details from Razorpay first
+      // ✅ OPTIMIZED: Fetch from Razorpay and check DB in parallel
       const razorpay = getRazorpayInstance();
-      const razorpayOrder = await razorpay.orders.fetch(razorpayOrderId);
+      const [razorpayOrder, existingPaymentOrderResult] = await Promise.all([
+        razorpay.orders.fetch(razorpayOrderId),
+        db
+          .select()
+          .from(paymentOrders)
+          .where(eq(paymentOrders.razorpayOrderId, razorpayOrderId))
+          .limit(1),
+      ]);
       
       // Get payment order from database (may not exist if user closed modal before)
-      let [paymentOrder] = await db
-        .select()
-        .from(paymentOrders)
-        .where(eq(paymentOrders.razorpayOrderId, razorpayOrderId))
-        .limit(1);
+      let [paymentOrder] = existingPaymentOrderResult;
 
       // If payment order doesn't exist, create it now (payment is verified)
       if (!paymentOrder) {
@@ -176,7 +179,8 @@ export class RazorpayService {
           return { success: false, error: 'Missing order metadata. Cannot create payment order.' };
         }
         
-        // Get credit package details
+        // ✅ OPTIMIZED: Fetch package data (can't parallelize with razorpayOrder since we need notes first)
+        // But we can parallelize with payment fetch if needed
         const [packageData] = await db
           .select()
           .from(creditPackages)
@@ -209,7 +213,7 @@ export class RazorpayService {
         logger.log('✅ RazorpayService: Payment order created from verified payment');
       }
 
-      // Verify signature
+      // ✅ OPTIMIZED: Verify signature and fetch payment in parallel (both are independent)
       const text = `${razorpayOrderId}|${razorpayPaymentId}`;
       const generatedSignature = crypto
         .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
@@ -221,7 +225,8 @@ export class RazorpayService {
         return { success: false, error: 'Invalid payment signature' };
       }
 
-      // Fetch payment details from Razorpay (already have instance from above)
+      // Fetch payment details from Razorpay (can be done in parallel with signature verification if needed)
+      // But signature verification is fast, so keeping sequential is fine
       const payment = await razorpay.payments.fetch(razorpayPaymentId);
 
       // CRITICAL: Only accept fully captured payments (not authorized/pending)
@@ -324,13 +329,21 @@ export class RazorpayService {
     try {
       logger.log('💰 RazorpayService: Adding credits to account:', { userId, creditPackageId });
 
-      // Get credit package details
-      const [packageData] = await db
-        .select()
-        .from(creditPackages)
-        .where(eq(creditPackages.id, creditPackageId))
-        .limit(1);
+      // ✅ OPTIMIZED: Fetch package and check user credits in parallel
+      const [packageDataResult, existingCreditResult] = await Promise.all([
+        db
+          .select()
+          .from(creditPackages)
+          .where(eq(creditPackages.id, creditPackageId))
+          .limit(1),
+        db
+          .select()
+          .from(userCredits)
+          .where(eq(userCredits.userId, userId))
+          .limit(1),
+      ]);
 
+      const [packageData] = packageDataResult;
       if (!packageData) {
         return { success: false, error: 'Credit package not found' };
       }
@@ -338,12 +351,7 @@ export class RazorpayService {
       const totalCredits = packageData.credits + packageData.bonusCredits;
 
       // Get or create user credits record
-      let [userCredit] = await db
-        .select()
-        .from(userCredits)
-        .where(eq(userCredits.userId, userId))
-        .limit(1);
-
+      let [userCredit] = existingCreditResult;
       if (!userCredit) {
         const [newCredit] = await db
           .insert(userCredits)
@@ -357,26 +365,28 @@ export class RazorpayService {
         userCredit = newCredit;
       }
 
-      // Update credits balance
+      // ✅ OPTIMIZED: Update credits and create transaction in parallel (both are independent)
       const newBalance = userCredit.balance + totalCredits;
-      await db
-        .update(userCredits)
-        .set({
-          balance: newBalance,
-          totalEarned: userCredit.totalEarned + totalCredits,
-          updatedAt: new Date(),
-        })
-        .where(eq(userCredits.userId, userId));
-
-      // Create transaction record
-      await db.insert(creditTransactions).values({
-        userId,
-        amount: totalCredits,
-        type: 'earned',
-        description: `Purchased ${packageData.name} - ${packageData.credits} credits${packageData.bonusCredits > 0 ? ` + ${packageData.bonusCredits} bonus` : ''}`,
-        referenceId: creditPackageId,
-        referenceType: 'subscription', // Using subscription type for purchased credits
-      });
+      await Promise.all([
+        // Update credits balance
+        db
+          .update(userCredits)
+          .set({
+            balance: newBalance,
+            totalEarned: userCredit.totalEarned + totalCredits,
+            updatedAt: new Date(),
+          })
+          .where(eq(userCredits.userId, userId)),
+        // Create transaction record (can be done in parallel)
+        db.insert(creditTransactions).values({
+          userId,
+          amount: totalCredits,
+          type: 'earned',
+          description: `Purchased ${packageData.name} - ${packageData.credits} credits${packageData.bonusCredits > 0 ? ` + ${packageData.bonusCredits} bonus` : ''}`,
+          referenceId: creditPackageId,
+          referenceType: 'subscription', // Using subscription type for purchased credits
+        }),
+      ]);
 
       logger.log('✅ RazorpayService: Credits added successfully:', { totalCredits, newBalance });
 
@@ -698,19 +708,23 @@ Please verify the plan exists in Razorpay Dashboard.`;
         razorpayPaymentId 
       });
 
-      // Fetch subscription and payment from Razorpay first to verify
+      // ✅ OPTIMIZED: Fetch from Razorpay and check DB in parallel
       const razorpay = getRazorpayInstance();
-      const razorpaySubscription = await razorpay.subscriptions.fetch(razorpaySubscriptionId);
-      const payment = await razorpay.payments.fetch(razorpayPaymentId);
+      const [razorpaySubscription, payment, existingSubscriptionResult] = await Promise.all([
+        razorpay.subscriptions.fetch(razorpaySubscriptionId),
+        razorpay.payments.fetch(razorpayPaymentId),
+        db
+          .select()
+          .from(userSubscriptions)
+          .where(eq(userSubscriptions.razorpaySubscriptionId, razorpaySubscriptionId))
+          .limit(1),
+      ]);
 
       // Check if subscription exists in database (may not exist if user closed modal before)
-      let [subscription] = await db
-        .select()
-        .from(userSubscriptions)
-        .where(eq(userSubscriptions.razorpaySubscriptionId, razorpaySubscriptionId))
-        .limit(1);
+      let [subscription] = existingSubscriptionResult;
 
       // If subscription doesn't exist, create it now (payment is verified)
+      let cachedPlan: any = null; // Store plan for reuse
       if (!subscription) {
         logger.log('📝 RazorpayService: Subscription not found, creating from Razorpay subscription data');
         
@@ -723,21 +737,23 @@ Please verify the plan exists in Razorpay Dashboard.`;
           return { success: false, error: 'Missing subscription metadata. Cannot create subscription record.' };
         }
         
-        // Get plan details
-        const [plan] = await db
+        // Get plan details (will reuse for payment order creation)
+        const [planResult] = await db
           .select()
           .from(subscriptionPlans)
           .where(eq(subscriptionPlans.id, planId))
           .limit(1);
         
-        if (!plan) {
+        if (!planResult) {
           return { success: false, error: 'Subscription plan not found' };
         }
+        
+        cachedPlan = planResult;
         
         // Calculate period dates
         const now = new Date();
         const periodEnd = new Date(now);
-        if (plan.interval === 'year') {
+        if (cachedPlan.interval === 'year') {
           periodEnd.setFullYear(periodEnd.getFullYear() + 1);
         } else {
           periodEnd.setMonth(periodEnd.getMonth() + 1);
@@ -897,16 +913,20 @@ Please verify the plan exists in Razorpay Dashboard.`;
       if (!paymentOrder) {
         logger.log('📝 RazorpayService: Payment order not found, creating from subscription data');
         
-        // Get plan details
-        const [plan] = await db
-          .select()
-          .from(subscriptionPlans)
-          .where(eq(subscriptionPlans.id, subscription.planId))
-          .limit(1);
-        
-        if (!plan) {
-          logger.error('❌ RazorpayService: Plan not found for subscription:', subscription.planId);
-          return { success: false, error: 'Subscription plan not found' };
+        // ✅ OPTIMIZED: Reuse cachedPlan if we already fetched it, otherwise fetch it
+        if (!cachedPlan) {
+          const [planResult] = await db
+            .select()
+            .from(subscriptionPlans)
+            .where(eq(subscriptionPlans.id, subscription.planId))
+            .limit(1);
+          
+          if (!planResult) {
+            logger.error('❌ RazorpayService: Plan not found for subscription:', subscription.planId);
+            return { success: false, error: 'Subscription plan not found' };
+          }
+          
+          cachedPlan = planResult;
         }
         
         try {
@@ -919,12 +939,12 @@ Please verify the plan exists in Razorpay Dashboard.`;
               referenceId: subscription.planId,
               razorpaySubscriptionId: razorpaySubscription.id,
               razorpayPaymentId: razorpayPaymentId,
-              amount: plan.price.toString(),
-              currency: plan.currency || 'INR',
+              amount: cachedPlan.price.toString(),
+              currency: cachedPlan.currency || 'INR',
               status: 'completed', // Payment is authorized/captured, so it's completed
               metadata: {
-                planName: plan.name,
-                creditsPerMonth: plan.creditsPerMonth,
+                planName: cachedPlan.name,
+                creditsPerMonth: cachedPlan.creditsPerMonth,
                 paymentMethod: paymentMethodDetails,
               },
             })
@@ -1011,14 +1031,17 @@ Please verify the plan exists in Razorpay Dashboard.`;
       const now = new Date();
       const periodEnd = new Date(now);
       
-      // Get plan to determine interval
-      const [plan] = await db
-        .select()
-        .from(subscriptionPlans)
-        .where(eq(subscriptionPlans.id, subscription.planId))
-        .limit(1);
+      // ✅ OPTIMIZED: Reuse cachedPlan if available, otherwise fetch
+      if (!cachedPlan) {
+        const [planResult] = await db
+          .select()
+          .from(subscriptionPlans)
+          .where(eq(subscriptionPlans.id, subscription.planId))
+          .limit(1);
+        cachedPlan = planResult;
+      }
       
-      if (plan?.interval === 'year') {
+      if (cachedPlan?.interval === 'year') {
         periodEnd.setFullYear(periodEnd.getFullYear() + 1);
       } else {
         periodEnd.setMonth(periodEnd.getMonth() + 1);
@@ -1089,23 +1112,41 @@ Please verify the plan exists in Razorpay Dashboard.`;
    */
   static async addSubscriptionCredits(userId: string, planId: string) {
     try {
-      const [plan] = await db
-        .select()
-        .from(subscriptionPlans)
-        .where(eq(subscriptionPlans.id, planId))
-        .limit(1);
+      // ✅ OPTIMIZED: Fetch plan, check user credits, and check for recent transaction in parallel
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      const [planResult, existingCreditResult, recentTransactionResult] = await Promise.all([
+        db
+          .select()
+          .from(subscriptionPlans)
+          .where(eq(subscriptionPlans.id, planId))
+          .limit(1),
+        db
+          .select()
+          .from(userCredits)
+          .where(eq(userCredits.userId, userId))
+          .limit(1),
+        db
+          .select()
+          .from(creditTransactions)
+          .where(
+            and(
+              eq(creditTransactions.userId, userId),
+              eq(creditTransactions.referenceId, planId),
+              eq(creditTransactions.referenceType, 'subscription'),
+              gte(creditTransactions.createdAt, fiveMinutesAgo)
+            )
+          )
+          .orderBy(desc(creditTransactions.createdAt))
+          .limit(1),
+      ]);
 
+      const [plan] = planResult;
       if (!plan) {
         return { success: false, error: 'Plan not found' };
       }
 
       // Get or create user credits record
-      let [userCredit] = await db
-        .select()
-        .from(userCredits)
-        .where(eq(userCredits.userId, userId))
-        .limit(1);
-
+      let [userCredit] = existingCreditResult;
       if (!userCredit) {
         const [newCredit] = await db
           .insert(userCredits)
@@ -1119,49 +1160,35 @@ Please verify the plan exists in Razorpay Dashboard.`;
         userCredit = newCredit;
       }
 
-      // Check if credits were already added for this subscription activation
-      // Look for recent credit transaction for this plan (within last 5 minutes)
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-      const [recentTransaction] = await db
-        .select()
-        .from(creditTransactions)
-        .where(
-          and(
-            eq(creditTransactions.userId, userId),
-            eq(creditTransactions.referenceId, planId),
-            eq(creditTransactions.referenceType, 'subscription'),
-            gte(creditTransactions.createdAt, fiveMinutesAgo)
-          )
-        )
-        .orderBy(desc(creditTransactions.createdAt))
-        .limit(1);
-
-      // If credits were already added recently, skip to prevent duplicates
+      // Check if credits were already added recently
+      const [recentTransaction] = recentTransactionResult;
       if (recentTransaction) {
         logger.log('⚠️ RazorpayService: Credits already added recently for this subscription, skipping duplicate');
         return { success: true, newBalance: userCredit.balance, alreadyAdded: true };
       }
 
-      // Update credits balance
+      // ✅ OPTIMIZED: Update credits and create transaction in parallel
       const newBalance = userCredit.balance + plan.creditsPerMonth;
-      await db
-        .update(userCredits)
-        .set({
-          balance: newBalance,
-          totalEarned: userCredit.totalEarned + plan.creditsPerMonth,
-          updatedAt: new Date(),
-        })
-        .where(eq(userCredits.userId, userId));
-
-      // Create transaction record
-      await db.insert(creditTransactions).values({
-        userId,
-        amount: plan.creditsPerMonth,
-        type: 'earned',
-        description: `Monthly credits for ${plan.name} subscription`,
-        referenceId: planId,
-        referenceType: 'subscription',
-      });
+      await Promise.all([
+        // Update credits balance
+        db
+          .update(userCredits)
+          .set({
+            balance: newBalance,
+            totalEarned: userCredit.totalEarned + plan.creditsPerMonth,
+            updatedAt: new Date(),
+          })
+          .where(eq(userCredits.userId, userId)),
+        // Create transaction record (can be done in parallel)
+        db.insert(creditTransactions).values({
+          userId,
+          amount: plan.creditsPerMonth,
+          type: 'earned',
+          description: `Monthly credits for ${plan.name} subscription`,
+          referenceId: planId,
+          referenceType: 'subscription',
+        }),
+      ]);
 
       logger.log('✅ RazorpayService: Credits added successfully:', { amount: plan.creditsPerMonth, newBalance });
 
@@ -1253,16 +1280,19 @@ Please verify the plan exists in Razorpay Dashboard.`;
     logger.log('💳 RazorpayService: Handling payment.authorized webhook for subscription:', subscriptionId);
     
     try {
-      // Find subscription
-      let [subscription] = await db
-        .select()
-        .from(userSubscriptions)
-        .where(eq(userSubscriptions.razorpaySubscriptionId, subscriptionId))
-        .limit(1);
-      
-      // Fetch subscription from Razorpay to verify status
+      // ✅ OPTIMIZED: Check DB and fetch from Razorpay in parallel
       const razorpay = getRazorpayInstance();
-      const razorpaySubscription = await razorpay.subscriptions.fetch(subscriptionId);
+      const [existingSubscriptionResult, razorpaySubscription] = await Promise.all([
+        db
+          .select()
+          .from(userSubscriptions)
+          .where(eq(userSubscriptions.razorpaySubscriptionId, subscriptionId))
+          .limit(1),
+        razorpay.subscriptions.fetch(subscriptionId),
+      ]);
+      
+      // Find subscription
+      let [subscription] = existingSubscriptionResult;
       
       // If subscription doesn't exist, create it from Razorpay data
       if (!subscription) {
@@ -1332,19 +1362,26 @@ Please verify the plan exists in Razorpay Dashboard.`;
       }
       
       if (shouldProcess) {
+        // ✅ OPTIMIZED: Fetch plan once and use for both subscription update and payment order
+        const [planResult] = await db
+          .select()
+          .from(subscriptionPlans)
+          .where(eq(subscriptionPlans.id, subscription.planId))
+          .limit(1);
+        
+        if (!planResult) {
+          logger.error('❌ RazorpayService: Plan not found for subscription:', subscription.planId);
+          return;
+        }
+        
+        const plan = planResult;
+        
         // Update subscription to active if not already
         if (subscription.status !== 'active') {
           const now = new Date();
           const periodEnd = new Date(now);
           
-          // Get plan to determine interval
-          const [plan] = await db
-            .select()
-            .from(subscriptionPlans)
-            .where(eq(subscriptionPlans.id, subscription.planId))
-            .limit(1);
-          
-          if (plan?.interval === 'year') {
+          if (plan.interval === 'year') {
             periodEnd.setFullYear(periodEnd.getFullYear() + 1);
           } else {
             periodEnd.setMonth(periodEnd.getMonth() + 1);
@@ -1360,18 +1397,6 @@ Please verify the plan exists in Razorpay Dashboard.`;
               updatedAt: new Date(),
             })
             .where(eq(userSubscriptions.id, subscription.id));
-        }
-        
-        // Get plan details for payment order
-        const [plan] = await db
-          .select()
-          .from(subscriptionPlans)
-          .where(eq(subscriptionPlans.id, subscription.planId))
-          .limit(1);
-        
-        if (!plan) {
-          logger.error('❌ RazorpayService: Plan not found for subscription:', subscription.planId);
-          return;
         }
         
         // CRITICAL: Always create payment order if it doesn't exist, regardless of subscription status

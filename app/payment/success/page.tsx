@@ -56,20 +56,17 @@ function PaymentSuccessContent() {
       if (verifyResult.success && (verifyResult.data?.alreadyActive || verifyResult.data?.activated)) {
         // Try to get payment order ID from subscription
         if (razorpaySubscriptionId) {
-          // Fetch payment history to find payment order
-          const historyResponse = await fetch('/api/payments/history?limit=1');
-          if (historyResponse.ok) {
-            const historyData = await historyResponse.json();
-            if (historyData.success && historyData.data?.payments?.[0]) {
-              const payment = historyData.data.payments[0];
-              if (payment.id) {
-                const newUrl = new URL(window.location.href);
-                newUrl.searchParams.set('payment_order_id', payment.id);
-                newUrl.searchParams.delete('verification');
-                window.history.replaceState({}, '', newUrl.toString());
-                fetchPaymentDetails();
-                return;
-              }
+          // ✅ OPTIMIZED: Use optimized endpoint instead of fetching entire history
+          const paymentResponse = await fetch(`/api/payments/by-subscription/${razorpaySubscriptionId}`);
+          if (paymentResponse.ok) {
+            const paymentData = await paymentResponse.json();
+            if (paymentData.success && paymentData.data?.id) {
+              const newUrl = new URL(window.location.href);
+              newUrl.searchParams.set('payment_order_id', paymentData.data.id);
+              newUrl.searchParams.delete('verification');
+              window.history.replaceState({}, '', newUrl.toString());
+              fetchPaymentDetails();
+              return;
             }
           }
         }
@@ -90,42 +87,14 @@ function PaymentSuccessContent() {
     try {
       setLoading(true);
 
-      // If we have subscription ID but no payment order ID, try to find it
-      if (!paymentOrderId && razorpaySubscriptionId) {
-        const historyResponse = await fetch('/api/payments/history?limit=10');
-        if (historyResponse.ok) {
-          const historyData = await historyResponse.json();
-          if (historyData.success && historyData.data?.payments) {
-            const payment = historyData.data.payments.find((p: any) => 
-              p.razorpaySubscriptionId === razorpaySubscriptionId || 
-              (p.type === 'subscription' && p.status === 'completed')
-            );
-            if (payment?.id) {
-              // Update URL with payment order ID
-              const newUrl = new URL(window.location.href);
-              newUrl.searchParams.set('payment_order_id', payment.id);
-              newUrl.searchParams.delete('verification');
-              window.history.replaceState({}, '', newUrl.toString());
-              // Continue with payment order ID
-              const receiptResponse = await fetch(`/api/payments/receipt/${payment.id}`);
-              if (receiptResponse.ok) {
-                const receiptData = await receiptResponse.json();
-                if (receiptData.success && receiptData.data?.receiptUrl) {
-                  setReceiptUrl(receiptData.data.receiptUrl);
-                }
-              }
-              setPaymentData(payment);
-              setLoading(false);
-              return;
-            }
-          }
-        }
-      }
-
-      // Only fetch receipt if we have paymentOrderId
+      // ✅ OPTIMIZED: Parallelize API calls based on what we have
       if (paymentOrderId) {
-        // Get receipt URL
-        const receiptResponse = await fetch(`/api/payments/receipt/${paymentOrderId}`);
+        // We have payment order ID - fetch receipt and payment in parallel
+        const [receiptResponse, paymentResponse] = await Promise.all([
+          fetch(`/api/payments/receipt/${paymentOrderId}`),
+          fetch(`/api/payments/${paymentOrderId}`), // New optimized endpoint
+        ]);
+
         if (receiptResponse.ok) {
           const receiptData = await receiptResponse.json();
           if (receiptData.success && receiptData.data?.receiptUrl) {
@@ -133,36 +102,66 @@ function PaymentSuccessContent() {
           }
         }
 
-        // Get payment history to find this payment
-        const historyResponse = await fetch('/api/payments/history?limit=10');
-        if (historyResponse.ok) {
-          const historyData = await historyResponse.json();
-          if (historyData.success && historyData.data?.payments) {
-            // Find the specific payment order
-            const payment = historyData.data.payments.find((p: any) => p.id === paymentOrderId) || historyData.data.payments[0];
-            if (payment) {
-              setPaymentData(payment);
-            }
+        if (paymentResponse.ok) {
+          const paymentData = await paymentResponse.json();
+          if (paymentData.success && paymentData.data) {
+            setPaymentData(paymentData.data);
           }
         }
       } else if (razorpaySubscriptionId) {
-        // Try to find payment order by subscription ID
-        const historyResponse = await fetch('/api/payments/history?limit=10');
-        if (historyResponse.ok) {
-          const historyData = await historyResponse.json();
-          if (historyData.success && historyData.data?.payments) {
-            const payment = historyData.data.payments.find((p: any) => 
-              p.razorpaySubscriptionId === razorpaySubscriptionId || 
-              (p.type === 'subscription' && p.status === 'completed')
-            );
-            if (payment) {
-              setPaymentData(payment);
-              // Update URL with payment order ID if found
-              if (payment.id) {
-                const newUrl = new URL(window.location.href);
-                newUrl.searchParams.set('payment_order_id', payment.id);
-                newUrl.searchParams.delete('verification');
-                window.history.replaceState({}, '', newUrl.toString());
+        // We have subscription ID - use optimized endpoint
+        const paymentResponse = await fetch(`/api/payments/by-subscription/${razorpaySubscriptionId}`);
+
+        if (paymentResponse.ok) {
+          const paymentData = await paymentResponse.json();
+          if (paymentData.success && paymentData.data) {
+            const payment = paymentData.data;
+            setPaymentData(payment);
+            
+            // Update URL with payment order ID if found
+            if (payment.id) {
+              const newUrl = new URL(window.location.href);
+              newUrl.searchParams.set('payment_order_id', payment.id);
+              newUrl.searchParams.delete('verification');
+              window.history.replaceState({}, '', newUrl.toString());
+              
+              // Now fetch receipt with payment ID
+              const receiptRes = await fetch(`/api/payments/receipt/${payment.id}`);
+              if (receiptRes.ok) {
+                const receiptData = await receiptRes.json();
+                if (receiptData.success && receiptData.data?.receiptUrl) {
+                  setReceiptUrl(receiptData.data.receiptUrl);
+                }
+              }
+            }
+          }
+        } else {
+          // Fallback: try history endpoint (less efficient but works)
+          const historyResponse = await fetch('/api/payments/history?limit=10');
+          if (historyResponse.ok) {
+            const historyData = await historyResponse.json();
+            if (historyData.success && historyData.data?.payments) {
+              const payment = historyData.data.payments.find((p: any) => 
+                p.razorpaySubscriptionId === razorpaySubscriptionId || 
+                (p.type === 'subscription' && p.status === 'completed')
+              );
+              if (payment) {
+                setPaymentData(payment);
+                if (payment.id) {
+                  const newUrl = new URL(window.location.href);
+                  newUrl.searchParams.set('payment_order_id', payment.id);
+                  newUrl.searchParams.delete('verification');
+                  window.history.replaceState({}, '', newUrl.toString());
+                  
+                  // Fetch receipt
+                  const receiptRes = await fetch(`/api/payments/receipt/${payment.id}`);
+                  if (receiptRes.ok) {
+                    const receiptData = await receiptRes.json();
+                    if (receiptData.success && receiptData.data?.receiptUrl) {
+                      setReceiptUrl(receiptData.data.receiptUrl);
+                    }
+                  }
+                }
               }
             }
           }

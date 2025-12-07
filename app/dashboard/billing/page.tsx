@@ -43,8 +43,8 @@ export const metadata: Metadata = {
 
 export default function BillingPage() {
   return (
-    <div className="h-full">
-      <div className="max-w-[2400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+    <div className="h-full w-full">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         <div className="space-y-4 sm:space-y-6">
           {/* Row 1: Plan Ticket Card (3/4) + Account Overview (1/4) */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 items-stretch">

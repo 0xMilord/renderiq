@@ -81,8 +81,8 @@ export default async function DashboardPage() {
   const successRate = totalRenders > 0 ? Math.round((completedRenders / totalRenders) * 100) : 0;
 
   return (
-    <div className="h-full">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+    <div className="h-full w-full">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Quick Actions Ribbon */}
         <div className="mb-4 sm:mb-6">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-muted/50 border border-border rounded-lg">

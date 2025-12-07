@@ -699,7 +699,11 @@ async function processRenderAsync(
       logger.error('❌ Generation failed:', result.error);
       await RendersDAL.updateStatus(renderId, 'failed', result.error);
       await addCredits(renderData.creditsCost, 'refund', 'Refund for failed generation', renderData.userId, 'refund');
-      return;
+      // ✅ FIXED: Return error object instead of undefined
+      return {
+        success: false,
+        error: result.error || 'Generation failed',
+      };
     }
 
     logger.log('✅ Generation successful, uploading to storage');

@@ -86,8 +86,8 @@ export default function ProjectsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background overflow-y-auto">
-        <div className="max-w-[2400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="h-full w-full flex items-center justify-center">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
@@ -101,8 +101,8 @@ export default function ProjectsPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background overflow-y-auto">
-        <div className="max-w-[2400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="h-full w-full">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center py-12">
             <div className="text-red-500 mb-4">Error loading projects</div>
             <p className="text-muted-foreground mb-4">{error}</p>
@@ -127,8 +127,8 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="h-full">
-      <div className="max-w-[2400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 pb-20">
+    <div className="h-full w-full">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 pb-20">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 space-y-4 sm:space-y-0">
           <div className="text-sm text-muted-foreground">
