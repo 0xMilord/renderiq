@@ -79,6 +79,7 @@ export function GalleryItemPageClient({ item, similarItems }: GalleryItemPageCli
     // Reset loading states when item changes
     setImageLoading(true);
     setImageError(false);
+    setImageDimensions(null); // Reset dimensions when item changes
     
     // Reset refs when item changes
     if (viewRecordedRef.current) {
@@ -89,16 +90,40 @@ export function GalleryItemPageClient({ item, similarItems }: GalleryItemPageCli
       likeStatusCheckedRef.current = false;
     }
     
-    // Set default dimensions (16:9)
-    setImageDimensions({ width: 1920, height: 1080 });
+    // Detect actual image dimensions
+    const detectImageDimensions = () => {
+      const imageUrl = item.render.uploadedImageUrl || item.render.outputUrl;
+      if (!imageUrl) {
+        // Default to 16:9 if no image
+        setImageDimensions({ width: 1920, height: 1080 });
+        return;
+      }
+
+      const img = new window.Image();
+      img.onload = () => {
+        setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight });
+        setImageLoading(false);
+      };
+      img.onerror = () => {
+        // Fallback to 16:9 on error
+        setImageDimensions({ width: 1920, height: 1080 });
+        setImageLoading(false);
+      };
+      img.src = imageUrl;
+    };
+
+    detectImageDimensions();
 
     // Timeout fallback - force hide loader after 15 seconds
     const timeoutId = setTimeout(() => {
       setImageLoading(false);
+      if (!imageDimensions) {
+        setImageDimensions({ width: 1920, height: 1080 });
+      }
     }, 15000);
 
     return () => clearTimeout(timeoutId);
-  }, [item.id]); // Only depend on item.id, not outputUrl (prevents unnecessary re-runs)
+  }, [item.id, item.render.outputUrl, item.render.uploadedImageUrl]); // Include image URLs to detect dimensions when they change
 
   const handleLike = async () => {
     const result = await likeGalleryItem(item.id);
@@ -385,53 +410,73 @@ export function GalleryItemPageClient({ item, similarItems }: GalleryItemPageCli
                         position: relative;
                         width: 100%;
                         max-width: 100%;
-                        overflow: hidden;
+                        overflow: visible;
                         box-sizing: border-box;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
                       }
                       .gallery-item-slider-wrapper .react-before-after-slider-container {
-                        width: 100% !important;
+                        width: auto !important;
                         max-width: 100% !important;
-                        height: 100% !important;
+                        height: auto !important;
+                        max-height: 80vh !important;
                         position: relative !important;
-                        overflow: hidden !important;
+                        overflow: visible !important;
                         box-sizing: border-box !important;
+                        display: inline-block !important;
                       }
-                      .gallery-item-slider-wrapper .react-before-after-slider-container img {
-                        width: 100% !important;
+                      .gallery-item-slider-wrapper .react-before-after-slider-container > div {
+                        width: auto !important;
                         max-width: 100% !important;
-                        height: 100% !important;
+                        height: auto !important;
+                        position: relative !important;
+                      }
+                      .gallery-item-slider-wrapper .react-before-after-slider-container > div > div {
+                        width: auto !important;
+                        max-width: 100% !important;
+                        height: auto !important;
+                      }
+                      .gallery-item-slider-wrapper .react-before-after-slider-container img,
+                      .gallery-item-slider-wrapper .react-before-after-slider-container picture,
+                      .gallery-item-slider-wrapper .react-before-after-slider-container picture img {
+                        width: auto !important;
+                        max-width: 100% !important;
+                        height: auto !important;
+                        max-height: 80vh !important;
                         object-fit: contain !important;
                         object-position: center !important;
                         box-sizing: border-box !important;
+                        display: block !important;
                       }
                     `}} />
                     <div 
-                      className="relative w-full gallery-item-slider-wrapper" 
+                      className="relative w-full gallery-item-slider-wrapper flex items-center justify-center" 
                       style={{ 
-                        aspectRatio: imageDimensions.width / imageDimensions.height,
                         maxWidth: '100%',
-                        maxHeight: '100%'
+                        maxHeight: '80vh',
+                        minHeight: '400px'
                       }}
                     >
-                      <div className="absolute inset-0 overflow-hidden">
+                      <div className="flex items-center justify-center">
                         <ReactBeforeSliderComponent
                           firstImage={{ imageUrl: item.render.outputUrl }}
                           secondImage={{ imageUrl: item.render.uploadedImageUrl }}
-                          currentPercentPosition={75} // 75% shows more of the generated image
+                          currentPercentPosition={75} // 75% shows more of the generated image (after)
                         />
                       </div>
-                      {/* Labels - Bottom corners: After on left (generated image), Before on right (uploaded image) */}
+                      {/* Labels - Bottom corners: Before on left (uploaded image), After on right (generated image) */}
                       <div className="absolute bottom-4 left-4 bg-background/90 backdrop-blur-sm border border-border text-foreground px-3 py-1.5 rounded-md text-sm font-medium z-10">
-                        After (Generated)
+                        Before (Uploaded)
                       </div>
                       <div className="absolute bottom-4 right-4 bg-background/90 backdrop-blur-sm border border-border text-foreground px-3 py-1.5 rounded-md text-sm font-medium z-10">
-                        Before (Uploaded)
+                        After (Generated)
                       </div>
                     </div>
                   </>
                 ) : item.render.outputUrl ? (
                   // Regular Image Display (no uploaded image)
-                  <div className="relative w-full" style={{ aspectRatio: imageDimensions ? imageDimensions.width / imageDimensions.height : 16/9 }}>
+                  <div className="relative w-full flex items-center justify-center" style={{ maxHeight: '80vh', minHeight: '400px' }}>
                     {imageLoading && (
                       <div className="absolute inset-0 flex items-center justify-center bg-muted z-10">
                         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -444,9 +489,10 @@ export function GalleryItemPageClient({ item, similarItems }: GalleryItemPageCli
                           src={item.render.outputUrl}
                           alt={item.render.prompt || 'AI-generated architectural render'}
                           className={cn(
-                            "absolute inset-0 w-full h-full object-contain transition-opacity duration-300",
+                            "w-full h-auto max-h-[80vh] object-contain transition-opacity duration-300",
                             imageLoading ? "opacity-0" : "opacity-100"
                           )}
+                          style={{ maxWidth: '100%', maxHeight: '80vh' }}
                           onLoad={() => {
                             setImageLoading(false);
                           }}
@@ -457,16 +503,14 @@ export function GalleryItemPageClient({ item, similarItems }: GalleryItemPageCli
                           itemProp="image"
                         />
                       ) : (
-                        <Image
+                        <img
                           src={item.render.outputUrl}
                           alt={item.render.prompt || 'AI-generated architectural render'}
-                          fill
                           className={cn(
-                            "object-contain transition-opacity duration-300",
+                            "w-full h-auto max-h-[80vh] object-contain transition-opacity duration-300",
                             imageLoading ? "opacity-0" : "opacity-100"
                           )}
-                          priority
-                          sizes="(max-width: 1024px) 100vw, 80vw"
+                          style={{ maxWidth: '100%', maxHeight: '80vh' }}
                           onLoad={() => {
                             setImageLoading(false);
                           }}
@@ -485,7 +529,8 @@ export function GalleryItemPageClient({ item, similarItems }: GalleryItemPageCli
                       <img
                         src={item.render.outputUrl}
                         alt={item.render.prompt || 'AI-generated architectural render'}
-                        className="w-full h-full object-contain"
+                        className="w-full h-auto max-h-[80vh] object-contain"
+                        style={{ maxWidth: '100%', maxHeight: '80vh' }}
                         onLoad={() => {
                           setImageError(false);
                           setImageLoading(false);

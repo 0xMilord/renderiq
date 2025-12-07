@@ -648,6 +648,20 @@ export class RendersDAL {
       );
     }
     
+    // Build keyword filter conditions if provided (more efficient than client-side filtering)
+    if (criteria.promptKeywords && criteria.promptKeywords.length > 0) {
+      // Use SQL ILIKE for case-insensitive keyword matching
+      const keywordConditions = criteria.promptKeywords.map(keyword => 
+        sql`LOWER(${renders.prompt}) LIKE ${`%${keyword.toLowerCase()}%`}`
+      );
+      conditions.push(or(...keywordConditions));
+    }
+    
+    // Only fetch extra items if we're filtering by keywords (to account for filtering)
+    const fetchLimit = (criteria.promptKeywords && criteria.promptKeywords.length > 0) 
+      ? limit * 2 
+      : limit;
+    
     // Get items matching criteria
     let items = await db
       .select({
@@ -684,18 +698,12 @@ export class RendersDAL {
       .innerJoin(users, eq(galleryItems.userId, users.id))
       .where(and(...conditions))
       .orderBy(desc(sql`${galleryItems.likes} + ${galleryItems.views}`))
-      .limit(limit * 2); // Get more to filter by prompt keywords
+      .limit(fetchLimit);
     
-    // Filter by prompt keywords if provided
-    if (criteria.promptKeywords && criteria.promptKeywords.length > 0) {
-      items = items.filter(item => {
-        const prompt = (item.render.prompt || '').toLowerCase();
-        return criteria.promptKeywords!.some(keyword => prompt.includes(keyword.toLowerCase()));
-      });
+    // Limit to requested amount (only needed if we fetched extra)
+    if (fetchLimit > limit) {
+      items = items.slice(0, limit);
     }
-    
-    // Limit to requested amount
-    items = items.slice(0, limit);
     
     logger.log(`✅ Found ${items.length} similar gallery items`);
     return items;

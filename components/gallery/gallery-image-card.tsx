@@ -533,20 +533,54 @@ export function GalleryImageCard({
             {/* Only show comparison for images, never for videos */}
             {!isVideo ? (
               <div 
-                className="relative w-full overflow-hidden bg-muted"
+                className="relative w-full overflow-visible bg-muted flex items-center justify-center"
                 style={{
-                  aspectRatio: displayAspectRatio,
+                  maxHeight: '600px',
+                  minHeight: '300px'
                 }}
                 onClick={(e) => {
                   // Prevent navigation when interacting with the slider
                   e.stopPropagation();
                 }}
               >
-                <ReactBeforeSliderComponent
-                  firstImage={{ imageUrl: item.render.outputUrl }}
-                  secondImage={{ imageUrl: item.render.uploadedImageUrl }}
-                  currentPercentPosition={75}
-                />
+                <style dangerouslySetInnerHTML={{ __html: `
+                  .gallery-card-slider-wrapper .react-before-after-slider-container {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    height: auto !important;
+                    max-height: 600px !important;
+                    position: relative !important;
+                    overflow: visible !important;
+                    box-sizing: border-box !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                  }
+                  .gallery-card-slider-wrapper .react-before-after-slider-container > div {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    height: auto !important;
+                    position: relative !important;
+                  }
+                  .gallery-card-slider-wrapper .react-before-after-slider-container img,
+                  .gallery-card-slider-wrapper .react-before-after-slider-container picture img {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    height: auto !important;
+                    max-height: 600px !important;
+                    object-fit: contain !important;
+                    object-position: center !important;
+                    box-sizing: border-box !important;
+                    display: block !important;
+                  }
+                `}} />
+                <div className="gallery-card-slider-wrapper w-full">
+                  <ReactBeforeSliderComponent
+                    firstImage={{ imageUrl: item.render.outputUrl }}
+                    secondImage={{ imageUrl: item.render.uploadedImageUrl }}
+                    currentPercentPosition={75}
+                  />
+                </div>
                 {/* Labels - Bottom corners: Before on left (uploaded image), After on right (generated image) */}
                 <div className="absolute bottom-2 left-2 bg-background/90 backdrop-blur-sm border border-border text-foreground px-2 py-1 rounded text-xs font-medium z-10">
                   Before
