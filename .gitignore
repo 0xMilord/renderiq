@@ -33,6 +33,13 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# Google Cloud Service Account keys (NEVER commit these!)
+service-account-key.json
+*-service-account*.json
+*.json.key
+*.p12
+*.key
+
 # vercel
 .vercel
 
