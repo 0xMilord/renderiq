@@ -25,7 +25,8 @@ import {
   FileText,
   RefreshCw,
   Sparkles,
-  Command
+  Command,
+  Users
 } from 'lucide-react';
 import { 
   FaXTwitter, 
@@ -37,8 +38,15 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { CreateProjectModal } from '@/components/projects/create-project-modal';
+import { EditProjectModal } from '@/components/projects/edit-project-modal';
+import { DuplicateProjectModal } from '@/components/projects/duplicate-project-modal';
+import { DeleteProjectDialog } from '@/components/projects/delete-project-dialog';
+import { ShareProjectModal } from '@/components/projects/share-project-modal';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ProjectTree } from '@/components/dashboard/project-tree';
+import { Edit, Copy, Trash2, Share2, Globe, Lock } from 'lucide-react';
+import { useProjects } from '@/lib/hooks/use-projects';
+import { toSentenceCase } from '@/lib/utils';
 import type { Project, RenderChain } from '@/lib/db/schema';
 
 interface DashboardLayoutProps {
@@ -58,6 +66,7 @@ const pageTitles: Record<string, string> = {
   '/dashboard/billing/history': 'Payment History & Invoices',
   '/dashboard/billing/history/credits': 'Credit Transactions',
   '/dashboard/likes': 'Liked Renders',
+  '/dashboard/ambassador': 'Ambassador Program',
   '/dashboard/profile': 'User Profile',
   '/dashboard/settings': 'Account Settings',
 };
@@ -71,6 +80,7 @@ const pageDescriptions: Record<string, string> = {
   '/dashboard/billing/history': 'View all your payment transactions and invoices',
   '/dashboard/billing/history/credits': 'Track all your credit transactions and usage',
   '/dashboard/likes': "Here's what you've liked",
+  '/dashboard/ambassador': 'Manage your ambassador account, track referrals, and view earnings',
   '/dashboard/profile': 'View and manage your profile information',
   '/dashboard/settings': 'Your command center for account preferences',
 };
@@ -84,6 +94,7 @@ const pageIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   '/dashboard/billing/history': FileText,
   '/dashboard/billing/history/credits': RefreshCw,
   '/dashboard/likes': Heart,
+  '/dashboard/ambassador': Users,
   '/dashboard/profile': User,
   '/dashboard/settings': Command,
 };
@@ -107,7 +118,27 @@ function getPageTitle(pathname: string): string {
 }
 
 // Helper function to get page description from pathname (for main content)
-function getPageDescription(pathname: string): string {
+function getPageDescription(pathname: string, projects: Project[] = [], chains: ChainWithRenders[] = []): string {
+  // Check for chain detail page: /dashboard/projects/[slug]/chain/[chainId]
+  const chainMatch = pathname.match(/^\/dashboard\/projects\/([^/]+)\/chain\/([^/]+)$/);
+  if (chainMatch) {
+    const [, slug, chainId] = chainMatch;
+    const chain = chains.find(c => c.id === chainId);
+    if (chain) {
+      return chain.name;
+    }
+  }
+  
+  // Check for project detail page: /dashboard/projects/[slug]
+  const projectMatch = pathname.match(/^\/dashboard\/projects\/([^/]+)$/);
+  if (projectMatch) {
+    const [, slug] = projectMatch;
+    const project = projects.find(p => p.slug === slug);
+    if (project) {
+      return toSentenceCase(project.name);
+    }
+  }
+  
   // Check exact matches first
   if (pageDescriptions[pathname]) {
     return pageDescriptions[pathname];
@@ -122,6 +153,16 @@ function getPageDescription(pathname: string): string {
   
   // Default description
   return "Here's what's happening";
+}
+
+// Helper function to get current project from pathname
+function getCurrentProject(pathname: string, projects: Project[] = []): Project | null {
+  const projectMatch = pathname.match(/^\/dashboard\/projects\/([^/]+)$/);
+  if (projectMatch) {
+    const [, slug] = projectMatch;
+    return projects.find(p => p.slug === slug) || null;
+  }
+  return null;
 }
 
 // Helper function to get page icon from pathname (for main content)
@@ -150,6 +191,7 @@ const navItems = [
   { href: '/dashboard/library', icon: BookOpen, label: 'Library' },
   { href: '/dashboard/billing', icon: CreditCard, label: 'Billing' },
   { href: '/dashboard/likes', icon: Heart, label: 'Likes' },
+  { href: '/dashboard/ambassador', icon: Users, label: 'Ambassador' },
   { href: '/dashboard/profile', icon: User, label: 'Profile' },
   { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
 ];
@@ -167,8 +209,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   // Get current page title (for sidebar), description, and icon (for main content)
   const currentPageTitle = getPageTitle(pathname);
-  const currentPageDescription = getPageDescription(pathname);
+  const currentPageDescription = getPageDescription(pathname, projects, chains);
   const CurrentPageIcon = getPageIcon(pathname);
+  
+  // Get current project if on project detail page
+  const currentProject = useMemo(() => getCurrentProject(pathname, projects), [pathname, projects]);
+  
+  // Project action modals state
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  
+  const { updateProject, removeProject, duplicateProject } = useProjects();
 
   // Get user display info - memoized to avoid recalculating on every render
   const { userName, userEmail, userAvatar, userInitials } = useMemo(() => {
@@ -301,7 +354,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         className={cn(
           "flex flex-col border-r bg-card transition-all duration-300 shrink-0 overflow-hidden",
           isSidebarOpen 
-            ? "w-full max-w-[40vw] sm:w-60" 
+            ? "w-1/2 sm:w-60" 
             : "w-12"
         )}
       >
@@ -387,7 +440,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                         </Button>
                       </div>
                       {expandedBilling && (
-                        <div className="ml-7 space-y-1 mt-1">
+                        <div className="ml-1 space-y-1 mt-1">
                           <Link
                             href="/dashboard/billing/history"
                             className={cn(
@@ -456,7 +509,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                         </Button>
                       </div>
                       {isProjectsExpanded && (
-                        <div className="ml-7 space-y-1 mt-1">
+                        <div className="ml-1 space-y-1 mt-1">
                           {loading ? (
                             <div className="text-xs text-muted-foreground px-2 py-1 ml-7">Loading...</div>
                           ) : projects.length === 0 ? (
@@ -691,11 +744,104 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Header */}
-        <div className="px-4 border-b shrink-0 h-16 flex items-center pointer-events-auto">
+        <div className="px-4 border-b shrink-0 h-16 flex items-center justify-between pointer-events-auto">
           <div className="min-w-0 flex-1 overflow-hidden flex items-center gap-3">
             <CurrentPageIcon className="h-5 w-5 text-primary shrink-0" />
             <h2 className="text-lg font-semibold text-foreground truncate min-w-0">{currentPageDescription}</h2>
           </div>
+          {/* Projects Page Actions */}
+          {pathname === '/dashboard/projects' && (
+            <div className="flex items-center gap-2 shrink-0 ml-4">
+              <div className="flex flex-col items-end gap-1">
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => fetchData()}
+                    disabled={loading}
+                    className="flex items-center gap-2"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                    <span className="hidden sm:inline">Refresh</span>
+                  </Button>
+                  <CreateProjectModal onProjectCreated={() => fetchData()}>
+                    <Button size="sm" className="flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      <span className="hidden sm:inline">New Project</span>
+                    </Button>
+                  </CreateProjectModal>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {projects.length} project{projects.length !== 1 ? 's' : ''}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Project Detail Page Actions */}
+          {currentProject && (
+            <div className="flex items-center gap-2 shrink-0 ml-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditModalOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <Edit className="h-4 w-4" />
+                <span className="hidden sm:inline">Edit</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDuplicateModalOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <Copy className="h-4 w-4" />
+                <span className="hidden sm:inline">Duplicate</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShareModalOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <Share2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Share</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  if (currentProject) {
+                    await updateProject(currentProject.id, { isPublic: !currentProject.isPublic });
+                    fetchData();
+                  }
+                }}
+                className="flex items-center gap-2"
+              >
+                {currentProject.isPublic ? (
+                  <>
+                    <Globe className="h-4 w-4" />
+                    <span className="hidden sm:inline">Public</span>
+                  </>
+                ) : (
+                  <>
+                    <Lock className="h-4 w-4" />
+                    <span className="hidden sm:inline">Private</span>
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDeleteDialogOpen(true)}
+                className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950 border-red-200 dark:border-red-800"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Delete</span>
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Page Content - ✅ FIXED: Full width and height */}
@@ -703,6 +849,48 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           {children}
         </div>
       </div>
+      
+      {/* Project Action Modals */}
+      {currentProject && (
+        <>
+          <EditProjectModal
+            project={currentProject}
+            open={editModalOpen}
+            onOpenChange={setEditModalOpen}
+            onProjectUpdated={(updatedProject) => {
+              fetchData();
+              setEditModalOpen(false);
+            }}
+          />
+          <DuplicateProjectModal
+            project={currentProject}
+            open={duplicateModalOpen}
+            onOpenChange={setDuplicateModalOpen}
+            onProjectDuplicated={() => {
+              fetchData();
+              setDuplicateModalOpen(false);
+            }}
+          />
+          <DeleteProjectDialog
+            project={currentProject}
+            open={deleteDialogOpen}
+            onOpenChange={setDeleteDialogOpen}
+            onConfirm={async (projectId: string) => {
+              await removeProject(projectId);
+              fetchData();
+              router.push('/dashboard/projects');
+            }}
+          />
+          <ShareProjectModal
+            project={currentProject}
+            open={shareModalOpen}
+            onOpenChange={setShareModalOpen}
+            onProjectUpdated={(updatedProject) => {
+              fetchData();
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }

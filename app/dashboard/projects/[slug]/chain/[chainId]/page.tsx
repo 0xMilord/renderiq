@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { 
   ArrowLeft, 
-  GitBranch, 
   Image as ImageIcon,
   Loader2,
   Plus,
@@ -81,31 +80,8 @@ export default function ChainDetailPage({
   return (
     <div className="h-full w-full">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 space-y-4 sm:space-y-0">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 min-w-0 flex-1">
-            <Button variant="ghost" size="sm" asChild className="self-start shrink-0">
-              <Link href={`/dashboard/projects/${slug}`}>
-                <ArrowLeft className="h-4 w-4 mr-2 shrink-0" />
-                <span className="text-sm">Back</span>
-              </Link>
-            </Button>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2 mb-2">
-                <GitBranch className="h-5 w-5 sm:h-6 sm:w-6 text-primary shrink-0" />
-                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground truncate">{chain.name}</h1>
-                <Badge variant="secondary" className="text-xs sm:text-sm shrink-0">
-                  {renders.length} version{renders.length !== 1 ? 's' : ''}
-                </Badge>
-              </div>
-              {chain.description && (
-                <p className="text-sm sm:text-base text-muted-foreground break-words">{chain.description}</p>
-              )}
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                Created {formatDistanceToNow(new Date(chain.createdAt), { addSuffix: true })}
-              </p>
-            </div>
-          </div>
+        {/* Continue Chain Button */}
+        <div className="mb-6 sm:mb-8 flex justify-end">
           <Link href={`/project/${slug}/chain/${chain.id}`}>
             <Button>
               <Plus className="h-4 w-4 mr-2" />

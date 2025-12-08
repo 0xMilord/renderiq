@@ -149,6 +149,25 @@ export class UserOnboardingService {
         logger.log('⚠️ UserOnboarding: No credits awarded, skipping welcome transaction');
       }
 
+      // Track ambassador referral if present
+      if (context?.request) {
+        try {
+          const cookies = context.request.headers.get('cookie') || '';
+          const ambassadorRefMatch = cookies.match(/ambassador_ref=([^;]+)/);
+          if (ambassadorRefMatch) {
+            const referralCode = ambassadorRefMatch[1];
+            logger.log('🔗 UserOnboarding: Tracking ambassador referral:', referralCode);
+            
+            // Import here to avoid circular dependency
+            const { AmbassadorService } = await import('./ambassador.service');
+            await AmbassadorService.trackSignup(referralCode, userProfile.id);
+          }
+        } catch (error) {
+          logger.warn('⚠️ UserOnboarding: Failed to track ambassador referral:', error);
+          // Don't fail user creation if referral tracking fails
+        }
+      }
+
       return {
         success: true,
         data: newUser,

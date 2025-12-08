@@ -21,12 +21,14 @@ interface RenderToCADProps {
   hintMessage?: string | null;
 }
 
-type DrawingType = 'floor-plan' | 'elevation' | 'section';
+type FloorPlanType = 'normal-floor-plan' | 'reflected-ceiling-plan';
 type ElevationSide = 'front' | 'back' | 'left' | 'right';
+type SectionCutDirection = 'latitudinal' | 'longitudinal';
 
 export function RenderToCAD({ tool, projectId, onHintChange, hintMessage }: RenderToCADProps) {
-  const [selectedDrawings, setSelectedDrawings] = useState<Set<DrawingType>>(new Set(['floor-plan']));
+  const [selectedFloorPlans, setSelectedFloorPlans] = useState<Set<FloorPlanType>>(new Set(['normal-floor-plan']));
   const [selectedElevationSides, setSelectedElevationSides] = useState<Set<ElevationSide>>(new Set(['front']));
+  const [selectedSectionCuts, setSelectedSectionCuts] = useState<Set<SectionCutDirection>>(new Set(['longitudinal']));
   const [includeText, setIncludeText] = useState<boolean>(true);
   const [style, setStyle] = useState<string>('technical');
   const [styleReferenceImage, setStyleReferenceImage] = useState<File | null>(null);
@@ -35,10 +37,10 @@ export function RenderToCAD({ tool, projectId, onHintChange, hintMessage }: Rend
   const [styleDialogOpen, setStyleDialogOpen] = useState(false);
 
   // Calculate total number of drawings to generate
+  // Supports up to 8+ drawings: 2 floor plans + 4 elevations + 2 sections = 8 total
+  // Infrastructure supports unlimited batch size via async processing
   const calculateTotalDrawings = (): number => {
-    return Array.from(selectedDrawings).reduce((count, type) => {
-      return count + (type === 'elevation' ? selectedElevationSides.size : 1);
-    }, 0);
+    return selectedFloorPlans.size + selectedElevationSides.size + selectedSectionCuts.size;
   };
 
   // Calculate credits cost: total drawings × quality multiplier
@@ -52,26 +54,48 @@ export function RenderToCAD({ tool, projectId, onHintChange, hintMessage }: Rend
     return totalDrawings * baseCreditsPerDrawing * qualityMultiplier;
   };
 
-  // Build system prompt for a specific drawing type and elevation side
+  // Build system prompt for a specific drawing type
   const buildSystemPrompt = (
-    drawingType: DrawingType, 
+    drawingType: 'floor-plan' | 'elevation' | 'section',
+    floorPlanType?: FloorPlanType,
     elevationSide?: ElevationSide,
+    sectionCutDirection?: SectionCutDirection,
     styleRefImage?: File | null,
     styleRefName?: string | null,
     includeTextParam?: boolean
   ): string => {
     // Use passed parameter or fallback to state
     const shouldIncludeText = includeTextParam !== undefined ? includeTextParam : includeText;
-    // Drawing type configurations
+    
+    // Drawing type configurations - notation references are conditional based on text inclusion
     const drawingTypeConfigs = {
       'floor-plan': {
-        type: 'floor plan',
-        role: 'expert architectural draftsman specializing in technical floor plan drawings',
-        task: 'Transform the architectural render into a precise technical floor plan drawing showing spatial layout, room divisions, openings, and architectural elements',
-        description: 'A top-down orthographic view showing the layout of spaces, rooms, walls, doors, windows, and other architectural elements as if viewed from above',
-        elements: 'room boundaries, walls, doors, windows, openings, stairs, columns, structural elements, spatial relationships, and circulation paths',
-        conventions: 'standard architectural floor plan conventions including wall thickness, door swings, window symbols, and room labels',
-        focus: 'spatial accuracy, clear room definitions, and proper architectural notation'
+        'normal-floor-plan': {
+          type: 'normal floor plan',
+          role: 'expert architectural draftsman specializing in technical floor plan drawings',
+          task: 'Transform the architectural render into a precise technical normal floor plan drawing showing spatial layout, room divisions, openings, and architectural elements as viewed from above',
+          description: 'A top-down orthographic view showing the layout of spaces, rooms, walls, doors, windows, and other architectural elements as if viewed from above',
+          elements: 'room boundaries, walls, doors, windows, openings, stairs, columns, structural elements, spatial relationships, and circulation paths',
+          conventions: shouldIncludeText 
+            ? 'standard architectural floor plan conventions including wall thickness, door swings, window symbols, and room labels'
+            : 'standard architectural floor plan conventions including wall thickness, door swings, window symbols, and graphical symbols (NO text labels)',
+          focus: shouldIncludeText
+            ? 'spatial accuracy, clear room definitions, and proper architectural notation'
+            : 'spatial accuracy, clear room definitions, and graphical symbols only (NO text)'
+        },
+        'reflected-ceiling-plan': {
+          type: 'reflected ceiling plan',
+          role: 'expert architectural draftsman specializing in technical reflected ceiling plan drawings',
+          task: 'Transform the architectural render into a precise technical reflected ceiling plan drawing showing ceiling layout, lighting fixtures, HVAC elements, and overhead architectural features',
+          description: 'A top-down orthographic view showing the ceiling as if reflected in a mirror on the floor, displaying ceiling layout, lighting, HVAC, and overhead elements',
+          elements: 'ceiling boundaries, lighting fixtures, HVAC diffusers, ceiling materials, overhead architectural features, and ceiling-mounted elements',
+          conventions: shouldIncludeText
+            ? 'standard architectural reflected ceiling plan conventions including lighting symbols, HVAC symbols, and ceiling material representation'
+            : 'standard architectural reflected ceiling plan conventions including lighting symbols, HVAC symbols, and ceiling material representation (NO text labels)',
+          focus: shouldIncludeText
+            ? 'ceiling layout accuracy, lighting placement, and proper RCP notation'
+            : 'ceiling layout accuracy, lighting placement, and graphical symbols only (NO text)'
+        }
       },
       'elevation': {
         type: `elevation drawing (${elevationSide || 'front'} elevation)`,
@@ -79,25 +103,48 @@ export function RenderToCAD({ tool, projectId, onHintChange, hintMessage }: Rend
         task: `Transform the architectural render into a precise technical ${elevationSide || 'front'} elevation drawing showing the building facade, openings, and vertical elements`,
         description: `A vertical orthographic projection showing the ${elevationSide || 'front'} face of the building as if viewed perpendicular to that face`,
         elements: 'building facade, windows, doors, openings, vertical elements, roof lines, material changes, architectural details, and vertical dimensions',
-        conventions: 'standard architectural elevation conventions including line weights for different elements, material representation, and vertical dimensioning',
-        focus: 'vertical accuracy, facade details, and proper architectural elevation notation'
+        conventions: shouldIncludeText
+          ? 'standard architectural elevation conventions including line weights for different elements, material representation, and vertical dimensioning'
+          : 'standard architectural elevation conventions including line weights for different elements, material representation, and graphical dimension lines (NO dimension text or numbers)',
+        focus: shouldIncludeText
+          ? 'vertical accuracy, facade details, and proper architectural elevation notation'
+          : 'vertical accuracy, facade details, and graphical symbols only (NO text)'
       },
       'section': {
-        type: 'section drawing',
+        type: `section drawing (${sectionCutDirection || 'longitudinal'} cut)`,
         role: 'expert architectural draftsman specializing in technical section drawings',
-        task: 'Transform the architectural render into a precise technical section drawing showing the building cut through vertically to reveal interior structure',
-        description: 'A vertical cut through the building showing interior structure, floor levels, ceiling heights, and spatial relationships',
+        task: `Transform the architectural render into a precise technical section drawing showing the building cut through ${sectionCutDirection === 'latitudinal' ? 'latitudinally (across the width)' : 'longitudinally (along the length)'} to reveal interior structure`,
+        description: `A vertical cut through the building ${sectionCutDirection === 'latitudinal' ? 'across the width (latitudinal)' : 'along the length (longitudinal)'} showing interior structure, floor levels, ceiling heights, and spatial relationships`,
         elements: 'structural elements, floor levels, ceiling heights, interior spaces, vertical circulation, building envelope, and dimensional relationships',
-        conventions: 'standard architectural section conventions including cut lines, material hatching, and section notation',
-        focus: 'structural accuracy, spatial relationships, and proper section drawing conventions'
+        conventions: shouldIncludeText
+          ? 'standard architectural section conventions including cut lines, material hatching, and section notation'
+          : 'standard architectural section conventions including cut lines, material hatching, and graphical symbols (NO text)',
+        focus: shouldIncludeText
+          ? 'structural accuracy, spatial relationships, and proper section drawing conventions'
+          : 'structural accuracy, spatial relationships, and graphical symbols only (NO text)'
       }
     };
 
-    const config = drawingTypeConfigs[drawingType];
+    let config: any;
+    if (drawingType === 'floor-plan' && floorPlanType) {
+      config = drawingTypeConfigs['floor-plan'][floorPlanType];
+    } else if (drawingType === 'elevation') {
+      config = drawingTypeConfigs['elevation'];
+    } else if (drawingType === 'section') {
+      config = drawingTypeConfigs['section'];
+    } else {
+      // Fallback
+      config = drawingTypeConfigs['floor-plan']['normal-floor-plan'];
+    }
     
     // Elevation side description
     const elevationSideDescription = drawingType === 'elevation' && elevationSide
       ? ` Focus specifically on the ${elevationSide} elevation. If the input shows multiple sides, extract and create the ${elevationSide} elevation view.`
+      : '';
+
+    // Section cut direction description
+    const sectionCutDescription = drawingType === 'section' && sectionCutDirection
+      ? ` Create a ${sectionCutDirection === 'latitudinal' ? 'latitudinal (across the width)' : 'longitudinal (along the length)'} section cut.`
       : '';
 
     // Text inclusion settings - use the resolved value
@@ -106,9 +153,12 @@ export function RenderToCAD({ tool, projectId, onHintChange, hintMessage }: Rend
       : 'CRITICAL: DO NOT include ANY text labels, text annotations, written text, dimension text, dimension numbers, dimension values, or ANY readable text characters. Use ONLY graphical annotation symbols, dimension lines (without text), leader lines (without text), and graphical symbols. NO text of any kind. Users will add clean, proper, editable text in post-processing using CAD software.';
 
     // Style reference instruction - use passed parameters or fallback to state
+    // Respect text inclusion toggle - don't mention text/annotation style if text is excluded
     const hasStyleRef = styleRefImage || styleRefName || styleReferenceImage || styleReferenceName;
     const styleReferenceInstruction = hasStyleRef
-      ? ' IMPORTANT: A style reference image has been provided. Match the visual style, line weights, annotation style, hatching patterns, dimensioning style, and overall aesthetic of the style reference image. The style reference shows the desired CAD drawing style - replicate its line quality, annotation approach, and presentation style while maintaining technical accuracy.'
+      ? shouldIncludeText
+        ? ' IMPORTANT: A style reference image has been provided. Match the visual style, line weights, annotation style, hatching patterns, dimensioning style, and overall aesthetic of the style reference image. The style reference shows the desired CAD drawing style - replicate its line quality, annotation approach, and presentation style while maintaining technical accuracy.'
+        : ' IMPORTANT: A style reference image has been provided. Match the visual style, line weights, hatching patterns, and overall aesthetic of the style reference image. The style reference shows the desired CAD drawing style - replicate its line quality and presentation style while maintaining technical accuracy. Do NOT include text from the style reference - use only graphical symbols.'
       : '';
 
     // Following Gemini 3 best practices: structured, precise, with clear constraints
@@ -117,7 +167,7 @@ You are an ${config.role}.
 </role>
 
 <task>
-${config.task}.${elevationSideDescription} The input may show any architectural content: whole buildings (any type or style), building components, interior spaces, exterior views, or detail views. Create an appropriate ${config.type} that accurately represents the architectural content shown.
+${config.task}.${elevationSideDescription}${sectionCutDescription} Create a complete, full "as-is" ${config.type} that accurately represents ALL architectural content shown in the input render.
 
 CRITICAL: Generate ONLY ONE single ${config.type} drawing. Do NOT create multiple drawings, compositions, or combined views. Output must be a single, standalone ${config.type} image.
 </task>
@@ -125,68 +175,79 @@ CRITICAL: Generate ONLY ONE single ${config.type} drawing. Do NOT create multipl
 <constraints>
 1. Output format: Generate EXACTLY ONE single architectural ${config.type} image - NOT multiple drawings, NOT a composition, NOT a set of drawings. Only ONE drawing per request.
 2. Drawing type: ${config.description}
-3. Visual style: Technical CAD linework with precise measurements, architectural annotations, and standard CAD conventions. Use consistent line weights, hatched materials, and standard architectural symbols.${styleReferenceInstruction}
-4. Text and annotations: ${textInstruction}
+3. Projection type: CRITICAL - Use ONLY orthographic projection. NO perspective, NO isometric, NO 3D views. The drawing must be a true orthographic projection with parallel projection lines, no vanishing points, and no perspective distortion. All dimensions must be shown at true scale.
+4. Visual style: Technical CAD linework with precise measurements${shouldIncludeText ? ', architectural annotations' : ' and graphical symbols (NO text)'}, and standard CAD conventions. Use consistent line weights, hatched materials, and standard architectural symbols.${styleReferenceInstruction}
+5. Text and annotations: ${textInstruction}
 ${!shouldIncludeText ? 'CRITICAL: Do NOT include dimension numbers, dimension text, or any readable text on dimension lines. Dimension lines should be graphical lines only, without any text labels or numbers.' : ''}
-5. Scale handling: Adapt to input scale - whole buildings show overall layout and relationships; components show detailed information; interiors show spatial relationships; details show element-specific information
-6. Element recognition: Identify and represent visible architectural elements: ${config.elements}
-7. Drawing conventions: Follow ${config.conventions}
-8. Maintain: Architectural drafting standards, proper scale, accurate proportions, and professional presentation quality suitable for construction documentation and design presentations
-9. Focus: ${config.focus}
-10. Do not: Add elements not present in the original render, distort proportions, include photorealistic rendering elements, create fabrication-level details when working with whole building renders, or create multiple drawings or compositions
-11. SINGLE OUTPUT REQUIREMENT: The output image must contain ONLY the requested ${config.type}. Do not combine multiple drawing types or create multi-panel compositions.
+6. Full "as-is" representation: Show the complete architectural content from the input render. Include all visible elements, structures, and details. Do not omit or simplify elements that are clearly visible in the input.
+7. Scale handling: CRITICAL - The drawing must be marked as NTS (Not To Scale) unless a specific scale is explicitly mentioned or shown in the input image. If the input image contains scale information (e.g., "1:100", "1/4\" = 1'-0\"", scale bar, or dimensioned elements), use that scale. Otherwise, the drawing must be clearly marked as NTS. Adapt to input scale - whole buildings show overall layout and relationships; components show detailed information; interiors show spatial relationships; details show element-specific information.
+8. Element recognition: Identify and represent visible architectural elements: ${config.elements}
+9. Drawing conventions: Follow ${config.conventions}
+10. Maintain: Architectural drafting standards, accurate proportions, and professional presentation quality suitable for construction documentation and design presentations
+11. Focus: ${config.focus}
+12. Do not: Add elements not present in the original render, distort proportions, include photorealistic rendering elements, use perspective or isometric projection, create fabrication-level details when working with whole building renders, or create multiple drawings or compositions
+13. SINGLE OUTPUT REQUIREMENT: The output image must contain ONLY the requested ${config.type}. Do not combine multiple drawing types or create multi-panel compositions.
+14. ORTHOGRAPHIC ENFORCEMENT: The drawing MUST be orthographic. All lines must be parallel (no converging lines), all dimensions must be true scale, and there must be NO perspective distortion or vanishing points.
 </constraints>
 
 <output_requirements>
 - Drawing type: ${config.type}
-- Visual style: Technical CAD linework with precise measurements and standard architectural conventions
+- Projection: ORTHOGRAPHIC ONLY - parallel projection lines, no perspective, no vanishing points, true scale dimensions
+- Visual style: Technical CAD linework with precise measurements${shouldIncludeText ? ', architectural annotations' : ' and graphical symbols (NO text)'}, and standard architectural conventions
 - Elements: ${config.elements}
 - Technical accuracy: Must follow architectural drafting standards and CAD conventions
 - Professional quality: Suitable for construction documentation, permit applications, shop drawings, and design presentations
-- Scale appropriateness: Adapt to input scale - whole buildings show overall relationships; components show detailed information; interiors show spatial relationships
+- Scale: CRITICAL - Drawing must be marked as NTS (Not To Scale) unless a specific scale is explicitly mentioned or shown in the input image. If scale information exists in the input (e.g., "1:100", "1/4\" = 1'-0\"", scale bar, dimensioned elements), use that scale. Otherwise, mark as NTS. Adapt to input scale - whole buildings show overall relationships; components show detailed information; interiors show spatial relationships
 - Text handling: ${shouldIncludeText ? 'Include appropriate text labels, dimensions, and annotations following standard architectural practice' : 'CRITICAL: Use ONLY graphical symbols, dimension lines (without text), leader lines (without text), and annotation symbols. NO text labels, NO written annotations, NO dimension numbers, NO dimension text, NO readable text of any kind.'}
-- Consistency: If generating multiple views (all elevations, comprehensive set), maintain consistent scale, line weights, and notation across all drawings
+- Consistency: If generating multiple views (all elevations, comprehensive set), maintain consistent scale (all NTS unless specified), line weights, and ${shouldIncludeText ? 'notation' : 'graphical conventions'} across all drawings
+- Full representation: Show complete "as-is" architectural content from input - include all visible elements and structures
 </output_requirements>
 
 <context>
-Convert the architectural render into a ${config.type} following technical CAD conventions. Work with any architectural content, building type, or style. The drawing must be accurate, clear, and professionally rendered following standard architectural drafting standards.${elevationSideDescription} ${shouldIncludeText ? 'Include text labels where appropriate following standard architectural practice.' : 'CRITICAL: Use ONLY graphical symbols with NO text. Do NOT include any dimension numbers, dimension text, labels, or readable text. Users will add text in post-processing using CAD software.'}
+Convert the architectural render into a ${config.type} following technical CAD conventions using ORTHOGRAPHIC projection only. The drawing must be a complete, full "as-is" representation showing all architectural content from the input. Work with any architectural content, building type, or style. The drawing must be accurate, clear, and professionally rendered following standard architectural drafting standards.${elevationSideDescription}${sectionCutDescription} ${shouldIncludeText ? 'Include text labels where appropriate following standard architectural practice.' : 'CRITICAL: Use ONLY graphical symbols with NO text. Do NOT include any dimension numbers, dimension text, labels, or readable text. Users will add text in post-processing using CAD software.'}
 
-Maintain the tool's general-purpose nature: it must work effectively with any architectural content, from small components to entire buildings, from any architectural style or building type.
+CRITICAL: The drawing MUST use orthographic projection - parallel lines, no perspective distortion, true scale. NO perspective, NO isometric, NO 3D views. Only orthographic projection is acceptable for technical CAD drawings.
+
+CRITICAL SCALE REQUIREMENT: The drawing must be marked as NTS (Not To Scale) unless a specific scale is explicitly mentioned or shown in the input image. If the input contains scale information (e.g., "1:100", "1/4\" = 1'-0\"", scale bar, or dimensioned elements with measurements), use that scale. Otherwise, the drawing must be clearly marked as NTS.
 </context>`;
   };
 
   // Build all requests for batch API
   // CRITICAL: Each request gets its OWN isolated, specific prompt - no sharing or combining
   const buildBatchRequests = (formData: FormData) => {
-    const requests: Array<{ key: string; prompt: string; drawingType: string; elevationSide?: string }> = [];
+    const requests: Array<{ key: string; prompt: string; drawingType: string; elevationSide?: string; floorPlanType?: string; sectionCutDirection?: string }> = [];
     
-    // Build requests for each selected drawing type
-    // Each call to buildSystemPrompt generates a UNIQUE prompt for that specific drawing type/elevation side
-    // Pass style reference info so it can be included in the prompt
-    selectedDrawings.forEach((drawingType) => {
-      if (drawingType === 'elevation') {
-        // For elevations, create a SEPARATE request for EACH selected side
-        // Each elevation side gets its OWN unique prompt
-        selectedElevationSides.forEach((side) => {
-          // Build prompt specifically for this elevation side - isolated and unique
-          const prompt = buildSystemPrompt('elevation', side, styleReferenceImage, styleReferenceName, includeText);
-          requests.push({
-            key: `elevation-${side}`,
-            prompt, // This prompt is ONLY for this specific elevation side
-            drawingType: 'elevation',
-            elevationSide: side
-          });
-        });
-      } else {
-        // For floor-plan and section, create a SINGLE request with its OWN unique prompt
-        // Each drawing type gets its OWN isolated prompt - no mixing
-        const prompt = buildSystemPrompt(drawingType, undefined, styleReferenceImage, styleReferenceName, includeText);
-        requests.push({
-          key: drawingType,
-          prompt, // This prompt is ONLY for this specific drawing type (floor-plan OR section)
-          drawingType
-        });
-      }
+    // Build requests for floor plans
+    selectedFloorPlans.forEach((floorPlanType) => {
+      const prompt = buildSystemPrompt('floor-plan', floorPlanType, undefined, undefined, styleReferenceImage, styleReferenceName, includeText);
+      requests.push({
+        key: floorPlanType,
+        prompt,
+        drawingType: 'floor-plan',
+        floorPlanType
+      });
+    });
+    
+    // Build requests for elevations
+    selectedElevationSides.forEach((side) => {
+      const prompt = buildSystemPrompt('elevation', undefined, side, undefined, styleReferenceImage, styleReferenceName, includeText);
+      requests.push({
+        key: `elevation-${side}`,
+        prompt,
+        drawingType: 'elevation',
+        elevationSide: side
+      });
+    });
+    
+    // Build requests for sections
+    selectedSectionCuts.forEach((cutDirection) => {
+      const prompt = buildSystemPrompt('section', undefined, undefined, cutDirection, styleReferenceImage, styleReferenceName, includeText);
+      requests.push({
+        key: `section-${cutDirection}`,
+        prompt,
+        drawingType: 'section',
+        sectionCutDirection: cutDirection
+      });
     });
     
     // Verify each request has its own unique prompt
@@ -202,32 +263,33 @@ Maintain the tool's general-purpose nature: it must work effectively with any ar
   };
 
   const handleGenerate = async (formData: FormData) => {
-    // Ensure at least one drawing type is selected
-    if (selectedDrawings.size === 0) {
+    // Ensure at least one drawing is selected
+    const totalDrawings = calculateTotalDrawings();
+    if (totalDrawings === 0) {
       throw new Error('Please select at least one drawing type');
     }
     
-    // Check if we need batch API (multiple selections)
-    const totalRequests = Array.from(selectedDrawings).reduce((count, type) => {
-      return count + (type === 'elevation' ? selectedElevationSides.size : 1);
-    }, 0);
-    
-    if (totalRequests > 1) {
+    if (totalDrawings > 1) {
       // Use batch API for multiple requests
       formData.append('useBatchAPI', 'true');
       formData.append('batchRequests', JSON.stringify(buildBatchRequests(formData)));
-      formData.append('selectedDrawings', JSON.stringify(Array.from(selectedDrawings)));
+      formData.append('selectedFloorPlans', JSON.stringify(Array.from(selectedFloorPlans)));
       formData.append('selectedElevationSides', JSON.stringify(Array.from(selectedElevationSides)));
+      formData.append('selectedSectionCuts', JSON.stringify(Array.from(selectedSectionCuts)));
       // Set a default prompt for batch processing (will be overridden by batch requests)
       formData.set('prompt', 'Batch CAD generation');
     } else {
       // Single request - use regular API
-      const drawingType = Array.from(selectedDrawings)[0];
-      const elevationSide = drawingType === 'elevation' && selectedElevationSides.size > 0 
-        ? Array.from(selectedElevationSides)[0] 
-        : undefined;
-      
-      formData.set('prompt', buildSystemPrompt(drawingType, elevationSide, styleReferenceImage, styleReferenceName, includeText));
+      if (selectedFloorPlans.size > 0) {
+        const floorPlanType = Array.from(selectedFloorPlans)[0];
+        formData.set('prompt', buildSystemPrompt('floor-plan', floorPlanType, undefined, undefined, styleReferenceImage, styleReferenceName, includeText));
+      } else if (selectedElevationSides.size > 0) {
+        const elevationSide = Array.from(selectedElevationSides)[0];
+        formData.set('prompt', buildSystemPrompt('elevation', undefined, elevationSide, undefined, styleReferenceImage, styleReferenceName, includeText));
+      } else if (selectedSectionCuts.size > 0) {
+        const sectionCut = Array.from(selectedSectionCuts)[0];
+        formData.set('prompt', buildSystemPrompt('section', undefined, undefined, sectionCut, styleReferenceImage, styleReferenceName, includeText));
+      }
     }
     
     formData.append('includeText', includeText.toString());
@@ -257,73 +319,66 @@ Maintain the tool's general-purpose nature: it must work effectively with any ar
     
     const result = await createRenderAction(formData);
     
-    if (!result.success || !result.data) {
-      throw new Error(result.error || 'Failed to generate CAD drawing');
+    if (!result.success) {
+      throw new Error(('error' in result ? result.error : 'Failed to generate CAD drawing') || 'Failed to generate CAD drawing');
+    }
+    
+    if (!result.data) {
+      throw new Error('Failed to generate CAD drawing - no data returned');
     }
     
     // Check if batch results (array) or single result
-    if (totalRequests > 1 && Array.isArray(result.data)) {
+    if (totalDrawings > 1 && Array.isArray(result.data)) {
       // For batch processing, return render IDs immediately so we can poll for updates
-      // The result.data contains render IDs that we can poll
       const renderIds = result.data.map((item: any) => 
         ('renderId' in item ? item.renderId : ('id' in item ? String(item.id) : '')) as string
       );
       
+      // Build labels based on selection order
+      const labels: string[] = [];
+      selectedFloorPlans.forEach((fp) => {
+        labels.push(fp === 'normal-floor-plan' ? 'Normal Floor Plan' : 'Reflected Ceiling Plan');
+      });
+      selectedElevationSides.forEach((side) => {
+        labels.push(`${side.charAt(0).toUpperCase() + side.slice(1)} Elevation`);
+      });
+      selectedSectionCuts.forEach((cut) => {
+        labels.push(`${cut.charAt(0).toUpperCase() + cut.slice(1)} Section`);
+      });
+      
       // Return render IDs with labels for polling
       return {
         success: true,
-        data: renderIds.map((renderId: string, idx: number) => {
-          // Map render IDs back to drawing types based on batch order
-          let drawingType: DrawingType = 'floor-plan';
-          let elevationSide: ElevationSide | undefined;
-          
-          // Reconstruct which drawing type this render ID corresponds to
-          let currentIdx = 0;
-          for (const type of Array.from(selectedDrawings)) {
-            if (type === 'elevation') {
-              for (const side of Array.from(selectedElevationSides)) {
-                if (currentIdx === idx) {
-                  drawingType = 'elevation';
-                  elevationSide = side;
-                  break;
-                }
-                currentIdx++;
-              }
-              if (elevationSide) break;
-            } else {
-              if (currentIdx === idx) {
-                drawingType = type;
-                break;
-              }
-              currentIdx++;
-            }
-          }
-          
-          return {
-            renderId,
-            outputUrl: '', // Will be populated by polling
-            label: drawingType === 'elevation' && elevationSide
-              ? `${drawingType.charAt(0).toUpperCase() + drawingType.slice(1)} - ${elevationSide.charAt(0).toUpperCase() + elevationSide.slice(1)}`
-              : drawingType === 'floor-plan' ? 'Floor Plan' 
-              : drawingType === 'section' ? 'Section'
-              : 'Elevation',
-            isPolling: true // Flag to indicate this needs polling
-          };
-        }),
+        data: renderIds.map((renderId: string, idx: number) => ({
+          renderId,
+          outputUrl: '', // Will be populated by polling
+          label: labels[idx] || `Drawing ${idx + 1}`,
+          isPolling: true // Flag to indicate this needs polling
+        })),
       };
     }
     
     // Return single result for base component to handle
-    const drawingType = Array.from(selectedDrawings)[0];
-    const elevationSide = drawingType === 'elevation' && selectedElevationSides.size > 0 
-      ? Array.from(selectedElevationSides)[0] 
-      : undefined;
+    let label = 'CAD Drawing';
+    if (selectedFloorPlans.size > 0) {
+      const fp = Array.from(selectedFloorPlans)[0];
+      label = fp === 'normal-floor-plan' ? 'Normal Floor Plan' : 'Reflected Ceiling Plan';
+    } else if (selectedElevationSides.size > 0) {
+      const side = Array.from(selectedElevationSides)[0];
+      label = `${side.charAt(0).toUpperCase() + side.slice(1)} Elevation`;
+    } else if (selectedSectionCuts.size > 0) {
+      const cut = Array.from(selectedSectionCuts)[0];
+      label = `${cut.charAt(0).toUpperCase() + cut.slice(1)} Section`;
+    }
     
+    // Handle single result
+    const singleResult = Array.isArray(result.data) ? result.data[0] : result.data;
     return {
       success: true,
       data: {
-        renderId: ('renderId' in result.data ? result.data.renderId : ('id' in result.data ? String(result.data.id) : '')) as string,
-        outputUrl: (result.data.outputUrl || '') as string,
+        renderId: ('renderId' in singleResult ? singleResult.renderId : ('id' in singleResult ? String(singleResult.id) : '')) as string,
+        outputUrl: ('outputUrl' in singleResult ? (singleResult.outputUrl || '') : '') as string,
+        label
       },
     };
   };
@@ -339,93 +394,139 @@ Maintain the tool's general-purpose nature: it must work effectively with any ar
       expectedOutputCount={calculateTotalDrawings} // Pass function to calculate expected outputs
       customSettings={
         <>
-          {/* Drawing Types and Text Labels - Same Row */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <Label className="text-sm">Drawing Types</Label>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="max-w-xs">Select one or more CAD drawing types. Multiple selections will generate all selected drawings using batch processing.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              {(['floor-plan', 'elevation', 'section'] as DrawingType[]).map((type) => (
-                <div key={type} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`drawing-${type}`}
-                    checked={selectedDrawings.has(type)}
-                    onCheckedChange={(checked) => {
-                      const newSet = new Set(selectedDrawings);
-                      if (checked) {
-                        newSet.add(type);
-                      } else {
-                        newSet.delete(type);
-                      }
-                      setSelectedDrawings(newSet);
-                    }}
-                  />
-                  <Label
-                    htmlFor={`drawing-${type}`}
-                    className="text-sm font-normal cursor-pointer"
-                  >
-                    {type === 'floor-plan' ? 'Floor Plan' : type === 'elevation' ? 'Elevation' : 'Section'}
-                  </Label>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Elevation Sides - Show only when Elevation is selected */}
-          {selectedDrawings.has('elevation') && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-1.5">
-                <Label className="text-sm">Elevation Sides</Label>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="max-w-xs">Select which building facades to generate. Front is typically the main entrance, Back is opposite, Left/Right are side elevations.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-              <div className="flex items-center gap-4">
-                {(['front', 'back', 'left', 'right'] as ElevationSide[]).map((side) => (
-                  <div key={side} className="flex items-center space-x-2">
+          {/* Drawing Types - 3 Column Layout */}
+          <div className="space-y-4">
+            {/* 3 Column Grid */}
+            <div className="grid grid-cols-3 gap-4">
+              {/* Column 1: Floor Plans */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Floor Plans</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
                     <Checkbox
-                      id={`elevation-${side}`}
-                      checked={selectedElevationSides.has(side)}
+                      id="floor-plan-normal"
+                      checked={selectedFloorPlans.has('normal-floor-plan')}
                       onCheckedChange={(checked) => {
-                        const newSet = new Set(selectedElevationSides);
+                        const newSet = new Set(selectedFloorPlans);
                         if (checked) {
-                          newSet.add(side);
+                          newSet.add('normal-floor-plan');
                         } else {
-                          newSet.delete(side);
+                          newSet.delete('normal-floor-plan');
                         }
-                        // Ensure at least one side is selected
-                        if (newSet.size === 0) {
-                          newSet.add('front');
-                        }
-                        setSelectedElevationSides(newSet);
+                        setSelectedFloorPlans(newSet);
                       }}
                     />
                     <Label
-                      htmlFor={`elevation-${side}`}
-                      className="text-sm font-normal cursor-pointer capitalize"
+                      htmlFor="floor-plan-normal"
+                      className="text-sm font-normal cursor-pointer"
                     >
-                      {side}
+                      Normal Floor Plan
                     </Label>
                   </div>
-                ))}
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="floor-plan-reflected"
+                      checked={selectedFloorPlans.has('reflected-ceiling-plan')}
+                      onCheckedChange={(checked) => {
+                        const newSet = new Set(selectedFloorPlans);
+                        if (checked) {
+                          newSet.add('reflected-ceiling-plan');
+                        } else {
+                          newSet.delete('reflected-ceiling-plan');
+                        }
+                        setSelectedFloorPlans(newSet);
+                      }}
+                    />
+                    <Label
+                      htmlFor="floor-plan-reflected"
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      Reflected Ceiling Plan
+                    </Label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Column 2: Elevations */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Elevations</Label>
+                <div className="space-y-2">
+                  {(['front', 'back', 'left', 'right'] as ElevationSide[]).map((side) => (
+                    <div key={side} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`elevation-${side}`}
+                        checked={selectedElevationSides.has(side)}
+                        onCheckedChange={(checked) => {
+                          const newSet = new Set(selectedElevationSides);
+                          if (checked) {
+                            newSet.add(side);
+                          } else {
+                            newSet.delete(side);
+                          }
+                          setSelectedElevationSides(newSet);
+                        }}
+                      />
+                      <Label
+                        htmlFor={`elevation-${side}`}
+                        className="text-sm font-normal cursor-pointer capitalize"
+                      >
+                        {side}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Column 3: Sections */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Sections</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="section-latitudinal"
+                      checked={selectedSectionCuts.has('latitudinal')}
+                      onCheckedChange={(checked) => {
+                        const newSet = new Set(selectedSectionCuts);
+                        if (checked) {
+                          newSet.add('latitudinal');
+                        } else {
+                          newSet.delete('latitudinal');
+                        }
+                        setSelectedSectionCuts(newSet);
+                      }}
+                    />
+                    <Label
+                      htmlFor="section-latitudinal"
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      Latitudinal
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="section-longitudinal"
+                      checked={selectedSectionCuts.has('longitudinal')}
+                      onCheckedChange={(checked) => {
+                        const newSet = new Set(selectedSectionCuts);
+                        if (checked) {
+                          newSet.add('longitudinal');
+                        } else {
+                          newSet.delete('longitudinal');
+                        }
+                        setSelectedSectionCuts(newSet);
+                      }}
+                    />
+                    <Label
+                      htmlFor="section-longitudinal"
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      Longitudinal
+                    </Label>
+                  </div>
+                </div>
               </div>
             </div>
-          )}
+          </div>
 
           {/* Style and Style Reference - Two Column Row */}
           <div className="grid grid-cols-2 gap-4">

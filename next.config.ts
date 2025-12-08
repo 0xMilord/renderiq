@@ -300,6 +300,32 @@ const nextConfig: NextConfig = {
     ]
   },
   
+  // Rewrites for sitemap routes (map .xml URLs to route handlers)
+  async rewrites() {
+    return [
+      {
+        source: '/sitemap-use-cases.xml',
+        destination: '/sitemap-use-cases',
+      },
+      {
+        source: '/sitemap-apps.xml',
+        destination: '/sitemap-apps',
+      },
+      {
+        source: '/sitemap-docs.xml',
+        destination: '/sitemap-docs',
+      },
+      {
+        source: '/sitemap-images.xml',
+        destination: '/sitemap-images',
+      },
+      {
+        source: '/sitemap-video.xml',
+        destination: '/sitemap-video',
+      },
+    ]
+  },
+  
   // Redirects for SEO
   async redirects() {
     return [

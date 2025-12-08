@@ -446,6 +446,107 @@ export const accountActivity = pgTable('account_activity', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+// Ambassador/Affiliate system tables
+export const ambassadors = pgTable('ambassadors', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull().unique(),
+  code: text('code').unique(), // e.g., "ABC123" - nullable until approved
+  status: text('status', { enum: ['pending', 'approved', 'rejected', 'active', 'suspended'] }).notNull().default('pending'),
+  discountPercentage: decimal('discount_percentage', { precision: 5, scale: 2 }).notNull().default('20.00'), // Base discount %
+  commissionPercentage: decimal('commission_percentage', { precision: 5, scale: 2 }).notNull().default('25.00'), // Commission %
+  commissionDurationMonths: integer('commission_duration_months').notNull().default(6), // Months to earn commission
+  totalReferrals: integer('total_referrals').notNull().default(0),
+  totalEarnings: decimal('total_earnings', { precision: 10, scale: 2 }).notNull().default('0.00'),
+  pendingEarnings: decimal('pending_earnings', { precision: 10, scale: 2 }).notNull().default('0.00'),
+  paidEarnings: decimal('paid_earnings', { precision: 10, scale: 2 }).notNull().default('0.00'),
+  applicationData: jsonb('application_data').$type<Record<string, any>>(), // Store application form data
+  approvedBy: uuid('approved_by').references(() => users.id), // Admin who approved
+  approvedAt: timestamp('approved_at'),
+  rejectedReason: text('rejected_reason'),
+  notes: text('notes'), // Admin notes
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const ambassadorLinks = pgTable('ambassador_links', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  ambassadorId: uuid('ambassador_id').references(() => ambassadors.id, { onDelete: 'cascade' }).notNull(),
+  code: text('code').notNull(), // Custom code (e.g., "summer2025")
+  url: text('url').notNull(), // Full URL with ref parameter
+  campaignName: text('campaign_name'), // Optional campaign name
+  description: text('description'),
+  clickCount: integer('click_count').notNull().default(0),
+  signupCount: integer('signup_count').notNull().default(0),
+  conversionCount: integer('conversion_count').notNull().default(0), // Users who subscribed
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const ambassadorReferrals = pgTable('ambassador_referrals', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  ambassadorId: uuid('ambassador_id').references(() => ambassadors.id, { onDelete: 'cascade' }).notNull(),
+  referredUserId: uuid('referred_user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  linkId: uuid('link_id').references(() => ambassadorLinks.id), // Which link was used
+  referralCode: text('referral_code').notNull(), // The code used at signup
+  signupAt: timestamp('signup_at').defaultNow().notNull(),
+  firstSubscriptionAt: timestamp('first_subscription_at'), // When they first subscribed
+  subscriptionId: uuid('subscription_id').references(() => userSubscriptions.id), // Current active subscription
+  totalCommissionEarned: decimal('total_commission_earned', { precision: 10, scale: 2 }).notNull().default('0.00'),
+  commissionMonthsRemaining: integer('commission_months_remaining').notNull().default(6),
+  status: text('status', { enum: ['pending', 'active', 'completed', 'expired'] }).notNull().default('pending'),
+  metadata: jsonb('metadata').$type<Record<string, any>>(), // Additional tracking data
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const ambassadorPayouts = pgTable('ambassador_payouts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  ambassadorId: uuid('ambassador_id').references(() => ambassadors.id, { onDelete: 'cascade' }).notNull(),
+  periodStart: timestamp('period_start').notNull(), // Week start
+  periodEnd: timestamp('period_end').notNull(), // Week end
+  totalCommissions: decimal('total_commissions', { precision: 10, scale: 2 }).notNull().default('0.00'),
+  commissionCount: integer('commission_count').notNull().default(0), // Number of commissions in period
+  status: text('status', { enum: ['pending', 'processing', 'paid', 'failed'] }).notNull().default('pending'),
+  paymentMethod: text('payment_method'), // 'bank_transfer', 'paypal', 'stripe', etc.
+  paymentReference: text('payment_reference'), // External payment reference
+  paidAt: timestamp('paid_at'),
+  paidBy: uuid('paid_by').references(() => users.id), // Admin who processed
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const ambassadorCommissions = pgTable('ambassador_commissions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  ambassadorId: uuid('ambassador_id').references(() => ambassadors.id, { onDelete: 'cascade' }).notNull(),
+  referralId: uuid('referral_id').references(() => ambassadorReferrals.id, { onDelete: 'cascade' }).notNull(),
+  subscriptionId: uuid('subscription_id').references(() => userSubscriptions.id, { onDelete: 'cascade' }).notNull(),
+  paymentOrderId: uuid('payment_order_id').references(() => paymentOrders.id), // Link to payment
+  periodStart: timestamp('period_start').notNull(), // Billing period start
+  periodEnd: timestamp('period_end').notNull(), // Billing period end
+  subscriptionAmount: decimal('subscription_amount', { precision: 10, scale: 2 }).notNull(), // Original subscription amount
+  discountAmount: decimal('discount_amount', { precision: 10, scale: 2 }).notNull().default('0.00'), // Discount given to user
+  commissionPercentage: decimal('commission_percentage', { precision: 5, scale: 2 }).notNull(), // Commission % at time of payment
+  commissionAmount: decimal('commission_amount', { precision: 10, scale: 2 }).notNull(), // Calculated commission
+  currency: text('currency').notNull().default('USD'),
+  status: text('status', { enum: ['pending', 'paid', 'cancelled'] }).notNull().default('pending'),
+  payoutPeriodId: uuid('payout_period_id').references(() => ambassadorPayouts.id), // Reference to payout period
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const ambassadorVolumeTiers = pgTable('ambassador_volume_tiers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tierName: text('tier_name').notNull().unique(), // e.g., "Bronze", "Silver", "Gold"
+  minReferrals: integer('min_referrals').notNull(), // Minimum referrals to reach tier
+  discountPercentage: decimal('discount_percentage', { precision: 5, scale: 2 }).notNull(), // Discount % for this tier
+  commissionPercentage: decimal('commission_percentage', { precision: 5, scale: 2 }), // Commission % for this tier (optional override)
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 // Create Zod schemas
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
@@ -524,6 +625,24 @@ export const selectSybilDetectionSchema = createSelectSchema(sybilDetections);
 
 export const insertAccountActivitySchema = createInsertSchema(accountActivity);
 export const selectAccountActivitySchema = createSelectSchema(accountActivity);
+
+export const insertAmbassadorSchema = createInsertSchema(ambassadors);
+export const selectAmbassadorSchema = createSelectSchema(ambassadors);
+
+export const insertAmbassadorLinkSchema = createInsertSchema(ambassadorLinks);
+export const selectAmbassadorLinkSchema = createSelectSchema(ambassadorLinks);
+
+export const insertAmbassadorReferralSchema = createInsertSchema(ambassadorReferrals);
+export const selectAmbassadorReferralSchema = createSelectSchema(ambassadorReferrals);
+
+export const insertAmbassadorCommissionSchema = createInsertSchema(ambassadorCommissions);
+export const selectAmbassadorCommissionSchema = createSelectSchema(ambassadorCommissions);
+
+export const insertAmbassadorPayoutSchema = createInsertSchema(ambassadorPayouts);
+export const selectAmbassadorPayoutSchema = createSelectSchema(ambassadorPayouts);
+
+export const insertAmbassadorVolumeTierSchema = createInsertSchema(ambassadorVolumeTiers);
+export const selectAmbassadorVolumeTierSchema = createSelectSchema(ambassadorVolumeTiers);
 
 // Type exports
 export type User = typeof users.$inferSelect;
@@ -606,3 +725,21 @@ export type NewSybilDetection = typeof sybilDetections.$inferInsert;
 
 export type AccountActivity = typeof accountActivity.$inferSelect;
 export type NewAccountActivity = typeof accountActivity.$inferInsert;
+
+export type Ambassador = typeof ambassadors.$inferSelect;
+export type NewAmbassador = typeof ambassadors.$inferInsert;
+
+export type AmbassadorLink = typeof ambassadorLinks.$inferSelect;
+export type NewAmbassadorLink = typeof ambassadorLinks.$inferInsert;
+
+export type AmbassadorReferral = typeof ambassadorReferrals.$inferSelect;
+export type NewAmbassadorReferral = typeof ambassadorReferrals.$inferInsert;
+
+export type AmbassadorCommission = typeof ambassadorCommissions.$inferSelect;
+export type NewAmbassadorCommission = typeof ambassadorCommissions.$inferInsert;
+
+export type AmbassadorPayout = typeof ambassadorPayouts.$inferSelect;
+export type NewAmbassadorPayout = typeof ambassadorPayouts.$inferInsert;
+
+export type AmbassadorVolumeTier = typeof ambassadorVolumeTiers.$inferSelect;
+export type NewAmbassadorVolumeTier = typeof ambassadorVolumeTiers.$inferInsert;

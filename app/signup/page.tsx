@@ -46,6 +46,16 @@ export default function SignupPage() {
     }
   }, []);
 
+  // Store referral code in cookie if present
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCode = urlParams.get('ref');
+    if (refCode) {
+      // Store referral code in cookie (expires in 30 days)
+      document.cookie = `ambassador_ref=${refCode}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+    }
+  }, []);
+
   // Redirect authenticated users to dashboard
   useEffect(() => {
     if (!authLoading && user) {

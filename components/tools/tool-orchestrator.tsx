@@ -22,6 +22,9 @@ import { ItemChange } from './tools/item-change';
 import { MoodboardToRender } from './tools/moodboard-to-render';
 import { PortfolioLayoutGenerator } from './tools/portfolio-layout-generator';
 import { PresentationSequenceCreator } from './tools/presentation-sequence-creator';
+import { RenderToVideo } from './tools/render-to-video';
+import { TextToVideoWalkthrough } from './tools/text-to-video-walkthrough';
+import { KeyframeSequenceVideo } from './tools/keyframe-sequence-video';
 import { GenericTool } from './tools/generic-tool';
 
 interface ToolOrchestratorProps {
@@ -58,6 +61,11 @@ const TOOL_COMPONENTS: Record<string, React.ComponentType<{ tool: ToolConfig; pr
   'moodboard-to-render': MoodboardToRender,
   'portfolio-layout-generator': PortfolioLayoutGenerator,
   'presentation-sequence-creator': PresentationSequenceCreator,
+  
+  // Video tools
+  'render-to-video': RenderToVideo,
+  'text-to-video-walkthrough': TextToVideoWalkthrough,
+  'keyframe-sequence-video': KeyframeSequenceVideo,
 };
 
 export function ToolOrchestrator({ tool, projectId, onHintChange, hintMessage }: ToolOrchestratorProps) {

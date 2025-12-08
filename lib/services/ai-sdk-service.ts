@@ -183,7 +183,7 @@ Original prompt: "${originalPrompt}"`;
       return {
         ...validatedResult,
         processingTime,
-        provider: 'google-generative-ai'
+        provider: modelName
       };
 
     } catch (error) {
@@ -209,6 +209,7 @@ Original prompt: "${originalPrompt}"`;
     temperature?: number;
     mediaResolution?: 'LOW' | 'MEDIUM' | 'HIGH' | 'UNSPECIFIED';
     imageSize?: '1K' | '2K' | '4K';
+    model?: string; // Model ID (e.g., 'gemini-3-pro-image-preview', 'gemini-2.5-flash-image')
   }): Promise<{ success: boolean; data?: ImageGenerationResult; error?: string }> {
     logger.log('🎨 AISDKService: Starting image generation with Gemini Native Image', {
       prompt: request.prompt.substring(0, 100),
@@ -297,9 +298,9 @@ Original prompt: "${originalPrompt}"`;
         });
       }
 
-      // Use Gemini 3 Pro Image Preview (Nano Banana Pro) for professional asset production
+      // Use specified model or default to Gemini 3 Pro Image Preview (Nano Banana Pro)
       // This model supports up to 4K resolution and advanced features
-      const modelName = 'gemini-3-pro-image-preview';
+      const modelName = request.model || 'gemini-3-pro-image-preview';
       
       // Map aspect ratio to valid format
       const validAspectRatios = ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'];
@@ -322,17 +323,25 @@ Original prompt: "${originalPrompt}"`;
         imageSize = '1K'; // Default to 1K for LOW or UNSPECIFIED
       }
 
+      // gemini-2.5-flash-image only supports 1K resolution
+      // Force 1K for this model regardless of request
+      const isFlashImage = modelName === 'gemini-2.5-flash-image';
+      if (isFlashImage) {
+        imageSize = '1K';
+      }
+
       logger.log('🎨 AISDKService: Calling Gemini Native Image Generation...', {
         model: modelName,
         aspectRatio,
         imageSize,
         contentsCount: contents.length,
-        note: 'Using Gemini 3 Pro Image Preview (Nano Banana Pro)'
+        note: isFlashImage ? 'Using Gemini 2.5 Flash Image (Nano Banana)' : 'Using Gemini 3 Pro Image Preview (Nano Banana Pro)'
       });
 
       // Generate image using Gemini Native Image Generation
       // For image generation models, use imageConfig with aspectRatio and imageSize
       // DO NOT use mediaResolution - it's only for multimodal models processing input media
+      // Note: gemini-2.5-flash-image may not support imageSize parameter, so we conditionally include it
       const config: {
         responseModalities: string[];
         imageConfig: { aspectRatio: string; imageSize?: string };
@@ -340,7 +349,9 @@ Original prompt: "${originalPrompt}"`;
         responseModalities: ['IMAGE'], // Only return image, no text
         imageConfig: {
           aspectRatio: aspectRatio,
-          imageSize: imageSize // Gemini 3 Pro supports 1K, 2K, 4K
+          // Only include imageSize for models that support it (gemini-3-pro-image-preview)
+          // gemini-2.5-flash-image only supports 1K and may not accept this parameter
+          ...(isFlashImage ? {} : { imageSize: imageSize })
         }
       };
 
@@ -500,6 +511,7 @@ Original prompt: "${originalPrompt}"`;
     aspectRatio: '16:9' | '9:16' | '1:1';
     uploadedImageData?: string;
     uploadedImageType?: string;
+    model?: string; // Model ID (e.g., 'veo-3.1-generate-preview', 'veo-3.1-fast-generate-preview')
   }): Promise<{ success: boolean; data?: VideoGenerationResult; error?: string }> {
     logger.log('🎬 AISDKService: Starting Veo 3.1 video generation', {
       prompt: request.prompt,
@@ -540,8 +552,11 @@ Original prompt: "${originalPrompt}"`;
         resolution: (validDuration === 8 && request.aspectRatio === '16:9') ? '1080p' : '720p',
       };
 
+      // Use specified model or default to Veo 3.1 Standard
+      const modelName = request.model || 'veo-3.1-generate-preview';
+
       logger.log('🎬 Veo: Calling generateVideos API...', {
-        model: 'veo-3.1-generate-preview',
+        model: modelName,
         config,
         hasImage: !!imageInput
       });
@@ -549,7 +564,7 @@ Original prompt: "${originalPrompt}"`;
       // Call Veo 3.1 API - this returns an operation that needs polling
       // According to docs: ai.models.generateVideos() returns an operation object
       let operation: any = await (this.genAI.models as any).generateVideos({
-        model: 'veo-3.1-generate-preview',
+        model: modelName,
         prompt: enhancedPrompt,
         image: imageInput,
         config,
@@ -701,7 +716,7 @@ Original prompt: "${originalPrompt}"`;
           videoData,
           videoUrl,
           processingTime,
-          provider: 'veo-3.1',
+          provider: modelName,
           metadata: {
             prompt: enhancedPrompt,
             duration: request.duration,

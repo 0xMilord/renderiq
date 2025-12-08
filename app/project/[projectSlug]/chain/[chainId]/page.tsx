@@ -142,9 +142,11 @@ export default function ProjectChainPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-var(--navbar-height))] pt-[var(--navbar-height)] bg-background overflow-hidden">
-      {/* Unified Chat Interface */}
-      <div className="h-full">
+    <div className="h-screen flex flex-col bg-background">
+      {/* Spacer for navbar */}
+      <div className="h-[3.5rem] shrink-0"></div>
+      {/* Unified Chat Interface - Takes remaining height */}
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
         <UnifiedChatInterface
           projectId={project.id}
           chainId={chainId}

@@ -1,7 +1,7 @@
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import { db } from '@/lib/db';
-import { paymentOrders, creditPackages, subscriptionPlans, userSubscriptions, userCredits, creditTransactions, invoices } from '@/lib/db/schema';
+import { paymentOrders, creditPackages, subscriptionPlans, userSubscriptions, userCredits, creditTransactions, invoices, ambassadorCommissions } from '@/lib/db/schema';
 import { eq, desc, and, gte } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
 import { InvoiceService } from './invoice.service';
@@ -1522,6 +1522,23 @@ Please verify the plan exists in Razorpay Dashboard.`;
           }
           
           try {
+            // Check for ambassador referral and calculate discount
+            let discountAmount = 0;
+            let originalAmount = parseFloat(plan.price.toString());
+            let referralData = null;
+            
+            try {
+              const { AmbassadorDAL } = await import('@/lib/dal/ambassador');
+              referralData = await AmbassadorDAL.getReferralByUserId(subscription.userId);
+              
+              if (referralData && referralData.ambassador.status === 'active') {
+                const discountPercentage = parseFloat(referralData.ambassador.discountPercentage.toString());
+                discountAmount = (originalAmount * discountPercentage) / 100;
+              }
+            } catch (error) {
+              logger.warn('⚠️ RazorpayService: Error checking ambassador referral in payment.authorized:', error);
+            }
+
             // Create payment order
             [paymentOrder] = await db
               .insert(paymentOrders)
@@ -1531,18 +1548,40 @@ Please verify the plan exists in Razorpay Dashboard.`;
                 referenceId: subscription.planId,
                 razorpaySubscriptionId: subscriptionId,
                 razorpayPaymentId: paymentId,
-                amount: plan.price.toString(),
+                amount: (originalAmount - discountAmount).toString(), // Net amount after discount
+                discountAmount: discountAmount.toString(),
                 currency: plan.currency || 'INR',
                 status: 'completed', // Payment is authorized, will be captured
                 metadata: {
                   planName: plan.name,
                   creditsPerMonth: plan.creditsPerMonth,
                   paymentMethod: paymentMethodDetails,
+                  originalAmount: originalAmount,
+                  discountAmount: discountAmount,
                 },
               })
               .returning();
             
             logger.log('✅ RazorpayService: Payment order created in payment.authorized webhook:', paymentOrder?.id);
+            
+            // Process commission for ambassador after payment order is created
+            if (referralData && referralData.ambassador.status === 'active' && discountAmount > 0 && paymentOrder) {
+              try {
+                const { AmbassadorService } = await import('@/lib/services/ambassador.service');
+                await AmbassadorService.processSubscriptionPayment(
+                  subscription.userId,
+                  subscription.id,
+                  paymentOrder.id,
+                  originalAmount,
+                  discountAmount,
+                  subscription.currentPeriodStart,
+                  subscription.currentPeriodEnd,
+                  plan.currency || 'USD'
+                );
+              } catch (error) {
+                logger.warn('⚠️ RazorpayService: Error processing ambassador commission in payment.authorized:', error);
+              }
+            }
             
             // Create invoice and receipt immediately
             try {
@@ -2055,13 +2094,34 @@ Please verify the plan exists in Razorpay Dashboard.`;
         .limit(1);
 
       if (plan) {
+        // Check for ambassador referral and calculate discount
+        let discountAmount = 0;
+        let originalAmount = parseFloat(plan.price.toString());
+        
+        // Check for referral first
+        let referralData = null;
+        try {
+          const { AmbassadorDAL } = await import('@/lib/dal/ambassador');
+          referralData = await AmbassadorDAL.getReferralByUserId(subscription.userId);
+          
+          if (referralData && referralData.ambassador.status === 'active') {
+            const discountPercentage = parseFloat(referralData.ambassador.discountPercentage.toString());
+            discountAmount = (originalAmount * discountPercentage) / 100;
+          }
+        } catch (error) {
+          logger.warn('⚠️ RazorpayService: Error checking ambassador referral:', error);
+          // Continue without discount if ambassador check fails
+        }
+
+        // Create payment order first
         const [newOrder] = await db.insert(paymentOrders).values({
           userId: subscription.userId,
           type: 'subscription',
           referenceId: subscription.planId,
           razorpaySubscriptionId: subscriptionId,
           razorpayPaymentId: paymentId || null,
-          amount: plan.price.toString(),
+          amount: (originalAmount - discountAmount).toString(), // Net amount after discount
+          discountAmount: discountAmount.toString(),
           currency: plan.currency,
           status: 'completed',
           metadata: {
@@ -2069,9 +2129,31 @@ Please verify the plan exists in Razorpay Dashboard.`;
             creditsPerMonth: plan.creditsPerMonth,
             isRecurring: true,
             paymentMethod: paymentMethodDetails,
+            originalAmount: originalAmount,
+            discountAmount: discountAmount,
           },
         }).returning();
         recurringPaymentOrder = newOrder;
+
+        // Process commission for ambassador after payment order is created
+        if (referralData && referralData.ambassador.status === 'active' && discountAmount > 0) {
+          try {
+            const { AmbassadorService } = await import('@/lib/services/ambassador.service');
+            await AmbassadorService.processSubscriptionPayment(
+              subscription.userId,
+              subscription.id,
+              recurringPaymentOrder.id,
+              originalAmount,
+              discountAmount,
+              subscription.currentPeriodStart,
+              subscription.currentPeriodEnd,
+              plan.currency || 'USD'
+            );
+          } catch (error) {
+            logger.warn('⚠️ RazorpayService: Error processing ambassador commission:', error);
+            // Don't fail payment processing if commission fails
+          }
+        }
       }
     } else if (paymentMethodDetails && existingPaymentOrder) {
       // Update existing payment order with payment method if we have it

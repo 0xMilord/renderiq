@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
 import { useUserBillingStats } from '@/lib/hooks/use-subscription';
+import { useAmbassador } from '@/lib/hooks/use-ambassador';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -36,7 +37,8 @@ import {
   Crown,
   Zap,
   Workflow,
-  Plus
+  Plus,
+  Users
 } from 'lucide-react';
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -47,6 +49,7 @@ export function UserDropdown() {
   const { profile, loading: profileLoading } = useUserProfile();
   // ✅ BATCHED: Single hook replaces 3 separate hooks to prevent N+1 queries
   const { data: billingStats, loading: billingLoading } = useUserBillingStats(profile?.id);
+  const { isAmbassador, isActiveAmbassador, loading: ambassadorLoading } = useAmbassador();
   const [isOpen, setIsOpen] = useState(false);
   
   // Extract data from batched stats
@@ -81,13 +84,8 @@ export function UserDropdown() {
     return (
       <div className="flex items-center space-x-2">
         <Link href="/login">
-          <Button variant="ghost" size="sm">
-            Sign In
-          </Button>
-        </Link>
-        <Link href="/signup">
           <Button size="sm">
-            Sign Up
+            Get Started
           </Button>
         </Link>
       </div>
@@ -320,6 +318,26 @@ export function UserDropdown() {
             <span>Billing</span>
           </Link>
         </DropdownMenuItem>
+        
+        {/* Become Ambassador - Only show if user is not an active ambassador */}
+        {!ambassadorLoading && !isActiveAmbassador && (
+          <DropdownMenuItem asChild>
+            <Link href="/dashboard/ambassador" className="flex items-center">
+              <Users className="mr-2 h-4 w-4" />
+              <span>Become Ambassador</span>
+            </Link>
+          </DropdownMenuItem>
+        )}
+        
+        {/* Ambassador Dashboard - Only show if user is an active ambassador */}
+        {!ambassadorLoading && isActiveAmbassador && (
+          <DropdownMenuItem asChild>
+            <Link href="/dashboard/ambassador" className="flex items-center">
+              <Users className="mr-2 h-4 w-4" />
+              <span>Ambassador Dashboard</span>
+            </Link>
+          </DropdownMenuItem>
+        )}
         
         <DropdownMenuSeparator />
         

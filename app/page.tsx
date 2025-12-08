@@ -35,7 +35,9 @@ import {
   FileCheck,
   GitBranch,
   FileCode,
-  Network
+  Network,
+  MessageSquare,
+  Grid3x3
 } from 'lucide-react';
 import type { Metadata } from 'next';
 
@@ -211,9 +213,9 @@ export default async function Home() {
       {/* Use Cases Section - AEC Professionals */}
       <UseCasesSection />
 
-      {/* Features Section - Enhanced */}
+      {/* Features Section - Bento Grid */}
       <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 bg-card/80 backdrop-blur-sm">
-        <div className="w-full max-w-7xl mx-auto">
+        <div className="w-full">
           <div className="text-center mb-16">
             <Badge className="mb-4 bg-muted text-muted-foreground px-4 py-2">
               Features
@@ -222,236 +224,93 @@ export default async function Home() {
               Everything you need for professional
               <span className="block text-muted-foreground">architecture visualization</span>
             </h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Comprehensive architecture render software combining cutting-edge AI with intuitive design tools for AEC professionals
-            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* AI-Powered Rendering */}
-            <div className="group p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
-              <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <Wand2 className="h-6 w-6 text-primary-foreground" />
+          {/* Bento Grid Layout */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+            {/* Node-Based Editor - Large Feature Card */}
+            <Link href="/canvas" className="group md:col-span-2 lg:col-span-2 md:row-span-2">
+              <div className="h-full p-8 rounded-2xl bg-gradient-to-br from-violet-500/10 to-purple-500/10 border-2 border-violet-500/20 hover:border-violet-500/40 hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
+                <div>
+                  <div className="w-16 h-16 bg-violet-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                    <Network className="h-8 w-8 text-white" />
+                  </div>
+                  <h3 className="text-3xl md:text-4xl font-bold text-card-foreground mb-4">Node-Based Editor</h3>
+                  <p className="text-lg text-muted-foreground mb-6">
+                    Blender-style visual workflow editor. Create complex render workflows by connecting nodes visually. Perfect for advanced users who want full control over their rendering pipeline.
+                  </p>
+                  <ul className="space-y-3 text-muted-foreground">
+                    <li className="flex items-center"><CheckCircle className="h-5 w-5 text-violet-500 mr-3" />Visual node editor with drag-and-drop</li>
+                    <li className="flex items-center"><CheckCircle className="h-5 w-5 text-violet-500 mr-3" />Text, Image, and Variants nodes</li>
+                    <li className="flex items-center"><CheckCircle className="h-5 w-5 text-violet-500 mr-3" />Real-time data flow visualization</li>
+                    <li className="flex items-center"><CheckCircle className="h-5 w-5 text-violet-500 mr-3" />Auto-save & export workflows</li>
+                  </ul>
+                </div>
+                <div className="mt-8 flex items-center text-violet-500 font-semibold group-hover:translate-x-2 transition-transform">
+                  Explore Canvas Editor <ArrowRight className="ml-2 h-5 w-5" />
+                </div>
               </div>
-              <h3 className="text-xl font-semibold text-card-foreground mb-3">AI-Powered Rendering</h3>
-              <p className="text-muted-foreground mb-4">
-                Transform basic sketches into photorealistic architectural visualizations using Google Gemini 3 Pro and Veo 3.1 AI technology.
-              </p>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Multiple AI models</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Style presets</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Custom prompts</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Material library</li>
-              </ul>
-            </div>
+            </Link>
 
-            {/* Fast Processing */}
-            <div className="group p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
-              <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <Zap className="h-6 w-6 text-white" />
+            {/* Chat-Based Renderer - Medium Feature Card */}
+            <Link href="/render" className="group md:col-span-1 lg:col-span-1 md:row-span-2">
+              <div className="h-full p-8 rounded-2xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-2 border-blue-500/20 hover:border-blue-500/40 hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
+                <div>
+                  <div className="w-16 h-16 bg-blue-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                    <MessageSquare className="h-8 w-8 text-white" />
+                  </div>
+                  <h3 className="text-3xl md:text-4xl font-bold text-card-foreground mb-4">Chat-Based Renderer</h3>
+                  <p className="text-lg text-muted-foreground mb-6">
+                    Transform sketches into photorealistic renders through natural conversation. Simply describe what you want and watch it come to life.
+                  </p>
+                  <ul className="space-y-3 text-muted-foreground">
+                    <li className="flex items-center"><CheckCircle className="h-5 w-5 text-blue-500 mr-3" />Natural language prompts</li>
+                    <li className="flex items-center"><CheckCircle className="h-5 w-5 text-blue-500 mr-3" />AI-powered image generation</li>
+                    <li className="flex items-center"><CheckCircle className="h-5 w-5 text-blue-500 mr-3" />Instant visual feedback</li>
+                    <li className="flex items-center"><CheckCircle className="h-5 w-5 text-blue-500 mr-3" />Iterative refinement</li>
+                  </ul>
+                </div>
+                <div className="mt-8 flex items-center text-blue-500 font-semibold group-hover:translate-x-2 transition-transform">
+                  Try Renderer <ArrowRight className="ml-2 h-5 w-5" />
+                </div>
               </div>
-              <h3 className="text-xl font-semibold text-card-foreground mb-3">Lightning Fast Processing</h3>
-              <p className="text-muted-foreground mb-4">
-                Get your renders in minutes, not hours. Our optimized pipeline delivers results quickly for time-sensitive AEC projects.
-              </p>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Under 30 second renders</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Queue management</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Real-time updates</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Batch processing</li>
-              </ul>
-            </div>
+            </Link>
 
-            {/* Video Generation */}
-            <div className="group p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
-              <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <Video className="h-6 w-6 text-white" />
+            {/* 21 Tools - Large Feature Card */}
+            <Link href="/apps" className="group md:col-span-2 lg:col-span-3 md:row-span-1">
+              <div className="h-full p-8 rounded-2xl bg-gradient-to-br from-primary/10 to-green-500/10 border-2 border-primary/20 hover:border-primary/40 hover:shadow-xl transition-all duration-300 flex flex-col md:flex-row items-center justify-between gap-8">
+                <div className="flex-1">
+                  <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                    <Grid3x3 className="h-8 w-8 text-primary-foreground" />
+                  </div>
+                  <h3 className="text-3xl md:text-4xl font-bold text-card-foreground mb-4">21 Specialized Tools</h3>
+                  <p className="text-lg text-muted-foreground mb-6">
+                    Comprehensive suite of AI-powered tools for every aspect of architectural visualization. From floor plans to material testing, we've got you covered.
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="text-sm text-muted-foreground">
+                      <div className="font-semibold text-foreground mb-1">Render Transformations</div>
+                      <div>4 tools</div>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      <div className="font-semibold text-foreground mb-1">Floor Plans</div>
+                      <div>3 tools</div>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      <div className="font-semibold text-foreground mb-1">Material & Texture</div>
+                      <div>3 tools</div>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      <div className="font-semibold text-foreground mb-1">Interior Design</div>
+                      <div>4 tools</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center text-primary font-semibold group-hover:translate-x-2 transition-transform whitespace-nowrap">
+                  Explore All Tools <ArrowRight className="ml-2 h-5 w-5" />
+                </div>
               </div>
-              <h3 className="text-xl font-semibold text-card-foreground mb-3">Video Generation</h3>
-              <p className="text-muted-foreground mb-4">
-                Create both images and videos from your sketches with cinematic quality. Perfect for AEC presentations, client meetings, and design reviews.
-              </p>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />4K video output</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Camera movements</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Multiple formats</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Keyframe animation</li>
-              </ul>
-            </div>
-
-            {/* AEC-Specific Features */}
-            <div className="group p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
-              <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <Building2 className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="text-xl font-semibold text-card-foreground mb-3">AEC-Optimized</h3>
-              <p className="text-muted-foreground mb-4">
-                Built specifically for Architecture, Engineering, and Construction professionals with industry-standard features.
-              </p>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Technical accuracy</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Scale precision</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Material specifications</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Construction documentation</li>
-              </ul>
-            </div>
-
-            {/* Commercial Architecture Features */}
-            <div className="group p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
-              <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <Building2 className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="text-xl font-semibold text-card-foreground mb-3">Commercial Architecture</h3>
-              <p className="text-muted-foreground mb-4">
-                Specialized tools for commercial buildings, office spaces, and large-scale architectural projects.
-              </p>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Office complexes</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Commercial spaces</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Mixed-use developments</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Large-scale projects</li>
-              </ul>
-            </div>
-
-            {/* Security & Privacy */}
-            <div className="group p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
-              <div className="w-12 h-12 bg-slate-600 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <Shield className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="text-xl font-semibold text-card-foreground mb-3">Secure & Private</h3>
-              <p className="text-muted-foreground mb-4">
-                Enterprise-grade security and privacy protection for sensitive architectural and commercial projects.
-              </p>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />End-to-end encryption</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />GDPR compliant</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Private projects</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />SOC 2 compliant</li>
-              </ul>
-            </div>
-
-            {/* API & Integrations */}
-            <div className="group p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
-              <div className="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <Code className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="text-xl font-semibold text-card-foreground mb-3">API & Integrations</h3>
-              <p className="text-muted-foreground mb-4">
-                Integrate Renderiq into your existing AEC workflow with our comprehensive API and third-party integrations.
-              </p>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />RESTful API</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Webhook support</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />CAD integrations</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />BIM compatibility</li>
-              </ul>
-            </div>
-
-            {/* Render Chains */}
-            <div className="group p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
-              <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <GitBranch className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="text-xl font-semibold text-card-foreground mb-3">Render Chains</h3>
-              <p className="text-muted-foreground mb-4">
-                Organize renders into sequential chains for iteration tracking and version management. Reference previous renders with <code className="text-xs bg-muted px-1 py-0.5 rounded">@v1</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded">@v2</code>, or <code className="text-xs bg-muted px-1 py-0.5 rounded">@latest</code>.
-              </p>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Automatic chain creation</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Version references (@v1, @v2, @latest)</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Iteration tracking</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Context preservation</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Chain branching & organization</li>
-              </ul>
-            </div>
-
-            {/* Version Control */}
-            <div className="group p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
-              <div className="w-12 h-12 bg-teal-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <FileCode className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="text-xl font-semibold text-card-foreground mb-3">Version Control</h3>
-              <p className="text-muted-foreground mb-4">
-                Built-in version control system tracks every render iteration, prompt changes, and settings modifications. Never lose your work.
-              </p>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Complete render history</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Prompt & settings tracking</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Version comparison</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Rollback to any version</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Parent-child relationships</li>
-              </ul>
-            </div>
-
-            {/* Node-Based Canvas Editor */}
-            <div className="group p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
-              <div className="w-12 h-12 bg-violet-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <Network className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="text-xl font-semibold text-card-foreground mb-3">Node-Based Canvas Editor</h3>
-              <p className="text-muted-foreground mb-4">
-                Blender-style visual workflow editor. Create complex render workflows by connecting nodes visually. Perfect for advanced users.
-              </p>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Visual node editor</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Text, Image, and Variants nodes</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Drag-and-drop workflow building</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Real-time data flow</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Auto-save & export</li>
-              </ul>
-            </div>
-
-            {/* AEC-Specific Features */}
-            <div className="group p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
-              <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <Building2 className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="text-xl font-semibold text-card-foreground mb-3">AEC-Optimized</h3>
-              <p className="text-muted-foreground mb-4">
-                Built specifically for Architecture, Engineering, and Construction professionals with <strong>AEC finetunes</strong> and industry-standard features.
-              </p>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" /><strong>AEC finetunes</strong> - Architecture-aware AI</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Technically correct renders</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Scale precision & proportions</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Material specifications</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Construction documentation ready</li>
-              </ul>
-            </div>
-
-            {/* Team Collaboration */}
-            <div className="group p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
-              <div className="w-12 h-12 bg-pink-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <Users className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="text-xl font-semibold text-card-foreground mb-3">Team Collaboration</h3>
-              <p className="text-muted-foreground mb-4">
-                Work seamlessly with your AEC team and design partners. Share projects, collaborate in real-time.
-              </p>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Team projects</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Shared render chains</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Comments & feedback</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Client sharing</li>
-              </ul>
-            </div>
-
-            {/* Analytics & Insights */}
-            <div className="group p-8 rounded-2xl bg-card border border-border hover:shadow-lg transition-all duration-300">
-              <div className="w-12 h-12 bg-teal-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <TrendingUp className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="text-xl font-semibold text-card-foreground mb-3">Analytics & Insights</h3>
-              <p className="text-muted-foreground mb-4">
-                Track your rendering usage, optimize workflows, and gain insights into your AEC design process.
-              </p>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Usage analytics</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Performance metrics</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Cost tracking</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Export reports</li>
-              </ul>
-            </div>
+            </Link>
           </div>
         </div>
       </section>

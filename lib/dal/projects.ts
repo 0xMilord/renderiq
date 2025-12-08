@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { projects, renders, users, galleryItems } from '@/lib/db/schema';
-import { eq, desc, and, sql, inArray } from 'drizzle-orm';
+import { eq, desc, and, sql, inArray, ne } from 'drizzle-orm';
 import type { NewProject, Project, NewRender, Render } from '@/lib/db/schema';
 import { logger } from '@/lib/utils/logger';
 
@@ -110,6 +110,49 @@ export class ProjectsDAL {
       .where(eq(projects.id, id));
   }
 
+  static async update(id: string, updateData: {
+    name?: string;
+    description?: string | null;
+    isPublic?: boolean;
+    tags?: string[] | null;
+    metadata?: Record<string, any> | null;
+  }): Promise<Project> {
+    const updateFields: any = {
+      updatedAt: new Date(),
+    };
+
+    // Update name and regenerate slug if name changed
+    if (updateData.name !== undefined) {
+      updateFields.name = updateData.name;
+      const baseSlug = generateSlug(updateData.name);
+      updateFields.slug = await ensureUniqueSlug(baseSlug, id);
+    }
+
+    if (updateData.description !== undefined) {
+      updateFields.description = updateData.description;
+    }
+
+    if (updateData.isPublic !== undefined) {
+      updateFields.isPublic = updateData.isPublic;
+    }
+
+    if (updateData.tags !== undefined) {
+      updateFields.tags = updateData.tags;
+    }
+
+    if (updateData.metadata !== undefined) {
+      updateFields.metadata = updateData.metadata;
+    }
+
+    const [updatedProject] = await db
+      .update(projects)
+      .set(updateFields)
+      .where(eq(projects.id, id))
+      .returning();
+
+    return updatedProject;
+  }
+
   static async getLatestRenders(projectId: string, limit = 4) {
     logger.log('🖼️ [ProjectsDAL] Fetching latest renders for project:', projectId);
     
@@ -123,11 +166,16 @@ export class ProjectsDAL {
         createdAt: renders.createdAt,
       })
       .from(renders)
-      .where(eq(renders.projectId, projectId))
+      .where(
+        and(
+          eq(renders.projectId, projectId),
+          ne(renders.status, 'failed') // Exclude failed renders
+        )
+      )
       .orderBy(desc(renders.createdAt))
       .limit(limit);
 
-    logger.log(`✅ [ProjectsDAL] Found ${latestRenders.length} latest renders for project`);
+    logger.log(`✅ [ProjectsDAL] Found ${latestRenders.length} latest renders (excluding failed) for project`);
     return latestRenders;
   }
 
@@ -139,7 +187,7 @@ export class ProjectsDAL {
       return [];
     }
 
-    // Use window functions to get top N renders per project
+    // Use window functions to get top N renders per project, excluding failed renders
     const latestRenders = await db
       .select({
         id: renders.id,
@@ -151,13 +199,18 @@ export class ProjectsDAL {
         rowNum: sql<number>`ROW_NUMBER() OVER (PARTITION BY ${renders.projectId} ORDER BY ${renders.createdAt} DESC)`.as('row_num'),
       })
       .from(renders)
-      .where(inArray(renders.projectId, projectIds))
+      .where(
+        and(
+          inArray(renders.projectId, projectIds),
+          ne(renders.status, 'failed') // Exclude failed renders
+        )
+      )
       .orderBy(desc(renders.createdAt));
 
     // Filter to only include top N per project
     const filtered = latestRenders.filter(r => r.rowNum <= limitPerProject);
 
-    logger.log(`✅ [ProjectsDAL] Found ${filtered.length} total renders for ${projectIds.length} projects`);
+    logger.log(`✅ [ProjectsDAL] Found ${filtered.length} total renders (excluding failed) for ${projectIds.length} projects`);
     return filtered;
   }
 

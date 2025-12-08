@@ -37,7 +37,6 @@ import {
   HelpCircle,
   ChevronLeft,
   ChevronRight,
-  MoreVertical,
   PanelLeft,
   PanelRight,
   Plus,
@@ -61,6 +60,8 @@ import { useUserProfile } from '@/lib/hooks/use-user-profile';
 import { useProjectRules } from '@/lib/hooks/use-project-rules';
 import { useUpscaling } from '@/lib/hooks/use-upscaling';
 import { useImageGeneration, useVideoGeneration } from '@/lib/hooks/use-ai-sdk';
+import { ModelSelector } from '@/components/ui/model-selector';
+import { ModelId, getModelConfig, getDefaultModel, modelSupportsQuality, getMaxQuality, getSupportedResolutions } from '@/lib/config/models';
 import { useVersionContext } from '@/lib/hooks/use-version-context';
 import { UploadModal } from './upload-modal';
 import { GalleryModal } from './gallery-modal';
@@ -234,6 +235,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   const [progress, setProgress] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [referenceRenderId, setReferenceRenderId] = useState<string | undefined>();
+  const [beforeAfterView, setBeforeAfterView] = useState<'before' | 'after'>('after');
   
   // Fixed aspect ratio for better quality
   const aspectRatio = DEFAULT_ASPECT_RATIO;
@@ -249,6 +251,8 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   const [styleTransferPreview, setStyleTransferPreview] = useState<string | null>(null);
   const [temperature, setTemperature] = useState<string>('0.5'); // Default 50% (0.5), options: 0, 0.25, 0.5, 0.75, 1.0
   const [quality, setQuality] = useState<string>('standard'); // Default quality: standard, high, ultra
+  const [selectedImageModel, setSelectedImageModel] = useState<ModelId | undefined>(undefined); // Image model
+  const [selectedVideoModel, setSelectedVideoModel] = useState<ModelId | undefined>(undefined); // Video model
   
   // Video controls
   const [videoDuration, setVideoDuration] = useState(8); // Veo 3.1 supports 4, 6, or 8 seconds
@@ -317,6 +321,24 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       setIsPublic(!isPro); // Free users are public, Pro users are private by default
     }
   }, [isPro, proLoading]);
+
+  // Auto-adjust quality when image model changes if current quality is unsupported
+  useEffect(() => {
+    if (selectedImageModel && !isVideoMode) {
+      const modelId = selectedImageModel as ModelId;
+      if (!modelSupportsQuality(modelId, quality as 'standard' | 'high' | 'ultra')) {
+        // Current quality not supported, adjust to max supported quality
+        const maxQuality = getMaxQuality(modelId);
+        setQuality(maxQuality);
+        toast.info(`Quality adjusted to ${maxQuality} (maximum supported by selected model)`);
+      }
+    }
+  }, [selectedImageModel, isVideoMode]); // Note: quality is intentionally not in deps to avoid loops
+
+  // Reset before/after view to 'after' when render changes
+  useEffect(() => {
+    setBeforeAfterView('after');
+  }, [currentRender?.id]);
   
   // Find previous render for before/after comparison
   const previousRender = useMemo(() => {
@@ -653,14 +675,25 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   };
 
   const getCreditsCost = () => {
-    // Calculate credits cost based on type and quality
-    // Updated conversion rate: 1 USD = 100 INR
+    // Calculate credits cost based on type, quality, and selected model
     if (isVideoMode) {
-      // Video: 30 credits per second (2x markup, 100 INR/USD conversion)
-      const creditsPerSecond = 30;
-      return creditsPerSecond * videoDuration;
+      // Video: Use model-based pricing
+      const modelId = selectedVideoModel || getDefaultModel('video').id;
+      const modelConfig = getModelConfig(modelId);
+      if (modelConfig && modelConfig.type === 'video') {
+        return modelConfig.calculateCredits({ duration: videoDuration });
+      }
+      // Fallback to default: 30 credits per second
+      return 30 * videoDuration;
     } else {
-      // Image: 5 credits base, multiplied by quality (2x markup, 100 INR/USD conversion)
+      // Image: Use model-based pricing
+      const modelId = selectedImageModel || getDefaultModel('image').id;
+      const modelConfig = getModelConfig(modelId);
+      if (modelConfig && modelConfig.type === 'image') {
+        const imageSize = quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K';
+        return modelConfig.calculateCredits({ quality: quality as 'standard' | 'high' | 'ultra', imageSize });
+      }
+      // Fallback to default: 5 credits base, multiplied by quality
       const baseCreditsPerImage = 5;
       const qualityMultiplier = quality === 'high' ? 2 : quality === 'ultra' ? 3 : 1;
       return baseCreditsPerImage * qualityMultiplier;
@@ -913,6 +946,9 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
 
     // Define generationType outside try block so it's accessible in catch
     const generationType = isVideoMode ? 'video' : 'image';
+    
+    // Store API error for catch block
+    let apiError: string | undefined = undefined;
 
     try {
       // Use the final prompt directly - Google Generative AI handles optimization
@@ -973,6 +1009,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
            environment,
            effect,
            temperature,
+           model: isVideoMode ? (selectedVideoModel || undefined) : (selectedImageModel || undefined),
            videoDuration: isVideoMode ? videoDuration : undefined,
            videoKeyframes: isVideoMode && videoKeyframes.length > 0 
              ? videoKeyframes.map(kf => ({ imageData: kf.imageData, imageType: kf.imageType }))
@@ -1078,16 +1115,19 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
             }
           };
         } else {
+          // Store error message for catch block
+          apiError = apiResult.error || 'Image generation failed';
+          
           // Check if it's a Google API error (should refund)
-          const isGoogleError = apiResult.error?.includes('Google') || 
-                                apiResult.error?.includes('Gemini') ||
-                                apiResult.error?.includes('Veo') ||
-                                apiResult.error?.includes('quota') ||
-                                apiResult.error?.includes('rate limit');
+          const isGoogleError = apiError.includes('Google') || 
+                                apiError.includes('Gemini') ||
+                                apiError.includes('Veo') ||
+                                apiError.includes('quota') ||
+                                apiError.includes('rate limit');
           
           result = {
             success: false,
-            error: apiResult.error || 'Image generation failed',
+            error: apiError,
             isGoogleError // Flag for proper error handling
           };
         }
@@ -1360,9 +1400,9 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
 
 
   return (
-    <div className="flex flex-col lg:flex-row h-full overflow-hidden">
+    <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
       {/* Mobile View Toggle - Only visible on mobile/tablet */}
-      <div className="lg:hidden border-b border-border bg-background sticky top-0 z-10">
+      <div className="lg:hidden border-b border-border bg-background sticky top-0 z-40 shrink-0">
         <div className="px-4 py-2 flex items-center justify-between">
           <Button
             variant="ghost"
@@ -1562,9 +1602,9 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
 
       {/* Render Area - Responsive width */}
       <div className={cn(
-        "border-r border-border flex flex-col overflow-hidden transition-all duration-300",
-        "w-full h-full",
-        isSidebarCollapsed ? "lg:w-0 lg:border-r-0 lg:overflow-hidden" : "lg:w-1/4",
+        "border-r border-border flex flex-col overflow-hidden transition-all duration-300 min-h-0",
+        "w-full flex-1",
+        isSidebarCollapsed ? "lg:w-0 lg:border-r-0 lg:overflow-hidden lg:flex-none lg:flex-shrink-0" : "lg:w-1/4 lg:flex-none lg:flex-shrink-0",
         // Mobile: show/hide based on mobileView
         mobileView === 'chat' ? 'flex' : 'hidden lg:flex'
       )}>
@@ -1716,7 +1756,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-2 sm:space-y-4 min-h-0 max-h-[calc(100vh-16rem)]">
+        <div className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-2 sm:space-y-4 min-h-0">
           {messages.length === 0 ? (
             <div className="text-center text-muted-foreground mt-8">
               <MessageSquare className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-4 text-muted-foreground/50" />
@@ -2095,26 +2135,56 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
             )}
             
             <div>
-              {/* Video Mode Badge and Private/Public Toggle - Above prompt box */}
-              <div className="flex items-center justify-between gap-2 mb-1.5">
-                <div className="flex items-center gap-2">
+              {/* Video Mode Badge, Model Selector, and Private/Public Toggle - Above prompt box */}
+              <div className="flex items-center justify-between gap-1.5 sm:gap-2 mb-1.5 flex-wrap">
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
                   {isVideoMode && (
-                    <Badge variant="secondary" className="text-[10px] px-2 py-0.5 flex items-center gap-1">
+                    <Badge variant="secondary" className="text-[10px] px-1.5 sm:px-2 py-0.5 flex items-center gap-1 shrink-0">
                       <Video className="h-3 w-3" />
-                      Video Mode
+                      <span className="hidden xs:inline">Video Mode</span>
+                      <span className="xs:hidden">Video</span>
                     </Badge>
                   )}
+                  {/* Model Selector - Responsive container */}
+                  <div className="flex-1 min-w-0 max-w-full">
+                    <ModelSelector
+                      type={isVideoMode ? 'video' : 'image'}
+                      value={(isVideoMode ? selectedVideoModel : selectedImageModel) as ModelId | undefined}
+                      onValueChange={(modelId) => {
+                        if (isVideoMode) {
+                          setSelectedVideoModel(modelId);
+                        } else {
+                          setSelectedImageModel(modelId);
+                          // Auto-adjust quality if current quality is not supported
+                          const modelConfig = getModelConfig(modelId);
+                          if (modelConfig && modelConfig.type === 'image') {
+                            if (!modelSupportsQuality(modelId, quality as 'standard' | 'high' | 'ultra')) {
+                              const maxQuality = getMaxQuality(modelId);
+                              setQuality(maxQuality);
+                              toast.info(`Quality adjusted to ${maxQuality} (maximum supported by selected model)`);
+                            }
+                          }
+                        }
+                      }}
+                      quality={quality as 'standard' | 'high' | 'ultra'}
+                      duration={videoDuration}
+                      imageSize={quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K'}
+                      variant="minimal"
+                      showCredits={false}
+                      className="w-full"
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="privacy-toggle" className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1.5 cursor-pointer">
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                  <Label htmlFor="privacy-toggle" className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 sm:gap-1.5 cursor-pointer">
                     {isPublic ? (
                       <>
-                        <Globe className="h-3 w-3" />
+                        <Globe className="h-3 w-3 shrink-0" />
                         <span className="hidden sm:inline">Public</span>
                       </>
                     ) : (
                       <>
-                        <Lock className="h-3 w-3" />
+                        <Lock className="h-3 w-3 shrink-0" />
                         <span className="hidden sm:inline">Private</span>
                       </>
                     )}
@@ -2132,6 +2202,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                       }
                     }}
                     disabled={!isPro && !isPublic} // Free users can't turn off public
+                    className="shrink-0"
                   />
                 </div>
               </div>
@@ -2442,20 +2513,63 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                                   <p className="text-xs mt-2 pt-2 border-t">
                                     Current cost: {getCreditsCostText()}
                                   </p>
+                                  {selectedImageModel && (
+                                    <p className="text-xs mt-1 pt-1 border-t">
+                                      Model supports: {getSupportedResolutions(selectedImageModel as ModelId).join(', ')}
+                                    </p>
+                                  )}
                                 </div>
                               </TooltipContent>
                             </Tooltip>
                           </div>
-                          <Select value={quality} onValueChange={setQuality}>
+                          <Select 
+                            value={quality} 
+                            onValueChange={(v) => {
+                              // Validate quality is supported by selected model
+                              if (selectedImageModel) {
+                                const modelId = selectedImageModel as ModelId;
+                                if (modelSupportsQuality(modelId, v as 'standard' | 'high' | 'ultra')) {
+                                  setQuality(v);
+                                } else {
+                                  toast.error(`This quality is not supported by the selected model. Maximum quality: ${getMaxQuality(modelId)}`);
+                                }
+                              } else {
+                                setQuality(v);
+                              }
+                            }}
+                          >
                             <SelectTrigger className="h-6 sm:h-7 text-[10px] sm:text-xs w-full">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="standard" className="text-[10px] sm:text-xs">Standard</SelectItem>
-                              <SelectItem value="high" className="text-[10px] sm:text-xs">High</SelectItem>
-                              <SelectItem value="ultra" className="text-[10px] sm:text-xs">Ultra</SelectItem>
+                              <SelectItem 
+                                value="standard" 
+                                className="text-[10px] sm:text-xs"
+                                disabled={selectedImageModel ? !modelSupportsQuality(selectedImageModel as ModelId, 'standard') : false}
+                              >
+                                Standard (1K)
+                              </SelectItem>
+                              <SelectItem 
+                                value="high" 
+                                className="text-[10px] sm:text-xs"
+                                disabled={selectedImageModel ? !modelSupportsQuality(selectedImageModel as ModelId, 'high') : false}
+                              >
+                                High (2K)
+                              </SelectItem>
+                              <SelectItem 
+                                value="ultra" 
+                                className="text-[10px] sm:text-xs"
+                                disabled={selectedImageModel ? !modelSupportsQuality(selectedImageModel as ModelId, 'ultra') : false}
+                              >
+                                Ultra (4K)
+                              </SelectItem>
                             </SelectContent>
                           </Select>
+                          {selectedImageModel && (
+                            <p className="text-[9px] text-muted-foreground mt-0.5">
+                              Supported: {getSupportedResolutions(selectedImageModel as ModelId).join(', ')}
+                            </p>
+                          )}
                         </div>
                       </div>
                     )}
@@ -2730,49 +2844,50 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
               </div>
             </div>
 
-            {!isPro && (
-              <>
-                <div className="border-t border-primary my-2" />
-                <div className="flex gap-1.5 mt-2">
-                  {/* Credit Usage - 50% space */}
-                  <div className={cn(
-                    "flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-md border h-6 sm:h-7 flex-[2]",
-                    credits && credits.balance < getCreditsCost()
-                      ? "bg-destructive/10 border-destructive/50 animate-pulse"
-                      : credits && credits.balance < getCreditsCost() * 2
-                      ? "bg-yellow-500/10 border-yellow-500/50"
-                      : "bg-muted/50 border-border"
-                  )}>
-                    {credits && credits.balance < getCreditsCost() ? (
-                      <>
-                        <FaExclamationCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
-                        <div className="text-[11px] sm:text-sm text-center leading-tight">
-                          <span className="text-destructive font-semibold">{getCreditsCost()}</span>
-                          <span className="text-muted-foreground"> needed / </span>
-                          <span className="text-destructive font-semibold">{credits.balance}</span>
-                          <span className="text-muted-foreground"> left</span>
-                        </div>
-                      </>
-                    ) : credits && credits.balance < getCreditsCost() * 2 ? (
-                      <>
-                        <FaExclamationTriangle className="h-3.5 w-3.5 text-yellow-500 flex-shrink-0" />
-                        <div className="text-[11px] sm:text-sm text-center leading-tight">
-                          <span className="text-yellow-600 dark:text-yellow-500 font-semibold">{getCreditsCost()}</span>
-                          <span className="text-muted-foreground"> needed / </span>
-                          <span className="text-yellow-600 dark:text-yellow-500 font-semibold">{credits.balance}</span>
-                          <span className="text-muted-foreground"> left</span>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <FaCheckCircle className="h-3.5 w-3.5 text-green-600 dark:text-green-500 flex-shrink-0" />
-                        <div className="text-[11px] sm:text-sm text-muted-foreground text-center font-medium leading-tight">
-                          {getCreditsCost()} credit{getCreditsCost() !== 1 ? 's' : ''}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  {/* Get Pro - 25% space */}
+            {/* Credit Usage, Get Pro, and Project Rules - Show for all users */}
+            <>
+              <div className="border-t border-border my-2" />
+              <div className="flex gap-1.5 mt-2">
+                {/* Credit Usage - 50% space */}
+                <div className={cn(
+                  "flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-md border h-6 sm:h-7 flex-[2]",
+                  credits && credits.balance < getCreditsCost()
+                    ? "bg-destructive/10 border-destructive/50 animate-pulse"
+                    : credits && credits.balance < getCreditsCost() * 2
+                    ? "bg-yellow-500/10 border-yellow-500/50"
+                    : "bg-muted/50 border-border"
+                )}>
+                  {credits && credits.balance < getCreditsCost() ? (
+                    <>
+                      <FaExclamationCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
+                      <div className="text-[11px] sm:text-sm text-center leading-tight">
+                        <span className="text-destructive font-semibold">{getCreditsCost()}</span>
+                        <span className="text-muted-foreground"> needed / </span>
+                        <span className="text-destructive font-semibold">{credits.balance}</span>
+                        <span className="text-muted-foreground"> left</span>
+                      </div>
+                    </>
+                  ) : credits && credits.balance < getCreditsCost() * 2 ? (
+                    <>
+                      <FaExclamationTriangle className="h-3.5 w-3.5 text-yellow-500 flex-shrink-0" />
+                      <div className="text-[11px] sm:text-sm text-center leading-tight">
+                        <span className="text-yellow-600 dark:text-yellow-500 font-semibold">{getCreditsCost()}</span>
+                        <span className="text-muted-foreground"> needed / </span>
+                        <span className="text-yellow-600 dark:text-yellow-500 font-semibold">{credits.balance}</span>
+                        <span className="text-muted-foreground"> left</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <FaCheckCircle className="h-3.5 w-3.5 text-green-600 dark:text-green-500 flex-shrink-0" />
+                      <div className="text-[11px] sm:text-sm text-muted-foreground text-center font-medium leading-tight">
+                        {getCreditsCost()} credit{getCreditsCost() !== 1 ? 's' : ''}
+                      </div>
+                    </>
+                  )}
+                </div>
+                {/* Get Pro - 25% space (only show for non-Pro users) */}
+                {!isPro && (
                   <Button
                     variant="default"
                     size="sm"
@@ -2781,37 +2896,38 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                   >
                     Get Pro
                   </Button>
-                  {/* Project Rules - 25% space */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-6 sm:h-7 text-[10px] sm:text-xs px-2 flex-1"
-                    onClick={() => setIsProjectRulesModalOpen(true)}
-                    title="Project Rules"
-                  >
-                    <FileText className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-0.5 sm:mr-1" />
-                    <span>Rules</span>
-                    {projectRules && projectRules.length > 0 && (
-                      <span className="ml-0.5 sm:ml-1 px-1 py-0.5 bg-primary/10 text-primary rounded text-[8px] sm:text-[9px] font-medium">
-                        {projectRules.length}
-                      </span>
-                    )}
-                  </Button>
-                </div>
-              </>
-            )}
+                )}
+                {/* Project Rules - 25% space */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn("h-6 sm:h-7 text-[10px] sm:text-xs px-2", !isPro ? "flex-1" : "flex-[2]")}
+                  onClick={() => setIsProjectRulesModalOpen(true)}
+                  title="Project Rules"
+                >
+                  <FileText className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-0.5 sm:mr-1" />
+                  <span>Rules</span>
+                  {projectRules && projectRules.length > 0 && (
+                    <span className="ml-0.5 sm:ml-1 px-1 py-0.5 bg-primary/10 text-primary rounded text-[8px] sm:text-[9px] font-medium">
+                      {projectRules.length}
+                    </span>
+                  )}
+                </Button>
+              </div>
+            </>
           </div>
         </div>
       </div>
 
-      {/* Render Output Area - Responsive width */}
+      {/* Render Output Area - 3/4 width on desktop */}
       <div className={cn(
-        "flex-1 flex flex-col overflow-hidden",
+        "flex-1 flex flex-col overflow-hidden min-h-0 min-w-0",
+        "lg:w-3/4 lg:flex-shrink-0",
         // Mobile: show/hide based on mobileView - ONLY show in output area, never in chat
         mobileView === 'render' ? 'flex' : 'hidden lg:flex'
       )}>
         {/* Header with Toolbar - ONLY in output area, never in chat */}
-        <div className="border-b border-border sticky top-0 z-10">
+        <div className="border-b border-border shrink-0 z-10">
           <div className="px-4 py-1.5 h-11 flex items-center">
             {/* Toolbar - Only show when there's a render AND we're in output area (not chat) */}
             {currentRender && (() => {
@@ -2901,18 +3017,18 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="h-7 px-2 text-[10px] flex-1 flex items-center justify-center gap-1.5"
+                          className="h-7 px-1.5 sm:px-2 text-[10px] flex-1 flex items-center justify-center gap-1.5"
                           disabled={isUpscaling}
                         >
                           {isUpscaling ? (
                             <>
                               <RefreshCw className="h-3 w-3 animate-spin shrink-0" />
-                              <span>Upscaling...</span>
+                              <span className="hidden sm:inline">Upscaling...</span>
                             </>
                           ) : (
                             <>
                               <Zap className="h-3 w-3 shrink-0" />
-                              <span>Upscale</span>
+                              <span className="hidden sm:inline">Upscale</span>
                             </>
                           )}
                         </Button>
@@ -2965,11 +3081,11 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                           toast.error('Failed to load image. Please try again.');
                         }
                       }} 
-                      className="h-7 px-2 text-[10px] flex-1 flex items-center justify-center gap-1.5" 
+                      className="h-7 px-1.5 sm:px-2 text-[10px] flex-1 flex items-center justify-center gap-1.5" 
                       disabled={!currentRender || currentRender.type === 'video' || isGenerating}
                     >
                       <Video className="h-3 w-3 shrink-0" />
-                      <span>Video</span>
+                      <span className="hidden sm:inline">Video</span>
                     </Button>
                     {/* Download */}
                     <Button 
@@ -2993,18 +3109,30 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                       <Share2 className="h-3 w-3 shrink-0" />
                       <span className="hidden sm:inline">Share</span>
                     </Button>
-                    {/* More Tools - Placeholder */}
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => {}} 
-                      className="h-7 px-1.5 sm:px-2 text-[10px] flex-1 flex items-center justify-center gap-1 sm:gap-1.5" 
-                      disabled
-                      title="More"
-                    >
-                      <MoreVertical className="h-3 w-3 shrink-0" />
-                      <span className="hidden sm:inline">More</span>
-                    </Button>
+                    {/* Before/After Toggle - Only show when there's a previous render */}
+                    {previousRender && previousRender.outputUrl && currentRender && currentRender.type === 'image' && (
+                      <div className="flex items-center gap-1 h-7 px-2 sm:px-3 border border-input bg-background rounded-md flex-1">
+                        <Button
+                          variant={beforeAfterView === 'before' ? 'default' : 'ghost'}
+                          size="sm"
+                          onClick={() => setBeforeAfterView('before')}
+                          className="h-5 sm:h-6 px-2 sm:px-3 text-[10px] sm:text-xs flex-1"
+                          title="Before"
+                        >
+                          Before
+                        </Button>
+                        <div className="h-3 w-px bg-border"></div>
+                        <Button
+                          variant={beforeAfterView === 'after' ? 'default' : 'ghost'}
+                          size="sm"
+                          onClick={() => setBeforeAfterView('after')}
+                          className="h-5 sm:h-6 px-2 sm:px-3 text-[10px] sm:text-xs flex-1"
+                          title="After"
+                        >
+                          After
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -3064,13 +3192,9 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                             }}
                           />
                         ) : previousRender && previousRender.outputUrl && renderWithLatestData ? (
-                          // Before/After Comparison with Tabs
-                          <Tabs defaultValue="after" className="w-full h-full">
-                            <TabsList className="grid w-full grid-cols-2 mb-2 absolute top-2 left-1/2 -translate-x-1/2 z-10 bg-background/90 backdrop-blur-sm">
-                              <TabsTrigger value="before" className="text-xs sm:text-sm">Before</TabsTrigger>
-                              <TabsTrigger value="after" className="text-xs sm:text-sm">After</TabsTrigger>
-                            </TabsList>
-                            <TabsContent value="before" className="mt-0 h-full">
+                          // Before/After Comparison - Tabs moved to header toolbar
+                          <div className="w-full h-full">
+                            {beforeAfterView === 'before' ? (
                               <div className="w-full h-full flex items-center justify-center relative">
                                 {shouldUseRegularImg(previousRender.outputUrl) ? (
                                   <img
@@ -3117,8 +3241,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                                   <Maximize className="h-3 w-3 sm:h-4 sm:w-4" />
                                 </Button>
                               </div>
-                            </TabsContent>
-                            <TabsContent value="after" className="mt-0 h-full">
+                            ) : (
                               <div className="w-full h-full flex items-center justify-center relative">
                                 {shouldUseRegularImg(renderWithLatestData.outputUrl || '') ? (
                                   <img
@@ -3185,8 +3308,8 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                                   <Maximize className="h-3 w-3 sm:h-4 sm:w-4" />
                                 </Button>
                               </div>
-                            </TabsContent>
-                          </Tabs>
+                            )}
+                          </div>
                         ) : renderWithLatestData ? (
                           <>
                             {/* Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking */}

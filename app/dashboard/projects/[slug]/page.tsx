@@ -10,31 +10,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { 
   ArrowLeft, 
   Search, 
-  Filter, 
-  MoreVertical, 
-  Trash2, 
-  Edit, 
-  Copy, 
-  Download,
-  Eye,
-  Heart,
-  Share2,
-  Calendar,
   Image as ImageIcon,
-  Video,
-  Loader2
+  Loader2,
+  Plus
 } from 'lucide-react';
 import Link from 'next/link';
 import { ImageCard } from '@/components/projects/image-card';
 import { ViewModeToggle } from '@/components/projects/view-mode-toggle';
 import { ImageModal } from '@/components/common/image-modal';
 import { cn } from '@/lib/utils';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useRenders } from '@/lib/hooks/use-renders';
 import { ChainList } from '@/components/projects/chain-list';
@@ -59,6 +43,7 @@ export default function ProjectSlugPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedRender, setSelectedRender] = useState<Render | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'chains' | 'renders'>('chains');
 
   // Use the renders hook with proper architecture
   const { renders, chains, loading: rendersLoading, error: rendersError, fetchChains } = useRenders(project?.id || null);
@@ -235,67 +220,64 @@ export default function ProjectSlugPage() {
   return (
     <div className="h-full w-full">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-        {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-4">
-            <Button variant="ghost" size="sm" asChild className="self-start">
-              <Link href="/dashboard/projects">
-                <ArrowLeft className="h-4 w-4 mr-2 shrink-0" />
-                <span className="text-sm">Back</span>
-              </Link>
-            </Button>
-            <div className="flex-1 min-w-0">
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground truncate">{project.name}</h1>
-              <p className="text-muted-foreground mt-2 text-xs sm:text-sm">
-                {renders.length} render{renders.length !== 1 ? 's' : ''}
-                {project.description && ` • ${project.description}`}
-              </p>
-            </div>
-            <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
-              <Button variant="outline" size="sm">
-                <Edit className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="sm">
-                <Copy className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="sm">
-                <Share2 className="h-4 w-4" />
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit Project
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Copy className="h-4 w-4 mr-2" />
-                    Duplicate Project
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Share2 className="h-4 w-4 mr-2" />
-                    Share Project
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="text-red-600">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Project
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </div>
 
         {/* Tabs for Chains and Renders */}
-        <Tabs defaultValue="renders" className="w-full">
-          <TabsList className="mb-4 sm:mb-6 grid w-full grid-cols-2">
-            <TabsTrigger value="renders" className="text-xs sm:text-sm">All Renders</TabsTrigger>
-            <TabsTrigger value="chains" className="text-xs sm:text-sm">Render Chains</TabsTrigger>
-          </TabsList>
+        <Tabs defaultValue="chains" value={activeTab} onValueChange={(value) => setActiveTab(value as 'chains' | 'renders')} className="w-full">
+          {/* Tabs, Search, Filters - All in one row on desktop, tabs on new row on mobile */}
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-6 sm:items-center">
+            {/* Tabs and New Chain Button - Full width on mobile, inline on desktop */}
+            <div className="flex items-center gap-2 w-full sm:w-auto sm:shrink-0">
+              <TabsList className="grid w-full sm:w-auto grid-cols-2 sm:inline-flex flex-1 sm:flex-initial">
+                <TabsTrigger value="chains" className="text-xs sm:text-sm">Render Chains</TabsTrigger>
+                <TabsTrigger value="renders" className="text-xs sm:text-sm">All Renders</TabsTrigger>
+              </TabsList>
+              {activeTab === 'chains' && (
+                <Button onClick={handleCreateChain} size="sm" className="shrink-0">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Chain
+                </Button>
+              )}
+            </div>
+            
+            {/* Search, Filters, View Toggle Row - Only show for All Renders tab */}
+            {activeTab === 'renders' && (
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 flex-1 sm:items-center">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search renders..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 text-sm sm:text-base"
+                  />
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="newest">Newest first</SelectItem>
+                      <SelectItem value="oldest">Oldest first</SelectItem>
+                      <SelectItem value="status">By status</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={filterStatus} onValueChange={setFilterStatus}>
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All status</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="processing">Processing</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
+                </div>
+              </div>
+            )}
+          </div>
 
           <TabsContent value="chains">
             <ChainList 
@@ -305,43 +287,7 @@ export default function ProjectSlugPage() {
             />
           </TabsContent>
 
-          <TabsContent value="renders" className="mt-4 sm:mt-6">
-            {/* Search and Filters */}
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search renders..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 text-sm sm:text-base"
-            />
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">Newest first</SelectItem>
-                <SelectItem value="oldest">Oldest first</SelectItem>
-                <SelectItem value="status">By status</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[120px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All status</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
-              </SelectContent>
-            </Select>
-            <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
-          </div>
-        </div>
+          <TabsContent value="renders" className="mt-0">
 
         {/* Renders Grid */}
         {rendersError ? (
