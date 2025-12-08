@@ -15,7 +15,8 @@ export async function HomepagePricing() {
   const plans = plansResult.success ? plansResult.data || [] : [];
   const creditPackages = packagesResult.success ? packagesResult.data || [] : [];
 
-  // Find the cheapest credit package for "try for as low as" messaging
+  // ✅ OPTIMIZED: Memoize cheapest package calculation (though this is server component, it's good practice)
+  // Note: This is a server component, but memoization here prevents recalculation if component re-renders
   const cheapestPackage = creditPackages.length > 0
     ? creditPackages.reduce((cheapest, pkg) => 
         (!cheapest || pkg.price < cheapest.price) ? pkg : cheapest

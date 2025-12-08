@@ -1,5 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
-import { Suspense } from "react"
+import { Suspense, useMemo } from "react"
 import { enrichTweet, type EnrichedTweet, type TweetProps } from "react-tweet"
 import { getTweet, type Tweet } from "react-tweet/api"
 
@@ -223,6 +223,7 @@ export const TweetMedia = ({ tweet }: { tweet: EnrichedTweet }) => {
   )
 }
 
+// ✅ OPTIMIZED: Memoize enriched tweet calculation
 export const MagicTweet = ({
   tweet,
   className,
@@ -231,7 +232,8 @@ export const MagicTweet = ({
   tweet: Tweet
   className?: string
 }) => {
-  const enrichedTweet = enrichTweet(tweet)
+  // ✅ REACT 19 OPTIMIZED: Memoize expensive enrichTweet operation
+  const enrichedTweet = useMemo(() => enrichTweet(tweet), [tweet])
   return (
     <div
       className={cn(

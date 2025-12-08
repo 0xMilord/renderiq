@@ -72,11 +72,14 @@ export function MasonryFeed({
     return cols;
   }, [items, columnCount]);
 
-  // Intersection Observer for infinite scroll
+  // ✅ OPTIMIZED: Intersection Observer with prefetching (Instagram-style)
+  // Prefetch when user is 400px from bottom (earlier than before)
   useEffect(() => {
     const currentTarget = observerTarget.current;
     if (!currentTarget) return;
 
+    // ✅ OPTIMIZED: Use larger rootMargin for earlier prefetching
+    // This starts loading before user reaches the bottom (Instagram pattern)
     const observer = new IntersectionObserver(
       (entries) => {
         const target = entries[0];
@@ -87,7 +90,7 @@ export function MasonryFeed({
       },
       {
         root: null,
-        rootMargin: '200px', // Start loading 200px before reaching the bottom
+        rootMargin: '400px', // ✅ OPTIMIZED: Increased from 200px to 400px for earlier prefetch
         threshold: 0.1,
       }
     );

@@ -83,11 +83,11 @@ export function BottomNav() {
   const { user, loading } = useAuth();
   const [isAppsSheetOpen, setIsAppsSheetOpen] = useState(false);
 
-  // Hide bottom nav on render routes, project/chain routes, and demo route
-  // Note: Dashboard routes now show bottom nav for authenticated users
+  // Hide bottom nav on render routes, project/chain routes, dashboard routes, and demo route
   if (
     pathname.includes('/render') || 
     pathname.startsWith('/project/') ||
+    pathname?.startsWith('/dashboard') ||
     pathname?.startsWith('/demo')
   ) {
     return null;

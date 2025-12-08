@@ -87,27 +87,28 @@ function PaymentSuccessContent() {
     try {
       setLoading(true);
 
-      // ✅ OPTIMIZED: Parallelize API calls based on what we have
+      // ✅ OPTIMIZED: Fetch payment data first (required), receipt can load in background
       if (paymentOrderId) {
-        // We have payment order ID - fetch receipt and payment in parallel
-        const [receiptResponse, paymentResponse] = await Promise.all([
-          fetch(`/api/payments/receipt/${paymentOrderId}`),
-          fetch(`/api/payments/${paymentOrderId}`), // New optimized endpoint
-        ]);
-
-        if (receiptResponse.ok) {
-          const receiptData = await receiptResponse.json();
-          if (receiptData.success && receiptData.data?.receiptUrl) {
-            setReceiptUrl(receiptData.data.receiptUrl);
-          }
-        }
-
+        // We have payment order ID - fetch payment first (required), receipt in parallel (optional)
+        const paymentResponse = await fetch(`/api/payments/${paymentOrderId}`);
+        
         if (paymentResponse.ok) {
           const paymentData = await paymentResponse.json();
           if (paymentData.success && paymentData.data) {
             setPaymentData(paymentData.data);
+            setLoading(false); // Show page immediately with payment data
           }
         }
+
+        // Fetch receipt in background (non-blocking)
+        fetch(`/api/payments/receipt/${paymentOrderId}`)
+          .then(res => res.ok ? res.json() : null)
+          .then(receiptData => {
+            if (receiptData?.success && receiptData.data?.receiptUrl) {
+              setReceiptUrl(receiptData.data.receiptUrl);
+            }
+          })
+          .catch(err => console.error('Error fetching receipt:', err));
       } else if (razorpaySubscriptionId) {
         // We have subscription ID - use optimized endpoint
         const paymentResponse = await fetch(`/api/payments/by-subscription/${razorpaySubscriptionId}`);
@@ -125,14 +126,17 @@ function PaymentSuccessContent() {
               newUrl.searchParams.delete('verification');
               window.history.replaceState({}, '', newUrl.toString());
               
-              // Now fetch receipt with payment ID
-              const receiptRes = await fetch(`/api/payments/receipt/${payment.id}`);
-              if (receiptRes.ok) {
-                const receiptData = await receiptRes.json();
-                if (receiptData.success && receiptData.data?.receiptUrl) {
-                  setReceiptUrl(receiptData.data.receiptUrl);
-                }
-              }
+              setLoading(false); // Show page immediately with payment data
+              
+              // Fetch receipt in background (non-blocking)
+              fetch(`/api/payments/receipt/${payment.id}`)
+                .then(res => res.ok ? res.json() : null)
+                .then(receiptData => {
+                  if (receiptData?.success && receiptData.data?.receiptUrl) {
+                    setReceiptUrl(receiptData.data.receiptUrl);
+                  }
+                })
+                .catch(err => console.error('Error fetching receipt:', err));
             }
           }
         } else {
@@ -153,14 +157,17 @@ function PaymentSuccessContent() {
                   newUrl.searchParams.delete('verification');
                   window.history.replaceState({}, '', newUrl.toString());
                   
-                  // Fetch receipt
-                  const receiptRes = await fetch(`/api/payments/receipt/${payment.id}`);
-                  if (receiptRes.ok) {
-                    const receiptData = await receiptRes.json();
-                    if (receiptData.success && receiptData.data?.receiptUrl) {
-                      setReceiptUrl(receiptData.data.receiptUrl);
-                    }
-                  }
+                  setLoading(false); // Show page immediately with payment data
+                  
+                  // Fetch receipt in background (non-blocking)
+                  fetch(`/api/payments/receipt/${payment.id}`)
+                    .then(res => res.ok ? res.json() : null)
+                    .then(receiptData => {
+                      if (receiptData?.success && receiptData.data?.receiptUrl) {
+                        setReceiptUrl(receiptData.data.receiptUrl);
+                      }
+                    })
+                    .catch(err => console.error('Error fetching receipt:', err));
                 }
               }
             }
@@ -351,4 +358,5 @@ export default function PaymentSuccessPage() {
     </Suspense>
   );
 }
+
 

@@ -25,7 +25,6 @@ interface MentionItem {
 }
 
 export function MentionTagger({ isOpen, onClose, onMentionSelect, searchTerm, renders }: MentionTaggerProps) {
-  const [filteredItems, setFilteredItems] = useState<MentionItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
   
@@ -33,18 +32,13 @@ export function MentionTagger({ isOpen, onClose, onMentionSelect, searchTerm, re
   const { renders: fallbackRenders, loading } = useUserRenders();
   const actualRenders = renders || fallbackRenders;
 
-  // Generate mention items from renders
-  useEffect(() => {
-    if (!actualRenders) return;
+  // ✅ OPTIMIZED: Memoize mention items generation (expensive filter + sort + map operations)
+  const mentionItems = useMemo(() => {
+    if (!actualRenders) return [];
 
     const completedRenders = actualRenders
       .filter(render => render.outputUrl && render.status === 'completed')
       .sort((a, b) => (a.chainPosition || 0) - (b.chainPosition || 0));
-
-    logger.log('🔍 MentionTagger: Renders debug', {
-      allRenders: actualRenders.map(r => ({ id: r.id, chainPosition: r.chainPosition, status: r.status })),
-      completedRenders: completedRenders.map(r => ({ id: r.id, chainPosition: r.chainPosition, status: r.status }))
-    });
 
     const items: MentionItem[] = completedRenders.map((render, index) => ({
       id: render.id,
@@ -60,32 +54,38 @@ export function MentionTagger({ isOpen, onClose, onMentionSelect, searchTerm, re
       { id: 'first', text: 'first version', type: 'render' }
     );
 
-    // Filter based on search term (if any)
-    const filtered = searchTerm.trim() 
-      ? items.filter(item => {
-          const searchLower = searchTerm.toLowerCase().trim();
-          const itemLower = item.text.toLowerCase();
-          
-          // Handle version number searches like "7", "version 7", etc.
-          if (searchLower.match(/^\d+$/)) {
-            return itemLower.includes(`version ${searchLower}`) || itemLower.includes(searchLower);
-          }
-          
-          return itemLower.includes(searchLower);
-        })
-      : items;
+    return items;
+  }, [actualRenders]);
 
+  // ✅ OPTIMIZED: Memoize filtered items based on search term
+  const filteredItems = useMemo(() => {
+    if (!searchTerm.trim()) return mentionItems;
+
+    const searchLower = searchTerm.toLowerCase().trim();
+    return mentionItems.filter(item => {
+      const itemLower = item.text.toLowerCase();
+      
+      // Handle version number searches like "7", "version 7", etc.
+      if (searchLower.match(/^\d+$/)) {
+        return itemLower.includes(`version ${searchLower}`) || itemLower.includes(searchLower);
+      }
+      
+      return itemLower.includes(searchLower);
+    });
+  }, [mentionItems, searchTerm]);
+
+  // Reset selected index when filtered items change
+  useEffect(() => {
+    setSelectedIndex(0);
+    
     logger.log('🔍 MentionTagger: Debug info', {
-      totalRenders: actualRenders.length,
-      completedRenders: actualRenders.filter(r => r.outputUrl && r.status === 'completed').length,
-      itemsCount: items.length,
-      filteredCount: filtered.length,
+      totalRenders: actualRenders?.length || 0,
+      completedRenders: actualRenders?.filter(r => r.outputUrl && r.status === 'completed').length || 0,
+      itemsCount: mentionItems.length,
+      filteredCount: filteredItems.length,
       searchTerm
     });
-
-    setFilteredItems(filtered);
-    setSelectedIndex(0);
-  }, [actualRenders, searchTerm]);
+  }, [filteredItems.length, mentionItems.length, actualRenders, searchTerm]);
 
   // Handle keyboard navigation
   useEffect(() => {

@@ -70,16 +70,24 @@ export default function ProjectSlugPage() {
     }
   }, [project?.id, fetchChains]);
 
-  useEffect(() => {
+  // ✅ REACT 19 OPTIMIZED: Use useMemo for derived state instead of useEffect
+  // In React 19, useEffect should NOT be used for derived state - use useMemo instead
+  const foundProject = useMemo(() => {
+    if (!slug || projects.length === 0) return null;
     logger.log('🔍 [ProjectSlugPage] Finding project by slug:', slug);
-    const foundProject = projects.find(p => p.slug === slug);
-    if (foundProject) {
-      logger.log('✅ [ProjectSlugPage] Project found:', foundProject.name);
-      setProject(foundProject);
+    const project = projects.find(p => p.slug === slug);
+    if (project) {
+      logger.log('✅ [ProjectSlugPage] Project found:', project.name);
     } else {
       logger.log('❌ [ProjectSlugPage] Project not found for slug:', slug);
     }
+    return project || null;
   }, [slug, projects]);
+
+  // ✅ REACT 19 OPTIMIZED: Only use useEffect for side effects (setting state from derived value)
+  useEffect(() => {
+    setProject(foundProject);
+  }, [foundProject]);
 
   // Memoize filtered renders to avoid recalculating on every render
   const filteredRenders = useMemo(() => {

@@ -41,11 +41,11 @@ export function HowItWorksSection() {
   }, []);
 
   const isDarkMode = mounted && (resolvedTheme === 'dark' || theme === 'dark');
-  // Hatch color: 2 tones lighter than background (light mode: 100% lightness, dark mode: 12% lightness)
-  const hatchColor = isDarkMode ? 'hsl(220,20%,12%)' : 'hsl(220,30%,100%)';
+  // Hatch color: subtle pattern using muted colors
+  const hatchColor = isDarkMode ? 'hsl(var(--muted))' : 'hsl(var(--muted))';
 
   return (
-    <section id="how-it-works" className="relative py-20 px-4 sm:px-6 lg:px-8 bg-[hsl(220,30%,96%)] dark:bg-[hsl(220,20%,8%)] overflow-hidden">
+    <section id="how-it-works" className="relative py-20 px-4 sm:px-6 lg:px-8 bg-background/80 backdrop-blur-sm overflow-hidden">
       {/* Diagonal Stripe Pattern on Sides - Theme-aware - Responsive - 2px width to match stroke */}
       <div className="absolute inset-y-0 left-0 hidden md:block md:w-16 lg:w-32 -z-0 overflow-hidden" style={{ 
         backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 8px, ${hatchColor} 8px, ${hatchColor} 10px)`
@@ -62,9 +62,6 @@ export function HowItWorksSection() {
             From Sketch to Stunning Render
             <span className="block text-muted-foreground">in 3 Simple Steps</span>
           </h2>
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
-            Our streamlined process makes it easy to create professional architectural visualizations
-          </p>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
             Our streamlined process makes it easy to create professional architectural visualizations
           </p>

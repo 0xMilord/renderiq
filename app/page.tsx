@@ -78,6 +78,11 @@ export const metadata: Metadata = {
   },
 };
 
+// ✅ ISR: Enable Incremental Static Regeneration for homepage
+// Revalidate every 60 seconds (1 minute) to keep content fresh
+// This allows the page to be statically generated but updated periodically
+export const revalidate = 60;
+
 export default async function Home() {
   // Fetch actual gallery items for the homepage - fetch more for Pinterest-style scrolling
   const galleryResult = await getPublicGallery(1, 60);
@@ -207,7 +212,7 @@ export default async function Home() {
       <UseCasesSection />
 
       {/* Features Section - Enhanced */}
-      <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 bg-card">
+      <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 bg-card/80 backdrop-blur-sm">
         <div className="w-full max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <Badge className="mb-4 bg-muted text-muted-foreground px-4 py-2">
@@ -501,6 +506,10 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* Smooth Cursor */}
+      <SmoothCursorWrapper />
+      </div>
+
       {/* Pinned Bottom Blur Bar - Mobile: starts above bottom nav (3.5rem), Desktop: at bottom */}
       <GradualBlur
         target="page"
@@ -512,11 +521,8 @@ export default async function Home() {
         exponential={true}
         opacity={1}
         className="bottom-14 md:bottom-0"
+        style={{ zIndex: 50 }}
       />
-
-      {/* Smooth Cursor */}
-      <SmoothCursorWrapper />
-      </div>
     </div>
   );
 }

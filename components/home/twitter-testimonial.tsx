@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { ExternalLink, Heart, MessageCircle, Repeat2, Share2 } from 'lucide-react';
 import { FaXTwitter } from 'react-icons/fa6';
 import { Card } from '@/components/ui/card';
@@ -87,25 +87,31 @@ export function TwitterTestimonial({ tweetUrl, fallback }: TwitterTestimonialPro
     );
   }
 
-  const displayTweet = tweet || (fallback ? {
-    id: 'fallback',
-    text: fallback.text,
-    author: {
-      name: fallback.author,
-      username: fallback.username,
-      avatar: '',
-    },
-    createdAt: new Date().toISOString(),
-    url: tweetUrl,
-    metrics: {
-      likes: 0,
-      retweets: 0,
-    },
-  } : null);
+  // ✅ REACT 19 OPTIMIZED: Memoize derived values
+  const displayTweet = useMemo(() => {
+    return tweet || (fallback ? {
+      id: 'fallback',
+      text: fallback.text,
+      author: {
+        name: fallback.author,
+        username: fallback.username,
+        avatar: '',
+      },
+      createdAt: new Date().toISOString(),
+      url: tweetUrl,
+      metrics: {
+        likes: 0,
+        retweets: 0,
+      },
+    } : null);
+  }, [tweet, fallback, tweetUrl]);
+
+  const timeAgo = useMemo(() => {
+    if (!displayTweet) return '';
+    return formatDistanceToNow(new Date(displayTweet.createdAt), { addSuffix: true });
+  }, [displayTweet]);
 
   if (!displayTweet) return null;
-
-  const timeAgo = formatDistanceToNow(new Date(displayTweet.createdAt), { addSuffix: true });
 
   return (
     <Card className="p-4 border border-border/50 rounded-2xl bg-card hover:border-border hover:shadow-md transition-all duration-200 group cursor-pointer">

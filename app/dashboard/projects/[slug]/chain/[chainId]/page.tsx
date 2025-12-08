@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,14 +24,12 @@ export default function ChainDetailPage({
   params: Promise<{ slug: string; chainId: string }> 
 }) {
   const router = useRouter();
-  const [params, setParams] = useState<{ slug: string; chainId: string } | null>(null);
+  // ✅ REACT 19 + NEXT.JS 15 OPTIMIZED: Use use() hook for unwrapping Promise params
+  // In React 19, use the use() hook instead of useEffect + useState for Promise unwrapping
+  const params = use(paramsPromise);
   
-  useEffect(() => {
-    paramsPromise.then(setParams);
-  }, [paramsPromise]);
-
-  const slug = params?.slug || '';
-  const chainId = params?.chainId || '';
+  const slug = params.slug;
+  const chainId = params.chainId;
 
   const { chain, renders, loading, error } = useRenderChain(chainId);
   const [selectedRenderId, setSelectedRenderId] = useState<string>();

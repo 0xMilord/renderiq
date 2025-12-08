@@ -9,12 +9,31 @@ import { renders, renderChains, galleryItems } from '@/lib/db/schema';
 import { eq, and, isNotNull, desc, sql, ne, or, inArray } from 'drizzle-orm';
 import type { GalleryItemWithDetails } from '@/lib/types';
 
-export async function getPublicGallery(page = 1, limit = 20) {
+// ✅ OPTIMIZED: Support server-side filtering and sorting
+export async function getPublicGallery(
+  page = 1, 
+  limit = 20,
+  options?: {
+    sortBy?: 'newest' | 'oldest' | 'most_liked' | 'most_viewed' | 'trending';
+    filters?: {
+      style?: string[];
+      quality?: string[];
+      aspectRatio?: string[];
+      contentType?: 'image' | 'video' | 'both';
+    };
+    searchQuery?: string;
+  }
+) {
   try {
     const offset = (page - 1) * limit;
-    // RendersDAL.getPublicGallery sorts by newest first (createdAt DESC) in SQL
-    // Frontend can re-sort client-side as needed
-    const items = await RendersDAL.getPublicGallery(limit, offset);
+    
+    // ✅ OPTIMIZED: Pass filters and sort options to DAL for server-side processing
+    // This prevents fetching ALL items and filtering client-side (major performance win)
+    const items = await RendersDAL.getPublicGallery(limit, offset, {
+      sortBy: options?.sortBy || 'newest',
+      filters: options?.filters,
+      searchQuery: options?.searchQuery,
+    });
     
     return { success: true, data: items };
   } catch (error) {

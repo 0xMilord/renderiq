@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { MasonryFeed } from '@/components/gallery/masonry-feed';
 import { type SortOption, type FilterOption } from '@/components/gallery/gallery-filters';
 import { useGallery } from '@/lib/hooks/use-gallery';
@@ -25,6 +25,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import type { GalleryItemWithDetails } from '@/lib/types';
+import OptimizedBackground from '@/components/home/optimized-background';
 
 const STYLE_OPTIONS = [
   { value: 'photorealistic', label: 'Photorealistic' },
@@ -52,7 +53,17 @@ export default function GalleryPage() {
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [filters, setFilters] = useState<FilterOption>({});
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { items, loading, hasMore, loadMore, likeItem, viewItem, likedItems } = useGallery();
+  
+  // ✅ FIXED: Memoize options object to prevent infinite loop
+  // This prevents the options object from being recreated on every render
+  const galleryOptions = useMemo(() => ({
+    sortBy,
+    filters,
+    searchQuery,
+  }), [sortBy, filters, searchQuery]);
+  
+  // ✅ OPTIMIZED: Pass filters and sort to hook for server-side processing
+  const { items, loading, hasMore, loadMore, likeItem, viewItem, likedItems } = useGallery(20, galleryOptions);
   const scrollRestoredRef = useRef(false);
   const containerRef = useRef<HTMLElement | null>(null);
 
@@ -154,289 +165,197 @@ export default function GalleryPage() {
     (filters.aspectRatio?.length || 0) +
     (filters.contentType && filters.contentType !== 'both' ? 1 : 0);
 
-  // Filter and sort items
-  const filteredAndSortedItems = useMemo(() => {
-    let result = [...items];
-
-    // Debug logging
-    console.log('Gallery filtering:', {
-      totalItems: items.length,
-      searchQuery,
-      filters,
-      sortBy,
-      initialResultCount: result.length
-    });
-
-    // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const beforeSearch = result.length;
-      result = result.filter(item =>
-        item.render.prompt.toLowerCase().includes(query) ||
-        item.user.name?.toLowerCase().includes(query)
-      );
-      console.log('Search filter:', { beforeSearch, afterSearch: result.length, query });
-    }
-
-    // Style filter - case-insensitive, only filter if item has style setting
-    if (filters.style && filters.style.length > 0) {
-      result = result.filter(item => {
-        const itemStyle = item.render.settings?.style;
-        // If item doesn't have style setting, include it (don't filter out)
-        if (!itemStyle) return true;
-        // If item has style, check if it matches any filter
-        return filters.style!.some(filterStyle => 
-          String(itemStyle).toLowerCase() === String(filterStyle).toLowerCase()
-        );
-      });
-    }
-
-    // Quality filter - case-insensitive, only filter if item has quality setting
-    if (filters.quality && filters.quality.length > 0) {
-      result = result.filter(item => {
-        const itemQuality = item.render.settings?.quality;
-        // If item doesn't have quality setting, include it (don't filter out)
-        if (!itemQuality) return true;
-        // If item has quality, check if it matches any filter
-        return filters.quality!.some(filterQuality => 
-          String(itemQuality).toLowerCase() === String(filterQuality).toLowerCase()
-        );
-      });
-    }
-
-    // Aspect ratio filter - handle different formats (16:9 vs 16/9)
-    if (filters.aspectRatio && filters.aspectRatio.length > 0) {
-      result = result.filter(item => {
-        const itemRatio = item.render.settings?.aspectRatio;
-        // If item doesn't have aspect ratio setting, include it (don't filter out)
-        if (!itemRatio) return true;
-        // Normalize ratios (16:9, 16/9, etc.)
-        const normalizeRatio = (ratio: string) => String(ratio).replace(/[:\/]/g, ':');
-        const normalizedItemRatio = normalizeRatio(String(itemRatio));
-        return filters.aspectRatio!.some(filterRatio => 
-          normalizeRatio(String(filterRatio)) === normalizedItemRatio
-        );
-      });
-    }
-
-    // Content type filter (image/video/both)
-    if (filters.contentType && filters.contentType !== 'both') {
-      result = result.filter(item => {
-        if (filters.contentType === 'image') {
-          return item.render.type === 'image';
-        } else if (filters.contentType === 'video') {
-          return item.render.type === 'video';
-        }
-        return true;
-      });
-    }
-
-    // Sort
-    result.sort((a, b) => {
-      switch (sortBy) {
-        case 'newest':
-          return new Date(b.render.createdAt).getTime() - new Date(a.render.createdAt).getTime();
-        case 'oldest':
-          return new Date(a.render.createdAt).getTime() - new Date(b.render.createdAt).getTime();
-        case 'most_liked':
-          return b.likes - a.likes;
-        case 'most_viewed':
-          return b.views - a.views;
-        case 'trending':
-          // Trending = combination of recent views and likes
-          const aScore = a.likes * 2 + a.views + (Date.now() - new Date(a.render.createdAt).getTime()) / (1000 * 60 * 60 * 24);
-          const bScore = b.likes * 2 + b.views + (Date.now() - new Date(b.render.createdAt).getTime()) / (1000 * 60 * 60 * 24);
-          return bScore - aScore;
-        default:
-          return 0;
-      }
-    });
-
-    console.log('Final filtered result:', { count: result.length, hasFilters: activeFilterCount > 0 });
-    return result;
-  }, [items, searchQuery, filters, sortBy, activeFilterCount]);
+  // ✅ OPTIMIZED: No client-side filtering/sorting needed - all done server-side
+  // Items are already filtered and sorted from the server
+  const filteredAndSortedItems = items;
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen bg-background relative">
+      {/* Grid Background */}
+      <OptimizedBackground />
+      
       {/* Header with Title, Description, Sidebar Button in Same Row */}
-      <header className="fixed top-[calc(1rem+2.75rem)] left-0 right-0 z-40 border-b border-border bg-background">
-        <div className="container mx-auto px-4 h-14 flex items-center">
-          <div className="flex items-center gap-3 sm:gap-4">
-            {/* Sidebar Toggle Button */}
-            <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-              <SheetTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 w-8 p-0 shrink-0">
-                  <PanelLeftOpen className="h-4 w-4" />
-                  <span className="sr-only">Toggle filters sidebar</span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent 
-                side="left" 
-                className="w-[300px] sm:w-[320px] p-0"
-                onOpenAutoFocus={(e) => e.preventDefault()}
-              >
-                <div className="h-full flex flex-col">
-                  <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0 flex flex-row items-center justify-between">
-                    <SheetTitle>Filters</SheetTitle>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      onClick={() => setSidebarOpen(false)}
-                    >
-                      <PanelLeftClose className="h-4 w-4" />
-                      <span className="sr-only">Close sidebar</span>
-                    </Button>
-                  </SheetHeader>
-                  <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
-                    {/* Search inside Sidebar */}
+      <header className="fixed top-[var(--navbar-height)] left-0 right-0 z-40 border-b border-border bg-background/80 backdrop-blur-sm">
+        <div className="container mx-auto px-4">
+          {/* Main Header Row: Sidebar Button + Title/Description */}
+          <div className="h-14 flex items-center">
+            <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+              {/* Sidebar Toggle Button */}
+              <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 w-8 p-0 shrink-0">
+                    <PanelLeftOpen className="h-4 w-4" />
+                    <span className="sr-only">Toggle filters sidebar</span>
+                  </Button>
+                </SheetTrigger>
+                <SheetContent 
+                  side="left" 
+                  className="w-[300px] sm:w-[320px] p-0"
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                >
+                  <div className="h-full flex flex-col">
+                    <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0 flex flex-row items-center justify-between">
+                      <SheetTitle>Filters</SheetTitle>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => setSidebarOpen(false)}
+                      >
+                        <PanelLeftClose className="h-4 w-4" />
+                        <span className="sr-only">Close sidebar</span>
+                      </Button>
+                    </SheetHeader>
+                    <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+                      {/* Search inside Sidebar */}
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Search</Label>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                          <Input
+                            type="text"
+                            placeholder="Search renders..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10 w-full"
+                          />
+                        </div>
+                      </div>
+                    {/* Sort */}
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">Search</Label>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                        <Input
-                          type="text"
-                          placeholder="Search renders..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="pl-10 w-full"
-                        />
+                      <Label className="text-sm font-medium">Sort By</Label>
+                      <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="newest">Newest First</SelectItem>
+                          <SelectItem value="oldest">Oldest First</SelectItem>
+                          <SelectItem value="most_liked">Most Liked</SelectItem>
+                          <SelectItem value="most_viewed">Most Viewed</SelectItem>
+                          <SelectItem value="trending">Trending</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Content Type Filter */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Content Type</Label>
+                      <Select 
+                        value={filters.contentType || 'both'} 
+                        onValueChange={(value) => handleContentTypeChange(value as 'image' | 'video' | 'both')}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="both">Both</SelectItem>
+                          <SelectItem value="image">Images Only</SelectItem>
+                          <SelectItem value="video">Videos Only</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Style Filter */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Style</Label>
+                      <div className="space-y-2">
+                        {STYLE_OPTIONS.map((option) => (
+                          <div key={option.value} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`style-${option.value}`}
+                              checked={filters.style?.includes(option.value) || false}
+                              onCheckedChange={() => handleStyleToggle(option.value)}
+                            />
+                            <Label
+                              htmlFor={`style-${option.value}`}
+                              className="text-sm font-normal cursor-pointer"
+                            >
+                              {option.label}
+                            </Label>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  {/* Sort */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Sort By</Label>
-                    <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="newest">Newest First</SelectItem>
-                        <SelectItem value="oldest">Oldest First</SelectItem>
-                        <SelectItem value="most_liked">Most Liked</SelectItem>
-                        <SelectItem value="most_viewed">Most Viewed</SelectItem>
-                        <SelectItem value="trending">Trending</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
 
-                  {/* Content Type Filter */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Content Type</Label>
-                    <Select 
-                      value={filters.contentType || 'both'} 
-                      onValueChange={(value) => handleContentTypeChange(value as 'image' | 'video' | 'both')}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="both">Both</SelectItem>
-                        <SelectItem value="image">Images Only</SelectItem>
-                        <SelectItem value="video">Videos Only</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Style Filter */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Style</Label>
+                    {/* Quality Filter */}
                     <div className="space-y-2">
-                      {STYLE_OPTIONS.map((option) => (
-                        <div key={option.value} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`style-${option.value}`}
-                            checked={filters.style?.includes(option.value) || false}
-                            onCheckedChange={() => handleStyleToggle(option.value)}
-                          />
-                          <Label
-                            htmlFor={`style-${option.value}`}
-                            className="text-sm font-normal cursor-pointer"
-                          >
-                            {option.label}
-                          </Label>
-                        </div>
-                      ))}
+                      <Label className="text-sm font-medium">Quality</Label>
+                      <div className="space-y-2">
+                        {QUALITY_OPTIONS.map((option) => (
+                          <div key={option.value} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`quality-${option.value}`}
+                              checked={filters.quality?.includes(option.value) || false}
+                              onCheckedChange={() => handleQualityToggle(option.value)}
+                            />
+                            <Label
+                              htmlFor={`quality-${option.value}`}
+                              className="text-sm font-normal cursor-pointer"
+                            >
+                              {option.label}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Aspect Ratio Filter */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Aspect Ratio</Label>
+                      <div className="space-y-2">
+                        {ASPECT_RATIO_OPTIONS.map((option) => (
+                          <div key={option.value} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`ratio-${option.value}`}
+                              checked={filters.aspectRatio?.includes(option.value) || false}
+                              onCheckedChange={() => handleAspectRatioToggle(option.value)}
+                            />
+                            <Label
+                              htmlFor={`ratio-${option.value}`}
+                              className="text-sm font-normal cursor-pointer"
+                            >
+                              {option.label}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Clear Filters */}
+                    {activeFilterCount > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          handleClearFilters();
+                        }}
+                        className="w-full"
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Clear All Filters ({activeFilterCount})
+                      </Button>
+                    )}
                     </div>
                   </div>
+                </SheetContent>
+              </Sheet>
 
-                  {/* Quality Filter */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Quality</Label>
-                    <div className="space-y-2">
-                      {QUALITY_OPTIONS.map((option) => (
-                        <div key={option.value} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`quality-${option.value}`}
-                            checked={filters.quality?.includes(option.value) || false}
-                            onCheckedChange={() => handleQualityToggle(option.value)}
-                          />
-                          <Label
-                            htmlFor={`quality-${option.value}`}
-                            className="text-sm font-normal cursor-pointer"
-                          >
-                            {option.label}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Aspect Ratio Filter */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Aspect Ratio</Label>
-                    <div className="space-y-2">
-                      {ASPECT_RATIO_OPTIONS.map((option) => (
-                        <div key={option.value} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`ratio-${option.value}`}
-                            checked={filters.aspectRatio?.includes(option.value) || false}
-                            onCheckedChange={() => handleAspectRatioToggle(option.value)}
-                          />
-                          <Label
-                            htmlFor={`ratio-${option.value}`}
-                            className="text-sm font-normal cursor-pointer"
-                          >
-                            {option.label}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Clear Filters */}
-                  {activeFilterCount > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        handleClearFilters();
-                      }}
-                      className="w-full"
-                    >
-                      <X className="h-4 w-4 mr-2" />
-                      Clear All Filters ({activeFilterCount})
-                    </Button>
-                  )}
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
-
-            {/* Title and Description */}
-            <div className="flex-1 min-w-0">
-              <h1 className="text-base sm:text-lg md:text-xl font-bold text-foreground mb-0.5 sm:mb-1">
-                Renderiq Gallery
-              </h1>
-              <p className="text-xs sm:text-sm text-muted-foreground line-clamp-1">
-                Explore amazing AI-generated architectural renders created by our community
-              </p>
+              {/* Title and Description */}
+              <div className="flex-1 min-w-0">
+                <h1 className="text-base sm:text-lg md:text-xl font-bold text-foreground mb-0.5 sm:mb-1">
+                  Renderiq Gallery
+                </h1>
+                <p className="text-xs sm:text-sm text-muted-foreground line-clamp-1">
+                  Explore amazing AI-generated architectural renders created by our community
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Active Filter Badges Row */}
+          {/* Active Filter Badges Row - Separate from main header row */}
           {activeFilterCount > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="pb-3 pt-2 border-t border-border flex flex-wrap gap-2">
               {filters.style?.map((style) => (
                 <Badge
                   key={style}
@@ -485,15 +404,30 @@ export default function GalleryPage() {
         </div>
       </header>
 
-      {/* Content */}
+      {/* End-to-end separator below header - Dynamic height based on filter badges */}
+      <div 
+        className="fixed left-0 right-0 z-40 h-px bg-border" 
+        style={{ 
+          top: activeFilterCount > 0 
+            ? 'calc(var(--navbar-height) + 3.5rem + 3rem)' // h-14 (3.5rem) + filter badges row (~3rem)
+            : 'calc(var(--navbar-height) + 3.5rem)' // Just h-14 (3.5rem)
+        }}
+      />
+
+      {/* Content - Dynamic padding based on filter badges */}
       <section 
         ref={containerRef}
-        className="container mx-auto px-4 py-8 pt-[calc(1rem+2.75rem+3.5rem+1.5rem)]" 
+        className="container mx-auto px-4 py-8" 
+        style={{
+          paddingTop: activeFilterCount > 0
+            ? 'calc(var(--navbar-height) + 3.5rem + 3rem + 1.5rem)' // Header + filter badges + spacing
+            : 'calc(var(--navbar-height) + 3.5rem + 1.5rem)' // Just header + spacing
+        }}
         aria-label="Gallery content"
       >
         {/* Masonry Feed */}
         <MasonryFeed
-          items={filteredAndSortedItems}
+          items={items}
           loading={loading}
           hasMore={hasMore}
           onLoadMore={handleLoadMore}

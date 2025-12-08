@@ -260,12 +260,40 @@ export class AuthDAL {
     }
   }
 
+  // ✅ OPTIMIZED: Single query to check both active and admin status
+  static async getUserStatus(userId: string): Promise<{ isActive: boolean; isAdmin: boolean }> {
+    logger.log('🔍 AuthDAL: Getting user status:', userId);
+    
+    try {
+      const [user] = await db
+        .select({
+          isActive: users.isActive,
+          isAdmin: users.isAdmin,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!user) {
+        logger.log('❌ AuthDAL: User not found:', userId);
+        return { isActive: false, isAdmin: false };
+      }
+
+      logger.log(`✅ AuthDAL: User status - active: ${user.isActive}, admin: ${user.isAdmin}`);
+      return { isActive: user.isActive, isAdmin: user.isAdmin };
+    } catch (error) {
+      console.error('❌ AuthDAL: Error getting user status:', error);
+      return { isActive: false, isAdmin: false };
+    }
+  }
+
   static async isUserActive(userId: string): Promise<boolean> {
     logger.log('🔍 AuthDAL: Checking if user is active:', userId);
     
     try {
-      const user = await this.getUserById(userId);
-      return user?.isActive ?? false;
+      // ✅ OPTIMIZED: Use optimized method that only fetches needed fields
+      const status = await this.getUserStatus(userId);
+      return status.isActive;
     } catch (error) {
       console.error('❌ AuthDAL: Error checking user status:', error);
       return false;
@@ -276,8 +304,9 @@ export class AuthDAL {
     logger.log('🔍 AuthDAL: Checking if user is admin:', userId);
     
     try {
-      const user = await this.getUserById(userId);
-      return user?.isAdmin ?? false;
+      // ✅ OPTIMIZED: Use optimized method that only fetches needed fields
+      const status = await this.getUserStatus(userId);
+      return status.isAdmin;
     } catch (error) {
       console.error('❌ AuthDAL: Error checking admin status:', error);
       return false;

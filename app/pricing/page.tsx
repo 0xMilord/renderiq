@@ -4,12 +4,11 @@ import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PricingPlans } from '@/components/pricing/pricing-plans';
 import { CreditPackages } from '@/components/pricing/credit-packages';
-import { getCreditPackagesAction, getSubscriptionPlansAction, getUserCreditsAction } from '@/lib/actions/pricing.actions';
-import { getUserSubscriptionAction } from '@/lib/actions/billing.actions';
-import { createClient } from '@/lib/supabase/client';
+import { getPricingPageDataAction } from '@/lib/actions/pricing.actions';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { resetCurrencyToINR } from '@/lib/utils/reset-currency-to-inr';
+import OptimizedBackground from '@/components/home/optimized-background';
 
 export default function PricingPage() {
   const [activeTab, setActiveTab] = useState<'plans' | 'credits'>('plans');
@@ -29,31 +28,23 @@ export default function PricingPage() {
     try {
       setLoading(true);
       
-      // Get user ID first
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      const [plansResult, packagesResult, creditsResult, subscriptionResult] = await Promise.all([
-        getSubscriptionPlansAction(),
-        getCreditPackagesAction(),
-        getUserCreditsAction(),
-        user ? getUserSubscriptionAction(user.id) : Promise.resolve({ success: true, data: null }),
-      ]);
+      // ✅ OPTIMIZED: Single batched action fetches all data in parallel
+      // Public data (plans/packages) loads first, user data loads separately (non-blocking)
+      const result = await getPricingPageDataAction();
 
-      if (plansResult.success) {
-        setPlans(plansResult.data || []);
-      }
-
-      if (packagesResult.success) {
-        setCreditPackages(packagesResult.data || []);
-      }
-
-      if (creditsResult.success) {
-        setUserCredits(creditsResult.data);
-      }
-
-      if (subscriptionResult.success) {
-        setUserSubscription(subscriptionResult.data);
+      if (result.success && result.data) {
+        // Set public data immediately (plans/packages)
+        setPlans(result.data.plans || []);
+        setCreditPackages(result.data.creditPackages || []);
+        
+        // Set user data (may be null if not authenticated or if fetch failed)
+        setUserCredits(result.data.userCredits);
+        setUserSubscription(result.data.userSubscription);
+        
+        // ✅ OPTIMIZED: Show page immediately even if user data is still loading
+        // Components can handle null user data gracefully
+      } else {
+        toast.error(result.error || 'Failed to load pricing information');
       }
     } catch (error) {
       console.error('Error loading pricing data:', error);
@@ -72,8 +63,11 @@ export default function PricingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 pt-[calc(1rem+2.75rem+1.5rem+3rem)] pb-12">
+    <div className="min-h-screen bg-background relative">
+      {/* Grid Background */}
+      <OptimizedBackground />
+      
+      <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 pt-[calc(1rem+2.75rem+1.5rem+3rem)] pb-12 relative z-10">
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold tracking-tight mb-4">

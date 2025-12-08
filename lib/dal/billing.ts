@@ -299,9 +299,14 @@ export class BillingDAL {
         };
       }
 
-      // Get full subscription details (including pending, etc.) in parallel
-      // This uses the existing optimized method
-      const subscription = await this.getUserSubscription(userId);
+      // ✅ FIXED: Don't call getUserSubscription again - we already have subscription data from the JOIN
+      // Only fetch full subscription details if we need payment method (lazy load)
+      // For pricing page, we don't need payment method, so skip the extra query
+      const subscription = creditsResult.subscription ? {
+        subscription: creditsResult.subscription,
+        plan: creditsResult.plan,
+        paymentMethod: null, // Payment method not needed for pricing page
+      } : null;
 
       // Calculate isPro from subscription
       let isPro = false;

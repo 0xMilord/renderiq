@@ -1,6 +1,7 @@
 'use server';
 
 import { getCachedUser } from '@/lib/services/auth-cache';
+import { BillingDAL } from '@/lib/dal/billing';
 import { db } from '@/lib/db';
 import { creditPackages, subscriptionPlans } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
@@ -165,6 +166,70 @@ export async function getSubscriptionPlanAction(planId: string) {
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to fetch subscription plan',
+    };
+  }
+}
+
+/**
+ * ✅ BATCHED: Get all pricing page data in a single optimized call
+ * Fetches plans, packages, and user billing stats in parallel
+ * Prevents N+1 queries and sequential auth calls
+ */
+export async function getPricingPageDataAction() {
+  try {
+    logger.log('📋 PricingAction: Fetching all pricing page data (batched)');
+
+    // ✅ OPTIMIZED: Fetch all public data and user data in parallel
+    // Public data (plans/packages) can load immediately, user data loads in parallel
+    const [plansResult, packagesResult, userResult] = await Promise.all([
+      // Public data - no auth required
+      db
+        .select()
+        .from(subscriptionPlans)
+        .where(eq(subscriptionPlans.isActive, true))
+        .orderBy(subscriptionPlans.price),
+      db
+        .select()
+        .from(creditPackages)
+        .where(eq(creditPackages.isActive, true))
+        .orderBy(creditPackages.displayOrder, desc(creditPackages.createdAt)),
+      // User data - fetch in parallel (non-blocking)
+      getCachedUser().catch(() => ({ user: null })),
+    ]);
+
+    const { user } = userResult as { user: any };
+
+    // ✅ OPTIMIZED: Fetch billing stats only if user exists
+    let userCredits = null;
+    let userSubscription = null;
+
+    if (user) {
+      try {
+        // ✅ FIXED: Use optimized batched query (no extra getUserSubscription call)
+        const billingStats = await BillingDAL.getUserBillingStats(user.id);
+        userCredits = billingStats.credits;
+        // ✅ FIXED: Return full subscription object (with subscription and plan properties)
+        userSubscription = billingStats.subscription || null;
+      } catch (error) {
+        // Silently fail - page can still show plans/packages without user data
+        logger.error('❌ PricingAction: Error fetching user billing stats:', error);
+      }
+    }
+
+    return {
+      success: true,
+      data: {
+        plans: plansResult,
+        creditPackages: packagesResult,
+        userCredits,
+        userSubscription,
+      },
+    };
+  } catch (error) {
+    logger.error('❌ PricingAction: Error fetching pricing page data:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch pricing data',
     };
   }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -36,30 +36,11 @@ export function GalleryModal({ isOpen, onClose, onImageSelect }: GalleryModalPro
   
   const { renders, loading, error } = useUserRenders();
 
-  // Convert renders to gallery items
-  useEffect(() => {
-    if (renders) {
-      const items: GalleryItem[] = renders
-        .filter(render => render.outputUrl && render.status === 'completed')
-        .map(render => ({
-          id: render.id,
-          url: render.outputUrl!,
-          prompt: render.prompt || 'Untitled',
-          type: render.type,
-          createdAt: render.createdAt,
-          render,
-          source: 'render' as const
-        }));
-
-      setFilteredItems(items);
-    }
-  }, [renders]);
-
-  // Filter items based on search and type
-  useEffect(() => {
-    if (!renders) return;
-
-    let filtered = renders
+  // ✅ OPTIMIZED: Memoize base gallery items conversion (expensive operation)
+  const baseGalleryItems = useMemo(() => {
+    if (!renders) return [];
+    
+    return renders
       .filter(render => render.outputUrl && render.status === 'completed')
       .map(render => ({
         id: render.id,
@@ -70,6 +51,11 @@ export function GalleryModal({ isOpen, onClose, onImageSelect }: GalleryModalPro
         render,
         source: 'render' as const
       }));
+  }, [renders]);
+
+  // ✅ OPTIMIZED: Memoize filtered items to avoid recalculating on every render
+  useEffect(() => {
+    let filtered = [...baseGalleryItems];
 
     // Filter by search term
     if (searchTerm) {
@@ -87,7 +73,7 @@ export function GalleryModal({ isOpen, onClose, onImageSelect }: GalleryModalPro
     filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
     setFilteredItems(filtered);
-  }, [renders, searchTerm, selectedType]);
+  }, [baseGalleryItems, searchTerm, selectedType]);
 
   const handleImageSelect = (item: GalleryItem) => {
     setSelectedItem(item);

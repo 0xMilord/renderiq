@@ -85,9 +85,9 @@ export function useRazorpayCheckout() {
               const verifyData = await verifyResponse.json();
 
               if (verifyData.success) {
-                // Redirect to success page
-                window.location.href = `/payment/success?payment_order_id=${verifyData.data.paymentOrderId}&razorpay_order_id=${response.razorpay_order_id}&razorpay_payment_id=${response.razorpay_payment_id}`;
+                // ✅ OPTIMIZED: Redirect immediately without delay
                 options.onSuccess?.(response.razorpay_payment_id, response.razorpay_order_id, response.razorpay_signature);
+                window.location.href = `/payment/success?payment_order_id=${verifyData.data.paymentOrderId}&razorpay_order_id=${response.razorpay_order_id}&razorpay_payment_id=${response.razorpay_payment_id}`;
               } else {
                 throw new Error(verifyData.error || 'Payment verification failed');
               }

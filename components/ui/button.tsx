@@ -9,16 +9,16 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        default: "bg-primary/20 border border-primary text-foreground hover:bg-primary/85 hover:text-primary-foreground dark:hover:text-primary-foreground active:bg-primary/90",
         destructive:
-          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+          "bg-destructive/20 border border-border text-destructive hover:bg-destructive/85 hover:border-destructive hover:text-destructive-foreground dark:hover:text-destructive-foreground active:bg-destructive/90 active:border-destructive focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40",
         outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 dark:hover:text-primary [&_svg]:text-muted-foreground [&_svg]:hover:text-primary-foreground [&_svg]:hover:dark:text-primary transition-colors",
+          "border border-border bg-background shadow-xs text-foreground hover:bg-primary/20 hover:border-[hsl(var(--border-lighter))] active:bg-primary/30 dark:bg-input/30 dark:border-input [&_svg]:text-muted-foreground [&_svg]:hover:text-foreground transition-colors",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "bg-secondary/20 border border-border text-secondary-foreground hover:bg-secondary/85 hover:border-primary hover:text-secondary-foreground dark:hover:text-secondary-foreground active:bg-secondary/90 active:border-primary",
         ghost:
-          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 dark:hover:text-primary [&_svg]:text-muted-foreground [&_svg]:hover:text-primary-foreground [&_svg]:hover:dark:text-primary transition-colors",
-        link: "text-primary underline-offset-4 hover:underline",
+          "bg-transparent border border-transparent text-foreground hover:bg-primary/20 hover:border-[hsl(var(--border-lighter))] active:bg-primary/30 [&_svg]:text-muted-foreground [&_svg]:hover:text-foreground transition-colors",
+        link: "text-primary underline-offset-4 hover:underline bg-transparent border border-transparent hover:bg-primary/20 hover:border-primary active:bg-primary/30",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",

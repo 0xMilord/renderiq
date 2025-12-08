@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -23,7 +23,7 @@ interface GalleryImageCardProps {
   isLiked?: boolean; // Pre-computed liked status from parent (optional, falls back to checking)
 }
 
-export function GalleryImageCard({ 
+function GalleryImageCardComponent({ 
   item, 
   onLike, 
   onView,
@@ -58,9 +58,19 @@ export function GalleryImageCard({
                     item.render.outputUrl.toLowerCase().endsWith('.mov')
                   ));
   
-  // Debug logging for video detection
+  // ✅ REACT 19 OPTIMIZED: Memoize derived values instead of calculating on every render
+  // Check if URL is from external storage (Supabase or GCS)
+  const isExternalUrl = useMemo(() => {
+    if (!item.render.outputUrl) return false;
+    return item.render.outputUrl.includes('supabase.co') || 
+           item.render.outputUrl.includes('storage.googleapis.com') ||
+           item.render.outputUrl.includes(process.env.NEXT_PUBLIC_GCS_CDN_DOMAIN || '') ||
+           (item.render.outputUrl.includes('http') && !item.render.outputUrl.includes(process.env.NEXT_PUBLIC_SITE_URL || 'renderiq.io'));
+  }, [item.render.outputUrl]);
+  
+  // Debug logging for video detection (only in development)
   useEffect(() => {
-    if (item.render.type === 'video' || isVideo) {
+    if (process.env.NODE_ENV === 'development' && (item.render.type === 'video' || isVideo)) {
       console.log('GalleryImageCard: Video detected', {
         itemId: item.id,
         type: item.render.type,
@@ -69,22 +79,15 @@ export function GalleryImageCard({
       });
     }
   }, [item.id, item.render.type, item.render.outputUrl, isVideo]);
-  
-  // Check if URL is from external storage (Supabase or GCS)
-  const isExternalUrl = item.render.outputUrl 
-    ? (item.render.outputUrl.includes('supabase.co') || 
-       item.render.outputUrl.includes('storage.googleapis.com') ||
-       item.render.outputUrl.includes(process.env.NEXT_PUBLIC_GCS_CDN_DOMAIN || '') ||
-       (item.render.outputUrl.includes('http') && !item.render.outputUrl.includes(process.env.NEXT_PUBLIC_SITE_URL || 'renderiq.io')))
-    : false;
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // ✅ REACT 19 OPTIMIZED: Memoize derived values
   // Check if prompt is long enough to likely exceed 3 lines
   // Approximate: ~50-60 characters per line, so ~150-180 chars for 3 lines
-  const shouldShowMoreButton = item.render.prompt.length > 150;
+  const shouldShowMoreButton = useMemo(() => item.render.prompt.length > 150, [item.render.prompt.length]);
 
   useEffect(() => {
     // Reset loading states when URL changes
@@ -193,13 +196,17 @@ export function GalleryImageCard({
     }
   };
 
+  // ✅ REACT 19 OPTIMIZED: Memoize derived values
   // Use original aspect ratio from image dimensions, fallback to 16:9 if not loaded yet
-  const displayAspectRatio = imageDimensions 
-    ? imageDimensions.width / imageDimensions.height 
-    : 16/9;
+  const displayAspectRatio = useMemo(() => {
+    return imageDimensions 
+      ? imageDimensions.width / imageDimensions.height 
+      : 16/9;
+  }, [imageDimensions]);
 
+  // ✅ REACT 19 OPTIMIZED: Memoize derived values
   // Generate username URL: just username (slugified name)
-  const getUsernameUrl = () => {
+  const usernameUrl = useMemo(() => {
     if (!item.user) return '#';
     const username = (item.user.name || 'user')
       .toLowerCase()
@@ -208,10 +215,10 @@ export function GalleryImageCard({
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '');
     return `/${username}`;
-  };
+  }, [item.user?.name]);
 
   // Get user initials for fallback avatar
-  const getUserInitials = () => {
+  const userInitials = useMemo(() => {
     if (!item.user) return 'U';
     const name = item.user.name || 'User';
     const parts = name.trim().split(/\s+/);
@@ -219,7 +226,11 @@ export function GalleryImageCard({
       return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     }
     return name.charAt(0).toUpperCase();
-  };
+  }, [item.user?.name]);
+  
+  // Keep function for backward compatibility with existing code
+  const getUsernameUrl = () => usernameUrl;
+  const getUserInitials = () => userInitials;
 
   // Format date for display - only calculate relative time after mount to avoid hydration mismatch
   const formatDate = (date: string | Date) => {
@@ -861,4 +872,8 @@ export function GalleryImageCard({
     </div>
   );
 }
+
+// ✅ OPTIMIZED: Memoize component to prevent unnecessary re-renders in lists
+// Only re-renders when props change (item, onLike, onView, priority, hideOwnerInfo, isLiked)
+export const GalleryImageCard = memo(GalleryImageCardComponent);
 

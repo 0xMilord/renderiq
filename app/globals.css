@@ -21,6 +21,7 @@
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
   --border: 0 0% 90%;
+  --border-lighter: 0 0% 94%;
   --input: 0 0% 90%;
   --ring: 72 90% 35%;
   --chart-1: 72 90% 35%;
@@ -78,6 +79,7 @@
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
   --border: 0 0% 18%;
+  --border-lighter: 0 0% 26%;
   --input: 0 0% 15%;
   --ring: 72 87% 62%;
   --chart-1: 72 87% 62%;

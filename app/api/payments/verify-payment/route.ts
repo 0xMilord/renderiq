@@ -63,21 +63,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Add credits if this is a credit package purchase
-    if (verifyResult.data?.type === 'credit_package' && verifyResult.data?.referenceId) {
-      const creditsResult = await RazorpayService.addCreditsToAccount(
-        user.id,
-        verifyResult.data.referenceId
-      );
-
-      if (!creditsResult.success) {
-        logger.error('❌ API: Error adding credits after payment:', creditsResult.error);
-        // Payment is verified, but credits failed - this should be handled by webhook
-      }
-    }
-
-    // Invoice and receipt generation is handled in RazorpayService.verifyPayment
-    // They are generated asynchronously and won't block the response
+    // ✅ FIXED: Credits, invoice, and receipt generation are already handled in RazorpayService.verifyPayment
+    // Do NOT add credits again here to prevent double credit addition
 
     logger.log('✅ API: Payment verified successfully');
 

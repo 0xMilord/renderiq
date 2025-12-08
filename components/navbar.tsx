@@ -92,9 +92,9 @@ export function Navbar() {
   const pathname = usePathname();
   const { theme, systemTheme } = useTheme();
   const { user, loading } = useAuth();
-  const { profile } = useUserProfile();
-  // ✅ BATCHED: Single hook replaces separate hooks to prevent N+1 queries
-  const { data: billingStats, loading: billingLoading } = useUserBillingStats(profile?.id);
+  // ✅ OPTIMIZED: Use user.id directly instead of waiting for profile to prevent sequential dependency
+  // This allows billing stats to fetch in parallel with profile fetch
+  const { data: billingStats, loading: billingLoading } = useUserBillingStats(user?.id);
   const creditsData = billingStats?.credits;
   const creditsLoading = billingLoading;
 
@@ -113,16 +113,9 @@ export function Navbar() {
     { href: '/', icon: Home, label: 'Home' },
     { href: '/render', icon: Sparkles, label: 'Render' },
     { href: '/canvas', icon: Layout, label: 'Canvas' },
-    { 
-      href: '/gallery', 
-      icon: Images, 
-      label: 'Gallery',
-      dropdown: [
-        { href: '/gallery', label: 'Browse Gallery' },
-        { href: '/pricing', label: 'Pricing' },
-        { href: '/blog', label: 'Blog' },
-      ]
-    },
+    { href: '/gallery', icon: Images, label: 'Gallery' },
+    { href: '/pricing', icon: CreditCard, label: 'Pricing' },
+    { href: '/blog', icon: Newspaper, label: 'Blog' },
     { 
       href: '/use-cases', 
       icon: Lightbulb, 
@@ -300,6 +293,18 @@ export function Navbar() {
                     className="bg-background border border-border rounded-lg shadow-lg z-50 p-4"
                   >
                     <div className="grid grid-cols-5 gap-0 min-w-[600px]">
+                      {/* View All Apps - First Item */}
+                      <div className="relative col-span-5 border-b border-border pb-3 mb-3">
+                        <DropdownMenuItem asChild>
+                          <Link 
+                            href="/apps"
+                            className="flex items-center gap-2 p-2 rounded-md hover:bg-accent transition-colors min-w-0 font-medium"
+                          >
+                            <Wrench className="h-4 w-4 shrink-0" />
+                            <span className="text-sm leading-tight truncate min-w-0">View All Apps</span>
+                          </Link>
+                        </DropdownMenuItem>
+                      </div>
                       {getAllTools().map((tool, index) => {
                         const ToolIcon = getToolIcon(tool.id);
                         const isLastInRow = (index + 1) % 5 === 0;
@@ -381,171 +386,58 @@ export function Navbar() {
                     </SheetTrigger>
                   <SheetContent 
                     side="right" 
-                    className="w-[280px] sm:w-[300px] p-0"
+                    className="w-[320px] sm:w-[360px] p-0"
                     onOpenAutoFocus={(e) => e.preventDefault()}
                   >
                     <div className="h-full flex flex-col">
                       <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
                         <SheetTitle>Menu</SheetTitle>
                       </SheetHeader>
-                      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-1">
-                        {/* Start Creating Button - Show when authenticated */}
-                        {user && (
+                      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+                        {/* Apps Grid - 4 columns, 5 rows (20 items) */}
+                        <div className="grid grid-cols-4 gap-3">
+                          {getAllTools().slice(0, 20).map((tool) => {
+                            const ToolIcon = getToolIcon(tool.id);
+                            return (
+                              <Link
+                                key={tool.id}
+                                href={`/apps/${tool.slug}`}
+                                className="flex flex-col items-center justify-center gap-2 p-3 rounded-lg border border-transparent hover:bg-primary/20 hover:border-primary transition-all group"
+                                onClick={() => setIsOpen(false)}
+                              >
+                                <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                                  <ToolIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
+                                </div>
+                                <span className="text-xs text-center text-muted-foreground group-hover:text-foreground transition-colors leading-tight line-clamp-2">
+                                  {tool.name}
+                                </span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+
+                        {/* Separator */}
+                        <div className="h-px bg-border" />
+
+                        {/* Node Canvas and Render Links */}
+                        <div className="space-y-2">
                           <Link
-                            href="/render"
-                            className="flex items-center space-x-2 bg-primary text-primary-foreground hover:bg-primary/90 block px-3 py-2 rounded-md text-base font-medium transition-colors mb-4"
+                            href="/canvas"
+                            className="flex items-center space-x-3 text-muted-foreground hover:text-foreground block px-3 py-2.5 rounded-md text-base font-medium transition-colors border border-transparent hover:bg-primary/20 hover:border-primary"
                             onClick={() => setIsOpen(false)}
                           >
-                            <Play className="h-4 w-4" />
-                            <span>Start creating</span>
+                            <Layout className="h-5 w-5" />
+                            <span>Node Canvas</span>
                           </Link>
-                        )}
-                        <Link
-                          href="/"
-                          className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium transition-colors"
-                          onClick={() => setIsOpen(false)}
-                        >
-                          <Home className="h-4 w-4" />
-                          <span>Home</span>
-                        </Link>
-                        <Link
-                          href="/render"
-                          className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium transition-colors"
-                          onClick={() => setIsOpen(false)}
-                        >
-                          <Sparkles className="h-4 w-4" />
-                          <span>Render</span>
-                        </Link>
-                        <div className="px-3 py-2">
-                          <div className="flex items-center space-x-2 text-muted-foreground mb-2">
-                            <Images className="h-4 w-4" />
-                            <span className="text-base font-medium">Gallery</span>
-                          </div>
-                          <div className="ml-6 space-y-0.5">
-                            <Link
-                              href="/gallery"
-                              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary block px-2 py-1.5 rounded-md transition-colors"
-                              onClick={() => setIsOpen(false)}
-                            >
-                              <span>Browse Gallery</span>
-                            </Link>
-                            <Link
-                              href="/pricing"
-                              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary block px-2 py-1.5 rounded-md transition-colors"
-                              onClick={() => setIsOpen(false)}
-                            >
-                              <span>Pricing</span>
-                            </Link>
-                            <Link
-                              href="/blog"
-                              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary block px-2 py-1.5 rounded-md transition-colors"
-                              onClick={() => setIsOpen(false)}
-                            >
-                              <span>Blog</span>
-                            </Link>
-                          </div>
+                          <Link
+                            href="/render"
+                            className="flex items-center space-x-3 text-muted-foreground hover:text-foreground block px-3 py-2.5 rounded-md text-base font-medium transition-colors border border-transparent hover:bg-primary/20 hover:border-primary"
+                            onClick={() => setIsOpen(false)}
+                          >
+                            <Sparkles className="h-5 w-5" />
+                            <span>Render</span>
+                          </Link>
                         </div>
-                        <div className="px-3 py-2">
-                          <div className="flex items-center space-x-2 text-muted-foreground mb-2">
-                            <Lightbulb className="h-4 w-4" />
-                            <span className="text-base font-medium">Use Cases</span>
-                          </div>
-                          <div className="ml-6 space-y-0.5">
-                            <Link
-                              href="/use-cases"
-                              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary block px-2 py-1.5 rounded-md transition-colors"
-                              onClick={() => setIsOpen(false)}
-                            >
-                              <span>All Use Cases</span>
-                            </Link>
-                            <Link
-                              href="/use-cases/real-time-visualization"
-                              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary block px-2 py-1.5 rounded-md transition-colors"
-                              onClick={() => setIsOpen(false)}
-                            >
-                              <span>Real-time Visualization</span>
-                            </Link>
-                            <Link
-                              href="/use-cases/initial-prototyping"
-                              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary block px-2 py-1.5 rounded-md transition-colors"
-                              onClick={() => setIsOpen(false)}
-                            >
-                              <span>Initial Prototyping</span>
-                            </Link>
-                            <Link
-                              href="/use-cases/material-testing-built-spaces"
-                              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary block px-2 py-1.5 rounded-md transition-colors"
-                              onClick={() => setIsOpen(false)}
-                            >
-                              <span>Material Testing</span>
-                            </Link>
-                            <Link
-                              href="/use-cases/rapid-concept-video"
-                              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary block px-2 py-1.5 rounded-md transition-colors"
-                              onClick={() => setIsOpen(false)}
-                            >
-                              <span>Rapid Concept Video</span>
-                            </Link>
-                            <Link
-                              href="/use-cases/presentation-ready-graphics"
-                              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary block px-2 py-1.5 rounded-md transition-colors"
-                              onClick={() => setIsOpen(false)}
-                            >
-                              <span>Presentation Graphics</span>
-                            </Link>
-                            <Link
-                              href="/use-cases/social-media-content"
-                              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary block px-2 py-1.5 rounded-md transition-colors"
-                              onClick={() => setIsOpen(false)}
-                            >
-                              <span>Social Media Content</span>
-                            </Link>
-                          </div>
-                        </div>
-                        <div className="px-3 py-2">
-                          <div className="flex items-center space-x-2 text-muted-foreground mb-2">
-                            <Wrench className="h-4 w-4" />
-                            <span className="text-base font-medium">Apps</span>
-                          </div>
-                          <div className="ml-6 space-y-1">
-                            {CATEGORIES.map((category) => {
-                              const categoryTools = getToolsByCategory(category.id);
-                              if (categoryTools.length === 0) return null;
-                              
-                              return (
-                                <div key={category.id} className="mb-3">
-                                  <div className="text-sm font-semibold text-foreground mb-1 px-2">
-                                    {category.name}
-                                  </div>
-                                  <div className="space-y-0.5">
-                                    {categoryTools.map((tool) => {
-                                      const ToolIcon = getToolIcon(tool.id);
-                                      return (
-                                        <Link
-                                          key={tool.id}
-                                          href={`/apps/${tool.slug}`}
-                                          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary block px-2 py-1.5 rounded-md transition-colors"
-                                          onClick={() => setIsOpen(false)}
-                                        >
-                                          <ToolIcon className="h-4 w-4 shrink-0" />
-                                          <span>{tool.name}</span>
-                                        </Link>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                        <Link
-                          href="/blog"
-                          className="flex items-center space-x-2 text-muted-foreground hover:text-primary block px-3 py-2 rounded-md text-base font-medium transition-colors"
-                          onClick={() => setIsOpen(false)}
-                        >
-                          <Newspaper className="h-4 w-4" />
-                          <span>Blog</span>
-                        </Link>
                       </div>
                       
                       {/* Social Links */}
@@ -660,35 +552,35 @@ export function Navbar() {
                         <div className="flex flex-wrap gap-x-3 gap-y-1">
                           <Link
                             href="/terms"
-                            className="text-muted-foreground hover:text-primary text-[10px] transition-colors"
+                            className="text-muted-foreground hover:text-foreground text-[10px] transition-colors"
                             onClick={() => setIsOpen(false)}
                           >
                             Terms
                           </Link>
                           <Link
                             href="/privacy"
-                            className="text-muted-foreground hover:text-primary text-[10px] transition-colors"
+                            className="text-muted-foreground hover:text-foreground text-[10px] transition-colors"
                             onClick={() => setIsOpen(false)}
                           >
                             Privacy
                           </Link>
                           <Link
                             href="/refund"
-                            className="text-muted-foreground hover:text-primary text-[10px] transition-colors"
+                            className="text-muted-foreground hover:text-foreground text-[10px] transition-colors"
                             onClick={() => setIsOpen(false)}
                           >
                             Refund
                           </Link>
                           <Link
                             href="/cookies"
-                            className="text-muted-foreground hover:text-primary text-[10px] transition-colors"
+                            className="text-muted-foreground hover:text-foreground text-[10px] transition-colors"
                             onClick={() => setIsOpen(false)}
                           >
                             Cookies
                           </Link>
                           <Link
                             href="/dpa"
-                            className="text-muted-foreground hover:text-primary text-[10px] transition-colors"
+                            className="text-muted-foreground hover:text-foreground text-[10px] transition-colors"
                             onClick={() => setIsOpen(false)}
                           >
                             DPA
@@ -705,6 +597,8 @@ export function Navbar() {
         </div>
       </div>
       </nav>
+      {/* End-to-end separator below main app header */}
+      <div className="fixed top-[var(--navbar-height)] left-0 right-0 z-50 h-px bg-border pointer-events-none" />
       <AlphaBanner />
     </>
   );

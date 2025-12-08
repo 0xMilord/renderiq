@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTheme } from 'next-themes';
@@ -25,11 +25,22 @@ const HeroSection = memo(function HeroSection({ avatarData, totalUsers, galleryI
     setMounted(true);
   }, []);
 
-  const isDarkMode = mounted && (resolvedTheme === 'dark' || theme === 'dark');
-  const borderColor = isDarkMode ? 'hsl(0,0%,3%)' : 'hsl(0,0%,100%)';
-  const borderClass = isDarkMode ? 'border-[hsl(0,0%,3%)]' : 'border-[hsl(0,0%,100%)]';
+  // ✅ REACT 19 OPTIMIZED: Memoize derived values
+  const isDarkMode = useMemo(() => mounted && (resolvedTheme === 'dark' || theme === 'dark'), [mounted, resolvedTheme, theme]);
+  
+  // ✅ THEME-AWARE: Neutral colors that adapt to theme
+  const borderColor = useMemo(() => isDarkMode ? 'hsl(0,0%,20%)' : 'hsl(0,0%,90%)', [isDarkMode]);
+  const borderClass = useMemo(() => isDarkMode ? 'border-border' : 'border-border', [isDarkMode]);
+  
+  // Neutral background colors (theme-aware) - Semi-transparent to show grid background
+  const heroBgColor = useMemo(() => isDarkMode ? 'bg-card/80 backdrop-blur-sm' : 'bg-background/80 backdrop-blur-sm', [isDarkMode]);
+  const textColor = useMemo(() => isDarkMode ? 'text-foreground' : 'text-foreground', [isDarkMode]);
+  const textMutedColor = useMemo(() => isDarkMode ? 'text-muted-foreground' : 'text-muted-foreground', [isDarkMode]);
+  const buttonBgColor = useMemo(() => isDarkMode ? 'bg-foreground' : 'bg-foreground', [isDarkMode]);
+  const buttonTextColor = useMemo(() => isDarkMode ? 'text-background' : 'text-background', [isDarkMode]);
 
-  const firms = [
+  // ✅ OPTIMIZED: Memoize static firms array to prevent recreation on every render
+  const firms = useMemo(() => [
     { name: 'Gensler', logo: '/logos/arch-firms/gensler.svg' },
     { name: 'AECOM', logo: '/logos/arch-firms/aecom.svg' },
     { name: 'Skidmore, Owings & Merrill', logo: '/logos/arch-firms/som.svg' },
@@ -55,10 +66,14 @@ const HeroSection = memo(function HeroSection({ avatarData, totalUsers, galleryI
     { name: 'SSP SchürmannSpannel', logo: '/logos/arch-firms/SSP_SchürmannSpannel_Firmenlogo.svg' },
     { name: 'WATG', logo: '/logos/arch-firms/WATG_logo.svg' },
     { name: 'Weber Thompson', logo: '/logos/arch-firms/Weber_Thompson_logo.svg' },
-  ] as const;
+  ] as const, []);
+
+  // Split firms into two rows for dual marquee effect
+  const firstRow = useMemo(() => firms.slice(0, Math.ceil(firms.length / 2)), [firms]);
+  const secondRow = useMemo(() => firms.slice(Math.ceil(firms.length / 2)), [firms]);
 
   return (
-    <section className="relative overflow-hidden w-full bg-[hsl(72,87%,62%)]" style={{ paddingTop: 'var(--navbar-height)' }}>
+    <section className={`relative overflow-hidden w-full ${heroBgColor}`} style={{ paddingTop: 'var(--navbar-height)' }}>
       {/* Diagonal Stripe Pattern on Sides - Responsive - 2px width to match stroke */}
       <div className="absolute inset-y-0 left-0 hidden md:block md:w-16 lg:w-32 -z-0" style={{ 
         backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 8px, ${borderColor} 8px, ${borderColor} 10px)`
@@ -74,16 +89,16 @@ const HeroSection = memo(function HeroSection({ avatarData, totalUsers, galleryI
           <div className="pl-6 pr-6 sm:pl-[9.5rem] sm:pr-[9.5rem] md:pl-[10rem] md:pr-[10rem] lg:pl-[11rem] lg:pr-[11rem] py-12">
             {/* Main Headline Container */}
             <div className={`border-b-[2px] ${borderClass} pb-8 mb-8`}>
-              <h1 className="text-5xl md:text-7xl lg:text-8xl font-black text-[hsl(0,0%,7%)] mb-6 leading-tight text-left">
+              <h1 className={`text-5xl md:text-7xl lg:text-8xl font-black ${textColor} mb-6 leading-tight text-left`}>
                 Idea to approval ready design in seconds
               </h1>
             </div>
 
             {/* Description Container */}
             <div className={`border-b-[2px] ${borderClass} pb-8 mb-8`}>
-              <p className="text-xl md:text-2xl text-[hsl(0,0%,20%)] max-w-4xl leading-relaxed text-left">
+              <p className={`text-xl md:text-2xl ${textMutedColor} max-w-4xl leading-relaxed text-left`}>
                 Transform architectural sketches and 3D models into photorealistic renders and videos with AI. 
-                Industry-leading AI render pipelines for AEC firms. The leading <strong>architecture render software</strong> trusted by architects, engineers, and visualizers worldwide.
+                Industry-leading AI render pipelines for AEC firms. The leading <strong className={textColor}>architecture render software</strong> trusted by architects, engineers, and visualizers worldwide.
               </p>
             </div>
 
@@ -94,7 +109,7 @@ const HeroSection = memo(function HeroSection({ avatarData, totalUsers, galleryI
                   <Link href="/render">
                     <Button 
                       size="lg" 
-                      className="px-8 py-6 text-lg font-bold bg-[hsl(0,0%,7%)] hover:bg-[hsl(0,0%,15%)] text-[hsl(72,87%,62%)] rounded-lg border-0 w-full sm:w-auto"
+                      className={`px-8 py-6 text-lg font-bold ${buttonBgColor} hover:opacity-90 ${buttonTextColor} rounded-lg border border-border w-full sm:w-auto transition-opacity`}
                     >
                       Start Creating
                     </Button>
@@ -102,7 +117,8 @@ const HeroSection = memo(function HeroSection({ avatarData, totalUsers, galleryI
                   <Link href="/gallery">
                     <Button 
                       size="lg" 
-                      className="px-8 py-6 text-lg font-bold bg-[hsl(0,0%,7%)] hover:bg-[hsl(0,0%,15%)] text-[hsl(72,87%,62%)] rounded-lg border-0 w-full sm:w-auto"
+                      variant="outline"
+                      className="px-8 py-6 text-lg font-bold rounded-lg border-2 w-full sm:w-auto"
                     >
                       View Demo
                     </Button>
@@ -118,7 +134,7 @@ const HeroSection = memo(function HeroSection({ avatarData, totalUsers, galleryI
                   </div>
                 )}
               </div>
-              <p className="text-base md:text-lg text-[hsl(0,0%,20%)] mt-4">
+              <p className={`text-base md:text-lg ${textMutedColor} mt-4`}>
                 No credit card required
               </p>
             </div>
@@ -135,42 +151,42 @@ const HeroSection = memo(function HeroSection({ avatarData, totalUsers, galleryI
                   <tbody>
                     <tr className={`border-b-[2px] ${borderClass}`}>
                       <td className="py-6 pr-4 align-middle">
-                        <div className="text-5xl md:text-6xl font-black text-[hsl(0,0%,7%)]">
+                        <div className={`text-5xl md:text-6xl font-black ${textColor}`}>
                           <TickingNumber value="50K+" duration={2000} />
                         </div>
                       </td>
                       <td className={`py-6 pl-4 align-middle border-l-[2px] ${borderClass}`}>
-                        <div className="text-base font-semibold text-[hsl(0,0%,20%)]">Renders Created</div>
+                        <div className={`text-base font-semibold ${textMutedColor}`}>Renders Created</div>
                       </td>
                     </tr>
                     <tr className={`border-b-[2px] ${borderClass}`}>
                       <td className="py-6 pr-4 align-middle">
-                        <div className="text-5xl md:text-6xl font-black text-[hsl(0,0%,7%)]">
+                        <div className={`text-5xl md:text-6xl font-black ${textColor}`}>
                           <TickingNumber value="2.5M" duration={2000} />
                         </div>
                       </td>
                       <td className={`py-6 pl-4 align-middle border-l-[2px] ${borderClass}`}>
-                        <div className="text-base font-semibold text-[hsl(0,0%,20%)]">Minutes Saved</div>
+                        <div className={`text-base font-semibold ${textMutedColor}`}>Minutes Saved</div>
                       </td>
                     </tr>
                     <tr className={`border-b-[2px] ${borderClass}`}>
                       <td className="py-6 pr-4 align-middle">
-                        <div className="text-5xl md:text-6xl font-black text-[hsl(0,0%,7%)]">
+                        <div className={`text-5xl md:text-6xl font-black ${textColor}`}>
                           <TickingNumber value="10K+" duration={2000} />
                         </div>
                       </td>
                       <td className={`py-6 pl-4 align-middle border-l-[2px] ${borderClass}`}>
-                        <div className="text-base font-semibold text-[hsl(0,0%,20%)]">AEC Professionals</div>
+                        <div className={`text-base font-semibold ${textMutedColor}`}>AEC Professionals</div>
                       </td>
                     </tr>
                     <tr>
                       <td className="py-6 pr-4 align-middle">
-                        <div className="text-5xl md:text-6xl font-black text-[hsl(0,0%,7%)]">
+                        <div className={`text-5xl md:text-6xl font-black ${textColor}`}>
                           <TickingNumber value="99%" duration={2000} />
                         </div>
                       </td>
                       <td className={`py-6 pl-4 align-middle border-l-[2px] ${borderClass}`}>
-                        <div className="text-base font-semibold text-[hsl(0,0%,20%)]">Platform Uptime</div>
+                        <div className={`text-base font-semibold ${textMutedColor}`}>Platform Uptime</div>
                       </td>
                     </tr>
                   </tbody>
@@ -186,17 +202,17 @@ const HeroSection = memo(function HeroSection({ avatarData, totalUsers, galleryI
         </div>
 
         {/* Used By Section - Full Width Marquee with Border */}
-        <div className={`w-full border-b-[2px] border-l-[2px] border-r-[2px] ${borderClass} bg-[hsl(72,87%,62%)]`}>
+        <div className={`w-full border-b-[2px] border-l-[2px] border-r-[2px] ${borderClass} ${heroBgColor}`}>
           <div className="py-8">
-            <p className="text-xl md:text-3xl text-[hsl(0,0%,20%)] text-center mb-6 font-semibold mx-auto">
+            <p className={`text-xl md:text-3xl ${textMutedColor} text-center mb-6 font-semibold mx-auto`}>
               Used by top Architects, Engineers, and Visualizers at
             </p>
             <div className={`border-b-[2px] ${borderClass} mb-6 mx-auto max-w-7xl`}></div>
             <div className="relative flex w-full flex-col items-center justify-center overflow-hidden">
-              <Marquee pauseOnHover className="[--duration:30s]">
-                {firms.map((firm, index) => (
+              <Marquee pauseOnHover className="[--duration:20s]">
+                {firstRow.map((firm, index) => (
                   <div
-                    key={`${firm.name}-${index}`}
+                    key={`${firm.name}-first-${index}`}
                     className="flex items-center justify-center h-16 md:h-20 px-8 opacity-60 hover:opacity-100 transition-opacity shrink-0"
                   >
                     <Image
@@ -210,8 +226,25 @@ const HeroSection = memo(function HeroSection({ avatarData, totalUsers, galleryI
                   </div>
                 ))}
               </Marquee>
-              <div className="pointer-events-none absolute inset-y-0 left-0 w-1/4 bg-gradient-to-r from-[hsl(72,87%,62%)]"></div>
-              <div className="pointer-events-none absolute inset-y-0 right-0 w-1/4 bg-gradient-to-l from-[hsl(72,87%,62%)]"></div>
+              <Marquee reverse pauseOnHover className="[--duration:20s]">
+                {secondRow.map((firm, index) => (
+                  <div
+                    key={`${firm.name}-second-${index}`}
+                    className="flex items-center justify-center h-16 md:h-20 px-8 opacity-60 hover:opacity-100 transition-opacity shrink-0"
+                  >
+                    <Image
+                      src={firm.logo}
+                      alt={`${firm.name} logo`}
+                      width={120}
+                      height={60}
+                      className="max-w-full max-h-full object-contain"
+                      loading="lazy"
+                    />
+                  </div>
+                ))}
+              </Marquee>
+              <div className="pointer-events-none absolute inset-y-0 left-0 w-1/4 bg-gradient-to-r from-background"></div>
+              <div className="pointer-events-none absolute inset-y-0 right-0 w-1/4 bg-gradient-to-l from-background"></div>
             </div>
           </div>
         </div>

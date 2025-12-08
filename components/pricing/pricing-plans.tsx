@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Check, Zap, Crown, Building2, Mail, ExternalLink, AlertCircle, Loader2 } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
 import { useCurrency } from '@/lib/hooks/use-currency';
@@ -146,24 +146,27 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
     };
   }, []);
 
-  const filteredPlans = plans
-    .filter((plan) => {
-      // Filter by billing interval
-      const matchesInterval = billingInterval === 'year' ? plan.interval === 'year' : plan.interval === 'month';
-      
-      // Exclude free plans - check both name and price
-      const planName = (plan.name || '').toLowerCase().trim();
-      const planPrice = parseFloat(plan.price || '0');
-      const isNotFree = planName !== 'free' && planPrice > 0;
-      
-      return matchesInterval && isNotFree;
-    })
-    .sort((a, b) => {
-      // Sort by price ascending (Starter, Pro, Enterprise)
-      const priceA = parseFloat(a.price || '0');
-      const priceB = parseFloat(b.price || '0');
-      return priceA - priceB;
-    });
+  // ✅ OPTIMIZED: Memoize filtered and sorted plans to avoid recalculating on every render
+  const filteredPlans = useMemo(() => {
+    return plans
+      .filter((plan) => {
+        // Filter by billing interval
+        const matchesInterval = billingInterval === 'year' ? plan.interval === 'year' : plan.interval === 'month';
+        
+        // Exclude free plans - check both name and price
+        const planName = (plan.name || '').toLowerCase().trim();
+        const planPrice = parseFloat(plan.price || '0');
+        const isNotFree = planName !== 'free' && planPrice > 0;
+        
+        return matchesInterval && isNotFree;
+      })
+      .sort((a, b) => {
+        // Sort by price ascending (Starter, Pro, Enterprise)
+        const priceA = parseFloat(a.price || '0');
+        const priceB = parseFloat(b.price || '0');
+        return priceA - priceB;
+      });
+  }, [plans, billingInterval]);
 
   const handleSubscribe = async (planId: string) => {
     // Check if user is authenticated
@@ -307,20 +310,16 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
               setVerificationDialog({ open: false, message: '' });
               if (verifyResult.data?.activated && verifyResult.data?.creditsAdded) {
                 toast.success(`Payment successful! ${verifyResult.data.newBalance || ''} credits added.`);
-                // Redirect to success page
-                setTimeout(() => {
-                  window.location.href = `/payment/success?payment_order_id=${verifyResult.data.paymentOrderId || ''}&razorpay_subscription_id=${response.razorpay_subscription_id || result.data.subscriptionId}&razorpay_payment_id=${response.razorpay_payment_id}`;
-                }, 500);
+                // ✅ OPTIMIZED: Redirect immediately without delay
+                window.location.href = `/payment/success?payment_order_id=${verifyResult.data.paymentOrderId || ''}&razorpay_subscription_id=${response.razorpay_subscription_id || result.data.subscriptionId}&razorpay_payment_id=${response.razorpay_payment_id}`;
               } else if (verifyResult.data?.alreadyActive) {
                 toast.success('Payment successful! Subscription is already active.');
-                setTimeout(() => {
-                  window.location.href = `/payment/success?payment_order_id=${verifyResult.data.paymentOrderId || ''}&razorpay_subscription_id=${response.razorpay_subscription_id || result.data.subscriptionId}&razorpay_payment_id=${response.razorpay_payment_id}`;
-                }, 500);
+                // ✅ OPTIMIZED: Redirect immediately without delay
+                window.location.href = `/payment/success?payment_order_id=${verifyResult.data.paymentOrderId || ''}&razorpay_subscription_id=${response.razorpay_subscription_id || result.data.subscriptionId}&razorpay_payment_id=${response.razorpay_payment_id}`;
               } else if (verifyResult.data?.status) {
                 toast.info(verifyResult.data.message || 'Payment is processing. Credits will be added shortly.');
-                setTimeout(() => {
-                  window.location.href = `/payment/success?payment_order_id=${verifyResult.data.paymentOrderId || ''}&razorpay_subscription_id=${response.razorpay_subscription_id || result.data.subscriptionId}&razorpay_payment_id=${response.razorpay_payment_id}&verification=pending`;
-                }, 500);
+                // ✅ OPTIMIZED: Redirect immediately without delay
+                window.location.href = `/payment/success?payment_order_id=${verifyResult.data.paymentOrderId || ''}&razorpay_subscription_id=${response.razorpay_subscription_id || result.data.subscriptionId}&razorpay_payment_id=${response.razorpay_payment_id}&verification=pending`;
               } else {
                 toast.success('Payment successful!');
                 setTimeout(() => {

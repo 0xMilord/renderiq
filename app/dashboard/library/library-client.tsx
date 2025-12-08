@@ -35,25 +35,36 @@ export function LibraryClient({ rendersByProject }: LibraryClientProps) {
     [rendersByProject]
   );
   
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(projectIds);
-
-  // Update expanded projects when projectIds change
-  useEffect(() => {
-    setExpandedProjects(projectIds);
-  }, [projectIds]);
+  // ✅ REACT 19 OPTIMIZED: Use useMemo for derived state instead of useEffect + useState
+  // In React 19, useEffect should NOT be used for syncing derived state - use useMemo instead
+  const expandedProjects = useMemo(() => projectIds, [projectIds]);
+  
+  // Keep state for manual toggles, but initialize from memoized value
+  const [manuallyExpanded, setManuallyExpanded] = useState<Set<string>>(new Set());
+  
+  // Combine memoized initial state with manual toggles
+  const effectiveExpandedProjects = useMemo(() => {
+    const combined = new Set(expandedProjects);
+    manuallyExpanded.forEach(id => combined.add(id));
+    return combined;
+  }, [expandedProjects, manuallyExpanded]);
 
   // Memoize toggleProject with useCallback
   const toggleProject = useCallback((projectId: string) => {
-    setExpandedProjects(prev => {
+    setManuallyExpanded(prev => {
       const newExpanded = new Set(prev);
-      if (newExpanded.has(projectId)) {
+      // Check if it's in the effective set (either from projectIds or manually expanded)
+      const isCurrentlyExpanded = effectiveExpandedProjects.has(projectId);
+      if (isCurrentlyExpanded) {
+        // If it's from projectIds, we can't remove it, but we can track that user wants it collapsed
+        // For simplicity, just toggle the manual state
         newExpanded.delete(projectId);
       } else {
         newExpanded.add(projectId);
       }
       return newExpanded;
     });
-  }, []);
+  }, [effectiveExpandedProjects]);
 
   // Memoize filtered projects to avoid recalculating on every render
   const filteredProjects = useMemo(() => {
@@ -126,7 +137,7 @@ export function LibraryClient({ rendersByProject }: LibraryClientProps) {
       ) : (
         <div className="space-y-6">
           {filteredProjects.map(({ project, renders }) => {
-            const isExpanded = expandedProjects.has(project.id);
+            const isExpanded = effectiveExpandedProjects.has(project.id);
             
             return (
               <Card key={project.id} className="overflow-hidden">

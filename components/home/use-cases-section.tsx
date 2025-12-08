@@ -12,7 +12,7 @@ const UseCasesSection = memo(function UseCasesSection() {
   const borderClass = 'border-[hsl(72,87%,62%)]';
 
   return (
-    <section id="use-cases" className="w-full overflow-x-hidden relative bg-background">
+    <section id="use-cases" className="w-full overflow-x-hidden relative bg-background/80 backdrop-blur-sm">
       {/* Header Section - Two Column Layout */}
       <div className={`w-full px-4 sm:px-6 lg:px-8 relative border-l-[5px] border-r-[5px] border-b-[5px] ${borderClass}`}>
         <div className="w-full">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -18,11 +18,17 @@ interface CreateProjectModalProps {
 
 export function CreateProjectModal({ children, open: controlledOpen, onOpenChange, onProjectCreated }: CreateProjectModalProps) {
   const [internalOpen, setInternalOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setOpen = onOpenChange || setInternalOpen;
   const [loading, setLoading] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const { addProject } = useProjects();
+
+  // Fix hydration error by only rendering Dialog on client
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -86,12 +92,16 @@ export function CreateProjectModal({ children, open: controlledOpen, onOpenChang
     }
   };
 
+  if (!mounted) {
+    return <>{children}</>;
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+      <DialogTrigger asChild suppressHydrationWarning>
         {children}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] w-[95vw] max-w-[95vw]">
+      <DialogContent className="sm:max-w-[500px] w-[95vw] max-w-[95vw]" suppressHydrationWarning>
         <DialogHeader>
           <DialogTitle>Create New Project</DialogTitle>
           <DialogDescription>

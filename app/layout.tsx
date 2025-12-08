@@ -134,21 +134,15 @@ export default function RootLayout({
           __html: `
             html { 
               background-color: hsl(var(--background)); 
-              height: 100%;
-              margin: 0;
-              padding: 0;
             }
             body { 
               background-color: hsl(var(--background)); 
-              height: 100%;
-              margin: 0;
-              padding: 0;
             }
           `
         }} />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-y-auto h-full m-0 p-0`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased m-0 p-0`}
       >
         {/* Google tag (gtag.js) */}
         <Script
@@ -181,7 +175,7 @@ export default function RootLayout({
           <AuthProvider>
             <UserOnboardingProvider>
               <ConditionalNavbar />
-              <main className="min-h-0 flex-1">
+              <main>
                 {children}
               </main>
               <ConditionalFooter />

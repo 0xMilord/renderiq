@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Loader2 } from 'lucide-react';
 import { GradientCard } from '@/components/ui/gradient-card';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
 import { useCurrency } from '@/lib/hooks/use-currency';
@@ -244,10 +244,8 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
             if (verifyResult.success) {
               setLoading(null);
               setVerificationDialog({ open: false, message: '' });
-              // Redirect to success page
-              setTimeout(() => {
-                window.location.href = `/payment/success?payment_order_id=${verifyResult.data.paymentOrderId}&razorpay_order_id=${response.razorpay_order_id}&razorpay_payment_id=${response.razorpay_payment_id}`;
-              }, 500);
+              // ✅ OPTIMIZED: Redirect immediately without delay
+              window.location.href = `/payment/success?payment_order_id=${verifyResult.data.paymentOrderId}&razorpay_order_id=${response.razorpay_order_id}&razorpay_payment_id=${response.razorpay_payment_id}`;
             } else {
               setVerificationDialog({ open: false, message: '' });
               throw new Error(verifyResult.error || 'Payment verification failed');
@@ -408,7 +406,8 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
       </div>
 
       {/* Sort packages by display_order */}
-      {(() => {
+      {/* ✅ OPTIMIZED: Memoize sorted packages to avoid recalculating on every render */}
+      {useMemo(() => {
         const sortedPackages = [...packages].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
         
         return (
@@ -513,7 +512,7 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
             })}
           </div>
         );
-      })()}
+      }, [packages, isDarkMode, currencyLoading, convertedPrices, currency, loading, razorpayLoaded, razorpayLoading, handlePurchase])}
 
 
       {/* Inject global styles for Razorpay modal theming */}

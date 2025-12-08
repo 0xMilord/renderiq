@@ -1,5 +1,6 @@
 "use client"
 
+import { memo } from "react"
 import { TweetProps, useTweet } from "react-tweet"
 
 import {
@@ -8,7 +9,7 @@ import {
   TweetSkeleton,
 } from "@/components/ui/tweet-card"
 
-export const ClientTweetCard = ({
+function ClientTweetCardComponent({
   id,
   apiUrl,
   fallback = <TweetSkeleton />,
@@ -16,7 +17,7 @@ export const ClientTweetCard = ({
   fetchOptions,
   onError,
   ...props
-}: TweetProps & { className?: string }) => {
+}: TweetProps & { className?: string }) {
   const { data, error, isLoading } = useTweet(id, apiUrl, fetchOptions)
 
   if (isLoading) return fallback
@@ -30,4 +31,7 @@ export const ClientTweetCard = ({
 
   return <MagicTweet tweet={data} {...props} />
 }
+
+// ✅ OPTIMIZED: Memoize component to prevent unnecessary re-renders in lists
+export const ClientTweetCard = memo(ClientTweetCardComponent)
 

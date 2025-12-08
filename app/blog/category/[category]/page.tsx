@@ -229,8 +229,8 @@ export default async function CategoryPage({
       />
       <div className="min-h-screen bg-background">
       {/* Hero */}
-      <section className="pt-[calc(1rem+2.75rem+1.5rem)] pb-5 px-1 border-b">
-        <div className="container mx-auto max-w-7xl">
+      <section className="pt-[calc(1rem+2.75rem+1.5rem)] pb-5 px-4 sm:px-6 lg:px-8 border-b">
+        <div className="w-full max-w-7xl mx-auto">
           <div className="max-w-3xl">
             <Badge variant="secondary" className="mb-1">
               {categoryName}
@@ -246,8 +246,8 @@ export default async function CategoryPage({
       </section>
 
       {/* Blog List */}
-      <section className="py-5 px-1">
-        <div className="container mx-auto max-w-7xl">
+      <section className="py-5 px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-7xl mx-auto">
           {filteredBlogs.length === 0 ? (
             <div className="text-center py-5">
               <p className="text-muted-foreground">No blog posts found in this category.</p>
@@ -264,8 +264,8 @@ export default async function CategoryPage({
 
       {/* Categories Navigation */}
       {categories.length > 0 && (
-        <section className="py-3 px-1 border-t bg-muted/30">
-          <div className="container mx-auto max-w-7xl">
+        <section className="py-3 px-4 sm:px-6 lg:px-8 border-t bg-muted/30">
+          <div className="w-full max-w-7xl mx-auto">
             <h2 className="text-2xl font-bold mb-6">Browse by Category</h2>
             <div className="flex flex-wrap gap-3">
               {categories.map((cat) => {

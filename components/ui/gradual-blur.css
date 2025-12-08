@@ -41,3 +41,15 @@
   }
 }
 
+/* Page-targeted gradual blur (fixed positioning) */
+.gradual-blur-page {
+  position: fixed !important;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.gradual-blur-parent {
+  position: absolute;
+  pointer-events: none;
+}
+

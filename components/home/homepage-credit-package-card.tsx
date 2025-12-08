@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { GradientCard } from '@/components/ui/gradient-card';
 import { useTheme } from 'next-themes';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, memo } from 'react';
 
 interface HomepageCreditPackageCardProps {
   package: {
@@ -18,7 +18,7 @@ interface HomepageCreditPackageCardProps {
   };
 }
 
-export function HomepageCreditPackageCard({ package: pkg }: HomepageCreditPackageCardProps) {
+function HomepageCreditPackageCardComponent({ package: pkg }: HomepageCreditPackageCardProps) {
   const totalCredits = pkg.credits + (pkg.bonusCredits || 0);
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -72,4 +72,7 @@ export function HomepageCreditPackageCard({ package: pkg }: HomepageCreditPackag
     </GradientCard>
   );
 }
+
+// ✅ OPTIMIZED: Memoize component to prevent unnecessary re-renders in lists
+export const HomepageCreditPackageCard = memo(HomepageCreditPackageCardComponent);
 

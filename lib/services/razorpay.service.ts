@@ -329,8 +329,9 @@ export class RazorpayService {
     try {
       logger.log('💰 RazorpayService: Adding credits to account:', { userId, creditPackageId });
 
-      // ✅ OPTIMIZED: Fetch package and check user credits in parallel
-      const [packageDataResult, existingCreditResult] = await Promise.all([
+      // ✅ OPTIMIZED: Fetch package, check user credits, and check for duplicate transactions in parallel
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      const [packageDataResult, existingCreditResult, duplicateTransactionResult] = await Promise.all([
         db
           .select()
           .from(creditPackages)
@@ -341,11 +342,48 @@ export class RazorpayService {
           .from(userCredits)
           .where(eq(userCredits.userId, userId))
           .limit(1),
+        // ✅ FIXED: Check for duplicate credit transactions to prevent double addition
+        db
+          .select()
+          .from(creditTransactions)
+          .where(
+            and(
+              eq(creditTransactions.userId, userId),
+              eq(creditTransactions.referenceId, creditPackageId),
+              eq(creditTransactions.type, 'earned'),
+              gte(creditTransactions.createdAt, fiveMinutesAgo)
+            )
+          )
+          .orderBy(desc(creditTransactions.createdAt))
+          .limit(1),
       ]);
 
       const [packageData] = packageDataResult;
       if (!packageData) {
         return { success: false, error: 'Credit package not found' };
+      }
+
+      // ✅ FIXED: Check if credits were already added for this package in the last 5 minutes
+      const [duplicateTransaction] = duplicateTransactionResult;
+      if (duplicateTransaction) {
+        logger.warn('⚠️ RazorpayService: Duplicate credit addition detected, skipping:', {
+          userId,
+          creditPackageId,
+          existingTransactionId: duplicateTransaction.id,
+          existingTransactionCreatedAt: duplicateTransaction.createdAt,
+        });
+        // Get current balance to return
+        const [userCredit] = existingCreditResult;
+        const currentBalance = userCredit?.balance || 0;
+        return {
+          success: true,
+          data: {
+            creditsAdded: 0,
+            newBalance: currentBalance,
+            skipped: true,
+            reason: 'Credits already added for this package',
+          },
+        };
       }
 
       const totalCredits = packageData.credits + packageData.bonusCredits;
@@ -384,7 +422,7 @@ export class RazorpayService {
           type: 'earned',
           description: `Purchased ${packageData.name} - ${packageData.credits} credits${packageData.bonusCredits > 0 ? ` + ${packageData.bonusCredits} bonus` : ''}`,
           referenceId: creditPackageId,
-          referenceType: 'subscription', // Using subscription type for purchased credits
+          referenceType: 'credit_package', // ✅ FIXED: Use correct reference type for credit packages
         }),
       ]);
 

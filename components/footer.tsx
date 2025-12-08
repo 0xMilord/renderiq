@@ -32,7 +32,7 @@ export function Footer() {
         </Button>
       </div>
       
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-12 pt-10">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-12 pt-10 pb-32 sm:pb-36 md:pb-40 lg:pb-44">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="col-span-1 md:col-span-2">

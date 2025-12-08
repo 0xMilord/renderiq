@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 import { createRenderChain } from '@/lib/actions/projects.actions';
 import { CreateProjectModal } from '@/components/projects/create-project-modal';
-import { ProjectChainsModal } from '@/components/projects/project-chains-modal';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { Project, RenderChain, Render } from '@/lib/db/schema';
@@ -59,7 +58,6 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Start closed on mobile
   const [selectedChainId, setSelectedChainId] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRender, setSelectedRender] = useState<Render | null>(null);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
@@ -79,7 +77,7 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
 
   const handleProjectClick = (projectId: string) => {
     setSelectedProjectId(projectId);
-    setIsProjectModalOpen(true);
+    setSelectedChainId(null); // Clear chain selection when selecting project
   };
 
   const handleCreateNewChain = async (projectId: string) => {
@@ -212,7 +210,7 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
   }, []);
 
   return (
-    <div className="flex h-[calc(100vh-var(--navbar-height))] pt-[var(--navbar-height)] bg-background">
+    <div className="flex fixed inset-0 bg-background pt-[var(--navbar-height)]">
       {/* Sidebar */}
       <div
         className={cn(
@@ -291,10 +289,11 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                   return (
                     <div key={project.id} className="space-y-0.5">
                       {/* Project Row - Click to open modal */}
-                      <div
+                      <button
+                        type="button"
                         className={cn(
-                          "flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-accent cursor-pointer group transition-colors",
-                          selectedProjectId === project.id && "bg-accent text-accent-foreground"
+                          "w-full flex items-center gap-1 px-2 py-1.5 rounded-md border border-transparent hover:bg-primary/20 hover:border-primary cursor-pointer group transition-colors text-left",
+                          selectedProjectId === project.id && "bg-primary/20 border-primary text-foreground"
                         )}
                         onClick={() => handleProjectClick(project.id)}
                       >
@@ -317,17 +316,18 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                             {projectChains.length}
                           </span>
                         )}
-                      </div>
+                      </button>
                       
                       {/* Show chains inline when project is selected */}
                       {selectedProjectId === project.id && projectChains.length > 0 && (
                         <div className="ml-4 space-y-0.5 mt-1">
                           {projectChains.map((chain) => (
-                            <div
+                            <button
                               key={chain.id}
+                              type="button"
                               className={cn(
-                                "flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent cursor-pointer transition-colors group",
-                                selectedChainId === chain.id && "bg-accent text-accent-foreground"
+                                "w-full flex items-center gap-2 px-2 py-1.5 rounded-md border border-transparent hover:bg-primary/20 hover:border-primary cursor-pointer transition-colors group text-left",
+                                selectedChainId === chain.id && "bg-primary/20 border-primary text-foreground"
                               )}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -341,7 +341,7 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                                   : "text-muted-foreground group-hover:text-foreground"
                               )} />
                               <span className="text-sm truncate">{chain.name}</span>
-                            </div>
+                            </button>
                           ))}
                         </div>
                       )}
@@ -360,8 +360,8 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                     <button
                       onClick={() => toggleProject(project.id)}
                       className={cn(
-                        "w-8 h-8 flex items-center justify-center rounded-lg hover:bg-accent transition-colors group",
-                        expandedProjects.has(project.id) && "bg-accent text-accent-foreground"
+                        "w-8 h-8 flex items-center justify-center rounded-lg border border-transparent hover:bg-primary/20 hover:border-primary transition-colors group",
+                        expandedProjects.has(project.id) && "bg-primary/20 border-primary text-foreground"
                       )}
                       title={project.name}
                     >
@@ -379,8 +379,8 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                             key={chain.id}
                             onClick={() => handleSelectChain(chain.id)}
                             className={cn(
-                              "w-6 h-6 flex items-center justify-center rounded hover:bg-accent transition-colors group",
-                              selectedChainId === chain.id && "bg-accent text-accent-foreground"
+                              "w-6 h-6 flex items-center justify-center rounded border border-transparent hover:bg-primary/20 hover:border-primary transition-colors group",
+                              selectedChainId === chain.id && "bg-primary/20 border-primary text-foreground"
                             )}
                             title={chain.name}
                           >
@@ -412,7 +412,7 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
 
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0 w-full">
         {/* Header */}
         <div className="px-4 border-b flex items-end justify-between gap-4 h-16 pb-3">
           <div className="flex items-center gap-4 flex-1 min-w-0 overflow-hidden h-10">
@@ -492,181 +492,145 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 w-full min-h-0">
           {selectedChainId ? (
             <div className="w-full h-full flex flex-col">
-              {/* Chain Actions */}
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold mb-1">Renders</h2>
-                  <p className="text-sm text-muted-foreground">
-                    {chainRenders.length} render{chainRenders.length !== 1 ? 's' : ''} in this chain
-                  </p>
-                </div>
-                <Button onClick={handleContinueEditing} size="lg">
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  Continue Editing
-                </Button>
-              </div>
-
-              {/* Renders Grid */}
-              {chainRenders.length > 0 ? (
-                <div className="flex-1 flex flex-col">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 w-full">
-                    {paginatedRenders.map((render) => (
-                      <CommonImageCard
-                        key={render.id}
-                        render={render}
-                        variant="owner"
-                        showUser={false}
-                        showStats={false}
-                        onView={handleViewRender}
-                      />
-                    ))}
-                  </div>
-                  
-                  {/* Pagination */}
-                  {totalPages > 1 && (
-                    <div className="mt-6 flex items-center justify-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                        disabled={currentPage === 1}
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-                          const showPage = 
-                            page === 1 || 
-                            page === totalPages || 
-                            (page >= currentPage - 1 && page <= currentPage + 1);
-                          
-                          const showEllipsis = 
-                            (page === currentPage - 2 && currentPage > 3) ||
-                            (page === currentPage + 2 && currentPage < totalPages - 2);
-                          
-                          if (showEllipsis) {
-                            return <span key={page} className="px-2 text-muted-foreground">...</span>;
-                          }
-                          
-                          if (!showPage) return null;
-                          
-                          return (
-                            <Button
-                              key={page}
-                              variant={currentPage === page ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => setCurrentPage(page)}
-                              className="w-9"
-                            >
-                              {page}
-                            </Button>
-                          );
-                        })}
-                      </div>
-                      
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                        disabled={currentPage === totalPages}
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                      
-                      <span className="ml-2 text-sm text-muted-foreground">
-                        Page {currentPage} of {totalPages}
-                      </span>
+              {/* Chain Card */}
+              <div className="rounded-lg border bg-card p-6 w-full max-w-4xl">
+                {/* Chain Header */}
+                <div className="mb-6 flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <MessageSquare className="h-6 w-6 text-primary shrink-0" />
+                      <h2 className="text-2xl font-bold truncate">{selectedChain?.name || 'Chat'}</h2>
                     </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No renders yet</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Start creating renders in this chain
-                  </p>
-                  <Button onClick={handleContinueEditing}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Start Creating
+                    <p className="text-sm text-muted-foreground">
+                      {chainRenders.length} render{chainRenders.length !== 1 ? 's' : ''} in this chain
+                    </p>
+                  </div>
+                  <Button onClick={handleContinueEditing} size="lg" className="shrink-0">
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Continue Editing
                   </Button>
                 </div>
-              )}
+
+                {/* Latest 4 Renders */}
+                {chainRenders.length > 0 ? (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">Latest Renders</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {chainRenders.slice(0, 4).map((render) => (
+                        <CommonImageCard
+                          key={render.id}
+                          render={render}
+                          variant="owner"
+                          showUser={false}
+                          showStats={false}
+                          onView={handleViewRender}
+                        />
+                      ))}
+                    </div>
+                    {chainRenders.length > 4 && (
+                      <div className="mt-6 text-center">
+                        <Button
+                          variant="outline"
+                          onClick={handleContinueEditing}
+                        >
+                          View All {chainRenders.length} Renders
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No renders yet</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Start creating renders in this chain
+                    </p>
+                    <Button onClick={handleContinueEditing}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Start Creating
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           ) : selectedProjectId ? (
             /* Project Selected - Show Available Chats */
             <div className="w-full h-full flex flex-col">
-              {/* Chats Header */}
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold mb-1">Chats</h2>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedProjectChains.length} chat{selectedProjectChains.length !== 1 ? 's' : ''} in {selectedProject?.name}
-                  </p>
-                </div>
-                <Button 
-                  onClick={() => handleCreateNewChain(selectedProjectId)}
-                  disabled={isCreatingChain === selectedProjectId}
-                  size="lg"
-                >
-                  {isCreatingChain === selectedProjectId ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Start New Chat
-                    </>
-                  )}
-                </Button>
-              </div>
-
               {/* Chats Grid */}
               {selectedProjectChains.length > 0 ? (
                 <div className="flex-1 flex flex-col">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 w-full">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
                     {selectedProjectChains.map((chain) => {
-                      const chainProject = initialProjects.find(p => p.id === chain.projectId);
+                      const latestRenders = chain.renders.slice(0, 4);
                       return (
                         <div
                           key={chain.id}
                           onClick={() => handleSelectChain(chain.id)}
                           className={cn(
-                            "group relative cursor-pointer rounded-lg border bg-card p-4 hover:border-primary transition-all",
+                            "group relative cursor-pointer rounded-lg border bg-card p-5 hover:border-primary transition-all",
                             selectedChainId === chain.id && "border-primary ring-2 ring-primary/20"
                           )}
                         >
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <MessageSquare className="h-5 w-5 text-primary" />
-                              <h3 className="font-semibold text-sm truncate flex-1">
-                                {chain.name}
-                              </h3>
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-xs text-muted-foreground">
-                              <span>{chain.renders.length} render{chain.renders.length !== 1 ? 's' : ''}</span>
-                              {chainProject && (
-                                <span className="truncate ml-2">{chainProject.name}</span>
-                              )}
-                            </div>
-                            {chain.renders.length > 0 && chain.renders[0]?.outputUrl && (
-                              <div className="relative aspect-video rounded-md overflow-hidden bg-muted">
-                                <img
-                                  src={chain.renders[0].outputUrl}
-                                  alt={chain.name}
-                                  className="w-full h-full object-cover"
-                                />
+                          {/* Chat Header */}
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <div className="h-10 w-10 rounded-lg bg-primary/20 border border-primary flex items-center justify-center shrink-0">
+                                <MessageSquare className="h-5 w-5 text-primary" />
                               </div>
-                            )}
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-base truncate mb-1">
+                                  {chain.name}
+                                </h3>
+                                <p className="text-xs text-muted-foreground">
+                                  {chain.renders.length} render{chain.renders.length !== 1 ? 's' : ''}
+                                </p>
+                              </div>
+                            </div>
                           </div>
+
+                          {/* Render Preview Grid */}
+                          {latestRenders.length > 0 ? (
+                            <div className={cn(
+                              "grid gap-2",
+                              latestRenders.length === 1 ? "grid-cols-1" :
+                              latestRenders.length === 2 ? "grid-cols-2" :
+                              latestRenders.length === 3 ? "grid-cols-3" :
+                              "grid-cols-2"
+                            )}>
+                              {latestRenders.map((render, idx) => (
+                                <div
+                                  key={render.id}
+                                  className={cn(
+                                    "relative aspect-square rounded-md overflow-hidden bg-muted border border-border group-hover:border-primary/50 transition-colors",
+                                    idx === 0 && latestRenders.length === 1 && "col-span-2 row-span-2",
+                                    idx === 0 && latestRenders.length === 3 && "col-span-2"
+                                  )}
+                                >
+                                  {render.outputUrl ? (
+                                    <img
+                                      src={render.outputUrl}
+                                      alt={`${chain.name} render ${idx + 1}`}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                      <MessageSquare className="h-6 w-6 text-muted-foreground" />
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="aspect-video rounded-md bg-muted/50 border border-dashed border-border flex items-center justify-center">
+                              <div className="text-center">
+                                <MessageSquare className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                                <p className="text-xs text-muted-foreground">No renders yet</p>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -727,14 +691,6 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
         item={selectedRender}
       />
 
-      {/* Project Chains Modal */}
-      <ProjectChainsModal
-        isOpen={isProjectModalOpen}
-        onClose={() => setIsProjectModalOpen(false)}
-        project={selectedProject}
-        chains={selectedProjectChains}
-        onChainSelect={handleSelectChain}
-      />
     </div>
   );
 }

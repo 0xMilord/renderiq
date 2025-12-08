@@ -46,47 +46,51 @@ export class ActivityDAL {
     logger.log('📊 ActivityDAL: Fetching user activity:', { userId, limit });
 
     try {
-      // Fetch renders
-      const userRenders = await db
-        .select({
-          id: renders.id,
-          type: renders.type,
-          prompt: renders.prompt,
-          outputUrl: renders.outputUrl,
-          status: renders.status,
-          createdAt: renders.createdAt,
-        })
-        .from(renders)
-        .where(eq(renders.userId, userId))
-        .orderBy(desc(renders.createdAt))
-        .limit(limit);
-
-      // Fetch likes
-      const userLikedItems = await db
-        .select({
-          id: userLikes.id,
-          galleryItemId: userLikes.galleryItemId,
-          createdAt: userLikes.createdAt,
-          render: {
+      // ✅ OPTIMIZED: Fetch renders and likes in parallel (2 queries simultaneously)
+      // Note: Can't use SQL UNION easily here because the data structures are different
+      // (renders have different fields than likes), so parallel fetch is the best optimization
+      const [userRenders, userLikedItems] = await Promise.all([
+        // Fetch renders
+        db
+          .select({
             id: renders.id,
             type: renders.type,
             prompt: renders.prompt,
             outputUrl: renders.outputUrl,
             status: renders.status,
-          },
-          user: {
-            id: users.id,
-            name: users.name,
-            avatar: users.avatar,
-          },
-        })
-        .from(userLikes)
-        .innerJoin(galleryItems, eq(userLikes.galleryItemId, galleryItems.id))
-        .innerJoin(renders, eq(galleryItems.renderId, renders.id))
-        .innerJoin(users, eq(galleryItems.userId, users.id))
-        .where(eq(userLikes.userId, userId))
-        .orderBy(desc(userLikes.createdAt))
-        .limit(limit);
+            createdAt: renders.createdAt,
+          })
+          .from(renders)
+          .where(eq(renders.userId, userId))
+          .orderBy(desc(renders.createdAt))
+          .limit(limit),
+        // Fetch likes
+        db
+          .select({
+            id: userLikes.id,
+            galleryItemId: userLikes.galleryItemId,
+            createdAt: userLikes.createdAt,
+            render: {
+              id: renders.id,
+              type: renders.type,
+              prompt: renders.prompt,
+              outputUrl: renders.outputUrl,
+              status: renders.status,
+            },
+            user: {
+              id: users.id,
+              name: users.name,
+              avatar: users.avatar,
+            },
+          })
+          .from(userLikes)
+          .innerJoin(galleryItems, eq(userLikes.galleryItemId, galleryItems.id))
+          .innerJoin(renders, eq(galleryItems.renderId, renders.id))
+          .innerJoin(users, eq(galleryItems.userId, users.id))
+          .where(eq(userLikes.userId, userId))
+          .orderBy(desc(userLikes.createdAt))
+          .limit(limit)
+      ]);
 
       // Combine and sort by timestamp
       const activities: ActivityItem[] = [
@@ -129,7 +133,7 @@ export class ActivityDAL {
       // Sort by timestamp (most recent first)
       activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
-      logger.log(`✅ ActivityDAL: Found ${activities.length} activities (${userRenders.length} renders, ${userLikedItems.length} likes)`);
+      logger.log(`✅ ActivityDAL: Found ${activities.length} activities (${userRenders.length} renders, ${userLikedItems.length} likes) - parallel fetch`);
       return activities.slice(0, limit);
     } catch (error) {
       logger.error('❌ ActivityDAL: Error fetching user activity:', error);

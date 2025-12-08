@@ -290,8 +290,101 @@ export class RendersDAL {
     return render;
   }
 
-  static async getPublicGallery(limit = 20, offset = 0) {
-    logger.log('🖼️ Fetching public gallery items:', { limit, offset });
+  // ✅ OPTIMIZED: Server-side filtering and sorting to prevent client-side processing
+  static async getPublicGallery(
+    limit = 20, 
+    offset = 0,
+    options?: {
+      sortBy?: 'newest' | 'oldest' | 'most_liked' | 'most_viewed' | 'trending';
+      filters?: {
+        style?: string[];
+        quality?: string[];
+        aspectRatio?: string[];
+        contentType?: 'image' | 'video' | 'both';
+      };
+      searchQuery?: string;
+    }
+  ) {
+    logger.log('🖼️ Fetching public gallery items:', { limit, offset, options });
+    
+    // Build WHERE conditions
+    const whereConditions = [eq(galleryItems.isPublic, true)];
+    
+    // ✅ OPTIMIZED: Apply filters in SQL (much faster than client-side)
+    if (options?.filters) {
+      const { style, quality, aspectRatio, contentType } = options.filters;
+      
+      // Content type filter
+      if (contentType && contentType !== 'both') {
+        whereConditions.push(eq(renders.type, contentType));
+      }
+      
+      // Style filter (check settings JSON)
+      if (style && style.length > 0) {
+        const styleConditions = style.map(s => {
+          const styleLower = s.toLowerCase();
+          return sql`LOWER(${renders.settings}->>'style') = ${styleLower}`;
+        });
+        whereConditions.push(or(...styleConditions));
+      }
+      
+      // Quality filter
+      if (quality && quality.length > 0) {
+        const qualityConditions = quality.map(q => {
+          const qualityLower = q.toLowerCase();
+          return sql`LOWER(${renders.settings}->>'quality') = ${qualityLower}`;
+        });
+        whereConditions.push(or(...qualityConditions));
+      }
+      
+      // Aspect ratio filter (normalize formats)
+      if (aspectRatio && aspectRatio.length > 0) {
+        const ratioConditions = aspectRatio.map(ratio => {
+          const normalized = ratio.replace(/[:\/]/g, ':');
+          const altFormat = ratio.includes(':') ? ratio.replace(':', '/') : ratio.replace('/', ':');
+          // Check for both formats (16:9 and 16/9)
+          return sql`(
+            ${renders.settings}->>'aspectRatio' = ${normalized} OR
+            ${renders.settings}->>'aspectRatio' = ${altFormat} OR
+            REPLACE(REPLACE(${renders.settings}->>'aspectRatio', '/', ':'), ':', ':') = ${normalized}
+          )`;
+        });
+        whereConditions.push(or(...ratioConditions));
+      }
+    }
+    
+    // Search query filter
+    if (options?.searchQuery) {
+      const searchTerm = `%${options.searchQuery.toLowerCase()}%`;
+      whereConditions.push(
+        or(
+          sql`LOWER(${renders.prompt}) LIKE ${searchTerm}`,
+          sql`LOWER(${users.name}) LIKE ${searchTerm}`
+        )
+      );
+    }
+    
+    // Build ORDER BY based on sort option
+    let orderByClause;
+    switch (options?.sortBy || 'newest') {
+      case 'oldest':
+        orderByClause = renders.createdAt;
+        break;
+      case 'most_liked':
+        orderByClause = desc(galleryItems.likes);
+        break;
+      case 'most_viewed':
+        orderByClause = desc(galleryItems.views);
+        break;
+      case 'trending':
+        // Trending = combination of likes, views, and recency
+        orderByClause = desc(sql`${galleryItems.likes} * 2 + ${galleryItems.views} + EXTRACT(EPOCH FROM (NOW() - ${renders.createdAt})) / 86400`);
+        break;
+      case 'newest':
+      default:
+        orderByClause = desc(renders.createdAt);
+        break;
+    }
     
     const items = await db
       .select({
@@ -326,12 +419,12 @@ export class RendersDAL {
       .from(galleryItems)
       .innerJoin(renders, eq(galleryItems.renderId, renders.id))
       .innerJoin(users, eq(galleryItems.userId, users.id))
-      .where(eq(galleryItems.isPublic, true))
-      .orderBy(desc(renders.createdAt))
+      .where(and(...whereConditions))
+      .orderBy(orderByClause)
       .limit(limit)
       .offset(offset);
 
-    logger.log(`✅ Found ${items.length} public gallery items (sorted by newest first)`);
+    logger.log(`✅ Found ${items.length} public gallery items (server-side filtered/sorted)`);
     return items;
   }
 

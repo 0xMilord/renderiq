@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { GalleryItemWithDetails } from '@/lib/types';
@@ -12,7 +12,10 @@ interface HeroGallerySlideshowProps {
 
 export function HeroGallerySlideshow({ items, interval = 4000 }: HeroGallerySlideshowProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const validItems = items.filter(item => item.render.outputUrl && item.render.status === 'completed');
+  // ✅ OPTIMIZED: Memoize filtered items to avoid recalculating on every render
+  const validItems = useMemo(() => {
+    return items.filter(item => item.render.outputUrl && item.render.status === 'completed');
+  }, [items]);
 
   useEffect(() => {
     if (validItems.length <= 1) return;

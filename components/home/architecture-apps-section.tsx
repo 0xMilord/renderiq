@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -118,21 +118,24 @@ export function ArchitectureAppsSection() {
   const borderClass = 'border-[hsl(72,87%,62%)]';
 
   const tools = getAllTools();
-  const sortedTools = [...tools].sort((a, b) => {
-    // Sort by status first (online apps first), then by priority, then by name
-    const aStatus = getEffectiveToolStatus(a.id, a.status);
-    const bStatus = getEffectiveToolStatus(b.id, b.status);
-    if (aStatus !== bStatus) {
-      return aStatus === 'online' ? -1 : 1;
-    }
-    const priorityOrder = { high: 0, medium: 1, low: 2 };
-    const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
-    if (priorityDiff !== 0) return priorityDiff;
-    return a.name.localeCompare(b.name);
-  });
+  // ✅ OPTIMIZED: Memoize sorted tools to avoid recalculating on every render
+  const sortedTools = useMemo(() => {
+    return [...tools].sort((a, b) => {
+      // Sort by status first (online apps first), then by priority, then by name
+      const aStatus = getEffectiveToolStatus(a.id, a.status);
+      const bStatus = getEffectiveToolStatus(b.id, b.status);
+      if (aStatus !== bStatus) {
+        return aStatus === 'online' ? -1 : 1;
+      }
+      const priorityOrder = { high: 0, medium: 1, low: 2 };
+      const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+      if (priorityDiff !== 0) return priorityDiff;
+      return a.name.localeCompare(b.name);
+    });
+  }, [tools]);
 
   return (
-    <section id="architecture-apps" className="w-full overflow-x-hidden relative bg-background">
+    <section id="architecture-apps" className="w-full overflow-x-hidden relative bg-background/80 backdrop-blur-sm">
       <div className={`w-full px-4 sm:px-6 lg:px-8 relative border-l-[5px] border-r-[5px] border-b-[5px] ${borderClass}`}>
         <div className="w-full">
           <div className="grid grid-cols-1 lg:grid-cols-[50%_50%] gap-0 relative pt-8">
