@@ -14,7 +14,7 @@ import {
   FaQuora
 } from 'react-icons/fa6';
 import { SiBluesky } from 'react-icons/si';
-import { Sparkles, Images, Lightbulb, Newspaper, CreditCard, Info, FileText, Mail } from 'lucide-react';
+import { Sparkles, Images, Lightbulb, Newspaper, CreditCard, Info, FileText, Mail, Users } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { PWAInstallButton } from '@/components/pwa/install-button';
 import { Button } from '@/components/ui/button';
@@ -139,6 +139,12 @@ export function Footer() {
                   <Link href="/pricing" className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
                     <CreditCard className="h-3.5 w-3.5" />
                     Pricing
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/ambassador" className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
+                    <Users className="h-3.5 w-3.5" />
+                    Ambassador
                   </Link>
                 </li>
                 <li>

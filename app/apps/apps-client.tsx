@@ -24,8 +24,6 @@ import { Badge } from '@/components/ui/badge';
 import { ToolConfig, ToolCategory, CATEGORIES, getToolBySlug } from '@/lib/tools/registry';
 import { isToolAccessible } from '@/lib/tools/feature-flags';
 import { cn } from '@/lib/utils';
-import ReactBeforeSliderComponent from 'react-before-after-slider-component';
-import 'react-before-after-slider-component/dist/build.css';
 
 const categoryIcons: Record<ToolCategory, typeof Sparkles> = {
   transformation: Sparkles,
@@ -35,198 +33,23 @@ const categoryIcons: Record<ToolCategory, typeof Sparkles> = {
   interior: Home,
   '3d': Box,
   presentation: Presentation,
+  video: Play,
 };
 
-// Component to handle tool card media (before/after slider, video, or single image)
+// Get custom SVG icon path for tools
+const getToolIconPath = (slug: string): string => {
+  return `/apps/icons/${slug}.svg`;
+};
+
+// Component to display tool cover image
 function ToolCardMedia({ tool }: { tool: ToolConfig }) {
-  // All hooks must be declared first, before any conditional returns
-  const [hasBefore, setHasBefore] = useState(false);
-  const [hasAfter, setHasAfter] = useState(false);
-  const [hasVideo, setHasVideo] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [imagesLoaded, setImagesLoaded] = useState(false);
+  const coverImage = `/apps/cover/${tool.slug}.jpg`;
 
-  const beforeImage = `/apps/${tool.slug}-before.jpg`;
-  const afterImage = `/apps/${tool.slug}-after.jpg`;
-  const videoSrc = `/apps/${tool.slug}.mp4`;
-  const fallbackImage = `/apps/${tool.slug}.png`;
-
-  useEffect(() => {
-    // Reset states when tool changes
-    setHasBefore(false);
-    setHasAfter(false);
-    setHasVideo(false);
-    setImageError(false);
-    setImagesLoaded(false);
-    
-    // Optimized: Use Image objects to preload and check existence simultaneously
-    // This is more efficient than HEAD requests as it actually loads the images
-    const checkAssets = () => {
-      if (tool.outputType === 'video') {
-        // For video, check with video element
-        const video = document.createElement('video');
-        video.preload = 'metadata';
-        video.src = videoSrc;
-        video.onloadeddata = () => {
-          setHasVideo(true);
-          setImagesLoaded(true);
-        };
-        video.onerror = () => {
-          setImagesLoaded(true);
-        };
-      } else {
-        // Preload images and check if they load successfully
-        // Using Image objects is more efficient - browser caches them and we can reuse
-        let beforeLoaded = false;
-        let afterLoaded = false;
-        let checkComplete = false;
-        let resolvedCount = 0;
-
-        const checkCompleteStatus = () => {
-          resolvedCount++;
-          if (checkComplete || resolvedCount < 2) return;
-          checkComplete = true;
-          setHasBefore(beforeLoaded);
-          setHasAfter(afterLoaded);
-          setImagesLoaded(true);
-        };
-
-        // Use native Image constructor (window.Image) to avoid conflict with Next.js Image component
-        // These images will be cached by the browser for the slider component
-        const beforeImg = new window.Image();
-        beforeImg.loading = 'eager'; // Eager loading for faster display
-        beforeImg.onload = () => {
-          beforeLoaded = true;
-          checkCompleteStatus();
-        };
-        beforeImg.onerror = () => {
-          checkCompleteStatus();
-        };
-        beforeImg.src = beforeImage;
-
-        const afterImg = new window.Image();
-        afterImg.loading = 'eager'; // Eager loading for faster display
-        afterImg.onload = () => {
-          afterLoaded = true;
-          checkCompleteStatus();
-        };
-        afterImg.onerror = () => {
-          checkCompleteStatus();
-        };
-        afterImg.src = afterImage;
-
-        // Timeout fallback (reduced from 2000ms to 800ms for faster fallback while allowing images to load)
-        setTimeout(() => {
-          if (!checkComplete) {
-            checkCompleteStatus();
-          }
-        }, 800);
-      }
-    };
-    
-    checkAssets();
-  }, [tool.slug, tool.outputType, beforeImage, afterImage, videoSrc]);
-
-  // Now we can do conditional returns after all hooks
-  // Video tool with video available
-  if (tool.outputType === 'video' && hasVideo) {
-    return (
-      <div className="relative w-full aspect-[4/3] bg-muted overflow-hidden">
-        <video
-          src={videoSrc}
-          className="w-full h-full object-cover"
-          autoPlay
-          loop
-          muted
-          playsInline
-        />
-        <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/10 transition-colors pointer-events-none">
-          <div className="bg-background/90 backdrop-blur-sm rounded-full p-3">
-            <Play className="h-6 w-6 text-primary" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Before/After slider if both images exist
-  if (hasBefore && hasAfter) {
-    return (
-      <>
-        <style dangerouslySetInnerHTML={{ __html: `
-          .tool-card-slider-wrapper-${tool.slug} {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-          }
-          .tool-card-slider-wrapper-${tool.slug} > div {
-            width: 100% !important;
-            height: 100% !important;
-            position: relative !important;
-          }
-          .tool-card-slider-wrapper-${tool.slug} .react-before-after-slider-container {
-            width: 100% !important;
-            height: 100% !important;
-            position: relative !important;
-            overflow: hidden !important;
-            display: block !important;
-          }
-          .tool-card-slider-wrapper-${tool.slug} .react-before-after-slider-container > div {
-            width: 100% !important;
-            height: 100% !important;
-            position: relative !important;
-          }
-          .tool-card-slider-wrapper-${tool.slug} .react-before-after-slider-container img,
-          .tool-card-slider-wrapper-${tool.slug} .react-before-after-slider-container picture,
-          .tool-card-slider-wrapper-${tool.slug} .react-before-after-slider-container picture img {
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: cover !important;
-            object-position: center !important;
-            display: block !important;
-            max-width: none !important;
-            max-height: none !important;
-          }
-        `}} />
-        <div 
-          className={`relative w-full aspect-[4/3] bg-muted tool-card-slider-wrapper-${tool.slug}`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="absolute inset-0 overflow-hidden">
-            <ReactBeforeSliderComponent
-              firstImage={{ imageUrl: beforeImage }}
-              secondImage={{ imageUrl: afterImage }}
-              currentPercentPosition={50}
-            />
-          </div>
-          <div className="absolute bottom-2 left-2 bg-background/90 backdrop-blur-sm border border-border text-foreground px-2 py-1 rounded text-xs font-medium z-20 pointer-events-none">
-            Before
-          </div>
-          <div className="absolute bottom-2 right-2 bg-background/90 backdrop-blur-sm border border-border text-foreground px-2 py-1 rounded text-xs font-medium z-20 pointer-events-none">
-            After
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  // Show loading state while checking
-  if (!imagesLoaded && !hasBefore && !hasAfter && !hasVideo) {
-    return (
-      <div className="relative w-full aspect-square bg-muted overflow-hidden flex items-center justify-center">
-        <div className="animate-pulse">
-          <FileImage className="h-12 w-12 text-muted-foreground" />
-        </div>
-      </div>
-    );
-  }
-
-  // Fallback to single image
   return (
-    <div className="relative w-full aspect-square bg-muted overflow-hidden">
+    <div className="relative w-full aspect-video bg-muted overflow-hidden">
       <Image
-        src={fallbackImage}
+        src={coverImage}
         alt={tool.name}
         fill
         className="object-cover group-hover:scale-105 transition-transform duration-300"
@@ -239,6 +62,31 @@ function ToolCardMedia({ tool }: { tool: ToolConfig }) {
         </div>
       )}
     </div>
+  );
+}
+
+// Component to render tool icon with fallback to category icon
+function ToolIconWithFallback({ 
+  tool, 
+  CategoryIcon 
+}: { 
+  tool: ToolConfig; 
+  CategoryIcon: typeof Sparkles;
+}) {
+  const [iconError, setIconError] = useState(false);
+  const iconPath = getToolIconPath(tool.slug);
+
+  if (iconError) {
+    return <CategoryIcon className="h-16 w-16 text-primary" />;
+  }
+
+  return (
+    <img 
+      src={iconPath} 
+      alt={tool.name}
+      className="w-16 h-16 object-contain rounded-md"
+      onError={() => setIconError(true)}
+    />
   );
 }
 
@@ -256,9 +104,6 @@ export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Get the main featured tool (render-section-drawing)
-  const featuredTool = getToolBySlug('render-section-drawing');
-  const isFeaturedToolAccessible = featuredTool ? isToolAccessible(featuredTool.id) : false;
 
   // Search results for dropdown - show all matching tools regardless of category
   const searchResults = useMemo(() => {
@@ -274,17 +119,14 @@ export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
   }, [tools, searchQuery]);
 
   // Filter tools - only show online tools by default, but allow filtering
-  // Exclude featured tool from grid if it's accessible (will show in featured section)
+  // Filter tools by category and search
   const filteredTools = tools.filter(tool => {
     const matchesCategory = selectedCategory === 'all' || tool.category === selectedCategory;
     const matchesSearch = searchQuery === '' || 
       tool.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tool.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tool.seo.keywords.some(kw => kw.toLowerCase().includes(searchQuery.toLowerCase()));
-    // Exclude featured tool from grid if it's accessible and search is empty
-    const isFeatured = tool.id === 'render-section-drawing';
-    const shouldExclude = isFeatured && isFeaturedToolAccessible && searchQuery === '';
-    return matchesCategory && matchesSearch && !shouldExclude;
+    return matchesCategory && matchesSearch;
   });
 
   // Handle search input change
@@ -382,10 +224,10 @@ export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
             {/* Left Column: Title & Description */}
             <div className="w-full px-4 sm:px-6 lg:px-8">
               <h1 className="text-3xl md:text-4xl font-bold mb-3 text-primary-foreground">
-                AI Architecture Tools
+                AI Architecture Apps
               </h1>
               <p className="text-base md:text-lg text-primary-foreground/80">
-                21 specialized tools for every stage of your architectural workflow. 
+                {tools.length} specialized apps for every stage of your architectural workflow. 
                 From concept sketches to presentation boards—everything you need in one place.
               </p>
             </div>
@@ -398,7 +240,7 @@ export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
                 <Input
                   ref={searchInputRef}
                   type="text"
-                  placeholder="Search tools..."
+                  placeholder="Search apps..."
                   value={searchQuery}
                   onChange={handleSearchChange}
                   onFocus={() => searchQuery.trim().length > 0 && setShowDropdown(true)}
@@ -459,7 +301,7 @@ export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
                 {/* No results message */}
                 {showDropdown && searchQuery.trim().length > 0 && searchResults.length === 0 && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-background border border-border rounded-lg shadow-lg z-50 p-4 text-center">
-                    <p className="text-sm text-muted-foreground">No tools found</p>
+                    <p className="text-sm text-muted-foreground">No apps found</p>
                   </div>
                 )}
               </div>
@@ -467,7 +309,7 @@ export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
               {/* Tags */}
               <div className="flex flex-wrap gap-2 text-xs">
                 <Badge variant="secondary" className="px-2 py-0.5">
-                  {tools.length} Tools
+                  {tools.length} Apps
                 </Badge>
                 <Badge variant="secondary" className="px-2 py-0.5">
                   {categories.length} Categories
@@ -481,60 +323,6 @@ export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
         </div>
       </section>
 
-      {/* Featured Tool Card - Main App */}
-      {featuredTool && isFeaturedToolAccessible && (
-        <section className="py-8 px-4 w-full bg-gradient-to-b from-primary/5 to-background">
-          <div className="w-full max-w-7xl mx-auto">
-            <div className="mb-4">
-              <Badge variant="default" className="bg-primary text-primary-foreground mb-2">
-                Featured Tool
-              </Badge>
-              <h2 className="text-2xl font-bold mb-1">Try Our Main Tool</h2>
-              <p className="text-muted-foreground text-sm">
-                Start with our most powerful tool for transforming renders into section drawings
-              </p>
-            </div>
-            <Link href={`/apps/${featuredTool.slug}`}>
-              <Card className="group transition-all duration-300 overflow-hidden hover:shadow-xl cursor-pointer hover:border-primary border-2">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
-                  {/* Media Section */}
-                  <div className="relative w-full aspect-square md:aspect-auto md:h-full min-h-[300px]">
-                    <ToolCardMedia tool={featuredTool} />
-                  </div>
-                  
-                  {/* Content Section */}
-                  <div className="p-6 md:p-8 flex flex-col justify-center">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="p-3 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                        <Sparkles className="h-6 w-6 text-primary" />
-                      </div>
-                      <Badge variant="default" className="bg-primary">
-                        Available Now
-                      </Badge>
-                    </div>
-                    <CardTitle className="text-2xl md:text-3xl mb-3 group-hover:text-primary transition-colors">
-                      {featuredTool.name}
-                    </CardTitle>
-                    <CardDescription className="text-base md:text-lg mb-6">
-                      {featuredTool.description}
-                    </CardDescription>
-                    <div className="flex items-center justify-between">
-                      <Badge variant="outline" className="text-sm">
-                        {categories.find(c => c.id === featuredTool.category)?.name}
-                      </Badge>
-                      <div className="flex items-center text-primary group-hover:translate-x-1 transition-transform">
-                        <span className="text-base font-semibold mr-2">Try Tool</span>
-                        <ArrowRight className="h-5 w-5" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            </Link>
-          </div>
-        </section>
-      )}
-
       {/* Category Tabs */}
       <section className="sticky top-[calc(1rem+2.75rem)] z-10 bg-background/80 dark:bg-background/80 backdrop-blur-xl border-b w-full">
         <div className="w-full px-4">
@@ -547,7 +335,7 @@ export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
                 selectedCategory === 'all' && "bg-primary text-primary-foreground"
               )}
             >
-              All Tools
+              All Apps
               <Badge variant="secondary" className="ml-2">
                 {tools.length}
               </Badge>
@@ -581,7 +369,7 @@ export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
           {filteredTools.length === 0 ? (
             <div className="text-center py-20">
               <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No tools found</h3>
+              <h3 className="text-xl font-semibold mb-2">No apps found</h3>
               <p className="text-muted-foreground">
                 Try adjusting your search or category filter
               </p>
@@ -590,7 +378,7 @@ export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
             <>
               <div className="mb-6 flex items-center justify-between">
                 <p className="text-muted-foreground">
-                  Showing {filteredTools.length} {filteredTools.length === 1 ? 'tool' : 'tools'}
+                  Showing {filteredTools.length} {filteredTools.length === 1 ? 'app' : 'apps'}
                   {selectedCategory !== 'all' && ` in ${categories.find(c => c.id === selectedCategory)?.name}`}
                 </p>
               </div>
@@ -613,56 +401,76 @@ export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
                       }}
                     >
                       <Card className={cn(
-                        "group transition-all duration-300 h-full overflow-hidden",
+                        "group transition-all duration-300 h-full overflow-hidden flex flex-col",
                         isOnline 
                           ? "hover:shadow-lg cursor-pointer hover:border-primary" 
                           : "opacity-60 cursor-not-allowed"
                       )}>
-                        <ToolCardMedia tool={tool} />
-                        <CardHeader>
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                              <CategoryIcon className="h-5 w-5 text-primary" />
+                        {/* Image with category badge overlay */}
+                        <div className="relative">
+                          <ToolCardMedia tool={tool} />
+                          {/* Category badge over image */}
+                          {category && (
+                            <div className="absolute top-2 left-2">
+                              <Badge variant="default" className="bg-primary text-primary-foreground">
+                                {category.name}
+                              </Badge>
                             </div>
-                            <div className="flex gap-2">
-                              {tool.priority === 'high' && (
-                                <Badge variant="default" className="bg-primary">
-                                  Popular
-                                </Badge>
-                              )}
-                              {!isOnline && (
-                                <Badge variant="secondary" className="bg-muted text-muted-foreground">
-                                  Offline
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                          <CardTitle className={cn(
-                            "text-xl mb-2 transition-colors",
-                            isOnline && "group-hover:text-primary"
-                          )}>
-                            {tool.name}
-                          </CardTitle>
-                          <CardDescription className="text-base line-clamp-2">
-                            {tool.description}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="flex items-center justify-between">
-                            <Badge variant="outline" className="text-xs">
-                              {category?.name}
-                            </Badge>
-                            {isOnline ? (
-                              <div className="flex items-center text-primary group-hover:translate-x-1 transition-transform">
-                                <span className="text-sm font-medium mr-1">Try Tool</span>
-                                <ArrowRight className="h-4 w-4" />
-                              </div>
-                            ) : (
-                              <div className="flex items-center text-muted-foreground">
-                                <span className="text-sm font-medium">Coming Soon</span>
-                              </div>
+                          )}
+                          {/* Priority/Status badges */}
+                          <div className="absolute top-2 right-2 flex gap-2">
+                            {tool.priority === 'high' && (
+                              <Badge variant="default" className="bg-primary">
+                                Popular
+                              </Badge>
+                            )}
+                            {!isOnline && (
+                              <Badge variant="secondary" className="bg-muted text-muted-foreground">
+                                Offline
+                              </Badge>
                             )}
                           </div>
+                        </div>
+                        
+                        <CardHeader className="flex-1 flex flex-col">
+                          {/* Icon, Title, and Description in same row */}
+                          <div className="flex items-start gap-3 mb-3">
+                            <div className="rounded-md bg-primary/10 group-hover:bg-primary/20 transition-colors overflow-hidden shrink-0">
+                              <ToolIconWithFallback tool={tool} CategoryIcon={CategoryIcon} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <CardTitle className={cn(
+                                "text-xl mb-1 transition-colors line-clamp-1",
+                                isOnline && "group-hover:text-primary"
+                              )}>
+                                {tool.name}
+                              </CardTitle>
+                              <CardDescription className="text-sm line-clamp-2">
+                                {tool.description}
+                              </CardDescription>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        
+                        <CardContent className="pt-0">
+                          {/* Go to App button - full width, primary */}
+                          {isOnline ? (
+                            <Button 
+                              variant="default" 
+                              className="w-full"
+                            >
+                              <span className="text-sm font-medium mr-1">Go to App</span>
+                              <ArrowRight className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <Button 
+                              variant="outline" 
+                              className="w-full"
+                              disabled
+                            >
+                              <span className="text-sm font-medium">Coming Soon</span>
+                            </Button>
+                          )}
                         </CardContent>
                       </Card>
                     </Link>
@@ -681,7 +489,7 @@ export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
             Ready to Transform Your Workflow?
           </h2>
           <p className="text-lg text-muted-foreground mb-8">
-            Start using these tools today. No prompts needed—just upload and generate.
+            Start using these apps today. No prompts needed—just upload and generate.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/signup">

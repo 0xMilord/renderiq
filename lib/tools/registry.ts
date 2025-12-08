@@ -7,7 +7,8 @@ export type ToolCategory =
   | 'material' 
   | 'interior' 
   | '3d' 
-  | 'presentation';
+  | 'presentation'
+  | 'video';
 
 export interface ToolConfig {
   id: string;
@@ -399,6 +400,59 @@ export const TOOLS: ToolConfig[] = [
       description: 'Create sequential presentation layouts for client meetings. Tell visual stories with proper flow and narrative structure.',
       keywords: ['presentation sequence', 'architectural presentation layout', 'client presentation tool', 'design review presentation']
     }
+  },
+  
+  // Category 8: Video Generation Tools
+  {
+    id: 'render-to-video',
+    slug: 'render-to-video',
+    name: 'Render to Video',
+    description: 'Animate architectural renders with smooth, cinematic motion. Create walkthrough videos, time-lapses, and dynamic presentations with camera movements, lighting changes, and environmental effects',
+    category: 'video',
+    systemPrompt: 'Animate this architectural render with smooth, cinematic motion. Create a professional walkthrough video with appropriate camera movements, lighting transitions, and environmental effects that showcase the architectural space',
+    inputType: 'image',
+    outputType: 'video',
+    priority: 'high',
+    status: 'online',
+    seo: {
+      title: 'Render to Video | Animate Architectural Renders',
+      description: 'Transform static architectural renders into dynamic videos. Create walkthroughs, time-lapses, and animated presentations with AI.',
+      keywords: ['render to video', 'animate renders', 'architectural video', 'walkthrough video', 'image animation']
+    }
+  },
+  {
+    id: 'text-to-video-walkthrough',
+    slug: 'text-to-video-walkthrough',
+    name: 'Text to Video Walkthrough',
+    description: 'Generate architectural walkthrough videos from text descriptions. Create virtual property tours, construction sequences, design presentations, and marketing videos with synchronized audio',
+    category: 'video',
+    systemPrompt: 'Generate a professional architectural walkthrough video based on this description. Create a cinematic video that showcases the architectural space with appropriate camera movements, lighting, and environmental details',
+    inputType: 'image+text',
+    outputType: 'video',
+    priority: 'high',
+    status: 'online',
+    seo: {
+      title: 'Text to Video Walkthrough | AI Architectural Video Generator',
+      description: 'Generate architectural walkthrough videos from text. Create virtual tours, construction sequences, and design presentations with AI video generation.',
+      keywords: ['text to video', 'architectural walkthrough', 'virtual tour generator', 'AI video generation', 'property tour video']
+    }
+  },
+  {
+    id: 'keyframe-sequence-video',
+    slug: 'keyframe-sequence-video',
+    name: 'Keyframe Sequence Video',
+    description: 'Create smooth video transitions between multiple keyframe images (2-3 images). Perfect for showing design evolution, before/after sequences, and design variations with seamless transitions',
+    category: 'video',
+    systemPrompt: 'Create a smooth video transition between these keyframe images, showing a seamless progression that maintains architectural accuracy and visual continuity',
+    inputType: 'multiple',
+    outputType: 'video',
+    priority: 'medium',
+    status: 'online',
+    seo: {
+      title: 'Keyframe Sequence Video | Design Transition Tool',
+      description: 'Create smooth video transitions between design keyframes. Show design evolution and variations with seamless AI-generated transitions.',
+      keywords: ['keyframe video', 'design transition', 'before after video', 'design evolution video', 'sequence video']
+    }
   }
 ];
 
@@ -437,6 +491,11 @@ export const CATEGORIES: { id: ToolCategory; name: string; description: string }
     id: 'presentation',
     name: 'Presentation & Portfolio',
     description: 'Create presentations, boards, and portfolios'
+  },
+  {
+    id: 'video',
+    name: 'Video Generation',
+    description: 'Create animated videos, walkthroughs, and dynamic presentations'
   }
 ];
 

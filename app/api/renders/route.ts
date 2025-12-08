@@ -186,7 +186,7 @@ export async function POST(request: NextRequest) {
 
     // Check if this is a batch request (for images only)
     const useBatchAPI = type === 'image' ? formData.get('useBatchAPI') === 'true' : false;
-    let batchRequests: Array<{ key: string; prompt: string; drawingType?: string; elevationSide?: string }> = [];
+    let batchRequests: Array<{ key: string; prompt: string; drawingType?: string; elevationSide?: string; floorPlanType?: string; sectionCutDirection?: string }> = [];
     
     if (useBatchAPI) {
       const batchRequestsStr = formData.get('batchRequests') as string | null;
@@ -523,6 +523,8 @@ export async function POST(request: NextRequest) {
     // Handle batch requests - process multiple renders
     // CRITICAL: This check must happen BEFORE single render creation
     // CRITICAL: Each batch request has its own isolated, specific prompt - do NOT modify or combine them
+    // Supports unlimited batch size (tested with 8+ drawings: 2 floor plans + 4 elevations + 2 sections)
+    // Sequential processing ensures stability, maxDuration (5 min) should accommodate 8+ requests
     if (useBatchAPI && batchRequests.length > 0 && type === 'image') {
       logger.log('📦 Processing batch request - ENTERING BATCH MODE:', { 
         count: batchRequests.length,
@@ -574,6 +576,8 @@ export async function POST(request: NextRequest) {
               ...(effect && { effect }),
               ...(batchRequest.drawingType && { drawingType: batchRequest.drawingType }),
               ...(batchRequest.elevationSide && { elevationSide: batchRequest.elevationSide }),
+              ...(batchRequest.floorPlanType && { floorPlanType: batchRequest.floorPlanType }),
+              ...(batchRequest.sectionCutDirection && { sectionCutDirection: batchRequest.sectionCutDirection }),
             },
             status: 'pending',
             chainId: finalChainId,
@@ -683,11 +687,14 @@ export async function POST(request: NextRequest) {
           }
 
           // Create label for this batch item
-          const label = batchRequest.drawingType === 'elevation' && batchRequest.elevationSide
-            ? `${batchRequest.drawingType.charAt(0).toUpperCase() + batchRequest.drawingType.slice(1)} - ${batchRequest.elevationSide.charAt(0).toUpperCase() + batchRequest.elevationSide.slice(1)}`
-            : batchRequest.drawingType === 'floor-plan' ? 'Floor Plan'
-            : batchRequest.drawingType === 'section' ? 'Section'
-            : batchRequest.key;
+          let label = batchRequest.key;
+          if (batchRequest.drawingType === 'floor-plan' && batchRequest.floorPlanType) {
+            label = batchRequest.floorPlanType === 'normal-floor-plan' ? 'Normal Floor Plan' : 'Reflected Ceiling Plan';
+          } else if (batchRequest.drawingType === 'elevation' && batchRequest.elevationSide) {
+            label = `${batchRequest.elevationSide.charAt(0).toUpperCase() + batchRequest.elevationSide.slice(1)} Elevation`;
+          } else if (batchRequest.drawingType === 'section' && batchRequest.sectionCutDirection) {
+            label = `${batchRequest.sectionCutDirection.charAt(0).toUpperCase() + batchRequest.sectionCutDirection.slice(1)} Section`;
+          }
 
           batchResults.push({
             renderId: batchRender.id,

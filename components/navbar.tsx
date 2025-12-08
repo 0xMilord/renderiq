@@ -12,7 +12,7 @@ import { UserDropdown } from '@/components/user-dropdown';
 import { AlphaBanner } from '@/components/alpha-banner';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Menu, Home, Sparkles, Images, Lightbulb, CreditCard, FileText, Newspaper, Play, Wrench, Layout, Coins, Layers, Square, Box, Palette, Sofa, Maximize2, Grid3x3, Brush, Split, RotateCw, Sun, Package, Replace, Image as ImageIcon, FileStack, LayoutGrid, Film } from 'lucide-react';
+import { Menu, Home, Sparkles, Images, Lightbulb, CreditCard, FileText, Newspaper, Play, Wrench, Layout, Coins } from 'lucide-react';
 import { 
   FaGithub, 
   FaXTwitter, 
@@ -42,46 +42,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { CATEGORIES, getToolsByCategory, getAllTools } from '@/lib/tools/registry';
 
-// Icon mapping for tools
-const getToolIcon = (toolId: string) => {
-  const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-    // Transformation tools
-    'render-section-drawing': Layers,
-    'render-to-cad': Square,
-    'render-upscale': Maximize2,
-    'render-effects': Sparkles,
-    
-    // Floorplan tools
-    'floorplan-to-furnished': Sofa,
-    'floorplan-to-3d': Box,
-    'floorplan-technical-diagrams': Grid3x3,
-    
-    // Diagram tools
-    'exploded-diagram': Split,
-    'multi-angle-view': RotateCw,
-    
-    // Material tools
-    'change-texture': Palette,
-    'material-alteration': Brush,
-    'change-lighting': Sun,
-    
-    // Interior tools
-    'upholstery-change': Sofa,
-    'product-placement': Package,
-    'item-change': Replace,
-    'moodboard-to-render': ImageIcon,
-    
-    // 3D tools
-    '3d-to-render': Box,
-    'sketch-to-render': FileStack,
-    
-    // Presentation tools
-    'presentation-board-maker': LayoutGrid,
-    'portfolio-layout-generator': FileStack,
-    'presentation-sequence-creator': Film,
-  };
-  
-  return iconMap[toolId] || Wrench;
+// Get custom SVG icon path for tools
+const getToolIconPath = (slug: string): string => {
+  return `/apps/icons/${slug}.svg`;
 };
 
 export function Navbar() {
@@ -308,7 +271,7 @@ export function Navbar() {
                         </DropdownMenuItem>
                       </div>
                       {getAllTools().map((tool, index) => {
-                        const ToolIcon = getToolIcon(tool.id);
+                        const iconPath = getToolIconPath(tool.slug);
                         return (
                           <div key={tool.id} className="relative">
                             <DropdownMenuItem asChild>
@@ -316,8 +279,16 @@ export function Navbar() {
                                 href={`/apps/${tool.slug}`}
                                 className="flex flex-col items-center gap-3 p-4 rounded-lg border border-transparent hover:bg-primary/20 hover:border-primary transition-all min-w-0 text-center"
                               >
-                                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                                  <ToolIcon className="h-5 w-5 shrink-0" />
+                                <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center overflow-hidden">
+                                  <img 
+                                    src={iconPath} 
+                                    alt={tool.name}
+                                    className="w-full h-full object-contain rounded-md"
+                                    onError={(e) => {
+                                      // Fallback to a default icon if custom icon doesn't exist
+                                      (e.target as HTMLImageElement).style.display = 'none';
+                                    }}
+                                  />
                                 </div>
                                 <span className="text-sm leading-snug truncate min-w-0 w-full">{tool.name}</span>
                               </Link>
@@ -397,7 +368,7 @@ export function Navbar() {
                         {/* Apps Grid - 4 columns, 5 rows (20 items) */}
                         <div className="grid grid-cols-4 gap-3">
                           {getAllTools().slice(0, 20).map((tool) => {
-                            const ToolIcon = getToolIcon(tool.id);
+                            const iconPath = getToolIconPath(tool.slug);
                             return (
                               <Link
                                 key={tool.id}
@@ -405,8 +376,16 @@ export function Navbar() {
                                 className="flex flex-col items-center justify-center gap-2 p-3 rounded-lg border border-transparent hover:bg-primary/20 hover:border-primary transition-all group"
                                 onClick={() => setIsOpen(false)}
                               >
-                                <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                                  <ToolIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
+                                <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors overflow-hidden">
+                                  <img 
+                                    src={iconPath} 
+                                    alt={tool.name}
+                                    className="w-full h-full object-contain rounded-md"
+                                    onError={(e) => {
+                                      // Fallback to a default icon if custom icon doesn't exist
+                                      (e.target as HTMLImageElement).style.display = 'none';
+                                    }}
+                                  />
                                 </div>
                                 <span className="text-xs text-center text-muted-foreground group-hover:text-foreground transition-colors leading-tight line-clamp-2">
                                   {tool.name}

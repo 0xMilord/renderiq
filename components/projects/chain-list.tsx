@@ -44,16 +44,6 @@ function ChainListComponent({ chains, projectId, projectSlug, onCreateChain }: C
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Render Chains</h2>
-        {onCreateChain && (
-          <Button onClick={onCreateChain} size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            New Chain
-          </Button>
-        )}
-      </div>
-
       <div className="grid gap-2 sm:gap-4">
         {chains.map((chain) => (
           <Card key={chain.id} className="hover:shadow-lg transition-shadow p-0">

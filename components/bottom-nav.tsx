@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Sparkles, Images, User, CreditCard, Heart, FileText, HelpCircle, Layout, LayoutDashboard, Wrench, Layers, Square, Maximize2, Sofa, Box, Grid3x3, Split, RotateCw, Palette, Brush, Sun, Package, Replace, Image as ImageIcon, FileStack, LayoutGrid, Film } from 'lucide-react';
+import { Home, Sparkles, Images, User, CreditCard, Heart, FileText, HelpCircle, Layout, LayoutDashboard, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { getAllTools } from '@/lib/tools/registry';
@@ -17,46 +17,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
-// Icon mapping for tools (same as navbar)
-const getToolIcon = (toolId: string) => {
-  const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-    // Transformation tools
-    'render-section-drawing': Layers,
-    'render-to-cad': Square,
-    'render-upscale': Maximize2,
-    'render-effects': Sparkles,
-    
-    // Floorplan tools
-    'floorplan-to-furnished': Sofa,
-    'floorplan-to-3d': Box,
-    'floorplan-technical-diagrams': Grid3x3,
-    
-    // Diagram tools
-    'exploded-diagram': Split,
-    'multi-angle-view': RotateCw,
-    
-    // Material tools
-    'change-texture': Palette,
-    'material-alteration': Brush,
-    'change-lighting': Sun,
-    
-    // Interior tools
-    'upholstery-change': Sofa,
-    'product-placement': Package,
-    'item-change': Replace,
-    'moodboard-to-render': ImageIcon,
-    
-    // 3D tools
-    '3d-to-render': Box,
-    'sketch-to-render': FileStack,
-    
-    // Presentation tools
-    'presentation-board-maker': LayoutGrid,
-    'portfolio-layout-generator': FileStack,
-    'presentation-sequence-creator': Film,
-  };
-  
-  return iconMap[toolId] || Wrench;
+// Get custom SVG icon path for tools
+const getToolIconPath = (slug: string): string => {
+  return `/apps/icons/${slug}.svg`;
 };
 
 const publicNavItems = [
@@ -210,7 +173,7 @@ export function BottomNav() {
                   <div className="mt-6 overflow-y-auto px-4 pb-4">
                     <div className="flex flex-col gap-1">
                       {allTools.map((tool) => {
-                        const ToolIcon = getToolIcon(tool.id);
+                        const iconPath = getToolIconPath(tool.slug);
                         const isOnline = ('status' in tool ? tool.status : 'offline') === 'online';
                         
                         return (
@@ -228,7 +191,17 @@ export function BottomNav() {
                             }}
                             disabled={!isOnline}
                           >
-                            <ToolIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <div className="w-4 h-4 shrink-0 rounded overflow-hidden">
+                              <img 
+                                src={iconPath} 
+                                alt={tool.name}
+                                className="w-full h-full object-contain rounded"
+                                onError={(e) => {
+                                  // Fallback to a default icon if custom icon doesn't exist
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                            </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <span className="font-medium text-sm truncate">{tool.name}</span>

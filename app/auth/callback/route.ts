@@ -142,6 +142,22 @@ export async function GET(request: Request) {
               riskLevel: profileResult.sybilDetection.riskLevel,
             });
           }
+
+          // Track ambassador referral if present in cookies
+          try {
+            const cookies = request.headers.get('cookie') || '';
+            const ambassadorRefMatch = cookies.match(/ambassador_ref=([^;]+)/);
+            if (ambassadorRefMatch) {
+              const referralCode = ambassadorRefMatch[1];
+              logger.log('🔗 Auth Callback: Tracking ambassador referral:', referralCode);
+              
+              const { AmbassadorService } = await import('@/lib/services/ambassador.service');
+              await AmbassadorService.trackSignup(referralCode, data.user.id);
+            }
+          } catch (error) {
+            logger.warn('⚠️ Auth Callback: Failed to track ambassador referral:', error);
+            // Don't fail auth if referral tracking fails
+          }
         }
       } else {
         logger.log('⚠️ Auth Callback: Email not verified yet, profile creation skipped');

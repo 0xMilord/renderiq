@@ -38,15 +38,15 @@ export async function getCachedUser(): Promise<{ user: User | null; fromCache: b
   try {
     const supabase = await createClient();
     
-    // Try to get session first (this is lightweight, uses cookies)
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    // ✅ SECURITY: Use getUser() instead of getSession() to authenticate with Supabase Auth server
+    // This ensures the user data is authentic and not just from cookies
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
     
-    if (sessionError || !session?.user) {
+    if (userError || !user) {
       return { user: null, fromCache: false };
     }
 
-    const userId = session.user.id;
-    const sessionToken = session.access_token;
+    const userId = user.id;
     
     // Create cache key from user ID
     const cacheKey = `user:${userId}`;
@@ -56,28 +56,18 @@ export async function getCachedUser(): Promise<{ user: User | null; fromCache: b
     const now = Date.now();
     
     if (cached && (now - cached.timestamp < CACHE_TTL)) {
-      // Cache hit - verify session is still valid
-      if (cached.sessionId === sessionToken) {
-        logger.log('✅ AuthCache: Cache hit for user:', userId);
-        return { user: cached.user, fromCache: true };
-      }
+      // Cache hit - return cached user
+      logger.log('✅ AuthCache: Cache hit for user:', userId);
+      return { user: cached.user, fromCache: true };
     }
     
-    // Cache miss or expired - fetch from DB
-    logger.log('🔄 AuthCache: Cache miss, fetching user from DB:', userId);
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError || !user) {
-      // Clear cache if user is invalid
-      authCache.delete(cacheKey);
-      return { user: null, fromCache: false };
-    }
+    // Cache miss or expired - update cache with authenticated user
+    logger.log('🔄 AuthCache: Cache miss, updating cache for user:', userId);
     
     // Update cache
     authCache.set(cacheKey, {
       user,
       timestamp: now,
-      sessionId: sessionToken,
     });
     
     return { user, fromCache: false };

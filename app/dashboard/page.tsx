@@ -87,39 +87,33 @@ export default async function DashboardPage() {
         <div className="mb-4 sm:mb-6">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-muted/50 border border-border rounded-lg">
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-              <span className="text-sm font-medium text-muted-foreground">Quick Actions:</span>
+              <span className="text-sm font-medium text-muted-foreground hidden sm:inline">Quick Actions:</span>
               <div className="h-4 w-px bg-border hidden sm:block" />
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-1">
               <Button asChild size="default" variant="default" className="flex-1 min-w-0">
                 <Link href="/render" className="flex items-center justify-center">
-                  <Sparkles className="h-4 w-4 sm:mr-2 shrink-0" />
-                  <span className="hidden sm:inline">Render</span>
+                  <Sparkles className="h-4 w-4" />
                 </Link>
               </Button>
               <Button asChild size="default" variant="outline" className="relative flex-1 min-w-0">
                 <Link href="/canvas" className="flex items-center justify-center">
-                  <Paintbrush className="h-4 w-4 sm:mr-2 shrink-0" />
-                  <span className="hidden sm:inline">Canvas</span>
-                  <span className="hidden sm:inline ml-1.5 text-[10px] font-medium opacity-60">ALPHA</span>
+                  <Paintbrush className="h-4 w-4" />
                 </Link>
               </Button>
               <Button asChild size="default" variant="outline" className="flex-1 min-w-0">
                 <Link href="/dashboard/projects" className="flex items-center justify-center">
-                  <FolderOpen className="h-4 w-4 sm:mr-2 shrink-0" />
-                  <span className="hidden sm:inline">Projects</span>
+                  <FolderOpen className="h-4 w-4" />
                 </Link>
               </Button>
               <Button asChild size="default" variant="outline" className="flex-1 min-w-0">
                 <Link href="/dashboard/billing" className="flex items-center justify-center">
-                  <CreditCard className="h-4 w-4 sm:mr-2 shrink-0" />
-                  <span className="hidden sm:inline">Billing</span>
+                  <CreditCard className="h-4 w-4" />
                 </Link>
               </Button>
               <Button asChild size="default" variant="outline" className="flex-1 min-w-0">
                 <Link href="/gallery" className="flex items-center justify-center">
-                  <Image className="h-4 w-4 sm:mr-2 shrink-0" />
-                  <span className="hidden sm:inline">Gallery</span>
+                  <Image className="h-4 w-4" />
                 </Link>
               </Button>
             </div>
@@ -127,7 +121,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Quick Stats - Standardized Cards */}
-        <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
           <div className="bg-card text-card-foreground flex flex-col gap-1 rounded-xl border shadow-sm p-3 sm:p-4 relative overflow-hidden">
             <FolderOpen className="absolute top-2 right-2 h-16 w-16 text-muted-foreground opacity-10" />
             <div className="relative z-10">

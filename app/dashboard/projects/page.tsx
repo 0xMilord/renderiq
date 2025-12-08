@@ -53,7 +53,7 @@ export default function ProjectsPage() {
   const gridCols = useMemo(() => {
     switch (viewMode) {
       case 'compact':
-        return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8';
+        return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6';
       case 'list':
         return 'grid-cols-1';
       default:
@@ -62,21 +62,17 @@ export default function ProjectsPage() {
   }, [viewMode]);
 
   // Memoize event handlers with useCallback
-  const handleDeleteProject = useCallback(async (projectId: string) => {
-    if (confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
-      const result = await removeProject(projectId);
-      if (!result.success) {
-        alert(result.error || 'Failed to delete project');
-      }
+  const handleDeleteProject = useCallback(async (project: Project) => {
+    const result = await removeProject(project.id);
+    if (!result.success) {
+      alert(result.error || 'Failed to delete project');
     }
   }, [removeProject]);
 
-  const handleDuplicateProject = useCallback(async (projectId: string) => {
-    const result = await duplicateProject(projectId);
-    if (!result.success) {
-      alert(result.error || 'Failed to duplicate project');
-    }
-  }, [duplicateProject]);
+  const handleDuplicateProject = useCallback(async (project: Project) => {
+    // The modal handles the duplication, we just need to refetch
+    refetch();
+  }, [refetch]);
 
   const handleEditProject = useCallback(async () => {
     // This would open an edit modal or navigate to edit page
@@ -129,31 +125,6 @@ export default function ProjectsPage() {
   return (
     <div className="h-full w-full">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 pb-20">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 space-y-4 sm:space-y-0">
-          <div className="text-sm text-muted-foreground">
-            {projects.length} project{projects.length !== 1 ? 's' : ''}
-          </div>
-          <div className="flex items-center space-x-2 flex-wrap gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => refetch()}
-              disabled={loading}
-              className="flex items-center space-x-2"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
-            </Button>
-            <CreateProjectModal onProjectCreated={() => refetch()}>
-              <Button className="flex items-center space-x-2">
-                <Plus className="h-4 w-4" />
-                <span>New Project</span>
-              </Button>
-            </CreateProjectModal>
-          </div>
-        </div>
-
         {/* Search and Filters */}
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-6">
           <div className="relative flex-1">
@@ -199,9 +170,9 @@ export default function ProjectsPage() {
                 key={project.id}
                 project={project}
                 viewMode={viewMode}
-                onEdit={handleEditProject}
-                onDuplicate={(project) => handleDuplicateProject(project.id)}
-                onDelete={(project) => handleDeleteProject(project.id)}
+                onEdit={() => refetch()}
+                onDuplicate={handleDuplicateProject}
+                onDelete={handleDeleteProject}
               />
             ))}
           </div>

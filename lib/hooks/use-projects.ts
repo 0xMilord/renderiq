@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getUserProjects, createProject, deleteProject, duplicateProject, getProject, getProjectBySlug } from '@/lib/actions/projects.actions';
+import { getUserProjects, createProject, deleteProject, duplicateProject, getProject, getProjectBySlug, updateProject } from '@/lib/actions/projects.actions';
 import type { Project } from '@/lib/db/schema';
 import { logger } from '@/lib/utils/logger';
 
@@ -74,16 +74,41 @@ export function useProjects() {
     }
   };
 
-  const duplicateProjectAction = async (projectId: string) => {
+  const duplicateProjectAction = async (projectId: string, newName?: string) => {
     try {
       setError(null);
-      const result = await duplicateProject(projectId);
+      const result = await duplicateProject(projectId, newName);
       
       if (result.success && 'data' in result && result.data) {
         setProjects(prev => [result.data, ...prev]);
-        return { success: true };
+        return { success: true, data: result.data };
       } else {
         setError(result.error || 'Failed to duplicate project');
+        return { success: false, error: result.error };
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  };
+
+  const updateProjectAction = async (projectId: string, updateData: {
+    name?: string;
+    description?: string | null;
+    isPublic?: boolean;
+    tags?: string[] | null;
+  }) => {
+    try {
+      setError(null);
+      const result = await updateProject(projectId, updateData);
+      
+      if (result.success && 'data' in result && result.data) {
+        // Update the project in the local state
+        setProjects(prev => prev.map(p => p.id === projectId ? result.data : p));
+        return { success: true, data: result.data };
+      } else {
+        setError(result.error || 'Failed to update project');
         return { success: false, error: result.error };
       }
     } catch (err) {
@@ -105,6 +130,7 @@ export function useProjects() {
     addProject,
     removeProject,
     duplicateProject: duplicateProjectAction,
+    updateProject: updateProjectAction,
     refetch: fetchProjects,
   };
 }

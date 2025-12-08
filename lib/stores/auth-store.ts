@@ -55,35 +55,40 @@ export const useAuthStore = create<AuthState>((set, get) => {
       set({ loading: true });
       
       try {
-        // Get initial session
-        const { data: { session }, error } = await supabase.auth.getSession();
+        // ✅ SECURITY: Use getUser() instead of getSession() to authenticate with Supabase Auth server
+        const { data: { user }, error } = await supabase.auth.getUser();
         
         if (error) {
           console.error('Auth initialization error:', error);
         }
         
         set({ 
-          user: session?.user || null, 
+          user: user || null, 
           loading: false, 
           initialized: true 
         });
 
         // Fetch user profile if user is authenticated
-        if (session?.user) {
+        if (user) {
           get().fetchUserProfile();
         }
 
-        // Listen for auth changes
+        // Listen for auth changes (onAuthStateChange is fine for client-side reactivity)
+        // But we'll use getUser() in the callback to ensure authenticity
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          async (event, session) => {
-            logger.log('Auth state changed:', event, session?.user?.id);
+          async (event) => {
+            logger.log('Auth state changed:', event);
+            
+            // ✅ SECURITY: Use getUser() to get authenticated user data
+            const { data: { user: authenticatedUser } } = await supabase.auth.getUser();
+            
             set({ 
-              user: session?.user || null, 
+              user: authenticatedUser || null, 
               loading: false 
             });
 
             // Fetch profile when user signs in, clear when signs out
-            if (session?.user) {
+            if (authenticatedUser) {
               get().fetchUserProfile();
             } else {
               set({ userProfile: null, onboardingComplete: false });

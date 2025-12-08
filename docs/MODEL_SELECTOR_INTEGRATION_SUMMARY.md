@@ -112,3 +112,4 @@ Formula: `(API Cost USD × 2 markup × 100 INR/USD) / 5 INR/credit`
 4. Add model persistence (localStorage/user preferences)
 5. Add model recommendations based on use case
 
+

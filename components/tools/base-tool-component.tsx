@@ -112,7 +112,12 @@ export function BaseToolComponent({
   const [quality, setQuality] = useState<'standard' | 'high' | 'ultra'>('standard');
   const [aspectRatio, setAspectRatio] = useState<string>('16:9');
   const [style, setStyle] = useState<string>('realistic'); // ✅ FIXED: Add style state with default value
-  const [selectedModel, setSelectedModel] = useState<string | undefined>(undefined); // Model ID for image generation
+  const [selectedModel, setSelectedModel] = useState<string | undefined>(undefined); // Model ID for image/video generation
+  
+  // Video-specific state
+  const [videoDuration, setVideoDuration] = useState<4 | 6 | 8>(8);
+  const [videoModel, setVideoModel] = useState<string>('veo-3.1-generate-preview'); // Default to Veo 3.1 Standard
+  const [enableAudio, setEnableAudio] = useState<boolean>(true); // Audio for Veo 3.1 models
 
   // Auto-adjust quality when model changes if current quality is unsupported
   useEffect(() => {
@@ -200,11 +205,19 @@ export function BaseToolComponent({
   }, [projectId, renders, refetchRenders, refreshCredits]);
 
   // Calculate credits cost - use model-based pricing if model is selected, otherwise use custom or default
+  const isVideo = tool.outputType === 'video';
   const imageSize = quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K';
-  const modelConfig = selectedModel ? getModelConfig(selectedModel as ModelId) : getDefaultModel('image');
+  
+  // For video, use video model; for image, use image model
+  const modelConfig = isVideo 
+    ? (videoModel ? getModelConfig(videoModel as ModelId) : getDefaultModel('video'))
+    : (selectedModel ? getModelConfig(selectedModel as ModelId) : getDefaultModel('image'));
+  
   const creditsCost = customCreditsCost 
     ? (typeof customCreditsCost === 'function' ? customCreditsCost(quality) : customCreditsCost)
-    : (modelConfig ? modelConfig.calculateCredits({ quality, imageSize }) : (quality === 'high' ? 10 : quality === 'ultra' ? 15 : 5));
+    : isVideo
+      ? (modelConfig ? modelConfig.calculateCredits({ duration: videoDuration }) : videoDuration * 16) // Default 16 credits/second
+      : (modelConfig ? modelConfig.calculateCredits({ quality, imageSize }) : (quality === 'high' ? 10 : quality === 'ultra' ? 15 : 5));
 
   // Handle file changes from FileUpload component
   const handleFilesChange = useCallback((files: File[]) => {
@@ -228,9 +241,22 @@ export function BaseToolComponent({
   }, []);
 
   const handleGenerate = async () => {
-    if (images.length === 0) {
-      setError('Please upload at least one image');
-      return;
+    // For video tools, check input requirements based on inputType
+    if (isVideo) {
+      if (tool.inputType === 'image' && images.length === 0) {
+        setError('Please upload an image to animate');
+        return;
+      }
+      if (tool.inputType === 'multiple' && images.length < 2) {
+        setError('Please upload at least 2 images for keyframe sequence');
+        return;
+      }
+      // text-to-video (inputType: 'image+text') doesn't require images
+    } else {
+      if (images.length === 0) {
+        setError('Please upload at least one image');
+        return;
+      }
     }
 
     if (!projectId) {
@@ -250,38 +276,120 @@ export function BaseToolComponent({
     setProgress(0);
 
     try {
-      // Convert first image to base64
-      const imageFile = images[0];
-      const imageBase64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64 = reader.result as string;
-          // Remove data:image/...;base64, prefix
-          const base64Data = base64.split(',')[1];
-          resolve(base64Data);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(imageFile);
-      });
-
       // Build prompt from system prompt and tool settings
       const prompt = tool.systemPrompt;
 
       // Create FormData
       const formData = new FormData();
       formData.append('prompt', prompt);
-      // ✅ FIXED: Add style parameter (required by API validation)
-      formData.append('style', style);
-      formData.append('quality', quality);
-      formData.append('aspectRatio', aspectRatio);
-      formData.append('type', 'image');
       formData.append('projectId', projectId);
-      formData.append('uploadedImageData', imageBase64);
-      formData.append('uploadedImageType', imageFile.type);
       formData.append('imageType', tool.id);
-      if (selectedModel) {
-        formData.append('model', selectedModel);
+      
+      if (isVideo) {
+        // Video generation parameters
+        formData.append('type', 'video');
+        formData.append('duration', videoDuration.toString());
+        formData.append('aspectRatio', aspectRatio);
+        formData.append('model', videoModel);
+        
+        // Determine generation type based on tool input
+        if (tool.inputType === 'multiple') {
+          // Keyframe sequence - handle multiple images
+          if (images.length > 1) {
+            formData.append('generationType', 'keyframe-sequence');
+            // Add keyframes (up to 3)
+            const keyframes = await Promise.all(images.slice(0, 3).map(async (img) => {
+              const base64 = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  const base64 = reader.result as string;
+                  resolve(base64.split(',')[1]);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(img);
+              });
+              return { imageData: base64, imageType: img.type };
+            }));
+            formData.append('keyframes', JSON.stringify(keyframes));
+          } else if (images.length === 1) {
+            // Single image, treat as image-to-video
+            formData.append('generationType', 'image-to-video');
+            const imageFile = images[0];
+            const imageBase64 = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                const base64 = reader.result as string;
+                resolve(base64.split(',')[1]);
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(imageFile);
+            });
+            formData.append('uploadedImageData', imageBase64);
+            formData.append('uploadedImageType', imageFile.type);
+          } else {
+            // No images, treat as text-to-video
+            formData.append('generationType', 'text-to-video');
+          }
+        } else if (tool.inputType === 'image') {
+          // Image-to-video
+          const imageFile = images[0];
+          const imageBase64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const base64 = reader.result as string;
+              resolve(base64.split(',')[1]);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(imageFile);
+          });
+          formData.append('generationType', 'image-to-video');
+          formData.append('uploadedImageData', imageBase64);
+          formData.append('uploadedImageType', imageFile.type);
+        } else {
+          // Text-to-video (image+text or just text)
+          formData.append('generationType', 'text-to-video');
+          // If image provided, include it
+          if (images.length > 0) {
+            const imageFile = images[0];
+            const imageBase64 = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                const base64 = reader.result as string;
+                resolve(base64.split(',')[1]);
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(imageFile);
+            });
+            formData.append('uploadedImageData', imageBase64);
+            formData.append('uploadedImageType', imageFile.type);
+          }
+        }
+      } else {
+        // Image generation - convert first image to base64
+        const imageFile = images[0];
+        const imageBase64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64 = reader.result as string;
+            // Remove data:image/...;base64, prefix
+            const base64Data = base64.split(',')[1];
+            resolve(base64Data);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(imageFile);
+        });
+        // Image generation parameters
+        formData.append('style', style);
+        formData.append('quality', quality);
+        formData.append('aspectRatio', aspectRatio);
+        formData.append('type', 'image');
+        formData.append('uploadedImageData', imageBase64);
+        formData.append('uploadedImageType', imageFile.type);
+        if (selectedModel) {
+          formData.append('model', selectedModel);
+        }
       }
+      
       // Pass userId from store to avoid DB call in server action
       if (user?.id) {
         formData.append('userId', user.id);
@@ -402,7 +510,16 @@ export function BaseToolComponent({
     if (loading) return 'Generation in progress...';
     if (projectLoading) return 'Loading projects...';
     if (creditsLoading) return 'Loading credits...';
-    if (images.length === 0) return 'Please upload at least one image';
+    
+    // Check image requirements based on tool type
+    if (isVideo) {
+      if (tool.inputType === 'image' && images.length === 0) return 'Please upload an image to animate';
+      if (tool.inputType === 'multiple' && images.length < 2) return 'Please upload at least 2 images for keyframe sequence';
+      // text-to-video doesn't require images
+    } else {
+      if (images.length === 0) return 'Please upload at least one image';
+    }
+    
     if (!projectId) return 'Please select a project first';
     if (credits && credits.balance < creditsCost) {
       return `Insufficient credits. You need ${creditsCost} credits but have ${credits.balance}`;
@@ -512,168 +629,230 @@ export function BaseToolComponent({
                   <div className="h-px flex-1 bg-border"></div>
                 </div>
                 <div className="space-y-3">
-                  <div className={cn("grid gap-3", hideQualitySelector ? "grid-cols-1" : "grid-cols-2")}>
-                    {!hideQualitySelector && (
+                  {isVideo ? (
+                    // Video-specific settings - 2 columns
+                    <div className="grid gap-3 grid-cols-2">
                       <div className="w-full">
                         <div className="flex items-center gap-1.5 mb-2">
-                          <Label htmlFor="quality" className="text-sm">Quality</Label>
+                          <Label htmlFor="duration" className="text-sm">Duration</Label>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
                             </TooltipTrigger>
                             <TooltipContent>
                               <p className="max-w-xs">
-                                Output quality affects resolution and detail. Higher quality uses more credits but produces better results.
-                                {selectedModel && (
-                                  <span className="block mt-1 text-xs">
-                                    Selected model supports: {getSupportedResolutions(selectedModel as ModelId).join(', ')}
-                                  </span>
-                                )}
+                                Video duration in seconds. Veo API supports 4, 6, or 8 seconds. Longer videos use more credits.
                               </p>
                             </TooltipContent>
                           </Tooltip>
                         </div>
                         <Select 
-                          value={quality} 
-                          onValueChange={(v: 'standard' | 'high' | 'ultra') => {
-                            // Validate quality is supported by selected model
-                            if (selectedModel) {
-                              const modelId = selectedModel as ModelId;
-                              if (modelSupportsQuality(modelId, v)) {
-                                setQuality(v);
-                              } else {
-                                toast.error(`This quality is not supported by the selected model. Maximum quality: ${getMaxQuality(modelId)}`);
-                              }
-                            } else {
-                              setQuality(v);
-                            }
-                          }}
+                          value={videoDuration.toString()} 
+                          onValueChange={(v) => setVideoDuration(parseInt(v) as 4 | 6 | 8)}
                         >
-                          <SelectTrigger id="quality" className="h-10 w-full">
+                          <SelectTrigger id="duration" className="h-10 w-full">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem 
-                              value="standard" 
-                              disabled={selectedModel ? !modelSupportsQuality(selectedModel as ModelId, 'standard') : false}
-                            >
-                              1080p (1K)
-                            </SelectItem>
-                            <SelectItem 
-                              value="high" 
-                              disabled={selectedModel ? !modelSupportsQuality(selectedModel as ModelId, 'high') : false}
-                            >
-                              2160p (2K)
-                            </SelectItem>
-                            <SelectItem 
-                              value="ultra" 
-                              disabled={selectedModel ? !modelSupportsQuality(selectedModel as ModelId, 'ultra') : false}
-                            >
-                              4320p (4K)
-                            </SelectItem>
+                            <SelectItem value="4">4 seconds</SelectItem>
+                            <SelectItem value="6">6 seconds</SelectItem>
+                            <SelectItem value="8">8 seconds</SelectItem>
                           </SelectContent>
                         </Select>
-                        {selectedModel && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Supported: {getSupportedResolutions(selectedModel as ModelId).join(', ')}
-                          </p>
-                        )}
                       </div>
-                    )}
-                    <div className="w-full">
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <Label htmlFor="aspect-ratio" className="text-sm">Aspect Ratio</Label>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="max-w-xs">Choose the output image proportions. 16:9 for widescreen, 4:3 for traditional, 1:1 for square, or 9:16 for portrait orientation.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      <Select value={aspectRatio} onValueChange={setAspectRatio}>
-                        <SelectTrigger id="aspect-ratio" className="h-10 w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="16:9">16:9</SelectItem>
-                          <SelectItem value="4:3">4:3</SelectItem>
-                          <SelectItem value="1:1">1:1</SelectItem>
-                          <SelectItem value="9:16">9:16</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {/* Model Selector */}
-                    <div className="w-full">
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <Label htmlFor="model" className="text-sm">AI Model</Label>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="max-w-xs">Choose the AI model for generation. Different models offer different quality, speed, and cost options.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      <ModelSelector
-                        type="image"
-                        value={selectedModel as ModelId | undefined}
-                        onValueChange={(modelId) => setSelectedModel(modelId)}
-                        quality={quality}
-                        imageSize={imageSize}
-                        variant="compact"
-                        showCredits={true}
-                      />
-                    </div>
-                  </div>
-                  {/* Generate Button - Own Row */}
-                  <div className="pt-2">
-                    <div className="flex items-center gap-3">
-                      {additionalButtonContent && (
-                        <div className="flex-shrink-0">
-                          {additionalButtonContent}
-                        </div>
-                      )}
-                      <div className="flex-1">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="w-full">
-                              <Button
-                                className="w-full"
-                                size="lg"
-                                disabled={isButtonDisabled}
-                                onClick={handleGenerate}
-                              >
-                                {loading ? (
-                                  <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    Generating...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Sparkles className="h-4 w-4 mr-2" />
-                                    Generate
-                                  </>
-                                )}
-                              </Button>
-                            </div>
-                          </TooltipTrigger>
-                          {isButtonDisabled && disabledReason && (
-                            <TooltipContent side="top" className="max-w-xs">
-                              <p className="text-sm">{disabledReason}</p>
+                      <div className="w-full">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <Label htmlFor="video-model" className="text-sm">Video Model</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="max-w-xs">
+                                Choose a video generation model. Veo 3.1 includes audio synchronization. Fast models generate quicker but may have slightly lower quality.
+                              </p>
                             </TooltipContent>
-                          )}
-                        </Tooltip>
+                          </Tooltip>
+                        </div>
+                        <Select 
+                          value={videoModel} 
+                          onValueChange={(v) => {
+                            setVideoModel(v);
+                            // Update audio toggle based on model
+                            setEnableAudio(v.startsWith('veo-3.1'));
+                          }}
+                        >
+                          <SelectTrigger id="video-model" className="h-10 w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="veo-3.1-generate-preview">Veo 3.1 Standard (with audio)</SelectItem>
+                            <SelectItem value="veo-3.1-fast-generate-preview">Veo 3.1 Fast (with audio)</SelectItem>
+                            <SelectItem value="veo-3.0-generate-001">Veo 3.0 Standard</SelectItem>
+                            <SelectItem value="veo-3.0-fast-generate-001">Veo 3.0 Fast</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
-                    {!isButtonDisabled && (
-                      <p className="text-xs text-center text-muted-foreground px-2 mt-2">
-                        This generation will consume {creditsCost} credits
-                      </p>
+                  ) : (
+                    // Image-specific settings - 3 columns (AI Model, Quality, Aspect Ratio)
+                    !hideQualitySelector && (
+                      <div className="grid gap-3 grid-cols-3">
+                        <div className="w-full">
+                          <div className="flex items-center gap-1.5 mb-2">
+                            <Label htmlFor="model" className="text-sm">AI Model</Label>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="max-w-xs">Choose the AI model for generation. Different models offer different quality, speed, and cost options.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                          <ModelSelector
+                            type="image"
+                            value={selectedModel as ModelId | undefined}
+                            onValueChange={(modelId) => setSelectedModel(modelId)}
+                            quality={quality}
+                            imageSize={imageSize}
+                            variant="compact"
+                            showCredits={false}
+                          />
+                        </div>
+                        <div className="w-full">
+                          <div className="flex items-center gap-1.5 mb-2">
+                            <Label htmlFor="quality" className="text-sm">Quality</Label>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="max-w-xs">
+                                  Output quality affects resolution and detail. Higher quality uses more credits but produces better results.
+                                  {selectedModel && (
+                                    <span className="block mt-1 text-xs">
+                                      Selected model supports: {getSupportedResolutions(selectedModel as ModelId).join(', ')}
+                                    </span>
+                                  )}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                          <Select 
+                            value={quality} 
+                            onValueChange={(v: 'standard' | 'high' | 'ultra') => {
+                              // Validate quality is supported by selected model
+                              if (selectedModel) {
+                                const modelId = selectedModel as ModelId;
+                                if (modelSupportsQuality(modelId, v)) {
+                                  setQuality(v);
+                                } else {
+                                  toast.error(`This quality is not supported by the selected model. Maximum quality: ${getMaxQuality(modelId)}`);
+                                }
+                              } else {
+                                setQuality(v);
+                              }
+                            }}
+                          >
+                            <SelectTrigger id="quality" className="h-10 w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem 
+                                value="standard" 
+                                disabled={selectedModel ? !modelSupportsQuality(selectedModel as ModelId, 'standard') : false}
+                              >
+                                1080p (1K)
+                              </SelectItem>
+                              <SelectItem 
+                                value="high" 
+                                disabled={selectedModel ? !modelSupportsQuality(selectedModel as ModelId, 'high') : false}
+                              >
+                                2160p (2K)
+                              </SelectItem>
+                              <SelectItem 
+                                value="ultra" 
+                                disabled={selectedModel ? !modelSupportsQuality(selectedModel as ModelId, 'ultra') : false}
+                              >
+                                4320p (4K)
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="w-full">
+                          <div className="flex items-center gap-1.5 mb-2">
+                            <Label htmlFor="aspect-ratio" className="text-sm">Aspect Ratio</Label>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="max-w-xs">Choose the output image proportions. 16:9 for widescreen, 4:3 for traditional, 1:1 for square, or 9:16 for portrait orientation.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                          <Select value={aspectRatio} onValueChange={setAspectRatio}>
+                            <SelectTrigger id="aspect-ratio" className="h-10 w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="16:9">16:9</SelectItem>
+                              <SelectItem value="4:3">4:3</SelectItem>
+                              <SelectItem value="1:1">1:1</SelectItem>
+                              <SelectItem value="9:16">9:16</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+                {/* Generate Button - Own Row */}
+                <div className="pt-2">
+                  <div className="flex items-center gap-3">
+                    {additionalButtonContent && (
+                      <div className="flex-shrink-0">
+                        {additionalButtonContent}
+                      </div>
                     )}
+                    <div className="flex-1">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="w-full">
+                            <Button
+                              className="w-full"
+                              size="lg"
+                              disabled={isButtonDisabled}
+                              onClick={handleGenerate}
+                            >
+                              {loading ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  Generating...
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles className="h-4 w-4 mr-2" />
+                                  Generate
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </TooltipTrigger>
+                        {isButtonDisabled && disabledReason && (
+                          <TooltipContent side="top" className="max-w-xs">
+                            <p className="text-sm">{disabledReason}</p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </div>
                   </div>
+                  {!isButtonDisabled && (
+                    <p className="text-xs text-center text-muted-foreground px-2 mt-2">
+                      This generation will consume {creditsCost} credits
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -726,8 +905,9 @@ export function BaseToolComponent({
     const expectedCount = getExpectedCount();
     
     return (
-      <Card className="w-full min-h-[90vh]">
-        <CardContent className="p-6 lg:p-12 w-full min-h-[90vh]">
+      <div className="p-[3px] bg-muted/30 border border-border/60 rounded-lg">
+        <Card className="w-full min-h-[90vh] rounded-[5px]">
+          <CardContent className="p-6 lg:p-12 w-full min-h-[90vh]">
           {loading ? (
             <div className="grid grid-cols-2 gap-4 max-w-4xl mx-auto">
               {Array.from({ length: Math.min(8, Math.max(1, expectedCount)) }).map((_, idx) => (
@@ -746,19 +926,33 @@ export function BaseToolComponent({
                       >
                         {res.outputUrl ? (
                           <>
-                            <img 
-                              src={res.outputUrl} 
-                              alt={res.label || `Generated result ${idx + 1}`}
-                              className="w-full h-full object-contain"
-                            />
+                            {isVideo || res.outputUrl.match(/\.(mp4|webm|mov)$/i) ? (
+                              <video 
+                                src={res.outputUrl} 
+                                className="w-full h-full object-contain"
+                                controls
+                                loop
+                                playsInline
+                              >
+                                Your browser does not support the video tag.
+                              </video>
+                            ) : (
+                              <img 
+                                src={res.outputUrl} 
+                                alt={res.label || `Generated result ${idx + 1}`}
+                                className="w-full h-full object-contain"
+                              />
+                            )}
                             {res.label && (
                               <div className="absolute top-2 left-2 bg-background/90 backdrop-blur-sm border border-border text-foreground px-2 py-1 rounded text-xs font-medium z-10">
                                 {res.label}
                               </div>
                             )}
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                              <Maximize2 className="h-8 w-8 text-white" />
-                            </div>
+                            {!isVideo && !res.outputUrl.match(/\.(mp4|webm|mov)$/i) && (
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                <Maximize2 className="h-8 w-8 text-white" />
+                              </div>
+                            )}
                           </>
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center gap-2">
@@ -793,14 +987,15 @@ export function BaseToolComponent({
                               const url = window.URL.createObjectURL(blob);
                               const link = document.createElement('a');
                               link.href = url;
-                              link.download = `render-${res.renderId || idx}.png`;
+                              const isVideoFile = isVideo || res.outputUrl.match(/\.(mp4|webm|mov)$/i);
+                              link.download = `render-${res.renderId || idx}.${isVideoFile ? 'mp4' : 'png'}`;
                               document.body.appendChild(link);
                               link.click();
                               document.body.removeChild(link);
                               window.URL.revokeObjectURL(url);
                             } catch (error) {
                               console.error('Download failed:', error);
-                              toast.error('Failed to download image');
+                              toast.error(`Failed to download ${isVideo ? 'video' : 'image'}`);
                             }
                           }}
                         >
@@ -814,14 +1009,29 @@ export function BaseToolComponent({
               ) : (
                 <div className="space-y-4">
                   <div 
-                    className="relative max-w-full max-h-[calc(100vh-300px)] mx-auto rounded-lg cursor-pointer group"
-                    onClick={() => setFullscreenImage({ url: displayResults[0].outputUrl })}
+                    className={cn(
+                      "relative max-w-full max-h-[calc(100vh-300px)] mx-auto rounded-lg",
+                      !isVideo && !displayResults[0].outputUrl.match(/\.(mp4|webm|mov)$/i) && "cursor-pointer group"
+                    )}
+                    onClick={() => !isVideo && !displayResults[0].outputUrl.match(/\.(mp4|webm|mov)$/i) && setFullscreenImage({ url: displayResults[0].outputUrl })}
                   >
-                    <img 
-                      src={displayResults[0].outputUrl} 
-                      alt="Generated result" 
-                      className="max-w-full max-h-[calc(100vh-300px)] mx-auto rounded-lg"
-                    />
+                    {isVideo || displayResults[0].outputUrl.match(/\.(mp4|webm|mov)$/i) ? (
+                      <video 
+                        src={displayResults[0].outputUrl} 
+                        className="max-w-full max-h-[calc(100vh-300px)] mx-auto rounded-lg"
+                        controls
+                        loop
+                        playsInline
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                    ) : (
+                      <img 
+                        src={displayResults[0].outputUrl} 
+                        alt="Generated result" 
+                        className="max-w-full max-h-[calc(100vh-300px)] mx-auto rounded-lg"
+                      />
+                    )}
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 rounded-lg transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
                       <Maximize2 className="h-8 w-8 text-white" />
                     </div>
@@ -838,7 +1048,8 @@ export function BaseToolComponent({
                         const url = window.URL.createObjectURL(blob);
                         const link = document.createElement('a');
                         link.href = url;
-                        link.download = `render-${displayResults[0].renderId}.png`;
+                        const isVideoFile = isVideo || displayResults[0].outputUrl.match(/\.(mp4|webm|mov)$/i);
+                        link.download = `render-${displayResults[0].renderId}.${isVideoFile ? 'mp4' : 'png'}`;
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
@@ -856,13 +1067,14 @@ export function BaseToolComponent({
               )}
             </div>
           ) : (
-            <div className="text-muted-foreground text-center">
-              <ImageIcon className="h-16 w-16 mx-auto mb-4 opacity-50" />
-              <p className="text-lg">Your generated render will appear here</p>
+            <div className="flex flex-col items-center justify-center min-h-[calc(90vh-200px)] text-muted-foreground">
+              <ImageIcon className="h-16 w-16 mb-4 opacity-50" />
+              <p className="text-lg text-center">Your generated render will appear here</p>
             </div>
           )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     );
   };
 
@@ -1368,15 +1580,28 @@ export function BaseToolComponent({
           {fullscreenImage && (
             <>
               <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0">
-                <DialogTitle>{fullscreenImage.label || 'Generated Image'}</DialogTitle>
+                <DialogTitle>{fullscreenImage.label || (isVideo || fullscreenImage.url.match(/\.(mp4|webm|mov)$/i) ? 'Generated Video' : 'Generated Image')}</DialogTitle>
               </DialogHeader>
               <div className="flex-1 flex items-center justify-center p-6 overflow-hidden">
-                <img 
-                  src={fullscreenImage.url} 
-                  alt={fullscreenImage.label || 'Fullscreen image'}
-                  className="max-w-full max-h-full object-contain"
-                  style={{ aspectRatio: 'auto' }}
-                />
+                {isVideo || fullscreenImage.url.match(/\.(mp4|webm|mov)$/i) ? (
+                  <video 
+                    src={fullscreenImage.url} 
+                    className="max-w-full max-h-full object-contain"
+                    controls
+                    loop
+                    playsInline
+                    autoPlay
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                ) : (
+                  <img 
+                    src={fullscreenImage.url} 
+                    alt={fullscreenImage.label || 'Fullscreen image'}
+                    className="max-w-full max-h-full object-contain"
+                    style={{ aspectRatio: 'auto' }}
+                  />
+                )}
               </div>
               <div className="flex gap-4 justify-end px-6 pb-6 flex-shrink-0">
                 <Button 
@@ -1389,7 +1614,8 @@ export function BaseToolComponent({
                       const url = window.URL.createObjectURL(blob);
                       const link = document.createElement('a');
                       link.href = url;
-                      link.download = `render-${Date.now()}.png`;
+                      const isVideoFile = isVideo || fullscreenImage.url.match(/\.(mp4|webm|mov)$/i);
+                      link.download = `render-${Date.now()}.${isVideoFile ? 'mp4' : 'png'}`;
                       document.body.appendChild(link);
                       link.click();
                       document.body.removeChild(link);

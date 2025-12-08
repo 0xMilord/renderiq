@@ -81,7 +81,7 @@ function usdToCredits(usdCost: number): number {
 export const IMAGE_MODELS: Record<ImageModelId, ModelConfig> = {
   'gemini-3-pro-image-preview': {
     id: 'gemini-3-pro-image-preview',
-    name: 'Gemini 3 Pro Image',
+    name: 'Gemini 3.0',
     alias: 'Nano Banana Pro',
     type: 'image',
     description: 'Best model for multimodal understanding, most powerful agentic and vibe-coding model with richer visuals and deeper interactivity',
@@ -115,7 +115,7 @@ export const IMAGE_MODELS: Record<ImageModelId, ModelConfig> = {
   },
   'gemini-2.5-flash-image': {
     id: 'gemini-2.5-flash-image',
-    name: 'Gemini 2.5 Flash Image',
+    name: 'Gemini 2.5',
     alias: 'Nano Banana',
     type: 'image',
     description: 'Fast and efficient image generation model optimized for speed and cost-effectiveness',

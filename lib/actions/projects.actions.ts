@@ -300,14 +300,56 @@ export async function getUserProjects() {
   }
 }
 
-export async function duplicateProject(projectId: string) {
+export async function updateProject(projectId: string, updateData: {
+  name?: string;
+  description?: string | null;
+  isPublic?: boolean;
+  tags?: string[] | null;
+}) {
   try {
     const { user } = await getCachedUser();
     
     if (!user) {
       return { success: false, error: 'Authentication required' };
     }
+
+    // Verify project belongs to user
+    const project = await ProjectsDAL.getById(projectId);
+    if (!project) {
+      return { success: false, error: 'Project not found' };
+    }
+
+    if (project.userId !== user.id) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // Update project
+    const updatedProject = await ProjectsDAL.update(projectId, updateData);
     
+    logger.log('✅ [updateProject] Project updated successfully:', projectId);
+    
+    revalidatePath('/dashboard/projects');
+    revalidatePath(`/dashboard/projects/${updatedProject.slug}`);
+    revalidatePath(`/project/${updatedProject.slug}`);
+    
+    return { success: true, data: updatedProject };
+  } catch (error) {
+    logger.error('Error in updateProject:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to update project',
+    };
+  }
+}
+
+export async function duplicateProject(projectId: string, newName?: string) {
+  try {
+    const { user } = await getCachedUser();
+    
+    if (!user) {
+      return { success: false, error: 'Authentication required' };
+    }
+
     const userId = user.id;
 
     const project = await ProjectsDAL.getById(projectId);
@@ -319,10 +361,10 @@ export async function duplicateProject(projectId: string) {
       return { success: false, error: 'Access denied' };
     }
 
-    // Create duplicate project
+    // Create duplicate project with custom name or default
     const duplicateData = {
       userId: userId,
-      name: `${project.name} (Copy)`,
+      name: newName || `${project.name} (Copy)`,
       description: project.description,
       originalImageId: project.originalImageId,
       isPublic: false, // Duplicates are private by default

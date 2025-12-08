@@ -23,6 +23,8 @@ interface RenderToSectionDrawingProps {
 
 export function RenderToSectionDrawing({ tool, projectId, onHintChange, hintMessage }: RenderToSectionDrawingProps) {
   const [sectionType, setSectionType] = useState<'technical-cad' | '3d-cross' | 'illustrated-2d'>('technical-cad');
+  const [sectionCutDirection, setSectionCutDirection] = useState<'longitudinal' | 'latitudinal' | 'diagonal'>('longitudinal');
+  const [sectionViewType, setSectionViewType] = useState<'orthographic' | 'isometric' | 'perspective'>('orthographic');
   const [includeText, setIncludeText] = useState<boolean>(true);
   const [styleReferenceImage, setStyleReferenceImage] = useState<File | null>(null);
   const [styleReferencePreview, setStyleReferencePreview] = useState<string | null>(null);
@@ -61,10 +63,29 @@ export function RenderToSectionDrawing({ tool, projectId, onHintChange, hintMess
 
     const styleConfig = stylePrompts[sectionType];
     
+    // Section cut direction descriptions
+    const cutDirectionDescriptions = {
+      'longitudinal': 'longitudinal (along the length of the building, typically front-to-back or side-to-side)',
+      'latitudinal': 'latitudinal (across the width of the building, perpendicular to the longitudinal axis)',
+      'diagonal': 'diagonal (at an angle, cutting through the building at a diagonal orientation)'
+    };
+
+    // Section view type descriptions
+    const viewTypeDescriptions = {
+      'orthographic': 'orthographic projection (parallel projection with no perspective distortion, showing true dimensions and relationships)',
+      'isometric': 'isometric projection (3D representation with equal angles, showing three faces of the building simultaneously)',
+      'perspective': 'perspective projection (realistic 3D view with vanishing points, showing depth and spatial relationships as seen by the human eye)'
+    };
+    
     // Text inclusion settings
     const textInstruction = includeText 
       ? 'Include text labels, annotations, dimensions, and technical notes as appropriate for the section drawing type.'
       : 'DO NOT include any text labels, text annotations, or written text. Use ONLY annotation symbols, dimension lines, leader lines, and graphical symbols. Users will add clean, proper, editable text in post-processing.';
+
+    // Style reference instruction
+    const styleReferenceInstruction = (styleReferenceImage || styleReferenceName)
+      ? ' IMPORTANT: A style reference image has been provided. Match the visual style, linework characteristics, presentation approach, and overall aesthetic from the style reference image.'
+      : '';
 
     // Following Gemini 3 best practices: structured, precise, with clear constraints
     return `<role>
@@ -72,18 +93,19 @@ You are an ${styleConfig.role}.
 </role>
 
 <task>
-${styleConfig.task}. The input may show any architectural content: whole buildings (any type or style), building components, interior spaces, exterior views, or detail views. Create an appropriate section drawing that accurately represents the architectural content shown.
+${styleConfig.task}. Create a ${cutDirectionDescriptions[sectionCutDirection]} section cut displayed using ${viewTypeDescriptions[sectionViewType]}.${styleReferenceInstruction}
 </task>
 
 <constraints>
 1. Output format: Generate a single architectural section drawing image
 2. Visual style: ${styleConfig.style}
-3. Text and annotations: ${textInstruction}
-4. Scale handling: Adapt to input scale - whole buildings show component relationships; components show detailed information; interiors show spatial relationships; details show element-specific information
-5. Element recognition: Identify and represent visible architectural elements (structural systems, building envelope, interior elements, spatial relationships)
-6. Maintain: Architectural drafting standards, proper scale, accurate proportions, and professional presentation quality
-7. Focus: ${styleConfig.focus}
-8. Do not: Add elements not present in the original render, distort proportions, or include photorealistic rendering elements
+3. Section cut and view type: As specified in task
+4. Text and annotations: ${textInstruction}
+5. Scale handling: Adapt to input scale appropriately
+6. Element recognition: Identify and represent visible architectural elements (structural systems, building envelope, interior elements, spatial relationships)
+7. Maintain: Architectural drafting standards, proper scale, accurate proportions, professional presentation quality
+8. Focus: ${styleConfig.focus}
+9. Do not: Add elements not present in the original render, distort proportions, or include photorealistic rendering elements
 </constraints>
 
 <output_requirements>
@@ -96,7 +118,7 @@ ${styleConfig.task}. The input may show any architectural content: whole buildin
 </output_requirements>
 
 <context>
-Convert the architectural render into a ${styleConfig.type || sectionType} following ${styleConfig.style}. Work with any architectural content, building type, or style. The drawing must be accurate, clear, and professionally rendered. ${includeText ? 'Include text labels where appropriate.' : 'Use only graphical symbols - users will add text in post-processing.'}
+Convert the architectural render into a ${styleConfig.type || sectionType} following ${styleConfig.style}. The drawing must be accurate, clear, and professionally rendered.${styleReferenceInstruction}
 </context>`;
   };
 
@@ -106,6 +128,8 @@ Convert the architectural render into a ${styleConfig.type || sectionType} follo
     
     // Add custom settings to formData for reference
     formData.append('sectionType', sectionType);
+    formData.append('sectionCutDirection', sectionCutDirection);
+    formData.append('sectionViewType', sectionViewType);
     formData.append('includeText', includeText.toString());
     
     // Add style reference if provided
@@ -255,6 +279,59 @@ Convert the architectural render into a ${styleConfig.type || sectionType} follo
                   <p className="text-xs text-muted-foreground truncate">{styleReferenceName}</p>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Section Cut Direction and Section View Type - New Row */}
+          <div className="flex items-stretch gap-4">
+            {/* Section Cut Direction */}
+            <div className="flex-1 flex flex-col space-y-2">
+              <div className="flex items-center gap-1.5">
+                <Label htmlFor="section-cut-direction" className="text-sm">Section Cut Direction</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">Choose the direction of the section cut: Longitudinal (along length), Latitudinal (across width), or Diagonal (at an angle).</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <Select value={sectionCutDirection} onValueChange={(v: 'longitudinal' | 'latitudinal' | 'diagonal') => setSectionCutDirection(v)}>
+                <SelectTrigger id="section-cut-direction" className="h-10 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="longitudinal">Longitudinal</SelectItem>
+                  <SelectItem value="latitudinal">Latitudinal</SelectItem>
+                  <SelectItem value="diagonal">Diagonal</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Section View Type */}
+            <div className="flex-1 flex flex-col space-y-2">
+              <div className="flex items-center gap-1.5">
+                <Label htmlFor="section-view-type" className="text-sm">Section View Type</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">Choose the projection type: Orthographic (parallel, true dimensions), Isometric (3D equal angles), or Perspective (realistic depth).</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <Select value={sectionViewType} onValueChange={(v: 'orthographic' | 'isometric' | 'perspective') => setSectionViewType(v)}>
+                <SelectTrigger id="section-view-type" className="h-10 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="orthographic">Orthographic</SelectItem>
+                  <SelectItem value="isometric">Isometric</SelectItem>
+                  <SelectItem value="perspective">Perspective</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </>

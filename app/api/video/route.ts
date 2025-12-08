@@ -7,6 +7,7 @@ import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { AISDKService } from '@/lib/services/ai-sdk-service';
 import { StorageService } from '@/lib/services/storage';
 import { logger } from '@/lib/utils/logger';
+import { getModelConfig } from '@/lib/config/models';
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,8 +26,8 @@ export async function POST(request: NextRequest) {
     // Parse form data
     const formData = await request.formData();
     const prompt = formData.get('prompt') as string;
-    const model = formData.get('model') as 'veo3' | 'veo3_fast';
-    const duration = parseInt(formData.get('duration') as string) || 5;
+    const model = formData.get('model') as string; // Model ID (e.g., 'veo-3.1-generate-preview')
+    const duration = parseInt(formData.get('duration') as string) || 8;
     const aspectRatio = formData.get('aspectRatio') as '16:9' | '9:16' | '1:1';
     const generationType = formData.get('generationType') as 'text-to-video' | 'image-to-video' | 'keyframe-sequence';
     const projectId = formData.get('projectId') as string;
@@ -38,9 +39,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Validate duration (max 5 seconds)
-    if (duration > 5) {
-      return NextResponse.json({ error: 'Duration cannot exceed 5 seconds' }, { status: 400 });
+    // Validate duration (Veo API supports 4, 6, or 8 seconds)
+    if (![4, 6, 8].includes(duration)) {
+      return NextResponse.json({ error: 'Duration must be 4, 6, or 8 seconds' }, { status: 400 });
     }
 
     logger.log('🎬 Video API: Request parameters:', {
@@ -54,15 +55,15 @@ export async function POST(request: NextRequest) {
       referenceRenderId
     });
 
-    // Calculate credits cost (video generation costs more than images)
-    // Based on Google Veo 3.1 pricing ($0.75/second) with 2x markup
-    // 1 credit = 5 INR, 1 USD = 100 INR (updated conversion rate)
-    // Cost per second: $0.75 × 2 (markup) × 100 (INR/USD) / 5 (INR/credit) = 30 credits/second
-    // Veo 3.1 pricing: $0.75/second, with 2x markup = $1.50/second
-    // In INR: $1.50 × 100 = 150 INR/second
-    // At 5 INR/credit: 150 / 5 = 30 credits/second
-    const creditsPerSecond = 30;
-    const creditsCost = creditsPerSecond * duration;
+    // Calculate credits cost using model-specific pricing
+    const modelConfig = model ? getModelConfig(model as any) : null;
+    const creditsCost = modelConfig 
+      ? modelConfig.calculateCredits({ duration })
+      : duration * 16; // Fallback: 16 credits/second (Veo 3.1 Standard default)
+
+    const creditsPerSecond = modelConfig 
+      ? creditsCost / duration
+      : 16; // Fallback: 16 credits/second
 
     logger.log('💰 Video API: Credits cost calculation:', {
       duration,
