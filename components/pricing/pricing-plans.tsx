@@ -13,29 +13,19 @@ import { useRazorpaySDK } from '@/lib/hooks/use-razorpay-sdk';
 import { logger } from '@/lib/utils/logger';
 import { SUPPORTED_CURRENCIES } from '@/lib/utils/currency';
 
-// Helper function to format numbers with k/m/b suffixes (no decimals)
+// Helper function to format numbers (no compact formatting)
 const formatNumberCompact = (num: number | string | null | undefined): string => {
   const number = typeof num === 'string' ? parseFloat(num) : (num || 0);
   const value = isNaN(number) ? 0 : number;
-  
-  if (value >= 1000000000) {
-    return (value / 1000000000).toFixed(1).replace(/\.0$/, '') + 'b';
-  }
-  if (value >= 1000000) {
-    return (value / 1000000).toFixed(1).replace(/\.0$/, '') + 'm';
-  }
-  if (value >= 1000) {
-    return (value / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
-  }
-  return Math.round(value).toString();
+  return Math.round(value).toLocaleString();
 };
 
-// Helper function to format currency with k/m/b suffixes
+// Helper function to format currency (no compact formatting)
 const formatCurrencyCompact = (amount: number, currency: string): string => {
   const currencyInfo = SUPPORTED_CURRENCIES[currency] || SUPPORTED_CURRENCIES['INR'];
   const symbol = currencyInfo.symbol;
-  const compact = formatNumberCompact(amount);
-  return `${symbol}${compact}`;
+  const formatted = Math.round(amount).toLocaleString();
+  return `${symbol}${formatted}`;
 };
 
 const planIcons: Record<string, any> = {
@@ -54,7 +44,7 @@ interface PricingPlansProps {
 }
 
 export function PricingPlans({ plans, userCredits, userSubscription }: PricingPlansProps) {
-  const [billingInterval, setBillingInterval] = useState<'month' | 'year'>('month');
+  const [cardBillingInterval, setCardBillingInterval] = useState<Record<string, 'month' | 'year'>>({});
   const [loading, setLoading] = useState<string | null>(null);
   const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string; planId?: string }>({ open: false, message: '' });
   const [processingDialog, setProcessingDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
@@ -146,27 +136,91 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
     };
   }, []);
 
-  // ✅ OPTIMIZED: Memoize filtered and sorted plans to avoid recalculating on every render
+  // Group plans by base name (without "Annual" suffix) and show monthly by default
+  const groupedPlans = useMemo(() => {
+    const groups: Record<string, { monthly?: any; annual?: any }> = {};
+    
+    plans.forEach((plan) => {
+      // Extract base name (remove " Annual" suffix)
+      const baseName = plan.name.replace(/\s+Annual$/, '').toLowerCase();
+      
+      if (!groups[baseName]) {
+        groups[baseName] = {};
+      }
+      
+      if (plan.interval === 'month') {
+        groups[baseName].monthly = plan;
+      } else if (plan.interval === 'year') {
+        groups[baseName].annual = plan;
+      }
+    });
+    
+    return groups;
+  }, [plans]);
+
+  // Get plans to display - use monthly by default, or annual if selected for that card
   const filteredPlans = useMemo(() => {
-    return plans
-      .filter((plan) => {
-        // Filter by billing interval
-        const matchesInterval = billingInterval === 'year' ? plan.interval === 'year' : plan.interval === 'month';
+    return Object.values(groupedPlans)
+      .map((group) => {
+        // Check if annual is selected for this plan group
+        const planName = (group.monthly?.name || group.annual?.name || '').replace(/\s+Annual$/, '').toLowerCase();
+        const selectedInterval = cardBillingInterval[planName] || 'month';
         
-        // Exclude free plans - check both name and price
-        const planName = (plan.name || '').toLowerCase().trim();
-        const planPrice = parseFloat(plan.price || '0');
-        const isNotFree = planName !== 'free' && planPrice > 0;
-        
-        return matchesInterval && isNotFree;
+        if (selectedInterval === 'year' && group.annual) {
+          return group.annual;
+        }
+        return group.monthly || group.annual;
       })
+      .filter(Boolean)
       .sort((a, b) => {
-        // Sort by price ascending (Starter, Pro, Enterprise)
+        // Sort by price ascending (Free, Starter, Pro, Enterprise)
         const priceA = parseFloat(a.price || '0');
         const priceB = parseFloat(b.price || '0');
         return priceA - priceB;
       });
-  }, [plans, billingInterval]);
+  }, [groupedPlans, cardBillingInterval]);
+
+  // Collect all unique features from all plans for comparison table (use monthly plans for comparison)
+  const allFeatures = useMemo(() => {
+    const featureSet = new Set<string>();
+    Object.values(groupedPlans).forEach((group) => {
+      const plan = group.monthly || group.annual;
+      if (plan && plan.features && Array.isArray(plan.features)) {
+        plan.features.forEach((feature: string) => featureSet.add(feature));
+      }
+    });
+    // Add limits as separate features
+    featureSet.add('Max Projects');
+    featureSet.add('Renders per Project');
+    return Array.from(featureSet).sort();
+  }, [groupedPlans]);
+
+  // Helper to get feature value for a plan
+  const getPlanFeatureValue = (plan: any, feature: string): string | boolean => {
+    // Check if it's a regular feature
+    if (plan.features && Array.isArray(plan.features)) {
+      if (plan.features.includes(feature)) {
+        return true;
+      }
+    }
+    
+    // Handle special features
+    if (feature === 'Max Projects') {
+      if (plan.maxProjects === null || plan.maxProjects === undefined) {
+        return 'Unlimited';
+      }
+      return plan.maxProjects.toString();
+    }
+    
+    if (feature === 'Renders per Project') {
+      if (plan.maxRendersPerProject === null || plan.maxRendersPerProject === undefined) {
+        return 'Unlimited';
+      }
+      return plan.maxRendersPerProject.toString();
+    }
+    
+    return false;
+  };
 
   const handleSubscribe = async (planId: string) => {
     // Check if user is authenticated
@@ -470,52 +524,49 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
   }
 
   return (
-    <div className="space-y-8">
-      {/* Billing Toggle */}
-      <div className="flex justify-center">
-        <div className="bg-muted rounded-lg p-1">
-          <button
-            onClick={() => setBillingInterval('month')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              billingInterval === 'month'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Monthly
-          </button>
-          <button
-            onClick={() => setBillingInterval('year')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              billingInterval === 'year'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Annual
-          </button>
-        </div>
+    <div className="space-y-4">
+      {/* Section Header */}
+      <div className="text-left">
+        <h2 className="text-xl font-bold mb-1">Subscription Plans</h2>
+        <p className="text-xs text-muted-foreground">For unlimited usage and full feature access</p>
       </div>
 
-      {/* Plans Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Plans Grid - Always 4 columns on laptops and up */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {filteredPlans.map((plan) => {
-          const Icon = planIcons[plan.name.toLowerCase().replace(' ', '-')] || Zap;
+          const Icon = planIcons[plan.name.toLowerCase().replace(/\s+annual$/, '').replace(' ', '-')] || Zap;
+          const planBaseName = plan.name.replace(/\s+Annual$/, '').toLowerCase();
+          const planGroup = groupedPlans[planBaseName];
+          const selectedInterval = cardBillingInterval[planBaseName] || 'month';
+          
           const priceInINR = parseFloat(plan.price);
           const convertedPrice = convertedPrices[plan.id] || (currency === 'INR' ? priceInINR : priceInINR * exchangeRate);
-          const monthlyPrice = plan.interval === 'year' ? convertedPrice / 12 : convertedPrice;
-          const annualPrice = plan.interval === 'year' ? convertedPrice : convertedPrice * 12;
-          const savings = plan.interval === 'year' ? Math.round((1 - convertedPrice / annualPrice) * 100) : 0;
+          
+          // Calculate prices for both intervals
+          const monthlyPlan = planGroup?.monthly;
+          const annualPlan = planGroup?.annual;
+          const monthlyPrice = monthlyPlan ? (convertedPrices[monthlyPlan.id] || (currency === 'INR' ? parseFloat(monthlyPlan.price) : parseFloat(monthlyPlan.price) * exchangeRate)) : convertedPrice;
+          const annualPrice = annualPlan ? (convertedPrices[annualPlan.id] || (currency === 'INR' ? parseFloat(annualPlan.price) : parseFloat(annualPlan.price) * exchangeRate)) : convertedPrice * 12;
+          
+          // Calculate savings for annual
+          const savings = annualPlan && monthlyPlan ? Math.round((1 - (annualPrice / 12) / monthlyPrice) * 100) : 0;
+          
+          // Current plan price based on selected interval
+          const currentPrice = selectedInterval === 'year' && annualPlan ? annualPrice : monthlyPrice;
+          const currentPlan = selectedInterval === 'year' && annualPlan ? annualPlan : monthlyPlan || plan;
 
           // Check if this is the user's current plan
-          const isCurrentPlan = userSubscription?.subscription?.planId === plan.id;
+          const isCurrentPlan = userSubscription?.subscription?.planId === currentPlan.id;
           const hasActiveSubscription = userSubscription?.subscription?.status === 'active';
-          const currentPlanPrice = userSubscription?.plan ? parseFloat(userSubscription.plan.price) : 0;
-          const isUpgrade = hasActiveSubscription && !isCurrentPlan && parseFloat(plan.price) > currentPlanPrice;
-          const isDowngrade = hasActiveSubscription && !isCurrentPlan && parseFloat(plan.price) < currentPlanPrice;
+          const userPlanPrice = userSubscription?.plan ? parseFloat(userSubscription.plan.price) : 0;
+          const isUpgrade = hasActiveSubscription && !isCurrentPlan && currentPrice > userPlanPrice;
+          const isDowngrade = hasActiveSubscription && !isCurrentPlan && currentPrice < userPlanPrice;
+          
+          // Check if annual plan is available
+          const hasAnnualOption = !!annualPlan;
 
           return (
-            <Card key={plan.id} className="relative">
+            <Card key={plan.id} className="relative transition-all duration-300 hover:shadow-[0_-10px_100px_10px_rgba(209,242,74,0.25),0_0_20px_rgba(209,242,74,0.3)] hover:-translate-y-1 gap-0">
               {plan.isPopular && (
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
                   <Badge className="bg-primary text-primary-foreground">
@@ -531,87 +582,99 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
                 </div>
               )}
 
-              <CardHeader className="text-center pb-4">
-                <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <Icon className="h-6 w-6 text-muted-foreground" />
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Icon className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-base">{planBaseName.charAt(0).toUpperCase() + planBaseName.slice(1)}</CardTitle>
+                    <CardDescription className="text-xs">
+                      {currentPlan.description}
+                    </CardDescription>
+                  </div>
                 </div>
-                <CardTitle className="text-xl">{plan.name}</CardTitle>
-                <CardDescription className="text-sm">
-                  {plan.description}
-                </CardDescription>
               </CardHeader>
 
-              <CardContent className="space-y-6">
-                {/* Pricing */}
-                <div className="text-center">
-                  <div className="flex items-baseline justify-center flex-wrap gap-1">
-                    <span className="text-2xl sm:text-3xl font-bold text-foreground">
-                      {currencyLoading || !convertedPrices[plan.id] 
-                        ? '...' 
-                        : formatCurrencyCompact(convertedPrices[plan.id] || parseFloat(plan.price), currency)}
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      /{plan.interval}
-                    </span>
-                  </div>
-                  {savings > 0 && (
-                    <p className="text-xs sm:text-sm text-green-500 mt-1">
-                      Save {savings}% with annual billing
-                    </p>
-                  )}
-                  <p className="text-xs sm:text-sm text-muted-foreground mt-2">
-                    {currencyLoading || !convertedPrices[plan.id]
-                      ? '...'
-                      : `${formatCurrencyCompact(Math.round(monthlyPrice), currency)}/month`}
-                  </p>
-                </div>
-
-                {/* Credits */}
-                <div className="text-center p-4 bg-muted rounded-lg">
-                  <div className="text-xl sm:text-2xl font-bold text-foreground">
-                    {formatNumberCompact(Number(plan.creditsPerMonth) || 0)}
-                  </div>
-                  <div className="text-xs sm:text-sm text-muted-foreground">credits per month</div>
-                </div>
-
-                {/* Features */}
-                {plan.features && Array.isArray(plan.features) && plan.features.length > 0 && (
-                  <div className="space-y-3">
-                    {plan.features.map((feature: string, index: number) => (
-                      <div key={index} className="flex items-start space-x-3">
-                        <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                        <span className="text-sm text-foreground">{feature}</span>
-                      </div>
-                    ))}
+              <CardContent className="space-y-3">
+                {/* Billing Toggle on Card */}
+                {hasAnnualOption && (
+                  <div className="flex justify-center -mt-1">
+                    <div className="bg-muted rounded-lg p-0.5">
+                      <button
+                        onClick={() => setCardBillingInterval({ ...cardBillingInterval, [planBaseName]: 'month' })}
+                        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                          selectedInterval === 'month'
+                            ? 'bg-background text-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Monthly
+                      </button>
+                      <button
+                        onClick={() => setCardBillingInterval({ ...cardBillingInterval, [planBaseName]: 'year' })}
+                        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                          selectedInterval === 'year'
+                            ? 'bg-background text-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Annual
+                        {savings > 0 && (
+                          <span className="ml-1 text-green-500">({savings}% off)</span>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 )}
 
-                {/* Limits */}
-                <div className="space-y-2 text-sm text-muted-foreground">
-                  <div className="flex justify-between">
-                    <span>Max Projects:</span>
-                    <span className="font-medium">
-                      {plan.maxProjects ? plan.maxProjects.toLocaleString() : 'Unlimited'}
+                {/* Pricing */}
+                <div className="text-center">
+                  <div className="flex items-baseline justify-center flex-wrap gap-1">
+                    <span className="text-lg sm:text-xl font-bold text-foreground">
+                      {currencyLoading || !currentPrice
+                        ? '...' 
+                        : formatCurrencyCompact(currentPrice, currency)}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      /{selectedInterval === 'year' ? 'year' : 'month'}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Renders per Project:</span>
-                    <span className="font-medium">
-                      {plan.maxRendersPerProject ? plan.maxRendersPerProject.toLocaleString() : 'Unlimited'}
-                    </span>
-                  </div>
+                  {selectedInterval === 'year' && savings > 0 && (
+                    <p className="text-xs text-green-500 mt-1">
+                      Save {savings}% vs monthly
+                    </p>
+                  )}
+                  {selectedInterval === 'year' && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {currencyLoading || !currentPrice
+                        ? '...'
+                        : `${formatCurrencyCompact(Math.round(currentPrice / 12), currency)}/month`}
+                    </p>
+                  )}
                 </div>
+
+                {/* Credits */}
+                <div className="text-center p-2 bg-muted rounded-lg">
+                  <div className="text-base sm:text-lg font-bold text-foreground">
+                    {formatNumberCompact(Number(currentPlan.creditsPerMonth) || 0)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">credits per month</div>
+                </div>
+
+                {/* Separator above button */}
+                <div className="border-t border-border"></div>
 
                 {/* CTA Button */}
                 <Button
                   className="w-full"
-                  onClick={() => handleSubscribe(plan.id)}
+                  onClick={() => handleSubscribe(currentPlan.id)}
                   disabled={
-                    loading === plan.id || 
+                    loading === currentPlan.id || 
                     !razorpayLoaded || 
                     razorpayLoading || 
                     !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 
-                    parseFloat(plan.price) === 0 ||
+                    parseFloat(currentPlan.price) === 0 ||
                     (isCurrentPlan && hasActiveSubscription)
                   }
                   variant={isCurrentPlan && hasActiveSubscription ? 'outline' : 'default'}
@@ -625,7 +688,7 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
                         : undefined
                   }
                 >
-                  {loading === plan.id ? (
+                  {loading === currentPlan.id ? (
                     'Processing...'
                   ) : razorpayLoading || !razorpayLoaded ? (
                     'Loading...'
@@ -635,17 +698,64 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
                     'Upgrade Plan'
                   ) : isDowngrade ? (
                     'Downgrade Plan'
-                  ) : parseFloat(plan.price) === 0 ? (
+                  ) : parseFloat(currentPlan.price) === 0 ? (
                     'Get Started'
                   ) : (
                     'Subscribe Now'
                   )}
                 </Button>
+
               </CardContent>
             </Card>
           );
         })}
       </div>
+
+      {/* Features Comparison Table - Show monthly plans for comparison */}
+      {Object.keys(groupedPlans).length > 0 && allFeatures.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-lg font-bold mb-4 text-center">Feature Comparison</h2>
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="w-full border-collapse bg-card text-xs">
+              <thead>
+                <tr className="border-b border-border bg-muted/50">
+                  <th className="text-left px-3 py-2 font-semibold sticky left-0 bg-muted/50 z-10">Feature</th>
+                  {Object.entries(groupedPlans).map(([baseName, group]) => {
+                    const displayName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+                    return (
+                      <th key={baseName} className="text-center px-2 py-2 font-semibold min-w-[100px]">
+                        {displayName}
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {allFeatures.map((feature, index) => (
+                  <tr key={index} className="border-b border-border hover:bg-muted/30 transition-colors">
+                    <td className="px-3 py-2 text-foreground font-medium sticky left-0 bg-card z-10">{feature}</td>
+                    {Object.values(groupedPlans).map((group, idx) => {
+                      const plan = group.monthly || group.annual;
+                      const featureValue = getPlanFeatureValue(plan, feature);
+                      return (
+                        <td key={idx} className="px-2 py-2 text-center">
+                          {featureValue === true ? (
+                            <Check className="h-4 w-4 text-green-500 mx-auto" />
+                          ) : typeof featureValue === 'string' ? (
+                            <span className="font-medium text-foreground">{featureValue}</span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Razorpay Modal Styling */}
       {typeof window !== 'undefined' && (

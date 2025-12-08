@@ -273,8 +273,9 @@ export class RazorpayService {
         .where(eq(paymentOrders.id, paymentOrder.id));
 
       // Add credits only for fully captured payments
+      // ✅ Pass payment order ID for idempotency check
       if (paymentOrder.type === 'credit_package' && paymentOrder.referenceId) {
-        const creditsResult = await this.addCreditsToAccount(paymentOrder.userId, paymentOrder.referenceId);
+        const creditsResult = await this.addCreditsToAccount(paymentOrder.userId, paymentOrder.referenceId, paymentOrder.id);
         if (!creditsResult.success) {
           logger.error('❌ RazorpayService: Failed to add credits after payment verification:', creditsResult.error);
         }
@@ -324,14 +325,65 @@ export class RazorpayService {
    */
   static async addCreditsToAccount(
     userId: string,
-    creditPackageId: string
+    creditPackageId: string,
+    paymentOrderId?: string
   ) {
     try {
-      logger.log('💰 RazorpayService: Adding credits to account:', { userId, creditPackageId });
+      logger.log('💰 RazorpayService: Adding credits to account:', { userId, creditPackageId, paymentOrderId });
 
-      // ✅ OPTIMIZED: Fetch package, check user credits, and check for duplicate transactions in parallel
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-      const [packageDataResult, existingCreditResult, duplicateTransactionResult] = await Promise.all([
+      // ✅ IMPROVED IDEMPOTENCY: Check if credits already added for this specific payment order
+      if (paymentOrderId) {
+        const [paymentOrder] = await db
+          .select()
+          .from(paymentOrders)
+          .where(eq(paymentOrders.id, paymentOrderId))
+          .limit(1);
+
+        if (paymentOrder) {
+          // Check if credit transaction exists for this payment order
+          // We check if a transaction was created after the payment order was created
+          const [existingTransaction] = await db
+            .select()
+            .from(creditTransactions)
+            .where(
+              and(
+                eq(creditTransactions.userId, userId),
+                eq(creditTransactions.referenceId, creditPackageId),
+                eq(creditTransactions.referenceType, 'credit_package'),
+                eq(creditTransactions.type, 'earned'),
+                gte(creditTransactions.createdAt, new Date(paymentOrder.createdAt))
+              )
+            )
+            .orderBy(desc(creditTransactions.createdAt))
+            .limit(1);
+
+          if (existingTransaction) {
+            logger.warn('⚠️ RazorpayService: Credits already added for this payment order, skipping duplicate:', {
+              userId,
+              creditPackageId,
+              paymentOrderId,
+              existingTransactionId: existingTransaction.id,
+            });
+            const [userCredit] = await db
+              .select()
+              .from(userCredits)
+              .where(eq(userCredits.userId, userId))
+              .limit(1);
+            return {
+              success: true,
+              data: {
+                creditsAdded: 0,
+                newBalance: userCredit?.balance || 0,
+                skipped: true,
+                reason: 'Credits already added for this payment order',
+              },
+            };
+          }
+        }
+      }
+
+      // ✅ OPTIMIZED: Fetch package and check user credits in parallel
+      const [packageDataResult, existingCreditResult] = await Promise.all([
         db
           .select()
           .from(creditPackages)
@@ -342,48 +394,11 @@ export class RazorpayService {
           .from(userCredits)
           .where(eq(userCredits.userId, userId))
           .limit(1),
-        // ✅ FIXED: Check for duplicate credit transactions to prevent double addition
-        db
-          .select()
-          .from(creditTransactions)
-          .where(
-            and(
-              eq(creditTransactions.userId, userId),
-              eq(creditTransactions.referenceId, creditPackageId),
-              eq(creditTransactions.type, 'earned'),
-              gte(creditTransactions.createdAt, fiveMinutesAgo)
-            )
-          )
-          .orderBy(desc(creditTransactions.createdAt))
-          .limit(1),
       ]);
 
       const [packageData] = packageDataResult;
       if (!packageData) {
         return { success: false, error: 'Credit package not found' };
-      }
-
-      // ✅ FIXED: Check if credits were already added for this package in the last 5 minutes
-      const [duplicateTransaction] = duplicateTransactionResult;
-      if (duplicateTransaction) {
-        logger.warn('⚠️ RazorpayService: Duplicate credit addition detected, skipping:', {
-          userId,
-          creditPackageId,
-          existingTransactionId: duplicateTransaction.id,
-          existingTransactionCreatedAt: duplicateTransaction.createdAt,
-        });
-        // Get current balance to return
-        const [userCredit] = existingCreditResult;
-        const currentBalance = userCredit?.balance || 0;
-        return {
-          success: true,
-          data: {
-            creditsAdded: 0,
-            newBalance: currentBalance,
-            skipped: true,
-            reason: 'Credits already added for this package',
-          },
-        };
       }
 
       const totalCredits = packageData.credits + packageData.bonusCredits;
@@ -1103,7 +1118,12 @@ Please verify the plan exists in Razorpay Dashboard.`;
 
       // CRITICAL: Always add credits when payment is verified (even if subscription was already active)
       // This ensures credits are added on first payment and any subsequent verifications
-      const creditsResult = await this.addSubscriptionCredits(subscription.userId, subscription.planId);
+      // ✅ Pass payment order ID for idempotency check
+      const creditsResult = await this.addSubscriptionCredits(
+        subscription.userId, 
+        subscription.planId,
+        paymentOrder?.id
+      );
       let creditsAdded = false;
       let newBalance = 0;
       
@@ -1148,11 +1168,53 @@ Please verify the plan exists in Razorpay Dashboard.`;
   /**
    * Add credits when subscription payment is successful
    */
-  static async addSubscriptionCredits(userId: string, planId: string) {
+  static async addSubscriptionCredits(userId: string, planId: string, paymentOrderId?: string) {
     try {
-      // ✅ OPTIMIZED: Fetch plan, check user credits, and check for recent transaction in parallel
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-      const [planResult, existingCreditResult, recentTransactionResult] = await Promise.all([
+      // ✅ IMPROVED IDEMPOTENCY: Check if credits already added for this specific payment order
+      if (paymentOrderId) {
+        const [paymentOrder] = await db
+          .select()
+          .from(paymentOrders)
+          .where(eq(paymentOrders.id, paymentOrderId))
+          .limit(1);
+
+        if (paymentOrder) {
+          // Check if credit transaction exists for this payment order
+          // We check if a transaction was created after the payment order was created
+          const [existingTransaction] = await db
+            .select()
+            .from(creditTransactions)
+            .where(
+              and(
+                eq(creditTransactions.userId, userId),
+                eq(creditTransactions.referenceId, planId),
+                eq(creditTransactions.referenceType, 'subscription'),
+                eq(creditTransactions.type, 'earned'),
+                gte(creditTransactions.createdAt, new Date(paymentOrder.createdAt))
+              )
+            )
+            .orderBy(desc(creditTransactions.createdAt))
+            .limit(1);
+
+          if (existingTransaction) {
+            logger.warn('⚠️ RazorpayService: Credits already added for this payment order, skipping duplicate:', {
+              userId,
+              planId,
+              paymentOrderId,
+              existingTransactionId: existingTransaction.id,
+            });
+            const [userCredit] = await db
+              .select()
+              .from(userCredits)
+              .where(eq(userCredits.userId, userId))
+              .limit(1);
+            return { success: true, newBalance: userCredit?.balance || 0, alreadyAdded: true };
+          }
+        }
+      }
+
+      // ✅ OPTIMIZED: Fetch plan and check user credits in parallel
+      const [planResult, existingCreditResult] = await Promise.all([
         db
           .select()
           .from(subscriptionPlans)
@@ -1162,19 +1224,6 @@ Please verify the plan exists in Razorpay Dashboard.`;
           .select()
           .from(userCredits)
           .where(eq(userCredits.userId, userId))
-          .limit(1),
-        db
-          .select()
-          .from(creditTransactions)
-          .where(
-            and(
-              eq(creditTransactions.userId, userId),
-              eq(creditTransactions.referenceId, planId),
-              eq(creditTransactions.referenceType, 'subscription'),
-              gte(creditTransactions.createdAt, fiveMinutesAgo)
-            )
-          )
-          .orderBy(desc(creditTransactions.createdAt))
           .limit(1),
       ]);
 
@@ -1196,13 +1245,6 @@ Please verify the plan exists in Razorpay Dashboard.`;
           })
           .returning();
         userCredit = newCredit;
-      }
-
-      // Check if credits were already added recently
-      const [recentTransaction] = recentTransactionResult;
-      if (recentTransaction) {
-        logger.log('⚠️ RazorpayService: Credits already added recently for this subscription, skipping duplicate');
-        return { success: true, newBalance: userCredit.balance, alreadyAdded: true };
       }
 
       // ✅ OPTIMIZED: Update credits and create transaction in parallel
@@ -1522,13 +1564,8 @@ Please verify the plan exists in Razorpay Dashboard.`;
           }
         }
         
-        // Always add initial credits when payment is authorized/captured
-        const creditsResult = await this.addSubscriptionCredits(subscription.userId, subscription.planId);
-        if (creditsResult.success) {
-          logger.log('✅ RazorpayService: Credits added via payment.authorized webhook. New balance:', creditsResult.newBalance);
-        } else if (!creditsResult.alreadyAdded) {
-          logger.error('❌ RazorpayService: Failed to add credits in payment.authorized webhook:', creditsResult.error);
-        }
+        // ✅ REMOVED: Credit addition - credits are added by verification (app), not webhooks
+        // Webhooks only verify and update status, app handles credit addition
       } else {
         logger.warn('⚠️ RazorpayService: Payment not authorized/captured, skipping payment order creation. Payment status check failed.');
       }
@@ -1692,10 +1729,8 @@ Please verify the plan exists in Razorpay Dashboard.`;
       })
       .where(eq(paymentOrders.id, paymentOrder.id));
 
-    // Add credits to user account
-    if (paymentOrder.referenceId) {
-      await this.addCreditsToAccount(paymentOrder.userId, paymentOrder.referenceId);
-    }
+    // ✅ REMOVED: Credit addition - credits are added by verification (app), not webhooks
+    // Webhooks only verify and update status, app handles credit addition
 
     // Generate invoice and receipt
     try {
@@ -1793,14 +1828,8 @@ Please verify the plan exists in Razorpay Dashboard.`;
       })
       .where(eq(userSubscriptions.id, subscription.id));
 
-    // Add initial credits (always add on activation)
-    // Check if credits were already added to avoid duplicates
-    const creditsResult = await this.addSubscriptionCredits(subscription.userId, subscription.planId);
-    if (creditsResult.success) {
-      logger.log('✅ RazorpayService: Subscription activated and initial credits added. New balance:', creditsResult.newBalance);
-    } else {
-      logger.error('❌ RazorpayService: Failed to add credits on activation:', creditsResult.error);
-    }
+    // ✅ REMOVED: Credit addition - credits are added by verification (app), not webhooks
+    // Webhooks only verify and update status, app handles credit addition
 
     // Get payment ID from webhook payload and fetch payment method
     const paymentId = payload.payment?.entity?.id;
@@ -2059,19 +2088,9 @@ Please verify the plan exists in Razorpay Dashboard.`;
         .where(eq(paymentOrders.id, existingPaymentOrder.id));
     }
 
-    // Add monthly credits for recurring payment
-    // Only add if subscription was already active (to avoid duplicate on first payment)
-    if (subscription.status === 'active') {
-      const creditsResult = await this.addSubscriptionCredits(subscription.userId, subscription.planId);
-      if (creditsResult.success) {
-        logger.log('✅ RazorpayService: Recurring payment processed and credits added:', creditsResult.newBalance);
-      } else {
-        logger.error('❌ RazorpayService: Failed to add credits on charge:', creditsResult.error);
-      }
-    } else {
-      // If not active, this might be the first payment - let activation handler deal with it
-      logger.log('⚠️ RazorpayService: Subscription not active, skipping credit addition (activation handler should process)');
-    }
+    // ✅ REMOVED: Credit addition - credits are added by verification (app), not webhooks
+    // Webhooks only verify and update status, app handles credit addition
+    // For recurring payments, the app will verify and add credits when user checks subscription status
 
     // Generate invoice and receipt for recurring charge
     if (recurringPaymentOrder && recurringPaymentOrder.status === 'completed') {

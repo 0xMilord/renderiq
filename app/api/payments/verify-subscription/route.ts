@@ -156,35 +156,17 @@ export async function POST(request: NextRequest) {
           })
           .where(eq(userSubscriptions.id, subscription.subscription.id));
 
-        // Add initial credits
-        if (subscription.plan) {
-          const creditsResult = await RazorpayService.addSubscriptionCredits(
-            user.id,
-            subscription.subscription.planId
-          );
-
-          if (creditsResult.success) {
-            logger.log('✅ API: Subscription activated and credits added:', creditsResult.newBalance);
-            return NextResponse.json({
-              success: true,
-              data: {
-                activated: true,
-                creditsAdded: true,
-                newBalance: creditsResult.newBalance,
-              },
-            });
-          } else {
-            logger.error('❌ API: Failed to add credits:', creditsResult.error);
-            return NextResponse.json({
-              success: true,
-              data: {
-                activated: true,
-                creditsAdded: false,
-                error: creditsResult.error,
-              },
-            });
-          }
-        }
+        // ✅ REMOVED: Credit addition - credits are added by verifySubscriptionPayment(), not in fallback route
+        // This fallback route should only activate subscription, credits are handled by proper verification
+        logger.log('✅ API: Subscription activated (credits will be added via proper verification)');
+        return NextResponse.json({
+          success: true,
+          data: {
+            activated: true,
+            creditsAdded: false,
+            message: 'Subscription activated. Please use proper payment verification to add credits.',
+          },
+        });
       } else if (subscription.subscription.status === 'active') {
         logger.log('✅ API: Subscription already active');
         return NextResponse.json({

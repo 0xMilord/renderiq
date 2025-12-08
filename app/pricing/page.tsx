@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PricingPlans } from '@/components/pricing/pricing-plans';
 import { CreditPackages } from '@/components/pricing/credit-packages';
 import { getPricingPageDataAction } from '@/lib/actions/pricing.actions';
@@ -11,7 +10,6 @@ import { resetCurrencyToINR } from '@/lib/utils/reset-currency-to-inr';
 import OptimizedBackground from '@/components/home/optimized-background';
 
 export default function PricingPage() {
-  const [activeTab, setActiveTab] = useState<'plans' | 'credits'>('plans');
   const [plans, setPlans] = useState<any[]>([]);
   const [creditPackages, setCreditPackages] = useState<any[]>([]);
   const [userCredits, setUserCredits] = useState<any>(null);
@@ -67,39 +65,46 @@ export default function PricingPage() {
       {/* Grid Background */}
       <OptimizedBackground />
       
-      <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 pt-[calc(1rem+2.75rem+1.5rem+3rem)] pb-12 relative z-10">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold tracking-tight mb-4">
-            Pricing & Credits
+      {/* Full Width Container - Like Gallery Section */}
+      <div className="w-full px-4 sm:px-6 lg:px-8 pt-[calc(1rem+2.75rem+1.5rem+3rem)] pb-12 relative z-10">
+        {/* Header - Full Width */}
+        <div className="w-full text-center mb-12">
+          <h1 className="text-3xl font-bold tracking-tight mb-4">
+            Pricing
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Choose a subscription plan for unlimited renders or purchase credits for pay-as-you-go usage.
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Choose a subscription plan for unlimited usage or purchase credits for pay-as-you-go.
             {userCredits && (
-              <span className="block mt-2 text-lg font-semibold text-foreground">
+              <span className="block mt-2 text-base font-semibold text-foreground">
                 Your Credits: {userCredits.balance || 0}
               </span>
             )}
           </p>
         </div>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'plans' | 'credits')} className="w-full">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8">
-            <TabsTrigger value="plans">Subscription Plans</TabsTrigger>
-            <TabsTrigger value="credits">Credit Packages</TabsTrigger>
-          </TabsList>
+        {/* Main Content Section - Full Width */}
+        <div className="w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            {/* Left Column: Subscription Plans (3/4 width) */}
+            <div className="lg:col-span-3 order-1">
+              <PricingPlans plans={plans} userCredits={userCredits} userSubscription={userSubscription} />
+            </div>
 
-          <TabsContent value="plans" className="mt-8">
-            <PricingPlans plans={plans} userCredits={userCredits} userSubscription={userSubscription} />
-          </TabsContent>
-
-          <TabsContent value="credits" className="mt-8">
-            <CreditPackages packages={creditPackages} userCredits={userCredits} onPurchaseComplete={loadData} />
-          </TabsContent>
-        </Tabs>
+            {/* Right Column: Credit Packages (1/4 width) */}
+            <div className="lg:col-span-1 order-2">
+              <div className="lg:sticky lg:top-24">
+                <div className="text-right mb-6">
+                  <h2 className="text-xl font-bold mb-1">Pay As You Go</h2>
+                  <p className="text-xs text-muted-foreground">
+                    Purchase credits for flexible usage
+                  </p>
+                </div>
+                <CreditPackages packages={creditPackages} userCredits={userCredits} onPurchaseComplete={loadData} />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
-

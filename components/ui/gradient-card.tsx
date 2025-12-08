@@ -229,7 +229,7 @@ export const GradientCard = ({
           }}
         >
           <motion.h3
-            className={`text-xl font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-[hsl(0,0%,7%)]'}`}
+            className={`text-base font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-[hsl(0,0%,7%)]'}`}
             style={{
               letterSpacing: "-0.01em",
               lineHeight: 1.2,

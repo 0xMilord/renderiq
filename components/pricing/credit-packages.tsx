@@ -13,29 +13,19 @@ import { SUPPORTED_CURRENCIES } from '@/lib/utils/currency';
 import { logger } from '@/lib/utils/logger';
 import { calculateSavings } from '@/lib/utils/pricing';
 
-// Helper function to format numbers with k/m/b suffixes (no decimals)
+// Helper function to format numbers (no compact formatting)
 const formatNumberCompact = (num: number | string | null | undefined): string => {
   const number = typeof num === 'string' ? parseFloat(num) : (num || 0);
   const value = isNaN(number) ? 0 : number;
-  
-  if (value >= 1000000000) {
-    return (value / 1000000000).toFixed(1).replace(/\.0$/, '') + 'b';
-  }
-  if (value >= 1000000) {
-    return (value / 1000000).toFixed(1).replace(/\.0$/, '') + 'm';
-  }
-  if (value >= 1000) {
-    return (value / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
-  }
-  return Math.round(value).toString();
+  return Math.round(value).toLocaleString();
 };
 
-// Helper function to format currency with k/m/b suffixes
+// Helper function to format currency (no compact formatting)
 const formatCurrencyCompact = (amount: number, currency: string): string => {
   const currencyInfo = SUPPORTED_CURRENCIES[currency] || SUPPORTED_CURRENCIES['INR'];
   const symbol = currencyInfo.symbol;
-  const compact = formatNumberCompact(amount);
-  return `${symbol}${compact}`;
+  const formatted = Math.round(amount).toLocaleString();
+  return `${symbol}${formatted}`;
 };
 
 interface CreditPackagesProps {
@@ -397,21 +387,14 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
   }
 
   return (
-    <div className="space-y-8">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold mb-2">Buy Credits</h2>
-        <p className="text-muted-foreground">
-          Purchase credits for pay-as-you-go usage. Credits never expire.
-        </p>
-      </div>
-
+    <div className="space-y-4">
       {/* Sort packages by display_order */}
       {/* ✅ OPTIMIZED: Memoize sorted packages to avoid recalculating on every render */}
       {useMemo(() => {
         const sortedPackages = [...packages].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
         
         return (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 gap-4">
             {sortedPackages.map((pkg) => {
               const totalCredits = pkg.credits + (pkg.bonusCredits || 0);
               // Use pricePerCredit from database if available, otherwise calculate
@@ -426,7 +409,7 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
                       {pkg.description || undefined}
                       {pkg.pricingTier === 'bulk' && (
                         <span className="block mt-1 text-[hsl(72,87%,62%)] text-xs font-semibold">
-                          Enterprise Pricing - Best Value
+                          Best Value
                         </span>
                       )}
                     </>
@@ -435,78 +418,81 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
                   className="h-full"
                   glowColor="rgba(209, 242, 74, 0.7)"
                 >
-                  {/* Credits and Pricing Information - 1 row, 2 columns */}
-                  <div className="grid grid-cols-2 gap-3 mb-4">
+                  {/* Credits and Pricing Information - Compact layout */}
+                  <div className="space-y-1 mb-2">
                     {/* Credits */}
                     <div className="text-center">
-                      <div className={`text-2xl font-bold mb-0.5 ${isDarkMode ? 'text-white' : 'text-[hsl(0,0%,7%)]'}`}>
-                        {formatNumberCompact(Number(totalCredits) || 0)}
+                      <div className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-[hsl(0,0%,7%)]'}`}>
+                        {formatNumberCompact(Number(totalCredits) || 0)} <span className="text-sm font-normal">Credits</span>
                       </div>
-                      <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {formatNumberCompact(Number(pkg.credits) || 0)} credits
-                        {pkg.bonusCredits > 0 && (
-                          <span className="text-[hsl(72,87%,62%)]"> +{formatNumberCompact(Number(pkg.bonusCredits) || 0)}</span>
-                        )}
-                      </div>
+                      {pkg.bonusCredits > 0 && (
+                        <div className={`text-[10px] ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {formatNumberCompact(Number(pkg.credits) || 0)} + <span className="text-[hsl(72,87%,62%)]">{formatNumberCompact(Number(pkg.bonusCredits) || 0)} bonus</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Pricing */}
                     <div className="text-center">
-                      <div className={`text-2xl font-bold mb-0.5 ${isDarkMode ? 'text-white' : 'text-[hsl(0,0%,7%)]'}`}>
+                      <div className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-[hsl(0,0%,7%)]'}`}>
                         {currencyLoading || !convertedPrices[pkg.id] 
                           ? '...' 
                           : formatCurrencyCompact(convertedPrices[pkg.id], currency)}
                       </div>
-                      <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {currencyLoading || !convertedPrices[pkg.id]
-                          ? '...'
-                          : `${formatCurrencyCompact(Math.round(pricePerCredit), currency)}/credit`}
-                      </div>
-                      {/* Show savings for bulk packages */}
-                      {pkg.pricingTier === 'bulk' && (() => {
-                        const savings = calculateSavings(Number(totalCredits), pricePerCredit);
-                        if (savings.percentage > 0) {
-                          return (
-                            <div className="text-xs text-[hsl(72,87%,62%)] font-semibold mt-1">
-                              Save {savings.percentage.toFixed(0)}%
-                            </div>
-                          );
-                        }
-                        return null;
-                      })()}
                     </div>
                   </div>
 
                   {/* Buy Now Button */}
-                  <Button
-                    className="w-full bg-[hsl(72,87%,62%)] text-[hsl(0,0%,7%)] hover:bg-[hsl(72,87%,55%)] font-semibold"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handlePurchase(pkg.id, pkg);
-                    }}
-                    disabled={loading === pkg.id || !razorpayLoaded || razorpayLoading || !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID}
-                    title={
-                      !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID 
-                        ? 'Payment gateway not configured' 
-                        : razorpayLoading || !razorpayLoaded
-                          ? 'Payment gateway is loading...' 
-                          : ''
-                    }
-                  >
-                    {loading === pkg.id ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Processing...
-                      </>
-                    ) : razorpayLoading || !razorpayLoaded ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Loading...
-                      </>
-                    ) : (
-                      'Buy Now'
-                    )}
-                  </Button>
+                  <div className="space-y-0.5">
+                    <Button
+                      className="w-full bg-[hsl(72,87%,62%)] text-[hsl(0,0%,7%)] hover:bg-[hsl(72,87%,55%)] font-semibold text-sm flex flex-col items-center justify-center py-1.5"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePurchase(pkg.id, pkg);
+                      }}
+                      disabled={loading === pkg.id || !razorpayLoaded || razorpayLoading || !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID}
+                      title={
+                        !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID 
+                          ? 'Payment gateway not configured' 
+                          : razorpayLoading || !razorpayLoaded
+                            ? 'Payment gateway is loading...' 
+                            : ''
+                      }
+                    >
+                      {loading === pkg.id ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Processing...
+                        </>
+                      ) : razorpayLoading || !razorpayLoaded ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <span>Buy Now</span>
+                          {!currencyLoading && convertedPrices[pkg.id] && (
+                            <span className="text-[8px] font-normal opacity-75 leading-tight">
+                              {formatCurrencyCompact(Math.round(pricePerCredit), currency)}/credit
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </Button>
+                    {/* Show savings for bulk packages below button */}
+                    {pkg.pricingTier === 'bulk' && (() => {
+                      const savings = calculateSavings(Number(totalCredits), pricePerCredit);
+                      if (savings.percentage > 0) {
+                        return (
+                          <div className="text-[10px] text-[hsl(72,87%,62%)] font-semibold text-center">
+                            Save {savings.percentage.toFixed(0)}%
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
                 </GradientCard>
               );
             })}
