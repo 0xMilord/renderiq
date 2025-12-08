@@ -171,6 +171,7 @@ export function FAQSection() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const checkScrollButtons = () => {
     if (scrollContainerRef.current) {
@@ -181,6 +182,11 @@ export function FAQSection() {
   };
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
     checkScrollButtons();
     const container = scrollContainerRef.current;
     if (container) {
@@ -191,7 +197,7 @@ export function FAQSection() {
         window.removeEventListener('resize', checkScrollButtons);
       };
     }
-  }, []);
+  }, [mounted]);
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
@@ -202,6 +208,47 @@ export function FAQSection() {
       });
     }
   };
+
+  // Prevent hydration mismatch by not rendering Radix components until mounted
+  if (!mounted) {
+    return (
+      <section id="faq" className="bg-[hsl(72,87%,62%)] w-full overflow-x-hidden relative">
+        <div className="w-full px-4 sm:px-6 lg:px-8 relative border-l-[2px] border-r-[2px] border-b-[2px] border-[hsl(0,0%,7%)]">
+          <div className="w-full relative">
+            <div className="text-left relative pt-8">
+              <h2 className="text-4xl md:text-5xl font-bold text-[hsl(0,0%,7%)] mb-6">
+                Frequently Asked Questions
+              </h2>
+              <p className="text-xl text-[hsl(0,0%,20%)] max-w-3xl pb-6">
+                Everything you need to know about Renderiq
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="w-full relative border-l-[2px] border-b-[2px] border-[hsl(0,0%,7%)]">
+          <div className="absolute inset-0 bg-black -z-10"></div>
+          <div className="flex flex-col lg:flex-row w-full overflow-hidden relative">
+            <div className="w-full lg:w-[60%] order-1 lg:order-1 px-4 sm:px-6 lg:px-8 py-8 bg-[hsl(72,87%,62%)] relative flex flex-col border-r-[2px] border-[hsl(0,0%,7%)]">
+              <div className="w-full relative px-4 sm:px-6 lg:px-8 py-6 rounded-2xl bg-background flex-1 border-[2px] border-[hsl(0,0%,7%)] min-h-[400px]">
+                {/* Loading state */}
+              </div>
+            </div>
+            <div className="w-full lg:w-[40%] flex items-center justify-end order-2 lg:order-2 bg-[hsl(72,87%,62%)] lg:ml-auto lg:mr-0 lg:pr-0 lg:relative border-r-[2px] border-[hsl(0,0%,7%)]" style={{ marginRight: 'calc((100vw - 100%) / -2)' }}>
+              <div className="relative w-full h-full min-h-[400px] lg:min-h-[600px]">
+                <Image
+                  src="/home/faq-section.svg"
+                  alt="FAQ Illustration"
+                  fill
+                  className="object-contain object-right"
+                  priority
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section id="faq" className="bg-[hsl(72,87%,62%)] w-full overflow-x-hidden relative">

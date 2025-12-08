@@ -81,13 +81,8 @@ export function UserDropdown() {
     return (
       <div className="flex items-center space-x-2">
         <Link href="/login">
-          <Button variant="ghost" size="sm">
-            Sign In
-          </Button>
-        </Link>
-        <Link href="/signup">
           <Button size="sm">
-            Sign Up
+            Get Started
           </Button>
         </Link>
       </div>

@@ -97,7 +97,15 @@ function PaymentSuccessContent() {
           if (paymentData.success && paymentData.data) {
             setPaymentData(paymentData.data);
             setLoading(false); // Show page immediately with payment data
+          } else {
+            // Payment data not found or invalid - still show success page
+            console.warn('Payment data not found or invalid:', paymentData);
+            setLoading(false);
           }
+        } else {
+          // API call failed - still show success page (payment was verified)
+          console.warn('Failed to fetch payment details, but payment was successful');
+          setLoading(false);
         }
 
         // Fetch receipt in background (non-blocking)
@@ -173,9 +181,16 @@ function PaymentSuccessContent() {
             }
           }
         }
+      } else if (razorpayOrderId || razorpayPaymentId) {
+        // We only have Razorpay IDs but no payment order ID yet
+        // Payment was verified, so show success page even without full details
+        // The payment order will be created/updated by the webhook
+        console.log('Payment verified but order details not yet available. Webhook will update.');
+        setLoading(false);
+      } else {
+        // No payment identifiers - should not reach here due to early return
+        setLoading(false);
       }
-
-      setLoading(false);
     } catch (error) {
       console.error('Error fetching payment details:', error);
       setLoading(false);

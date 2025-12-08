@@ -18,6 +18,7 @@ import { Sparkles, Images, Lightbulb, Newspaper, CreditCard, Info, FileText, Mai
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { PWAInstallButton } from '@/components/pwa/install-button';
 import { Button } from '@/components/ui/button';
+import { getAllTools, CATEGORIES, type ToolCategory } from '@/lib/tools/registry';
 
 export function Footer() {
   return (
@@ -158,6 +159,27 @@ export function Footer() {
         </div>
 
         <div className="border-t mt-8 pt-8">
+          {/* Apps Links */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-foreground">Apps</h3>
+              <Link href="/apps" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                View All →
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 text-sm">
+              {getAllTools().map((tool) => (
+                <Link
+                  key={tool.id}
+                  href={`/apps/${tool.slug}`}
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                >
+                  {tool.name}
+                </Link>
+              ))}
+            </div>
+          </div>
+
           {/* Legal Links */}
           <div className="mb-6">
             <h3 className="font-semibold text-foreground mb-4">Legal</h3>

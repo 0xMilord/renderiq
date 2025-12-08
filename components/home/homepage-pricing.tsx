@@ -25,7 +25,7 @@ export async function HomepagePricing() {
 
   return (
     <section className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full">
         {/* Header */}
         <div className="text-center mb-12">
           <Badge className="mb-4 bg-primary text-primary-foreground px-4 py-2">
@@ -34,124 +34,165 @@ export async function HomepagePricing() {
           <h2 className="text-4xl md:text-5xl font-bold mb-6">
             Simple, Transparent Pricing
           </h2>
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-4">
-            Choose the plan that fits your needs. No hidden fees, cancel anytime. Perfect for AEC firms and design professionals.
-          </p>
         </div>
 
-        {/* Credit Packages Section - Featured First */}
-        {creditPackages.length > 0 && (
-          <div className="mb-16">
-            <div className="flex items-center justify-between mb-6">
-              <div>
+        {/* Pricing Layout: 1 row, 2 columns (1/4 credit packages, 3/4 subscription plans) */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Credit Packages Section - 1/4 width */}
+          {creditPackages.length > 0 && (
+            <div className="lg:col-span-1">
+              <div className="mb-6">
                 <h3 className="text-2xl font-bold mb-2 flex items-center gap-2">
                   <Coins className="h-6 w-6 text-primary" />
                   Credit Packages
                 </h3>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground text-sm mb-4">
                   Pay-as-you-go credits. Perfect for occasional use or trying out Renderiq.
                 </p>
+                <Link href="/pricing">
+                  <Button variant="outline" size="sm" className="w-full">
+                    View All Packages
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </Link>
               </div>
-              <Link href="/pricing">
-                <Button variant="outline">
-                  View All Packages
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              </Link>
-            </div>
-            
-            {/* Show top 3 credit packages */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-              {creditPackages.slice(0, 3).map((pkg: any) => (
-                <HomepageCreditPackageCard key={pkg.id} package={pkg} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Subscription Plans Section */}
-        {plans.length > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h3 className="text-2xl font-bold mb-2 flex items-center gap-2">
-                  <Sparkles className="h-6 w-6 text-primary" />
-                  Subscription Plans
-                </h3>
-                <p className="text-muted-foreground">
-                  Unlimited renders with monthly or annual billing. Perfect for regular users.
-                </p>
+              
+              {/* Show top 3 credit packages */}
+              <div className="space-y-4">
+                {creditPackages.slice(0, 3).map((pkg: any) => (
+                  <HomepageCreditPackageCard key={pkg.id} package={pkg} />
+                ))}
               </div>
-              <Link href="/pricing">
-                <Button variant="outline">
-                  View All Plans
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              </Link>
             </div>
+          )}
 
-            {/* Show top 3 subscription plans */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {plans
-                .filter((plan: any) => plan.interval === 'month') // Only show monthly plans on homepage
-                .slice(0, 3)
-                .map((plan: any) => (
-                <div
-                  key={plan.id}
-                  className="p-8 rounded-2xl border border-border bg-card hover:shadow-lg transition-all duration-300"
-                >
-                  <div className="text-center mb-8">
-                    <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
-                    <div className="text-4xl font-bold mb-2">
-                      ₹{Number(plan.price)}
+          {/* Subscription Plans Section - 3/4 width */}
+          {plans.length > 0 && (
+            <div className="lg:col-span-3 flex flex-col">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-2xl font-bold mb-2 flex items-center gap-2">
+                    <Sparkles className="h-6 w-6 text-primary" />
+                    Subscription Plans
+                  </h3>
+                  <p className="text-muted-foreground">
+                    Unlimited renders with monthly or annual billing. Perfect for regular users.
+                  </p>
+                </div>
+                <Link href="/pricing">
+                  <Button variant="outline">
+                    View All Plans
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </Link>
+              </div>
+
+              {/* Show top 3 subscription plans */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                {plans
+                  .filter((plan: any) => plan.interval === 'month') // Only show monthly plans on homepage
+                  .slice(0, 3)
+                  .map((plan: any) => (
+                  <div
+                    key={plan.id}
+                    className="p-8 rounded-2xl border border-border bg-card hover:shadow-lg transition-all duration-300"
+                  >
+                    <div className="text-center mb-8">
+                      <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
+                      <div className="text-4xl font-bold mb-2">
+                        ₹{Number(plan.price)}
+                      </div>
+                      <p className="text-muted-foreground">
+                        per {plan.interval === 'year' ? 'year' : 'month'}
+                      </p>
                     </div>
-                    <p className="text-muted-foreground">
-                      per {plan.interval === 'year' ? 'year' : 'month'}
-                    </p>
-                  </div>
-                  <ul className="space-y-3 mb-8">
-                    {plan.features && plan.features.length > 0 ? (
-                      plan.features.slice(0, 6).map((feature: string, idx: number) => (
-                        <li key={idx} className="flex items-center">
-                          <CheckCircle className="h-5 w-5 mr-3 text-green-500" />
-                          <span className="text-sm">{feature}</span>
-                        </li>
-                      ))
-                    ) : (
-                      <>
-                        <li className="flex items-center">
-                          <CheckCircle className="h-5 w-5 mr-3 text-green-500" />
-                          <span className="text-sm">
-                            {plan.creditsPerMonth || 'Unlimited'} credits per month
-                          </span>
-                        </li>
-                        <li className="flex items-center">
-                          <CheckCircle className="h-5 w-5 mr-3 text-green-500" />
-                          <span className="text-sm">
-                            {plan.maxProjects ? `${plan.maxProjects} projects` : 'Unlimited projects'}
-                          </span>
-                        </li>
-                        {plan.maxRendersPerProject && (
+                    <ul className="space-y-3 mb-8">
+                      {plan.features && plan.features.length > 0 ? (
+                        plan.features.slice(0, 6).map((feature: string, idx: number) => (
+                          <li key={idx} className="flex items-center">
+                            <CheckCircle className="h-5 w-5 mr-3 text-green-500" />
+                            <span className="text-sm">{feature}</span>
+                          </li>
+                        ))
+                      ) : (
+                        <>
                           <li className="flex items-center">
                             <CheckCircle className="h-5 w-5 mr-3 text-green-500" />
                             <span className="text-sm">
-                              {plan.maxRendersPerProject} renders per project
+                              {plan.creditsPerMonth || 'Unlimited'} credits per month
                             </span>
                           </li>
-                        )}
-                      </>
-                    )}
-                  </ul>
-                  <Link href="/pricing">
-                    <Button className="w-full" variant="outline">
-                      View Plan
-                    </Button>
-                  </Link>
+                          <li className="flex items-center">
+                            <CheckCircle className="h-5 w-5 mr-3 text-green-500" />
+                            <span className="text-sm">
+                              {plan.maxProjects ? `${plan.maxProjects} projects` : 'Unlimited projects'}
+                            </span>
+                          </li>
+                          {plan.maxRendersPerProject && (
+                            <li className="flex items-center">
+                              <CheckCircle className="h-5 w-5 mr-3 text-green-500" />
+                              <span className="text-sm">
+                                {plan.maxRendersPerProject} renders per project
+                              </span>
+                            </li>
+                          )}
+                        </>
+                      )}
+                    </ul>
+                    <Link href="/pricing">
+                      <Button className="w-full" variant="outline">
+                        View Plan
+                      </Button>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+
+              {/* Pay-as-you-go message row - fills remaining height */}
+              <div className="flex-1 flex items-center p-6 rounded-lg bg-muted/50 border border-border/50">
+                <div className="flex items-center gap-6 w-full">
+                  {/* Text - 70% width */}
+                  <div className="flex-[0.7]">
+                    <p className="text-2xl md:text-3xl font-bold text-foreground leading-tight">
+                      <span className="text-primary">No strings attached.</span> Pay as you go with flexible credit packages. Start rendering with as little as a cup of coffee.
+                    </p>
+                  </div>
+                  
+                  {/* Separator */}
+                  <div className="h-16 w-px bg-border"></div>
+                  
+                  {/* SVG Illustration - 30% width */}
+                  <div className="flex-[0.3] flex items-center justify-center">
+                    <svg
+                      viewBox="0 0 200 200"
+                      className="w-full h-full max-w-[150px] max-h-[150px] text-primary/60"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      {/* Broken chain / cut string illustration */}
+                      <g stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                        {/* Left string segment */}
+                        <path d="M 20 100 Q 40 70, 60 100 Q 80 130, 100 100" />
+                        {/* Right string segment */}
+                        <path d="M 100 100 Q 120 70, 140 100 Q 160 130, 180 100" />
+                        {/* Scissors cutting the string */}
+                        <g transform="translate(100, 100)">
+                          {/* Left blade */}
+                          <path d="M -20 -15 L 0 0 L -20 15" />
+                          {/* Right blade */}
+                          <path d="M 20 -15 L 0 0 L 20 15" />
+                          {/* Scissors handle */}
+                          <circle cx="-8" cy="0" r="4" fill="currentColor" />
+                          <circle cx="8" cy="0" r="4" fill="currentColor" />
+                        </g>
+                      </g>
+                    </svg>
+                  </div>
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* CTA */}
         <div className="text-center mt-12">

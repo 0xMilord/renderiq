@@ -14,11 +14,22 @@ const UseCasesSection = memo(function UseCasesSection() {
   return (
     <section id="use-cases" className="w-full overflow-x-hidden relative bg-background/80 backdrop-blur-sm">
       {/* Header Section - Two Column Layout */}
-      <div className={`w-full px-4 sm:px-6 lg:px-8 relative border-l-[5px] border-r-[5px] border-b-[5px] ${borderClass}`}>
+      <div className={`w-full relative border-l-[5px] border-r-[5px] border-b-[5px] ${borderClass}`}>
         <div className="w-full">
-          <div className="grid grid-cols-1 lg:grid-cols-[50%_50%] gap-0 relative pt-8">
-            {/* Column 1 - 50% - Text, Description, and Tag */}
-            <div className="text-left relative pb-6 lg:pb-8 pr-0 lg:pr-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[30%_70%] gap-0 relative items-center">
+            {/* Column 1 - Illustration (30%) */}
+            <div className="relative w-full h-full min-h-[200px] lg:min-h-[400px] m-0 p-0">
+              <Image
+                src="/home/use-cases-section.svg"
+                alt="Use Cases Illustration"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
+
+            {/* Column 2 - Text, Title, and Description (70%) */}
+            <div className="text-right p-8 flex flex-col items-end">
               <Badge className="mb-4 bg-muted text-muted-foreground px-4 py-2">
                 Use Cases
               </Badge>
@@ -29,19 +40,6 @@ const UseCasesSection = memo(function UseCasesSection() {
               <p className="text-xl max-w-3xl text-muted-foreground">
                 Transform your architectural projects with AI-powered visualization tools designed for AEC professionals
               </p>
-            </div>
-
-            {/* Column 2 - 50% - Illustration */}
-            <div className="relative flex items-center justify-center lg:justify-end pb-6 lg:pb-8 pl-0 lg:pl-6">
-              <div className="relative w-full h-full min-h-[200px] lg:min-h-[300px] max-w-md">
-                <Image
-                  src="/home/use-cases-section.svg"
-                  alt="Use Cases Illustration"
-                  fill
-                  className="object-contain object-center lg:object-right"
-                  priority
-                />
-              </div>
             </div>
           </div>
         </div>

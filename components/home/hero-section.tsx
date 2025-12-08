@@ -9,6 +9,7 @@ import { Marquee } from '@/components/ui/marquee';
 import { AvatarCircles } from '@/components/ui/avatar-circles';
 import { TickingNumber } from '@/components/ui/ticking-number';
 import { HeroGallerySlideshow } from './hero-gallery-slideshow';
+import { cn } from '@/lib/utils';
 import type { GalleryItemWithDetails } from '@/lib/types';
 
 interface HeroSectionProps {
@@ -207,20 +208,25 @@ const HeroSection = memo(function HeroSection({ avatarData, totalUsers, galleryI
             <p className={`text-xl md:text-3xl ${textMutedColor} text-center mb-6 font-semibold mx-auto`}>
               Used by top Architects, Engineers, and Visualizers at
             </p>
-            <div className={`border-b-[2px] ${borderClass} mb-6 mx-auto max-w-7xl`}></div>
-            <div className="relative flex w-full flex-col items-center justify-center overflow-hidden">
+            <div className={`border-b-[2px] ${borderClass} mx-auto max-w-7xl`}></div>
+            <div className="relative flex w-full flex-col items-center justify-center overflow-hidden mt-6">
               <Marquee pauseOnHover className="[--duration:20s]">
                 {firstRow.map((firm, index) => (
                   <div
                     key={`${firm.name}-first-${index}`}
-                    className="flex items-center justify-center h-16 md:h-20 px-8 opacity-60 hover:opacity-100 transition-opacity shrink-0"
+                    className="flex items-center justify-center h-16 md:h-20 px-8 shrink-0"
                   >
                     <Image
                       src={firm.logo}
                       alt={`${firm.name} logo`}
                       width={120}
                       height={60}
-                      className="max-w-full max-h-full object-contain"
+                      className={cn(
+                        "max-w-full max-h-full object-contain transition-opacity hover:opacity-100",
+                        isDarkMode 
+                          ? "opacity-70 [filter:grayscale(100%)brightness(1.5)invert(0.4)]" 
+                          : "opacity-70 [filter:grayscale(100%)brightness(0.4)invert(0.1)]"
+                      )}
                       loading="lazy"
                     />
                   </div>
@@ -230,14 +236,19 @@ const HeroSection = memo(function HeroSection({ avatarData, totalUsers, galleryI
                 {secondRow.map((firm, index) => (
                   <div
                     key={`${firm.name}-second-${index}`}
-                    className="flex items-center justify-center h-16 md:h-20 px-8 opacity-60 hover:opacity-100 transition-opacity shrink-0"
+                    className="flex items-center justify-center h-16 md:h-20 px-8 shrink-0"
                   >
                     <Image
                       src={firm.logo}
                       alt={`${firm.name} logo`}
                       width={120}
                       height={60}
-                      className="max-w-full max-h-full object-contain"
+                      className={cn(
+                        "max-w-full max-h-full object-contain transition-opacity hover:opacity-100",
+                        isDarkMode 
+                          ? "opacity-70 [filter:grayscale(100%)brightness(1.5)invert(0.4)]" 
+                          : "opacity-70 [filter:grayscale(100%)brightness(0.4)invert(0.1)]"
+                      )}
                       loading="lazy"
                     />
                   </div>

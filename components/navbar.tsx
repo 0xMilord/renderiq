@@ -290,36 +290,36 @@ export function Navbar() {
                     </DropdownMenuTrigger>
                   <DropdownMenuContent 
                     align="start" 
-                    className="bg-background border border-border rounded-lg shadow-lg z-50 p-4"
+                    className="bg-background border border-border rounded-lg shadow-lg z-50 p-6"
                   >
-                    <div className="grid grid-cols-5 gap-0 min-w-[600px]">
+                    <div className="grid grid-cols-4 gap-2 min-w-[800px] max-w-[900px]">
                       {/* View All Apps - First Item */}
-                      <div className="relative col-span-5 border-b border-border pb-3 mb-3">
+                      <div className="relative">
                         <DropdownMenuItem asChild>
                           <Link 
                             href="/apps"
-                            className="flex items-center gap-2 p-2 rounded-md hover:bg-accent transition-colors min-w-0 font-medium"
+                            className="flex flex-col items-center gap-3 p-4 rounded-lg border border-transparent hover:bg-primary/20 hover:border-primary transition-all min-w-0 text-center"
                           >
-                            <Wrench className="h-4 w-4 shrink-0" />
-                            <span className="text-sm leading-tight truncate min-w-0">View All Apps</span>
+                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                              <Wrench className="h-5 w-5 shrink-0" />
+                            </div>
+                            <span className="text-sm leading-snug truncate min-w-0 w-full">View All Apps</span>
                           </Link>
                         </DropdownMenuItem>
                       </div>
                       {getAllTools().map((tool, index) => {
                         const ToolIcon = getToolIcon(tool.id);
-                        const isLastInRow = (index + 1) % 5 === 0;
                         return (
                           <div key={tool.id} className="relative">
-                            {!isLastInRow && (
-                              <div className="absolute right-0 top-0 bottom-0 w-px bg-border" />
-                            )}
                             <DropdownMenuItem asChild>
                               <Link 
                                 href={`/apps/${tool.slug}`}
-                                className="flex items-center gap-2 p-2 rounded-md hover:bg-accent transition-colors min-w-0"
+                                className="flex flex-col items-center gap-3 p-4 rounded-lg border border-transparent hover:bg-primary/20 hover:border-primary transition-all min-w-0 text-center"
                               >
-                                <ToolIcon className="h-4 w-4 shrink-0" />
-                                <span className="text-xs leading-tight truncate min-w-0">{tool.name}</span>
+                                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                                  <ToolIcon className="h-5 w-5 shrink-0" />
+                                </div>
+                                <span className="text-sm leading-snug truncate min-w-0 w-full">{tool.name}</span>
                               </Link>
                             </DropdownMenuItem>
                           </div>
