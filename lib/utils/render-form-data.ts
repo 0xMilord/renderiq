@@ -23,6 +23,7 @@ export interface RenderFormDataOptions {
   uploadedImageType?: string;
   styleTransferBase64?: string | null;
   styleTransferImageType?: string;
+  model?: string; // Model ID (e.g., 'gemini-3-pro-image-preview', 'veo-3.1-generate-preview')
 }
 
 /**
@@ -62,6 +63,7 @@ export function createRenderFormData(options: RenderFormDataOptions): FormData {
   fd.append('isPublic', options.isPublic.toString());
   if (options.environment && options.environment !== 'none') fd.append('environment', options.environment);
   if (options.effect && options.effect !== 'none') fd.append('effect', options.effect);
+  if (options.model) fd.append('model', options.model);
   if (options.uploadedImageBase64) {
     fd.append('uploadedImageData', options.uploadedImageBase64);
     if (options.uploadedImageType) {

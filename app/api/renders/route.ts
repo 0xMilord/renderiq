@@ -133,9 +133,25 @@ export async function POST(request: NextRequest) {
     }
     
     const temperatureParam = formData.get('temperature') as string | null;
+    const model = sanitizeInput(formData.get('model') as string | null);
     const temperature = temperatureParam ? parseFloat(temperatureParam) : 0.7;
     if (isNaN(temperature) || temperature < 0 || temperature > 2) {
       return NextResponse.json({ success: false, error: 'Invalid temperature value' }, { status: 400 });
+    }
+    
+    // Validate model + quality combination if model is specified
+    if (model && type === 'image') {
+      const { getModelConfig, modelSupportsQuality, getMaxQuality } = await import('@/lib/config/models');
+      const modelConfig = getModelConfig(model as any);
+      if (modelConfig && modelConfig.type === 'image') {
+        if (!modelSupportsQuality(model as any, quality)) {
+          const maxQuality = getMaxQuality(model as any);
+          return NextResponse.json({ 
+            success: false, 
+            error: `Quality "${quality}" is not supported by model "${model}". Maximum supported quality: ${maxQuality}` 
+          }, { status: 400 });
+        }
+      }
     }
     
     const durationParam = formData.get('duration') as string | null;
@@ -197,35 +213,51 @@ export async function POST(request: NextRequest) {
       logger.log('📝 Single request mode (useBatchAPI=false or type!=image)');
     }
 
-    // Calculate credits cost FIRST
-    // For videos: Based on Google Veo 3.1 pricing ($0.75/second) with 2x markup
-    // 1 credit = 5 INR, 1 USD = 100 INR (updated conversion rate)
-    // Cost per second: $0.75 × 2 (markup) × 100 (INR/USD) / 5 (INR/credit) = 30 credits/second
+    // Calculate credits cost FIRST using model-based pricing
+    // Import model config for credit calculation
+    const { getModelConfig, getDefaultModel } = await import('@/lib/config/models');
+    
     if (type === 'video') {
-      // Veo 3.1 pricing: $0.75/second, with 2x markup = $1.50/second
-      // In INR: $1.50 × 100 = 150 INR/second
-      // At 5 INR/credit: 150 / 5 = 30 credits/second
-      const creditsPerSecond = 30;
-      creditsCost = creditsPerSecond * videoDuration;
+      // Get model config or use default
+      const videoModelId = model || getDefaultModel('video').id;
+      const modelConfig = getModelConfig(videoModelId as any);
+      
+      if (!modelConfig || modelConfig.type !== 'video') {
+        logger.warn('⚠️ Invalid video model, using default');
+        const defaultModel = getDefaultModel('video');
+        creditsCost = defaultModel.calculateCredits({ duration: videoDuration });
+      } else {
+        creditsCost = modelConfig.calculateCredits({ duration: videoDuration });
+      }
+      
       logger.log('💰 Video credits cost calculation:', {
+        model: videoModelId,
         duration: videoDuration,
-        creditsPerSecond,
         totalCredits: creditsCost
       });
     } else {
-      // Image generation: Based on Google Gemini 3 Pro Image Preview pricing ($0.134/image) with 2x markup
-      // 1 credit = 5 INR, 1 USD = 100 INR (updated conversion rate)
-      // Base cost: $0.134 × 2 (markup) × 100 (INR/USD) / 5 (INR/credit) = 5.36 credits/image (round to 5)
+      // Image generation: Use model-based pricing
+      const imageModelId = model || getDefaultModel('image').id;
+      const modelConfig = getModelConfig(imageModelId as any);
+      
+      if (!modelConfig || modelConfig.type !== 'image') {
+        logger.warn('⚠️ Invalid image model, using default');
+        const defaultModel = getDefaultModel('image');
+        const imageSize = quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K';
+        creditsCost = defaultModel.calculateCredits({ quality, imageSize });
+      } else {
+        const imageSize = quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K';
+        creditsCost = modelConfig.calculateCredits({ quality, imageSize });
+      }
+      
       // For batch: multiply by number of requests
       const numberOfRequests = useBatchAPI && batchRequests.length > 0 ? batchRequests.length : 1;
-      const baseCreditsPerImage = 5;
-      const qualityMultiplier = quality === 'high' ? 2 : quality === 'ultra' ? 3 : 1;
-      creditsCost = baseCreditsPerImage * qualityMultiplier * numberOfRequests;
+      creditsCost = creditsCost * numberOfRequests;
       
       logger.log('💰 Image credits cost calculation:', {
+        model: imageModelId,
         quality,
-        baseCreditsPerImage,
-        qualityMultiplier,
+        imageSize: quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K',
         numberOfRequests: useBatchAPI ? numberOfRequests : 1,
         isBatch: useBatchAPI,
         totalCredits: creditsCost
@@ -606,6 +638,8 @@ export async function POST(request: NextRequest) {
             styleTransferImageData: styleTransferImageData || undefined,
             styleTransferImageType: styleTransferImageType || undefined,
             temperature,
+            model: model || undefined,
+            imageSize: quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K',
           });
 
           if (!batchResult.success || !batchResult.data) {
@@ -777,6 +811,7 @@ export async function POST(request: NextRequest) {
           aspectRatio: (aspectRatio as '16:9' | '9:16' | '1:1') || '16:9',
           uploadedImageData: uploadedImageData || undefined,
           uploadedImageType: uploadedImageType || undefined,
+          model: model || undefined,
         });
         
         if (!videoResult.success || !videoResult.data) {
@@ -850,6 +885,8 @@ export async function POST(request: NextRequest) {
           styleTransferImageData: styleTransferImageData || undefined,
           styleTransferImageType: styleTransferImageType || undefined,
           temperature,
+          model: model || undefined,
+          imageSize: quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K',
         });
       }
 
@@ -857,22 +894,41 @@ export async function POST(request: NextRequest) {
         logger.error('❌ Generation failed:', result.error);
         
         // Determine if this is a Google API error (should always refund)
-        const isGoogleError = result.error?.includes('Google') || 
-                             result.error?.includes('Gemini') ||
-                             result.error?.includes('Veo') ||
-                             result.error?.includes('quota') ||
-                             result.error?.includes('rate limit') ||
-                             result.error?.includes('API');
+        const errorString = (result.error || '').toLowerCase();
+        const isApiKeyError = errorString.includes('api key') && 
+                             (errorString.includes('expired') || 
+                              errorString.includes('invalid') || 
+                              errorString.includes('not found'));
+        const isQuotaError = errorString.includes('quota') || 
+                            errorString.includes('rate limit');
+        const isGoogleError = errorString.includes('google') || 
+                             errorString.includes('gemini') ||
+                             errorString.includes('veo') ||
+                             isApiKeyError ||
+                             isQuotaError;
         
         // Always refund on failure - user should never lose credits due to our errors
         await addCredits(creditsCost, 'refund', 'Refund for failed generation', user.id, 'refund');
         await RendersDAL.updateStatus(render.id, 'failed', result.error);
         
-        // Return appropriate status code
-        const statusCode = isGoogleError ? 503 : 500; // 503 for service unavailable
+        // Return user-friendly error messages
+        let userErrorMessage = result.error || 'Generation failed';
+        let statusCode = 500;
+        
+        if (isApiKeyError) {
+          userErrorMessage = 'AI service configuration error. Our team has been notified.';
+          statusCode = 503; // Service unavailable
+        } else if (isQuotaError) {
+          userErrorMessage = 'AI service is currently at capacity. Please try again in a moment.';
+          statusCode = 503;
+        } else if (isGoogleError) {
+          userErrorMessage = 'AI service temporarily unavailable. Please try again in a moment.';
+          statusCode = 503;
+        }
+        
         return NextResponse.json({ 
           success: false, 
-          error: result.error || 'Generation failed',
+          error: userErrorMessage,
           refunded: true // Inform client that credits were refunded
         }, { status: statusCode });
       }
@@ -982,11 +1038,20 @@ export async function POST(request: NextRequest) {
       logger.error('❌ Generation error:', error);
       
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      const isGoogleError = errorMessage.includes('Google') || 
-                           errorMessage.includes('Gemini') ||
-                           errorMessage.includes('Veo') ||
-                           errorMessage.includes('quota') ||
-                           errorMessage.includes('API');
+      const errorString = errorMessage.toLowerCase();
+      
+      // Detect specific error types
+      const isApiKeyError = errorString.includes('api key') && 
+                           (errorString.includes('expired') || 
+                            errorString.includes('invalid') || 
+                            errorString.includes('not found'));
+      const isQuotaError = errorString.includes('quota') || 
+                          errorString.includes('rate limit');
+      const isGoogleError = errorString.includes('google') || 
+                           errorString.includes('gemini') ||
+                           errorString.includes('veo') ||
+                           isApiKeyError ||
+                           isQuotaError;
       
       // CRITICAL: Always refund credits on failure - user should never lose credits
       try {
@@ -999,10 +1064,24 @@ export async function POST(request: NextRequest) {
       
       await RendersDAL.updateStatus(render.id, 'failed', errorMessage);
       
-      const statusCode = isGoogleError ? 503 : 500;
+      // Return user-friendly error messages
+      let userErrorMessage = 'Generation failed';
+      let statusCode = 500;
+      
+      if (isApiKeyError) {
+        userErrorMessage = 'AI service configuration error. Our team has been notified.';
+        statusCode = 503; // Service unavailable
+      } else if (isQuotaError) {
+        userErrorMessage = 'AI service is currently at capacity. Please try again in a moment.';
+        statusCode = 503;
+      } else if (isGoogleError) {
+        userErrorMessage = 'AI service temporarily unavailable. Please try again in a moment.';
+        statusCode = 503;
+      }
+      
       return NextResponse.json({ 
         success: false, 
-        error: isGoogleError ? 'AI service temporarily unavailable' : 'Generation failed',
+        error: userErrorMessage,
         refunded: true
       }, { status: statusCode });
     }

@@ -43,6 +43,8 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import Image from 'next/image';
 import { shouldUseRegularImg } from '@/lib/utils/storage-url';
 import { handleImageErrorWithFallback } from '@/lib/utils/cdn-fallback';
+import { ModelSelector } from '@/components/ui/model-selector';
+import { getModelConfig, getDefaultModel, ModelId, modelSupportsQuality, getMaxQuality, getSupportedResolutions } from '@/lib/config/models';
 
 interface BaseToolComponentProps {
   tool: ToolConfig;
@@ -110,6 +112,20 @@ export function BaseToolComponent({
   const [quality, setQuality] = useState<'standard' | 'high' | 'ultra'>('standard');
   const [aspectRatio, setAspectRatio] = useState<string>('16:9');
   const [style, setStyle] = useState<string>('realistic'); // ✅ FIXED: Add style state with default value
+  const [selectedModel, setSelectedModel] = useState<string | undefined>(undefined); // Model ID for image generation
+
+  // Auto-adjust quality when model changes if current quality is unsupported
+  useEffect(() => {
+    if (selectedModel) {
+      const modelId = selectedModel as ModelId;
+      if (!modelSupportsQuality(modelId, quality)) {
+        // Current quality not supported, adjust to max supported quality
+        const maxQuality = getMaxQuality(modelId);
+        setQuality(maxQuality);
+        toast.info(`Quality adjusted to ${maxQuality} (maximum supported by selected model)`);
+      }
+    }
+  }, [selectedModel, quality]);
   
   // Poll for render updates
   const pollForRenderUpdates = useCallback(async (renderIds: string[]) => {
@@ -183,10 +199,12 @@ export function BaseToolComponent({
     setTimeout(poll, pollInterval);
   }, [projectId, renders, refetchRenders, refreshCredits]);
 
-  // Calculate credits cost - use custom if provided, otherwise default calculation
+  // Calculate credits cost - use model-based pricing if model is selected, otherwise use custom or default
+  const imageSize = quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K';
+  const modelConfig = selectedModel ? getModelConfig(selectedModel as ModelId) : getDefaultModel('image');
   const creditsCost = customCreditsCost 
     ? (typeof customCreditsCost === 'function' ? customCreditsCost(quality) : customCreditsCost)
-    : (quality === 'high' ? 10 : quality === 'ultra' ? 15 : 5);
+    : (modelConfig ? modelConfig.calculateCredits({ quality, imageSize }) : (quality === 'high' ? 10 : quality === 'ultra' ? 15 : 5));
 
   // Handle file changes from FileUpload component
   const handleFilesChange = useCallback((files: File[]) => {
@@ -261,6 +279,9 @@ export function BaseToolComponent({
       formData.append('uploadedImageData', imageBase64);
       formData.append('uploadedImageType', imageFile.type);
       formData.append('imageType', tool.id);
+      if (selectedModel) {
+        formData.append('model', selectedModel);
+      }
       // Pass userId from store to avoid DB call in server action
       if (user?.id) {
         formData.append('userId', user.id);
@@ -501,20 +522,62 @@ export function BaseToolComponent({
                               <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p className="max-w-xs">Output quality affects resolution and detail. Higher quality uses more credits but produces better results.</p>
+                              <p className="max-w-xs">
+                                Output quality affects resolution and detail. Higher quality uses more credits but produces better results.
+                                {selectedModel && (
+                                  <span className="block mt-1 text-xs">
+                                    Selected model supports: {getSupportedResolutions(selectedModel as ModelId).join(', ')}
+                                  </span>
+                                )}
+                              </p>
                             </TooltipContent>
                           </Tooltip>
                         </div>
-                        <Select value={quality} onValueChange={(v: 'standard' | 'high' | 'ultra') => setQuality(v)}>
+                        <Select 
+                          value={quality} 
+                          onValueChange={(v: 'standard' | 'high' | 'ultra') => {
+                            // Validate quality is supported by selected model
+                            if (selectedModel) {
+                              const modelId = selectedModel as ModelId;
+                              if (modelSupportsQuality(modelId, v)) {
+                                setQuality(v);
+                              } else {
+                                toast.error(`This quality is not supported by the selected model. Maximum quality: ${getMaxQuality(modelId)}`);
+                              }
+                            } else {
+                              setQuality(v);
+                            }
+                          }}
+                        >
                           <SelectTrigger id="quality" className="h-10 w-full">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="standard">1080p</SelectItem>
-                            <SelectItem value="high">2160p</SelectItem>
-                            <SelectItem value="ultra">4320p</SelectItem>
+                            <SelectItem 
+                              value="standard" 
+                              disabled={selectedModel ? !modelSupportsQuality(selectedModel as ModelId, 'standard') : false}
+                            >
+                              1080p (1K)
+                            </SelectItem>
+                            <SelectItem 
+                              value="high" 
+                              disabled={selectedModel ? !modelSupportsQuality(selectedModel as ModelId, 'high') : false}
+                            >
+                              2160p (2K)
+                            </SelectItem>
+                            <SelectItem 
+                              value="ultra" 
+                              disabled={selectedModel ? !modelSupportsQuality(selectedModel as ModelId, 'ultra') : false}
+                            >
+                              4320p (4K)
+                            </SelectItem>
                           </SelectContent>
                         </Select>
+                        {selectedModel && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Supported: {getSupportedResolutions(selectedModel as ModelId).join(', ')}
+                          </p>
+                        )}
                       </div>
                     )}
                     <div className="w-full">
@@ -540,6 +603,29 @@ export function BaseToolComponent({
                           <SelectItem value="9:16">9:16</SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+                    {/* Model Selector */}
+                    <div className="w-full">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Label htmlFor="model" className="text-sm">AI Model</Label>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="max-w-xs">Choose the AI model for generation. Different models offer different quality, speed, and cost options.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <ModelSelector
+                        type="image"
+                        value={selectedModel as ModelId | undefined}
+                        onValueChange={(modelId) => setSelectedModel(modelId)}
+                        quality={quality}
+                        imageSize={imageSize}
+                        variant="compact"
+                        showCredits={true}
+                      />
                     </div>
                   </div>
                   {/* Generate Button - Own Row */}
