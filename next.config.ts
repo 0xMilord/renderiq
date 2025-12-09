@@ -268,32 +268,6 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: '/sitemap-images.xml',
-        headers: [
-          {
-            key: 'Content-Type',
-            value: 'application/xml',
-          },
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=3600',
-          },
-        ],
-      },
-      {
-        source: '/sitemap-video.xml',
-        headers: [
-          {
-            key: 'Content-Type',
-            value: 'application/xml',
-          },
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=3600',
-          },
-        ],
-      },
-      {
         source: '/sitemap-use-cases.xml',
         headers: [
           {
@@ -349,14 +323,6 @@ const nextConfig: NextConfig = {
       {
         source: '/sitemap-docs.xml',
         destination: '/sitemap-docs',
-      },
-      {
-        source: '/sitemap-images.xml',
-        destination: '/sitemap-images',
-      },
-      {
-        source: '/sitemap-video.xml',
-        destination: '/sitemap-video',
       },
     ];
 

@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ArrowLeft, Boxes, Map, Building2, CheckCircle2, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { JsonLd } from '@/components/seo/json-ld';
+import { generateHowToSchema } from '@/components/seo/json-ld';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
 
