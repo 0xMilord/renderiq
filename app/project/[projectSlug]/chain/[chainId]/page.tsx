@@ -28,83 +28,118 @@ export default function ProjectChainPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ OPTIMIZED: Fetch project, chain, and all projects/chains for dropdown in parallel
-  const fetchData = useCallback(async () => {
-    if (!projectSlug || !chainId || !user) return;
+  // ✅ FIXED: Don't wait for user - fetch critical data first, then load dropdown data lazily
+  useEffect(() => {
+    if (!projectSlug || !chainId) return;
+    if (authLoading) return; // Wait for auth to finish loading
     
-    setLoading(true);
-    setError(null);
+    let mounted = true;
+    
+    const fetchCriticalData = async () => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      // ✅ OPTIMIZED: Parallelize all fetching
-      const [projectResult, chainResult, projectsResult] = await Promise.all([
-        getProjectBySlug(projectSlug),
-        getRenderChain(chainId),
-        getUserProjects(),
-      ]);
+      try {
+        // ✅ CRITICAL: Fetch only project and chain first (required for page to render)
+        const [projectResult, chainResult] = await Promise.all([
+          getProjectBySlug(projectSlug),
+          getRenderChain(chainId),
+        ]);
 
-      if (projectResult.success && projectResult.data) {
-        setProject(projectResult.data);
-      } else {
-        setError(projectResult.error || 'Failed to load project');
-      }
+        if (!mounted) return;
 
-      if (chainResult.success && chainResult.data) {
-        setChain(chainResult.data);
-      } else {
-        setError(chainResult.error || 'Failed to load chain');
-      }
+        if (projectResult.success && projectResult.data) {
+          setProject(projectResult.data);
+        } else {
+          setError(projectResult.error || 'Failed to load project');
+        }
 
-      // Fetch all projects and chains for dropdown
-      if (projectsResult.success && projectsResult.data) {
-        const projectsList = projectsResult.data.map(p => ({
-          id: p.id,
-          name: p.name,
-          slug: p.slug,
-        }));
-        setProjects(projectsList);
+        if (chainResult.success && chainResult.data) {
+          setChain(chainResult.data);
+        } else {
+          setError(chainResult.error || 'Failed to load chain');
+        }
+        
+        // ✅ CRITICAL: Set loading to false after critical data loads
+        setLoading(false);
+        
+        // ✅ OPTIMIZED: Load dropdown data lazily (non-blocking)
+        if (user && projectResult.success && chainResult.success) {
+          // Load projects and chains in background (don't block page render)
+          Promise.all([
+            getUserProjects(),
+          ]).then(([projectsResult]) => {
+            if (!mounted) return;
+            
+            if (projectsResult.success && projectsResult.data) {
+              const projectsList = projectsResult.data.map(p => ({
+                id: p.id,
+                name: p.name,
+                slug: p.slug,
+              }));
+              setProjects(projectsList);
 
-        // Fetch all chains for all projects in parallel
-        try {
-          const chainResults = await Promise.all(
-            projectsResult.data.map(project => getProjectChains(project.id))
-          );
-          
-          const allChains: Array<{ id: string; name: string; projectId: string }> = [];
-          chainResults.forEach((result, index) => {
-            if (result.success && result.data) {
-              const projectId = projectsResult.data[index].id;
-              result.data.forEach(chain => {
-                allChains.push({
-                  id: chain.id,
-                  name: chain.name,
-                  projectId: projectId,
+              // Fetch chains lazily (can be slow, don't block)
+              Promise.all(
+                projectsResult.data.map(project => getProjectChains(project.id))
+              ).then(chainResults => {
+                if (!mounted) return;
+                
+                const allChains: Array<{ id: string; name: string; projectId: string }> = [];
+                chainResults.forEach((result, index) => {
+                  if (result.success && result.data) {
+                    const projectId = projectsResult.data[index].id;
+                    result.data.forEach(chain => {
+                      allChains.push({
+                        id: chain.id,
+                        name: chain.name,
+                        projectId: projectId,
+                      });
+                    });
+                  }
                 });
+                
+                setChains(allChains);
+              }).catch(err => {
+                logger.error('❌ ProjectChainPage: Error fetching chains:', err);
+                // Don't fail the whole page if chains fail to load
               });
             }
+          }).catch(err => {
+            logger.error('❌ ProjectChainPage: Error fetching projects:', err);
+            // Don't fail the whole page if projects fail to load
           });
-          
-          setChains(allChains);
-        } catch (err) {
-          logger.error('❌ ProjectChainPage: Error fetching chains:', err);
-          // Don't fail the whole page if chains fail to load
         }
+      } catch (err) {
+        if (!mounted) return;
+        setError(err instanceof Error ? err.message : 'An error occurred');
+        logger.error('❌ ProjectChainPage: Error fetching data:', err);
+        setLoading(false);
+      }
+    };
+    
+    fetchCriticalData();
+    
+    return () => {
+      mounted = false;
+    };
+  }, [projectSlug, chainId, user, authLoading]);
+
+  // ✅ FIXED: fetchChain only fetches chain data, not all projects/chains
+  // This is called by polling, so it should be lightweight
+  const fetchChain = useCallback(async () => {
+    if (!chainId || !user) return;
+    
+    try {
+      const chainResult = await getRenderChain(chainId);
+      if (chainResult.success && chainResult.data) {
+        setChain(chainResult.data);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      logger.error('❌ ProjectChainPage: Error fetching data:', err);
-    } finally {
-      setLoading(false);
+      logger.error('❌ ProjectChainPage: Error fetching chain:', err);
+      // Don't show error to user for polling failures
     }
-  }, [projectSlug, chainId, user]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  const fetchChain = useCallback(() => {
-    return fetchData();
-  }, [fetchData]);
+  }, [chainId, user]);
 
   // ✅ REMOVED: Duplicate initialize() call
   // AuthProvider already calls initialize(), no need to call it here

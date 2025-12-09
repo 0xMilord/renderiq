@@ -10,11 +10,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { 
   Send, 
   Image as ImageIcon, 
@@ -47,9 +45,6 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { 
-  FaSquare,
-  FaTv,
-  FaTabletAlt,
   FaCheckCircle,
   FaExclamationTriangle,
   FaExclamationCircle
@@ -81,12 +76,6 @@ import Image from 'next/image';
 import { shouldUseRegularImg } from '@/lib/utils/storage-url';
 import { handleImageErrorWithFallback, isCDNUrl } from '@/lib/utils/cdn-fallback';
 
-// ✅ Dynamic imports for heavy components (Next.js 16 best practice)
-const VideoPlayer = dynamic(() => import('@/components/video/video-player').then(mod => ({ default: mod.VideoPlayer })), {
-  ssr: false,
-  loading: () => <div className="flex items-center justify-center h-full"><Loader2 className="h-6 w-6 animate-spin" /></div>,
-});
-
 import { getRenderiqMessage } from '@/lib/utils/renderiq-messages';
 import { useLocalStorageMessages } from '@/lib/hooks/use-local-storage-messages';
 import { useObjectURL } from '@/lib/hooks/use-object-url';
@@ -98,9 +87,6 @@ import { retryFetch } from '@/lib/utils/retry-fetch';
 import { convertRendersToMessages, convertRenderToMessages } from '@/lib/utils/render-to-messages';
 import {
   POLLING_INTERVAL,
-  PROGRESS_INCREMENT_SLOW,
-  PROGRESS_INCREMENT_MEDIUM,
-  PROGRESS_INCREMENT_FAST,
 } from '@/lib/constants/chat-constants';
 import {
   getCompletedRenders,
@@ -109,8 +95,7 @@ import {
   getVersionNumber,
   getRenderById,
 } from '@/lib/utils/chain-helpers';
-import dynamic from 'next/dynamic';
-import React from 'react';
+import React, { useReducer } from 'react';
 
 interface Message {
   id: string;
@@ -235,20 +220,168 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   // React 19: Track initialization per chainId to prevent re-initialization
   const initializedChainIdRef = useRef<string | undefined>(undefined);
   
-  // Chat state
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [inputValue, setInputValue] = useState('');
+  // ✅ FIXED: Network recovery state (declared early to avoid hoisting issues)
+  const [isRecovering, setIsRecovering] = useState(false);
+  const [recoveryRenderId, setRecoveryRenderId] = useState<string | null>(null);
+  const isVisibleRef = useRef(true);
+  const lastRefreshTimeRef = useRef<number>(0);
+  const hasProcessingRendersRef = useRef(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const userSelectedRenderIdRef = useRef<string | null>(null);
   
-  // Render state
-  const [currentRender, setCurrentRender] = useState<Render | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [progress, setProgress] = useState(0);
+  // ✅ FIXED: Window visibility handling - prevent re-initialization on tab switch
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      isVisibleRef.current = document.visibilityState === 'visible';
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    isVisibleRef.current = document.visibilityState === 'visible';
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+  
+  // ✅ FIXED: Network recovery - check for processing renders on mount (only once per chainId)
+  useEffect(() => {
+    if (!chainId || !onRefreshChain || !isVisibleRef.current) return;
+    
+    // Only check on mount or when chainId changes, not on every chain.renders update
+    const currentChainId = chainId || chain?.id;
+    if (initializedChainIdRef.current !== currentChainId) {
+      return; // Will be handled by initialization effect
+    }
+    
+    // Check for processing renders that might have been interrupted
+    const processingRenders = chain?.renders?.filter(r => 
+      (r.status === 'processing' || r.status === 'pending') && 
+      r.chainId === chainId
+    ) || [];
+    
+    if (processingRenders.length > 0) {
+      const latestProcessing = processingRenders[processingRenders.length - 1];
+      logger.log('🔄 Network recovery: Found processing render', {
+        renderId: latestProcessing.id,
+        status: latestProcessing.status
+      });
+      
+      setIsRecovering(true);
+      setRecoveryRenderId(latestProcessing.id);
+    } else {
+      setIsRecovering(false);
+      setRecoveryRenderId(null);
+    }
+  }, [chainId, chain?.renders, onRefreshChain]);
+  
+  // ✅ FIXED: Clear recovery state when render completes
+  useEffect(() => {
+    if (recoveryRenderId && chain?.renders) {
+      const recoveredRender = chain.renders.find(r => r.id === recoveryRenderId);
+      if (recoveredRender && recoveredRender.status === 'completed') {
+        logger.log('✅ Network recovery: Render completed', {
+          renderId: recoveryRenderId
+        });
+        setIsRecovering(false);
+        setRecoveryRenderId(null);
+        toast.success('Render completed successfully!');
+      } else if (recoveredRender && recoveredRender.status === 'failed') {
+        logger.log('❌ Network recovery: Render failed', {
+          renderId: recoveryRenderId
+        });
+        setIsRecovering(false);
+        setRecoveryRenderId(null);
+      }
+    }
+  }, [recoveryRenderId, chain?.renders]);
+  
+  // ✅ FIXED: Consolidated state using useReducer for better performance
+  type ChatState = {
+    messages: Message[];
+    inputValue: string;
+    currentRender: Render | null;
+    isGenerating: boolean;
+    progress: number;
+  };
+  
+  type ChatAction =
+    | { type: 'SET_MESSAGES'; payload: Message[] }
+    | { type: 'ADD_MESSAGE'; payload: Message }
+    | { type: 'UPDATE_MESSAGE'; payload: { id: string; updates: Partial<Message> } }
+    | { type: 'SET_INPUT_VALUE'; payload: string }
+    | { type: 'SET_CURRENT_RENDER'; payload: Render | null }
+    | { type: 'SET_IS_GENERATING'; payload: boolean }
+    | { type: 'SET_PROGRESS'; payload: number };
+  
+  const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
+    switch (action.type) {
+      case 'SET_MESSAGES':
+        return { ...state, messages: action.payload };
+      case 'ADD_MESSAGE':
+        return { ...state, messages: [...state.messages, action.payload] };
+      case 'UPDATE_MESSAGE':
+        return {
+          ...state,
+          messages: state.messages.map(msg =>
+            msg.id === action.payload.id ? { ...msg, ...action.payload.updates } : msg
+          )
+        };
+      case 'SET_INPUT_VALUE':
+        return { ...state, inputValue: action.payload };
+      case 'SET_CURRENT_RENDER':
+        return { ...state, currentRender: action.payload };
+      case 'SET_IS_GENERATING':
+        return { ...state, isGenerating: action.payload };
+      case 'SET_PROGRESS':
+        return { ...state, progress: action.payload };
+      default:
+        return state;
+    }
+  };
+  
+  const [chatState, dispatchChat] = useReducer(chatReducer, {
+    messages: [],
+    inputValue: '',
+    currentRender: null,
+    isGenerating: false,
+    progress: 0,
+  });
+  
+  // Extract for easier access (backward compatibility)
+  const messages = chatState.messages;
+  const inputValue = chatState.inputValue;
+  const currentRender = chatState.currentRender;
+  const isGenerating = chatState.isGenerating;
+  const progress = chatState.progress;
+  
+  // Wrapper functions for backward compatibility
+  const setMessages = useCallback((updater: Message[] | ((prev: Message[]) => Message[])) => {
+    const newMessages = typeof updater === 'function' ? updater(chatState.messages) : updater;
+    dispatchChat({ type: 'SET_MESSAGES', payload: newMessages });
+    messagesRef.current = newMessages; // Keep ref in sync
+  }, [chatState.messages]);
+  
+  const setInputValue = useCallback((value: string) => {
+    dispatchChat({ type: 'SET_INPUT_VALUE', payload: value });
+  }, []);
+  
+  const setCurrentRender = useCallback((updater: Render | null | ((prev: Render | null) => Render | null)) => {
+    const newRender = typeof updater === 'function' ? updater(chatState.currentRender) : updater;
+    dispatchChat({ type: 'SET_CURRENT_RENDER', payload: newRender });
+  }, [chatState.currentRender]);
+  
+  const setIsGenerating = useCallback((value: boolean) => {
+    dispatchChat({ type: 'SET_IS_GENERATING', payload: value });
+  }, []);
+  
+  const setProgress = useCallback((value: number) => {
+    dispatchChat({ type: 'SET_PROGRESS', payload: value });
+  }, []);
 
   // Dynamic title updates based on project/chain - using new hook
   const chainName = chain?.name;
   useDynamicTitle(undefined, projectName, chainName);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [referenceRenderId, setReferenceRenderId] = useState<string | undefined>();
   const [beforeAfterView, setBeforeAfterView] = useState<'before' | 'after'>('after');
   
   // Fixed aspect ratio for better quality
@@ -258,24 +391,119 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   const previewUrl = useObjectURL(uploadedFile);
   
   
-  // Style settings
-  const [environment, setEnvironment] = useState<string>('none');
-  const [effect, setEffect] = useState<string>('none');
-  const [styleTransferImage, setStyleTransferImage] = useState<File | null>(null);
-  const [styleTransferPreview, setStyleTransferPreview] = useState<string | null>(null);
-  const [temperature, setTemperature] = useState<string>('0.5'); // Default 50% (0.5), options: 0, 0.25, 0.5, 0.75, 1.0
-  const [quality, setQuality] = useState<string>('standard'); // Default quality: standard, high, ultra
-  const [selectedImageModel, setSelectedImageModel] = useState<ModelId | undefined>(undefined); // Image model
-  const [selectedVideoModel, setSelectedVideoModel] = useState<ModelId | undefined>(undefined); // Video model
+  // ✅ FIXED: Consolidated settings state
+  type SettingsState = {
+    environment: string;
+    effect: string;
+    styleTransferImage: File | null;
+    styleTransferPreview: string | null;
+    temperature: string;
+    quality: string;
+    selectedImageModel: ModelId | undefined;
+    selectedVideoModel: ModelId | undefined;
+    videoDuration: number;
+    isVideoMode: boolean;
+    videoKeyframes: Array<{ id: string; imageData: string; imageType: string; timestamp?: number }>;
+    videoLastFrame: { imageData: string; imageType: string } | null;
+    isPublic: boolean;
+  };
   
-  // Video controls
-  const [videoDuration, setVideoDuration] = useState(8); // Veo 3.1 supports 4, 6, or 8 seconds
-  const [isVideoMode, setIsVideoMode] = useState(false);
-  const [videoKeyframes, setVideoKeyframes] = useState<Array<{ id: string; imageData: string; imageType: string; timestamp?: number }>>([]);
-  const [videoLastFrame, setVideoLastFrame] = useState<{ imageData: string; imageType: string } | null>(null);
+  type SettingsAction =
+    | { type: 'SET_ENVIRONMENT'; payload: string }
+    | { type: 'SET_EFFECT'; payload: string }
+    | { type: 'SET_STYLE_TRANSFER_IMAGE'; payload: File | null }
+    | { type: 'SET_STYLE_TRANSFER_PREVIEW'; payload: string | null }
+    | { type: 'SET_TEMPERATURE'; payload: string }
+    | { type: 'SET_QUALITY'; payload: string }
+    | { type: 'SET_SELECTED_IMAGE_MODEL'; payload: ModelId | undefined }
+    | { type: 'SET_SELECTED_VIDEO_MODEL'; payload: ModelId | undefined }
+    | { type: 'SET_VIDEO_DURATION'; payload: number }
+    | { type: 'SET_IS_VIDEO_MODE'; payload: boolean }
+    | { type: 'SET_VIDEO_KEYFRAMES'; payload: Array<{ id: string; imageData: string; imageType: string; timestamp?: number }> }
+    | { type: 'SET_VIDEO_LAST_FRAME'; payload: { imageData: string; imageType: string } | null }
+    | { type: 'SET_IS_PUBLIC'; payload: boolean };
   
-  // Render visibility - Free users default to public, Pro users default to private
-  const [isPublic, setIsPublic] = useState(true); // Will be updated based on isPro
+  const settingsReducer = (state: SettingsState, action: SettingsAction): SettingsState => {
+    switch (action.type) {
+      case 'SET_ENVIRONMENT':
+        return { ...state, environment: action.payload };
+      case 'SET_EFFECT':
+        return { ...state, effect: action.payload };
+      case 'SET_STYLE_TRANSFER_IMAGE':
+        return { ...state, styleTransferImage: action.payload };
+      case 'SET_STYLE_TRANSFER_PREVIEW':
+        return { ...state, styleTransferPreview: action.payload };
+      case 'SET_TEMPERATURE':
+        return { ...state, temperature: action.payload };
+      case 'SET_QUALITY':
+        return { ...state, quality: action.payload };
+      case 'SET_SELECTED_IMAGE_MODEL':
+        return { ...state, selectedImageModel: action.payload };
+      case 'SET_SELECTED_VIDEO_MODEL':
+        return { ...state, selectedVideoModel: action.payload };
+      case 'SET_VIDEO_DURATION':
+        return { ...state, videoDuration: action.payload };
+      case 'SET_IS_VIDEO_MODE':
+        return { ...state, isVideoMode: action.payload };
+      case 'SET_VIDEO_KEYFRAMES':
+        return { ...state, videoKeyframes: action.payload };
+      case 'SET_VIDEO_LAST_FRAME':
+        return { ...state, videoLastFrame: action.payload };
+      case 'SET_IS_PUBLIC':
+        return { ...state, isPublic: action.payload };
+      default:
+        return state;
+    }
+  };
+  
+  const [settingsState, dispatchSettings] = useReducer(settingsReducer, {
+    environment: 'none',
+    effect: 'none',
+    styleTransferImage: null,
+    styleTransferPreview: null,
+    temperature: '0.5',
+    quality: 'standard',
+    selectedImageModel: undefined,
+    selectedVideoModel: undefined,
+    videoDuration: 8,
+    isVideoMode: false,
+    videoKeyframes: [],
+    videoLastFrame: null,
+    isPublic: true,
+  });
+  
+  // Extract for easier access
+  const environment = settingsState.environment;
+  const effect = settingsState.effect;
+  const styleTransferImage = settingsState.styleTransferImage;
+  const styleTransferPreview = settingsState.styleTransferPreview;
+  const temperature = settingsState.temperature;
+  const quality = settingsState.quality;
+  const selectedImageModel = settingsState.selectedImageModel;
+  const selectedVideoModel = settingsState.selectedVideoModel;
+  const videoDuration = settingsState.videoDuration;
+  const isVideoMode = settingsState.isVideoMode;
+  const videoKeyframes = settingsState.videoKeyframes;
+  const videoLastFrame = settingsState.videoLastFrame;
+  const isPublic = settingsState.isPublic;
+  
+  // Wrapper functions
+  const setEnvironment = useCallback((value: string) => dispatchSettings({ type: 'SET_ENVIRONMENT', payload: value }), []);
+  const setEffect = useCallback((value: string) => dispatchSettings({ type: 'SET_EFFECT', payload: value }), []);
+  const setStyleTransferImage = useCallback((value: File | null) => dispatchSettings({ type: 'SET_STYLE_TRANSFER_IMAGE', payload: value }), []);
+  const setStyleTransferPreview = useCallback((value: string | null) => dispatchSettings({ type: 'SET_STYLE_TRANSFER_PREVIEW', payload: value }), []);
+  const setTemperature = useCallback((value: string) => dispatchSettings({ type: 'SET_TEMPERATURE', payload: value }), []);
+  const setQuality = useCallback((value: string) => dispatchSettings({ type: 'SET_QUALITY', payload: value }), []);
+  const setSelectedImageModel = useCallback((value: ModelId | undefined) => dispatchSettings({ type: 'SET_SELECTED_IMAGE_MODEL', payload: value }), []);
+  const setSelectedVideoModel = useCallback((value: ModelId | undefined) => dispatchSettings({ type: 'SET_SELECTED_VIDEO_MODEL', payload: value }), []);
+  const setVideoDuration = useCallback((value: number) => dispatchSettings({ type: 'SET_VIDEO_DURATION', payload: value }), []);
+  const setIsVideoMode = useCallback((value: boolean) => dispatchSettings({ type: 'SET_IS_VIDEO_MODE', payload: value }), []);
+  const setVideoKeyframes = useCallback((value: Array<{ id: string; imageData: string; imageType: string; timestamp?: number }> | ((prev: Array<{ id: string; imageData: string; imageType: string; timestamp?: number }>) => Array<{ id: string; imageData: string; imageType: string; timestamp?: number }>)) => {
+    const newValue = typeof value === 'function' ? value(videoKeyframes) : value;
+    dispatchSettings({ type: 'SET_VIDEO_KEYFRAMES', payload: newValue });
+  }, [videoKeyframes]);
+  const setVideoLastFrame = useCallback((value: { imageData: string; imageType: string } | null) => dispatchSettings({ type: 'SET_VIDEO_LAST_FRAME', payload: value }), []);
+  const setIsPublic = useCallback((value: boolean) => dispatchSettings({ type: 'SET_IS_PUBLIC', payload: value }), []);
   
   // Modal state management (extracted to custom hook)
   const {
@@ -299,9 +527,6 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   // Mention state
   const [currentMentionPosition, setCurrentMentionPosition] = useState(-1);
   
-  // UI state
-  const [isLiked, setIsLiked] = useState(false);
-  
   // Mobile view state - toggle between chat and render
   const [mobileView, setMobileView] = useState<'chat' | 'render'>('chat');
   
@@ -309,17 +534,13 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   const [carouselScrollPosition, setCarouselScrollPosition] = useState(0);
   const [mobileCarouselScrollPosition, setMobileCarouselScrollPosition] = useState(0);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isCreatingChain, setIsCreatingChain] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
   const mobileCarouselRef = useRef<HTMLDivElement>(null);
   
-  // Refs
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  // Refs (messagesEndRef, hasProcessingRendersRef, userSelectedRenderIdRef, lastRefreshTimeRef declared above)
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesRef = useRef<Message[]>([]); // Track messages via ref
-  const hasProcessingRendersRef = useRef(false); // Track if we have processing renders for polling
-  const userSelectedRenderIdRef = useRef<string | null>(null); // Track if user manually selected a render
   
   // Hooks
   const { credits } = useCredits();
@@ -329,29 +550,28 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   const { upscaleImage, isUpscaling, upscalingResult, error: upscalingError } = useUpscaling();
   
   // LocalStorage management hook
-  const { saveMessages, restoreMessages, getStorageKey } = useLocalStorageMessages(messages, projectId, chainId);
+  const { saveMessages, restoreMessages } = useLocalStorageMessages(messages, projectId, chainId);
   
-  // Update isPublic based on pro status: Free users = public (true), Pro users = private (false)
+  // ✅ FIXED: Update isPublic based on pro status (consolidated with settings)
   useEffect(() => {
     if (!proLoading) {
-      setIsPublic(!isPro); // Free users are public, Pro users are private by default
+      dispatchSettings({ type: 'SET_IS_PUBLIC', payload: !isPro }); // Free users are public, Pro users are private by default
     }
   }, [isPro, proLoading]);
 
-  // Auto-adjust quality when image model changes if current quality is unsupported
+  // ✅ FIXED: Auto-adjust quality when image model changes (consolidated effect)
   useEffect(() => {
     if (selectedImageModel && !isVideoMode) {
       const modelId = selectedImageModel as ModelId;
       if (!modelSupportsQuality(modelId, quality as 'standard' | 'high' | 'ultra')) {
-        // Current quality not supported, adjust to max supported quality
         const maxQuality = getMaxQuality(modelId);
-        setQuality(maxQuality);
+        dispatchSettings({ type: 'SET_QUALITY', payload: maxQuality });
         toast.info(`Quality adjusted to ${maxQuality} (maximum supported by selected model)`);
       }
     }
-  }, [selectedImageModel, isVideoMode]); // Note: quality is intentionally not in deps to avoid loops
+  }, [selectedImageModel, isVideoMode, quality]);
 
-  // Reset before/after view to 'after' when render changes
+  // ✅ FIXED: Reset before/after view (consolidated with other UI effects)
   useEffect(() => {
     setBeforeAfterView('after');
   }, [currentRender?.id]);
@@ -401,39 +621,40 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   // Version context hook
   const { parsePrompt } = useVersionContext();
 
-  // Update progress during generation - sync with actual generation state
-  useEffect(() => {
-    if (isGenerating || isImageGenerating || isVideoGenerating) {
-      // Reset progress when generation starts
-      setProgress(10);
-      
-      const interval = setInterval(() => {
-        setProgress(prev => {
-          // Gradually increase progress, but cap at 90% until completion
-          if (prev >= 90) return 90;
-          // More realistic progress: slower at start, faster in middle
-          const increment = prev < 30 
-            ? PROGRESS_INCREMENT_SLOW 
-            : prev < 70 
-              ? PROGRESS_INCREMENT_MEDIUM 
-              : PROGRESS_INCREMENT_FAST;
-          const newProgress = Math.min(prev + increment, 90);
-          
-              // Progress updates don't need to update messages array
-          // Message content is handled separately to avoid re-renders
-          return newProgress;
-        });
-      }, 500); // Update every 500ms for smoother progress
-      
-      return () => {
-        clearInterval(interval);
-        // When generation stops, complete the progress bar
-        setProgress(100);
-        // Reset after a brief moment
-        setTimeout(() => setProgress(0), 300);
-      };
+  // ✅ FIXED: Progress based on actual render status from DB, not local state
+  // Derive progress from render status in chain.renders
+  const progressFromStatus = useMemo(() => {
+    // Check if we have any processing renders
+    const processingRenders = chain?.renders?.filter(r => 
+      r.status === 'processing' || r.status === 'pending'
+    ) || [];
+    
+    if (processingRenders.length > 0) {
+      // Show progress based on render status
+      // If render exists in DB, show 50-90% (processing)
+      // If render is completed, show 100%
+      const latestProcessing = processingRenders[processingRenders.length - 1];
+      if (latestProcessing.status === 'completed') {
+        return 100;
+      }
+      // Show 50% for pending, 75% for processing
+      return latestProcessing.status === 'pending' ? 50 : 75;
     }
-  }, [isGenerating, isImageGenerating, isVideoGenerating, isVideoMode]);
+    
+    // If we're generating locally but no render in DB yet, show 10%
+    if (isGenerating || isImageGenerating || isVideoGenerating) {
+      return 10;
+    }
+    
+    return 0;
+  }, [chain?.renders, isGenerating, isImageGenerating, isVideoGenerating]);
+  
+  // Update progress state when status changes (throttled to avoid excessive re-renders)
+  useEffect(() => {
+    if (progressFromStatus !== progress) {
+      setProgress(progressFromStatus);
+    }
+  }, [progressFromStatus]);
 
   // ✅ SIMPLIFIED: Single source of truth - chain.renders
   // Derive everything from chain.renders directly
@@ -479,11 +700,18 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     return convertRendersToMessages(chain.renders);
   }, [chain?.renders]);
 
-  // ✅ SIMPLIFIED: Initialize messages when chainId changes
+  // ✅ FIXED: Initialize messages when chainId changes (with visibility check and generation check)
   useEffect(() => {
     const currentChainId = chainId || chain?.id;
     
-    if (initializedChainIdRef.current === currentChainId) {
+    // Don't re-initialize if already initialized, tab is hidden, or we're generating
+    if (initializedChainIdRef.current === currentChainId || !isVisibleRef.current) {
+      return;
+    }
+    
+    // ✅ CRITICAL: Don't re-initialize if we're currently generating (preserves local state)
+    if (isGenerating || isImageGenerating || isVideoGenerating || isRecovering) {
+      logger.log('⚠️ UnifiedChatInterface: Skipping initialization - generation in progress');
       return;
     }
 
@@ -495,7 +723,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     const storedMessages = restoreMessages();
     
     if (chainMessages) {
-      setMessages(chainMessages);
+      dispatchChat({ type: 'SET_MESSAGES', payload: chainMessages });
       messagesRef.current = chainMessages;
       saveMessages(chainMessages);
       
@@ -506,31 +734,23 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
           chainPosition: latestRender.chainPosition,
           versionNumber: getVersionNumber(latestRender, chain?.renders)
         });
-        setCurrentRender(latestRender);
+        dispatchChat({ type: 'SET_CURRENT_RENDER', payload: latestRender });
         userSelectedRenderIdRef.current = null;
       } else {
         logger.log('⚠️ UnifiedChatInterface: No latest render found on initialization');
       }
     } else if (storedMessages) {
-      setMessages(storedMessages);
+      dispatchChat({ type: 'SET_MESSAGES', payload: storedMessages });
     } else {
-      setMessages([]);
-      setCurrentRender(null);
+      dispatchChat({ type: 'SET_MESSAGES', payload: [] });
+      dispatchChat({ type: 'SET_CURRENT_RENDER', payload: null });
     }
     
     initializedChainIdRef.current = currentChainId;
-  }, [chainId, chainMessages]);
+  }, [chainId, chainMessages, latestRender, isGenerating, isImageGenerating, isVideoGenerating, isRecovering]);
 
-  // ✅ SIMPLIFIED: Update messages when chain.renders changes
-  useEffect(() => {
-    if (!chain?.renders) return;
-    
-    // Always regenerate messages from chain.renders (single source of truth)
-    const newMessages = convertRendersToMessages(chain.renders);
-    setMessages(newMessages);
-    messagesRef.current = newMessages;
-    saveMessages(newMessages);
-  }, [chain?.renders]);
+  // ✅ FIXED: Update messages when chain.renders changes (consolidated with currentRender update)
+  // This is now handled in the combined chain.renders effect below
 
   // ✅ Debug: Log when currentRender changes
   useEffect(() => {
@@ -546,127 +766,168 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     });
   }, [currentRender?.id, chain?.renders]);
 
-  // ✅ SIMPLIFIED: Update currentRender when chain.renders changes
+  // ✅ FIXED: Consolidated chain.renders updates - merge instead of replace to preserve local messages
   useEffect(() => {
-    if (!chain?.renders || chain.renders.length === 0) {
-      logger.log('🔄 [SYNC DEBUG] No renders, clearing currentRender');
-      setCurrentRender(null);
+    if (!chain?.renders) {
+      if (chain?.renders?.length === 0) {
+        // Only clear if we're not generating
+        if (!isGenerating && !isImageGenerating && !isVideoGenerating) {
+          dispatchChat({ type: 'SET_CURRENT_RENDER', payload: null });
+          dispatchChat({ type: 'SET_MESSAGES', payload: [] });
+          messagesRef.current = [];
+        }
+      }
       return;
     }
     
-    logger.log('🔄 [SYNC DEBUG] currentRender useEffect triggered', {
-      totalRenders: chain.renders.length,
-      completedRendersCount: completedRenders.length,
-      latestRenderId: latestRender?.id,
-      latestRenderChainPosition: latestRender?.chainPosition,
-      latestRenderVersion: getVersionNumber(latestRender, chain?.renders),
-      userSelectedRenderId: userSelectedRenderIdRef.current,
-      completedRenders: completedRenders.map(r => ({
-        id: r.id,
-        chainPosition: r.chainPosition,
-        version: getVersionNumber(r, chain?.renders)
-      }))
-    });
+    // ✅ CRITICAL FIX: Don't reset messages if we're currently generating
+    // During generation, we have local messages (user + generating assistant) that aren't in chain.renders yet
+    const isCurrentlyGenerating = isGenerating || isImageGenerating || isVideoGenerating || isRecovering;
     
-    setCurrentRender(prevRender => {
-      logger.log('🔄 [SYNC DEBUG] setCurrentRender callback', {
-        prevRenderId: prevRender?.id,
-        prevRenderChainPosition: prevRender?.chainPosition,
-        prevRenderVersion: getVersionNumber(prevRender, chain?.renders),
-        userSelectedRenderId: userSelectedRenderIdRef.current
-      });
+    if (isCurrentlyGenerating) {
+      // Only update existing messages with latest render data, don't replace
+      const newMessagesFromChain = convertRendersToMessages(chain.renders);
       
+      // Merge: keep local generating messages, update completed renders
+      const prevMessages = messages;
+      const mergedMessages: Message[] = [];
+      const chainMessageMap = new Map(newMessagesFromChain.map(m => [m.render?.id, m]));
+      
+      // Keep local messages that don't have renders yet (generating state)
+      for (const prevMsg of prevMessages) {
+        if (prevMsg.isGenerating || !prevMsg.render) {
+          // Keep generating messages or user messages without renders
+          mergedMessages.push(prevMsg);
+        } else if (prevMsg.render?.id) {
+          // Update with latest render data from chain
+          const chainMsg = chainMessageMap.get(prevMsg.render.id);
+          if (chainMsg) {
+            mergedMessages.push(chainMsg);
+          } else {
+            // Render was removed, keep old message
+            mergedMessages.push(prevMsg);
+          }
+        } else {
+          mergedMessages.push(prevMsg);
+        }
+      }
+      
+      // Add any new renders from chain that aren't in local messages
+      for (const chainMsg of newMessagesFromChain) {
+        if (chainMsg.render && !mergedMessages.some(m => m.render?.id === chainMsg.render?.id)) {
+          mergedMessages.push(chainMsg);
+        }
+      }
+      
+      dispatchChat({ type: 'SET_MESSAGES', payload: mergedMessages });
+      messagesRef.current = mergedMessages;
+      saveMessages(mergedMessages);
+    } else {
+      // Not generating - safe to replace with chain.renders (single source of truth)
+      const newMessages = convertRendersToMessages(chain.renders);
+      dispatchChat({ type: 'SET_MESSAGES', payload: newMessages });
+      messagesRef.current = newMessages;
+      saveMessages(newMessages);
+    }
+    
+    // Update currentRender
+    setCurrentRender(prevRender => {
       // If user manually selected a render, keep it (but update with latest data)
       if (userSelectedRenderIdRef.current) {
         const selectedRender = getRenderById(chain.renders, userSelectedRenderIdRef.current);
         if (selectedRender && selectedRender.status === 'completed') {
-          logger.log('🔄 [SYNC DEBUG] Keeping user-selected render', {
-            renderId: selectedRender.id,
-            chainPosition: selectedRender.chainPosition,
-            version: getVersionNumber(selectedRender, chain?.renders)
-          });
-          return selectedRender; // Update with latest data
+          return selectedRender;
         }
-        // Selected render no longer exists or isn't completed, clear selection
-        logger.log('🔄 [SYNC DEBUG] User-selected render no longer valid, clearing');
         userSelectedRenderIdRef.current = null;
       }
       
       // Auto-update to latest render if no manual selection
       if (!userSelectedRenderIdRef.current && latestRender) {
-        // Only update if latest is newer than current
         if (!prevRender || (latestRender.chainPosition || 0) > (prevRender.chainPosition || 0)) {
-          logger.log('🔄 [SYNC DEBUG] Auto-updating to latest render', {
-            renderId: latestRender.id,
-            chainPosition: latestRender.chainPosition,
-            versionNumber: getVersionNumber(latestRender, chain?.renders),
-            prevRenderId: prevRender?.id,
-            prevChainPosition: prevRender?.chainPosition,
-            prevVersion: getVersionNumber(prevRender, chain?.renders)
-          });
           return latestRender;
-        } else {
-          logger.log('🔄 [SYNC DEBUG] Latest render not newer, keeping current', {
-            latestChainPosition: latestRender.chainPosition,
-            currentChainPosition: prevRender?.chainPosition
-          });
         }
       }
       
-      // Update current render with latest data from chain (in case status/outputUrl changed)
+      // Update current render with latest data from chain
       if (prevRender) {
         const updatedRender = getRenderById(chain.renders, prevRender.id);
         if (updatedRender && updatedRender.status === 'completed') {
-          logger.log('🔄 [SYNC DEBUG] Updating current render with latest data', {
-            renderId: updatedRender.id,
-            chainPosition: updatedRender.chainPosition,
-            version: getVersionNumber(updatedRender, chain?.renders),
-            outputUrl: updatedRender.outputUrl?.substring(0, 50) + '...'
-          });
           return updatedRender;
         }
       }
       
-      // Fallback to latest if current render doesn't exist
-      const finalRender = latestRender || prevRender;
-      logger.log('🔄 [SYNC DEBUG] Final render selection', {
-        renderId: finalRender?.id,
-        chainPosition: finalRender?.chainPosition,
-        version: getVersionNumber(finalRender, chain?.renders),
-        isLatest: finalRender?.id === latestRender?.id,
-        isPrevious: finalRender?.id === prevRender?.id
-      });
-      return finalRender;
+      return latestRender || prevRender;
     });
-  }, [chain?.renders, latestRender, completedRenders]);
+  }, [chain?.renders, latestRender, isGenerating, isImageGenerating, isVideoGenerating, isRecovering]);
 
-  // ✅ FIXED: Update processing renders ref when messages change
-  useEffect(() => {
-    hasProcessingRendersRef.current = messages.some(m => m.isGenerating === true);
-  }, [messages]);
-
-  // ✅ FIXED: Poll for processing renders - use refs to avoid dependency loops
-  useEffect(() => {
-    if (!chainId || !onRefreshChain) return;
+  // ✅ FIXED: Throttled refresh function to prevent excessive calls
+  const refreshThrottleMs = 3000; // Minimum 3 seconds between refreshes
+  
+  const throttledRefresh = useCallback(() => {
+    const now = Date.now();
+    const timeSinceLastRefresh = now - lastRefreshTimeRef.current;
     
-    // Check if we have processing renders using ref
-    if (!hasProcessingRendersRef.current) {
+    if (timeSinceLastRefresh >= refreshThrottleMs) {
+      lastRefreshTimeRef.current = now;
+      onRefreshChain?.();
+    }
+  }, [onRefreshChain]);
+
+  // ✅ FIXED: Consolidated polling logic - throttle to prevent excessive refreshes
+  useEffect(() => {
+    if (!chainId || !onRefreshChain || !isVisibleRef.current) return;
+    
+    // Check if we have processing renders
+    const hasProcessing = chain?.renders?.some(r => 
+      r.status === 'processing' || r.status === 'pending'
+    ) || isGenerating || isImageGenerating || isVideoGenerating || isRecovering;
+    
+    hasProcessingRendersRef.current = hasProcessing;
+    
+    if (!hasProcessing) {
       return;
     }
     
-    // ✅ Use constant for polling interval
-    const pollInterval = setInterval(() => {
-      // Check again using ref to avoid dependency on messages
-      if (hasProcessingRendersRef.current) {
-        onRefreshChain();
-      } else {
-        // No more processing renders - stop polling
-        clearInterval(pollInterval);
-      }
-    }, POLLING_INTERVAL);
+    // ✅ FIXED: Use a single interval that checks refs, not closure values
+    // This prevents recreating the interval on every chain.renders change
+    let pollInterval: NodeJS.Timeout | null = null;
     
-    return () => clearInterval(pollInterval);
-  }, [chainId, onRefreshChain]); // ✅ FIXED: Removed messages dependency - use ref instead
+    const startPolling = () => {
+      if (pollInterval) return; // Already polling
+      
+      pollInterval = setInterval(() => {
+        // Check refs to avoid stale closures
+        if (!isVisibleRef.current || !hasProcessingRendersRef.current) {
+          if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+          }
+          return;
+        }
+        
+        // ✅ FIXED: Use throttled refresh to prevent excessive calls
+        throttledRefresh();
+      }, POLLING_INTERVAL);
+    };
+    
+    startPolling();
+    
+    return () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+    };
+  }, [chainId, throttledRefresh]); // ✅ FIXED: Use throttled refresh instead of onRefreshChain directly
+  
+  // ✅ FIXED: Update processing ref when state changes (separate effect)
+  useEffect(() => {
+    const hasProcessing = chain?.renders?.some(r => 
+      r.status === 'processing' || r.status === 'pending'
+    ) || isGenerating || isImageGenerating || isVideoGenerating || isRecovering;
+    
+    hasProcessingRendersRef.current = hasProcessing;
+  }, [chain?.renders, isGenerating, isImageGenerating, isVideoGenerating, isRecovering]);
 
   // localStorage save is now handled by useLocalStorageMessages hook
 
@@ -958,9 +1219,9 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       referenceRenderId: referenceRenderId
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    dispatchChat({ type: 'ADD_MESSAGE', payload: userMessage });
     const currentPrompt = inputValue;
-    setInputValue('');
+    dispatchChat({ type: 'SET_INPUT_VALUE', payload: '' });
     
     // ✅ PRESERVE: Store uploaded image URL before clearing file (needed for before/after tab)
     const preservedUploadedImageUrl = uploadedFile && previewUrl ? previewUrl : null;
@@ -971,11 +1232,11 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       // previewUrl is automatically cleared by useObjectURL hook when file is null
     }
     
-    setIsGenerating(true);
-    setProgress(0); // Reset progress when starting new generation
+    dispatchChat({ type: 'SET_IS_GENERATING', payload: true });
+    dispatchChat({ type: 'SET_PROGRESS', payload: 0 });
     onRenderStart?.();
 
-    // Add assistant message with generating state and Dominique's message
+    // Add assistant message with generating state
     const assistantMessage: Message = {
       id: `assistant-${crypto.randomUUID()}`,
       type: 'assistant',
@@ -984,7 +1245,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       isGenerating: true
     };
 
-    setMessages(prev => [...prev, assistantMessage]);
+    dispatchChat({ type: 'ADD_MESSAGE', payload: assistantMessage });
 
     // Define generationType outside try block so it's accessible in catch
     const generationType = isVideoMode ? 'video' : 'image';
@@ -1223,24 +1484,26 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
           updatedAt: new Date()
         };
 
-        setCurrentRender(newRender);
+        dispatchChat({ type: 'SET_CURRENT_RENDER', payload: newRender });
         onRenderComplete?.(newRender);
         
-        // Update the assistant message with the result and render (no constant text)
-        setMessages(prev => {
-          const updated = prev.map(msg => 
-            msg.id === assistantMessage.id 
-              ? { 
-                  ...msg, 
-                  content: '', // Empty content - just show the render
-                  isGenerating: false, 
-                  render: newRender 
-                }
-              : msg
-          );
-          messagesRef.current = updated; // Update ref
-          return updated;
+        // Update the assistant message with the result and render
+        dispatchChat({
+          type: 'UPDATE_MESSAGE',
+          payload: {
+            id: assistantMessage.id,
+            updates: {
+              content: '',
+              isGenerating: false,
+              render: newRender
+            }
+          }
         });
+        messagesRef.current = messages.map(msg =>
+          msg.id === assistantMessage.id
+            ? { ...msg, content: '', isGenerating: false, render: newRender }
+            : msg
+        );
         
         // ✅ REMOVED: Don't call onRefreshChain() here - it causes page reload loops
         // The polling useEffect will handle checking for completion
@@ -1275,19 +1538,20 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                             errorMessage.includes('quota');
       
       // Update assistant message with error state
-      setMessages(prev => prev.map(msg => 
-        msg.id === assistantMessage.id 
-          ? { 
-              ...msg, 
-              content: isNetworkError 
-                ? 'Network error. Please check your connection and try again.' 
-                : isGoogleError
-                ? 'Google AI service temporarily unavailable. Please try again in a moment.'
-                : getRenderiqMessage(0, isVideoMode, true), 
-              isGenerating: false 
-            }
-          : msg
-      ));
+      dispatchChat({
+        type: 'UPDATE_MESSAGE',
+        payload: {
+          id: assistantMessage.id,
+          updates: {
+            content: isNetworkError
+              ? 'Network error. Please check your connection and try again.'
+              : isGoogleError
+              ? 'Google AI service temporarily unavailable. Please try again in a moment.'
+              : getRenderiqMessage(0, isVideoMode, true),
+            isGenerating: false
+          }
+        }
+      });
       
       // Show user-friendly error toast
       if (isNetworkError) {
@@ -1300,8 +1564,8 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       
       // Don't reset video mode on error - let user try again
     } finally {
-      setIsGenerating(false);
-      setProgress(0); // Reset progress when generation completes or fails
+      dispatchChat({ type: 'SET_IS_GENERATING', payload: false });
+      dispatchChat({ type: 'SET_PROGRESS', payload: 0 });
     }
   };
 
@@ -1424,19 +1688,16 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       };
       
       // Add messages to chat
-      setMessages(prev => {
-        // Check if already added to prevent duplicates
-        const alreadyExists = prev.some(msg => 
-          msg.render?.outputUrl === upscalingResult.outputUrl
-        );
-        if (alreadyExists) {
-          return prev;
-        }
-        return [...prev, userMessage, assistantMessage];
-      });
+      const alreadyExists = messages.some(msg =>
+        msg.render?.outputUrl === upscalingResult.outputUrl
+      );
+      if (!alreadyExists) {
+        dispatchChat({ type: 'ADD_MESSAGE', payload: userMessage });
+        dispatchChat({ type: 'ADD_MESSAGE', payload: assistantMessage });
+      }
       
       // Update current render to the upscaled version
-      setCurrentRender(upscaledRender);
+      dispatchChat({ type: 'SET_CURRENT_RENDER', payload: upscaledRender });
       onRenderComplete?.(upscaledRender);
       
       // Scroll to bottom to show new upscaled version
@@ -2133,7 +2394,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                           variant="ghost"
                           size="sm"
                           onClick={() => {
-                            setInputValue(message.content);
+                            dispatchChat({ type: 'SET_INPUT_VALUE', payload: message.content });
                             toast.info('Message loaded into input. Modify and send.');
                           }}
                           className="h-6 w-6 p-0"
@@ -2974,7 +3235,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                                    variant="ghost"
                                    size="sm"
                                    onClick={() => {
-                                     setVideoKeyframes(prev => prev.filter(kf => kf.id !== keyframe.id));
+                                     setVideoKeyframes(videoKeyframes.filter(kf => kf.id !== keyframe.id));
                                    }}
                                    className="h-3 w-3 p-0 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                  >
@@ -3246,9 +3507,11 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                         }
                       }}
                     >
-                      <SelectTrigger className="h-7 px-2 text-[10px] sm:text-xs w-auto min-w-[80px] sm:min-w-[100px] shrink-0">
+                      <SelectTrigger className="h-7 px-2 text-[10px] sm:text-xs w-auto min-w-[50px] sm:min-w-[100px] shrink-0">
                         <SelectValue>
-                          Version {versionNumber}
+                          {/* Mobile: Show v1, v2 | Desktop: Show Version 1, Version 2 */}
+                          <span className="sm:hidden">v{versionNumber}</span>
+                          <span className="hidden sm:inline">Version {versionNumber}</span>
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
@@ -3259,7 +3522,11 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                           const message = messages.find(m => m.render?.id === render.id);
                           return (
                             <SelectItem key={render.id} value={render.id} className="text-xs">
-                              Version {versionNumber} - {message?.content?.substring(0, 30) || render.prompt.substring(0, 30)}...
+                              {/* Mobile: Show v1, v2 | Desktop: Show full text */}
+                              <span className="sm:hidden">v{versionNumber}</span>
+                              <span className="hidden sm:inline">
+                                Version {versionNumber} - {message?.content?.substring(0, 30) || render.prompt.substring(0, 30)}...
+                              </span>
                             </SelectItem>
                           );
                         })}
@@ -3270,15 +3537,15 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                   {/* Separator */}
                   <div className="h-4 w-px bg-border shrink-0"></div>
                   
-                  {/* Tools - Spread evenly */}
-                  <div className="flex items-center justify-between gap-2 flex-1">
+                  {/* Tools - Icon-only buttons as square on mobile */}
+                  <div className="flex items-center gap-1.5 sm:gap-2 flex-1">
                     {/* Upscale */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="h-7 px-1.5 sm:px-2 text-[10px] flex-1 flex items-center justify-center gap-1.5"
+                          className="h-7 w-7 sm:h-7 sm:w-auto sm:px-2 text-[10px] p-0 flex items-center justify-center gap-0 sm:gap-1.5 shrink-0"
                           disabled={isUpscaling}
                         >
                           {isUpscaling ? (
@@ -3328,7 +3595,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                           
                           // Set a default prompt if input is empty
                           if (!inputValue.trim()) {
-                            setInputValue('Animate this image with smooth, cinematic motion');
+                            dispatchChat({ type: 'SET_INPUT_VALUE', payload: 'Animate this image with smooth, cinematic motion' });
                           }
                           
                           // Focus the input
@@ -3342,8 +3609,9 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                           toast.error('Failed to load image. Please try again.');
                         }
                       }} 
-                      className="h-7 px-1.5 sm:px-2 text-[10px] flex-1 flex items-center justify-center gap-1.5" 
+                      className="h-7 w-7 sm:h-7 sm:w-auto sm:px-2 text-[10px] p-0 flex items-center justify-center gap-0 sm:gap-1.5 shrink-0" 
                       disabled={!currentRender || currentRender.type === 'video' || isGenerating}
+                      title="Convert to Video"
                     >
                       <Video className="h-3 w-3 shrink-0" />
                       <span className="hidden sm:inline">Video</span>
@@ -3353,7 +3621,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                       variant="outline" 
                       size="sm" 
                       onClick={handleDownload} 
-                      className="h-7 px-1.5 sm:px-2 text-[10px] flex-1 flex items-center justify-center gap-1 sm:gap-1.5"
+                      className="h-7 w-7 sm:h-7 sm:w-auto sm:px-2 text-[10px] p-0 flex items-center justify-center gap-0 sm:gap-1.5 shrink-0"
                       title="Download"
                     >
                       <Download className="h-3 w-3 shrink-0" />
@@ -3364,7 +3632,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                       variant="outline" 
                       size="sm" 
                       onClick={handleShare} 
-                      className="h-7 px-1.5 sm:px-2 text-[10px] flex-1 flex items-center justify-center gap-1 sm:gap-1.5"
+                      className="h-7 w-7 sm:h-7 sm:w-auto sm:px-2 text-[10px] p-0 flex items-center justify-center gap-0 sm:gap-1.5 shrink-0"
                       title="Share"
                     >
                       <Share2 className="h-3 w-3 shrink-0" />
@@ -3767,7 +4035,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         isOpen={isPromptGalleryOpen}
         onClose={() => setIsPromptGalleryOpen(false)}
         onSelectPrompt={(prompt) => {
-          setInputValue(prompt);
+          dispatchChat({ type: 'SET_INPUT_VALUE', payload: prompt });
           setIsPromptGalleryOpen(false);
         }}
         type={isVideoMode ? 'video' : 'image'}
@@ -3776,7 +4044,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         isOpen={isPromptBuilderOpen}
         onClose={() => setIsPromptBuilderOpen(false)}
         onSelectPrompt={(prompt) => {
-          setInputValue(prompt);
+          dispatchChat({ type: 'SET_INPUT_VALUE', payload: prompt });
           setIsPromptBuilderOpen(false);
         }}
         type={isVideoMode ? 'video' : 'image'}
