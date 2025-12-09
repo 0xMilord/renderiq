@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ArrowLeft, Video, Play, Zap, Film, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { JsonLd } from '@/components/seo/json-ld';
+import { generateHowToSchema } from '@/components/seo/json-ld';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
 
@@ -114,8 +116,54 @@ const useCases = [
 ];
 
 export default function RapidConceptVideoPage() {
+  const pageUrl = `${siteUrl}/use-cases/rapid-concept-video`;
+  
+  // HowTo schema for featured snippet optimization
+  const howToSchema = generateHowToSchema({
+    name: 'How to Create Rapid Concept Videos from Architectural Renders',
+    description: 'Learn how to transform static renders into dynamic concept videos in minutes. Generate walkthrough animations, time-lapse sequences, or style transitions using AI video generation.',
+    image: `${siteUrl}/og/use-cases-rapid-concept-video.jpg`,
+    totalTime: 'PT10M',
+    estimatedCost: {
+      currency: 'USD',
+      value: '0'
+    },
+    tool: [
+      { '@type': 'HowToTool', name: 'Renderiq AI Platform' },
+      { '@type': 'HowToTool', name: 'Static Render or Sketch' }
+    ],
+    step: [
+      {
+        '@type': 'HowToStep',
+        name: 'Upload Render or Sketch',
+        text: 'Upload your static architectural render or sketch to the Renderiq platform. You can use an existing render from your gallery or upload a new image.',
+        url: `${pageUrl}#step-1`
+      },
+      {
+        '@type': 'HowToStep',
+        name: 'Choose Video Type',
+        text: 'Select your video generation type: text-to-video, image-to-video, or keyframe-sequence. Choose between Veo3 (higher quality) or Veo3 Fast (faster generation) models.',
+        url: `${pageUrl}#step-2`
+      },
+      {
+        '@type': 'HowToStep',
+        name: 'Describe Video Content',
+        text: 'Use natural language to describe the video you want: "walkthrough animation", "time-lapse sequence", or "style transition". Specify duration (30 seconds to 5 minutes).',
+        url: `${pageUrl}#step-3`
+      },
+      {
+        '@type': 'HowToStep',
+        name: 'Generate and Export',
+        text: 'Generate your video and export in 720p or 1080p resolution. Use render chains to track video iterations and maintain consistency across sequences.',
+        url: `${pageUrl}#step-4`
+      }
+    ]
+  });
+  
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <JsonLd data={howToSchema} />
+      <div className="min-h-screen bg-background">
       <section className="pt-[calc(1rem+2.75rem+1.5rem)] pb-20 px-4 bg-gradient-to-b from-red-500/5 to-background">
         <div className="container mx-auto max-w-7xl">
           <div className="max-w-3xl">
@@ -227,6 +275,7 @@ export default function RapidConceptVideoPage() {
         </div>
       </section>
     </div>
+    </>
   );
 }
 

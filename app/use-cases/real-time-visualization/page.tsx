@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ArrowLeft, Sparkles, Clock, Zap, TrendingUp, CheckCircle2, Video, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { JsonLd } from '@/components/seo/json-ld';
+import { generateHowToSchema } from '@/components/seo/json-ld';
 
 function getSiteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
@@ -139,7 +141,31 @@ const useCases = [
 ];
 
 export default function RealTimeVisualizationPage() {
+  const siteUrl = getSiteUrl();
+  const pageUrl = `${siteUrl}/use-cases/real-time-visualization`;
+  
+  // HowTo schema for featured snippet optimization
+  const howToSchema = generateHowToSchema({
+    name: 'How to Use Real-Time Architectural Visualization',
+    description: 'Learn how to transform architectural designs into photorealistic renders in seconds. AI-powered real-time visualization enables instant client presentations, live design iterations, and immediate feedback.',
+    image: `${siteUrl}/og/use-cases-real-time-visualization.jpg`,
+    totalTime: 'PT5M',
+    estimatedCost: { currency: 'USD', value: '0' },
+    tool: [
+      { '@type': 'HowToTool', name: 'Renderiq AI Platform' },
+      { '@type': 'HowToTool', name: 'Architectural Design (Sketch, CAD, or 3D Model)' }
+    ],
+    step: workflowSteps.map((w, index) => ({
+      '@type': 'HowToStep',
+      name: w.title,
+      text: w.description,
+      url: `${pageUrl}#step-${index + 1}`
+    }))
+  });
+  
   return (
+    <>
+      <JsonLd data={howToSchema} />
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="pt-[calc(1rem+2.75rem+1.5rem)] pb-20 px-4 bg-gradient-to-b from-blue-500/5 to-background">
@@ -314,6 +340,7 @@ export default function RealTimeVisualizationPage() {
         </div>
       </section>
     </div>
+    </>
   );
 }
 

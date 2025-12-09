@@ -9,7 +9,35 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
 export const metadata: Metadata = {
   title: "Privacy Policy | Renderiq - AI Architectural Visualization",
   description: "Learn how Renderiq protects your data and privacy. Our comprehensive privacy policy covering data collection, usage, security, and your rights under GDPR, CCPA, and other data protection laws.",
-  robots: "index, follow",
+  keywords: [
+    'Renderiq privacy policy',
+    'data privacy',
+    'GDPR compliance',
+    'CCPA compliance',
+    'data protection',
+    'privacy policy',
+    'data security',
+    'user privacy',
+    'architectural software privacy',
+    'AEC software privacy'
+  ],
+  authors: [{ name: 'Renderiq' }],
+  creator: 'Renderiq',
+  publisher: 'Renderiq',
+  alternates: {
+    canonical: `${siteUrl}/privacy`,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
   openGraph: {
     title: "Privacy Policy | Renderiq - AI Architectural Visualization",
     description: "Learn how Renderiq protects your data and privacy. Our comprehensive privacy policy covering data collection, usage, security, and your rights under GDPR, CCPA, and other data protection laws.",

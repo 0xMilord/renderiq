@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ArrowLeft, Image as ImageIcon, Palette, Sparkles, CheckCircle2, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { JsonLd } from '@/components/seo/json-ld';
+import { generateHowToSchema } from '@/components/seo/json-ld';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
 
@@ -114,8 +116,52 @@ const useCases = [
 ];
 
 export default function MatchingRenderMoodPage() {
+  const pageUrl = `${siteUrl}/use-cases/matching-render-mood`;
+  
+  // HowTo schema for featured snippet optimization
+  const howToSchema = generateHowToSchema({
+    name: 'How to Match Render Mood to Reference Images',
+    description: 'Learn how to use reference images to match specific moods, styles, or atmospheres in your renders. Upload inspiration images and generate renders that capture the same lighting, color palette, and aesthetic.',
+    image: `${siteUrl}/og/use-cases-matching-render-mood.jpg`,
+    totalTime: 'PT5M',
+    estimatedCost: { currency: 'USD', value: '0' },
+    tool: [
+      { '@type': 'HowToTool', name: 'Renderiq AI Platform' },
+      { '@type': 'HowToTool', name: 'Reference Image' },
+      { '@type': 'HowToTool', name: 'Architectural Design or Sketch' }
+    ],
+    step: [
+      {
+        '@type': 'HowToStep',
+        name: 'Upload Reference Image',
+        text: 'Upload a reference image that captures the mood, lighting, color palette, or aesthetic you want to match.',
+        url: `${pageUrl}#step-1`
+      },
+      {
+        '@type': 'HowToStep',
+        name: 'Upload Your Design',
+        text: 'Upload your architectural design or sketch that you want to render with the reference mood.',
+        url: `${pageUrl}#step-2`
+      },
+      {
+        '@type': 'HowToStep',
+        name: 'Request Mood Matching',
+        text: 'Use natural language to request mood matching: "match the lighting and mood of the reference image" or "apply the same aesthetic".',
+        url: `${pageUrl}#step-3`
+      },
+      {
+        '@type': 'HowToStep',
+        name: 'Generate and Refine',
+        text: 'AI generates a render that matches the reference mood, lighting, and color palette. Use render chains to refine and maintain consistency.',
+        url: `${pageUrl}#step-4`
+      }
+    ]
+  });
+  
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <JsonLd data={howToSchema} />
+      <div className="min-h-screen bg-background">
       <section className="pt-[calc(1rem+2.75rem+1.5rem)] pb-20 px-4 bg-gradient-to-b from-amber-500/5 to-background">
         <div className="container mx-auto max-w-7xl">
           <div className="max-w-3xl">
@@ -228,6 +274,7 @@ export default function MatchingRenderMoodPage() {
         </div>
       </section>
     </div>
+    </>
   );
 }
 

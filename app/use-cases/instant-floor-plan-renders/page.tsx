@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ArrowLeft, LayoutGrid, FileText, Zap, CheckCircle2, Upload, Building2, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { JsonLd } from '@/components/seo/json-ld';
+import { generateHowToSchema } from '@/components/seo/json-ld';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
 
@@ -137,7 +139,33 @@ const useCases = [
 ];
 
 export default function InstantFloorPlanRendersPage() {
+  const pageUrl = `${siteUrl}/use-cases/instant-floor-plan-renders`;
+  
+  // HowTo schema for featured snippet optimization
+  const howToSchema = generateHowToSchema({
+    name: 'How to Create Instant Floor Plan Renders',
+    description: 'Learn how to convert 2D floor plans into stunning 3D visualizations instantly. Upload PDF, CAD, or image floor plans and generate photorealistic renders in under a minute.',
+    image: `${siteUrl}/og/use-cases-instant-floor-plan-renders.jpg`,
+    totalTime: 'PT5M',
+    estimatedCost: {
+      currency: 'USD',
+      value: '0'
+    },
+    tool: [
+      { '@type': 'HowToTool', name: 'Renderiq AI Platform' },
+      { '@type': 'HowToTool', name: 'Floor Plan (PDF, PNG, JPG, or CAD)' }
+    ],
+    step: workflow.map((w, index) => ({
+      '@type': 'HowToStep',
+      name: w.title,
+      text: w.description,
+      url: `${pageUrl}#step-${index + 1}`
+    }))
+  });
+  
   return (
+    <>
+      <JsonLd data={howToSchema} />
     <div className="min-h-screen bg-background">
       <section className="pt-[calc(1rem+2.75rem+1.5rem)] pb-20 px-4 bg-gradient-to-b from-green-500/5 to-background">
         <div className="container mx-auto max-w-7xl">
@@ -272,6 +300,7 @@ export default function InstantFloorPlanRendersPage() {
         </div>
       </section>
     </div>
+    </>
   );
 }
 

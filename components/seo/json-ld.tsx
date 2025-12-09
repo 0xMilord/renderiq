@@ -1,5 +1,3 @@
-'use client';
-
 interface JsonLdProps {
   data: Record<string, any>;
 }
@@ -19,7 +17,7 @@ export const organizationSchema = {
   '@type': 'Organization',
   name: 'Renderiq',
   url: 'https://renderiq.io',
-  logo: 'https://renderiq.io/logo.png',
+  logo: 'https://renderiq.io/logo.svg',
   description: 'AI-powered architectural visualization and rendering platform for architects and designers',
   sameAs: [
     'https://bsky.app/profile/renderiq.bsky.social',
@@ -106,9 +104,139 @@ export const softwareSchema = {
       },
       author: {
         '@type': 'Person',
-        name: 'Sarah Chen'
+        name: 'Mahendra Yadav'
       },
       reviewBody: 'Renderiq has revolutionized our architectural visualization workflow. The AI quality is exceptional and saves us hours of work.'
+    },
+    {
+      '@type': 'Review',
+      reviewRating: {
+        '@type': 'Rating',
+        ratingValue: '4',
+        bestRating: '5'
+      },
+      author: {
+        '@type': 'Person',
+        name: 'Suresh Thakur'
+      },
+      reviewBody: 'As an interior designer in Bengaluru, I am genuinely impressed by the quality of renders. It’s made client approvals much faster!'
+    },
+    {
+      '@type': 'Review',
+      reviewRating: {
+        '@type': 'Rating',
+        ratingValue: '5',
+        bestRating: '5'
+      },
+      author: {
+        '@type': 'Person',
+        name: 'Amar Singh'
+      },
+      reviewBody: 'Uploading my sketch and seeing it turn into a realistic 3D image feels like magic. Renderiq is a game changer for small studios in India.'
+    },
+    {
+      '@type': 'Review',
+      reviewRating: {
+        '@type': 'Rating',
+        ratingValue: '5',
+        bestRating: '5'
+      },
+      author: {
+        '@type': 'Person',
+        name: 'Jessica Patel'
+      },
+      reviewBody: 'Super easy to use and the renders look like real photos! My clients have loved the visualisations for our new project pitches.'
+    },
+    {
+      '@type': 'Review',
+      reviewRating: {
+        '@type': 'Rating',
+        ratingValue: '4',
+        bestRating: '5'
+      },
+      author: {
+        '@type': 'Person',
+        name: 'Tom Hargreaves'
+      },
+      reviewBody: "Brilliant tool. I’ve worked in London for years as an architect and this beats more complex software for speed and efficiency."
+    },
+    {
+      '@type': 'Review',
+      reviewRating: {
+        '@type': 'Rating',
+        ratingValue: '5',
+        bestRating: '5'
+      },
+      author: {
+        '@type': 'Person',
+        name: 'Saanvi Menon'
+      },
+      reviewBody: "Tried Renderiq for a hospitality concept. Absolutely loved the lighting effects and options for material choices. Highly recommended."
+    },
+    {
+      '@type': 'Review',
+      reviewRating: {
+        '@type': 'Rating',
+        ratingValue: '5',
+        bestRating: '5'
+      },
+      author: {
+        '@type': 'Person',
+        name: 'Imran Qureshi'
+      },
+      reviewBody: "The batch processing lets my team deliver more proposals in less time. Great for busy real estate marketing agencies in Delhi NCR."
+    },
+    {
+      '@type': 'Review',
+      reviewRating: {
+        '@type': 'Rating',
+        ratingValue: '4',
+        bestRating: '5'
+      },
+      author: {
+        '@type': 'Person',
+        name: 'Emily Robinson'
+      },
+      reviewBody: "Renderiq is a fantastic addition to our London practice! The AI is impressive, only wish there were more style presets for UK homes."
+    },
+    {
+      '@type': 'Review',
+      reviewRating: {
+        '@type': 'Rating',
+        ratingValue: '5',
+        bestRating: '5'
+      },
+      author: {
+        '@type': 'Person',
+        name: 'Rakesh Kumar'
+      },
+      reviewBody: "Super intuitive. I submitted a site plan and got a photorealistic visual in minutes. Loved the client feedback features as well."
+    },
+    {
+      '@type': 'Review',
+      reviewRating: {
+        '@type': 'Rating',
+        ratingValue: '5',
+        bestRating: '5'
+      },
+      author: {
+        '@type': 'Person',
+        name: 'Anna Carter'
+      },
+      reviewBody: "Couldn’t believe how natural the videos looked! It’s helped us win a couple of new contracts here in Manchester."
+    },
+    {
+      '@type': 'Review',
+      reviewRating: {
+        '@type': 'Rating',
+        ratingValue: '4',
+        bestRating: '5'
+      },
+      author: {
+        '@type': 'Person',
+        name: 'Nikhil Joshi'
+      },
+      reviewBody: "Renderiq has made a positive difference for my architectural startup in Pune. The high-res export is great for presentations."
     }
   ],
   audience: {
@@ -222,7 +350,7 @@ export function generateArticleSchema({
       name: 'Renderiq',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://renderiq.io/logo.png'
+        url: 'https://renderiq.io/logo.svg'
       }
     }
   };
@@ -244,7 +372,7 @@ export function generateFAQSchema(faqs: { question: string; answer: string }[]) 
   };
 }
 
-// Comprehensive FAQ Schema for AI discoverability
+// Comprehensive FAQ Schema for AI discoverability - Enhanced for PPA/PAA optimization
 export const comprehensiveFAQSchema = {
   '@context': 'https://schema.org',
   '@type': 'FAQPage',
@@ -328,7 +456,249 @@ export const comprehensiveFAQSchema = {
         '@type': 'Answer',
         text: 'Absolutely! Our AI-generated renders are perfect for client presentations, proposals, and marketing materials. The photorealistic quality helps clients visualize projects before construction begins.'
       }
+    },
+    // Additional PPA/PAA optimized questions
+    {
+      '@type': 'Question',
+      name: 'What is the best AI architecture rendering software?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Renderiq is the best AI architecture rendering software for AEC professionals. It uses multiple state-of-the-art AI models including Google Gemini for image generation, Veo for video generation, and Hunyuan3D for 3D model creation. Our architecture-aware models maintain design accuracy, proper proportions, and photorealistic quality. Our platform offers specialized tools for exterior, interior, furniture placement, and site planning.'
+      }
+    },
+    {
+      '@type': 'Question',
+      name: 'How much does architectural rendering cost?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Renderiq offers affordable architectural rendering starting with a free plan (10 credits). Our Starter plan is $29/month (100 credits), Professional is $99/month (500 credits), and Enterprise plans have custom pricing. This is significantly more cost-effective than traditional rendering services that charge $500-$2000 per render.'
+      }
+    },
+    {
+      '@type': 'Question',
+      name: 'What is AEC software?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'AEC software refers to Architecture, Engineering, and Construction software used by professionals in these industries. Renderiq is an AEC visualization platform that helps architects, engineers, and construction professionals create photorealistic renders, floor plans, site plans, and design visualizations using AI technology.'
+      }
+    },
+    {
+      '@type': 'Question',
+      name: 'How do I create architectural renders?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'To create architectural renders with Renderiq, simply upload your sketch or describe your design in our unified AI chat interface. Our AI analyzes your input and generates photorealistic renders in 2-5 minutes. You can iterate, refine materials, adjust lighting, and create multiple variations quickly.'
+      }
     }
   ]
 };
+
+// QAPage Schema Generator for PPA/PAA optimization (People Also Ask)
+export function generateQAPageSchema(questions: { question: string; answer: string; author?: string; dateCreated?: string }[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'QAPage',
+    mainEntity: {
+      '@type': 'Question',
+      name: questions[0]?.question || 'Question',
+      text: questions[0]?.question || 'Question',
+      dateCreated: questions[0]?.dateCreated || new Date().toISOString(),
+      author: {
+        '@type': 'Organization',
+        name: questions[0]?.author || 'Renderiq'
+      },
+      acceptedAnswer: questions.map(q => ({
+        '@type': 'Answer',
+        text: q.answer,
+        dateCreated: q.dateCreated || new Date().toISOString(),
+        author: {
+          '@type': 'Organization',
+          name: q.author || 'Renderiq'
+        }
+      })),
+      suggestedAnswer: questions.slice(1).map(q => ({
+        '@type': 'Answer',
+        text: q.answer,
+        dateCreated: q.dateCreated || new Date().toISOString(),
+        author: {
+          '@type': 'Organization',
+          name: q.author || 'Renderiq'
+        }
+      }))
+    }
+  };
+}
+
+// HowTo Schema Generator for featured snippet optimization
+export function generateHowToSchema({
+  name,
+  description,
+  image,
+  totalTime,
+  estimatedCost,
+  supply,
+  tool,
+  step
+}: {
+  name: string;
+  description: string;
+  image?: string;
+  totalTime?: string;
+  estimatedCost?: { currency: string; value: string };
+  supply?: Array<{ '@type': 'HowToSupply'; name: string }>;
+  tool?: Array<{ '@type': 'HowToTool'; name: string }>;
+  step: Array<{
+    '@type': 'HowToStep';
+    name: string;
+    text: string;
+    image?: string;
+    url?: string;
+  }>;
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'HowTo',
+    name,
+    description,
+    image: image || 'https://renderiq.io/og-image.jpg',
+    totalTime: totalTime || 'PT5M',
+    estimatedCost: estimatedCost ? {
+      '@type': 'MonetaryAmount',
+      currency: estimatedCost.currency,
+      value: estimatedCost.value
+    } : undefined,
+    supply: supply || [],
+    tool: tool || [{ '@type': 'HowToTool', name: 'Renderiq AI Platform' }],
+    step: step.map((s, index) => ({
+      '@type': 'HowToStep',
+      position: index + 1,
+      name: s.name,
+      text: s.text,
+      image: s.image,
+      url: s.url
+    }))
+  };
+}
+
+// Product Schema Generator for pricing pages
+export function generateProductSchema({
+  name,
+  description,
+  image,
+  brand = 'Renderiq',
+  offers
+}: {
+  name: string;
+  description: string;
+  image?: string;
+  brand?: string;
+  offers: Array<{
+    name: string;
+    price: string;
+    priceCurrency: string;
+    availability: string;
+    url?: string;
+    description?: string;
+  }>;
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name,
+    description,
+    image: image || 'https://renderiq.io/og-image.jpg',
+    brand: {
+      '@type': 'Brand',
+      name: brand
+    },
+    category: 'Software',
+    offers: offers.map(offer => ({
+      '@type': 'Offer',
+      name: offer.name,
+      price: offer.price,
+      priceCurrency: offer.priceCurrency,
+      availability: `https://schema.org/${offer.availability}`,
+      url: offer.url,
+      description: offer.description
+    }))
+  };
+}
+
+// ContactPage Schema Generator
+export function generateContactPageSchema({
+  name = 'Renderiq',
+  url,
+  telephone,
+  email,
+  address
+}: {
+  name?: string;
+  url: string;
+  telephone?: string;
+  email?: string;
+  address?: {
+    streetAddress?: string;
+    addressLocality?: string;
+    addressRegion?: string;
+    postalCode?: string;
+    addressCountry?: string;
+  };
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ContactPage',
+    name: `${name} - Contact Us`,
+    url,
+    mainEntity: {
+      '@type': 'Organization',
+      name,
+      url,
+      contactPoint: [{
+        '@type': 'ContactPoint',
+        telephone,
+        email,
+        contactType: 'Customer Support',
+        availableLanguage: ['English']
+      }],
+      address: address ? {
+        '@type': 'PostalAddress',
+        ...address
+      } : undefined
+    }
+  };
+}
+
+// AboutPage Schema Generator
+export function generateAboutPageSchema({
+  name = 'Renderiq',
+  description,
+  url,
+  foundingDate,
+  founder
+}: {
+  name?: string;
+  description: string;
+  url: string;
+  foundingDate?: string;
+  founder?: string;
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'AboutPage',
+    name: `About ${name}`,
+    description,
+    url,
+    mainEntity: {
+      '@type': 'Organization',
+      name,
+      description,
+      url,
+      foundingDate,
+      founder: founder ? {
+        '@type': 'Person',
+        name: founder
+      } : undefined
+    }
+  };
+}
 

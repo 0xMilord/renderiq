@@ -4,6 +4,8 @@ import Script from "next/script";
 import { ArrowLeft, PaintBucket, Camera, Sun, CheckCircle2, Upload, Image as ImageIcon, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { JsonLd } from '@/components/seo/json-ld';
+import { generateHowToSchema } from '@/components/seo/json-ld';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
 
@@ -140,6 +142,28 @@ const useCases = [
 
 export default function MaterialTestingBuiltSpacesPage() {
   const pageUrl = `${siteUrl}/use-cases/material-testing-built-spaces`;
+  
+  // HowTo schema for featured snippet optimization
+  const howToSchema = generateHowToSchema({
+    name: 'How to Test Materials in Built Spaces',
+    description: 'Learn how to test how materials look and feel in actual built environments using AI. Upload photos of existing spaces and experiment with different material combinations.',
+    image: `${siteUrl}/og/use-cases-material-testing-built-spaces.jpg`,
+    totalTime: 'PT5M',
+    estimatedCost: {
+      currency: 'USD',
+      value: '0'
+    },
+    tool: [
+      { '@type': 'HowToTool', name: 'Renderiq AI Platform' },
+      { '@type': 'HowToTool', name: 'Photo of Existing Space' }
+    ],
+    step: workflow.map((w, index) => ({
+      '@type': 'HowToStep',
+      name: w.title,
+      text: w.description,
+      url: `${pageUrl}#step-${index + 1}`
+    }))
+  });
   
   const webpageSchema = {
     '@context': 'https://schema.org',

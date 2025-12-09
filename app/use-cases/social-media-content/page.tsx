@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ArrowLeft, Share2, Instagram, Linkedin, Twitter, CheckCircle2, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { JsonLd } from '@/components/seo/json-ld';
+import { generateHowToSchema } from '@/components/seo/json-ld';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
 
@@ -113,8 +115,51 @@ const useCases = [
 ];
 
 export default function SocialMediaContentPage() {
+  const pageUrl = `${siteUrl}/use-cases/social-media-content`;
+  
+  // HowTo schema for featured snippet optimization
+  const howToSchema = generateHowToSchema({
+    name: 'How to Create Social Media Content for Architecture',
+    description: 'Learn how to create engaging architectural content for social media platforms. Generate square, portrait, or landscape formats optimized for Instagram, LinkedIn, Twitter, and other platforms.',
+    image: `${siteUrl}/og/use-cases-social-media-content.jpg`,
+    totalTime: 'PT5M',
+    estimatedCost: { currency: 'USD', value: '0' },
+    tool: [
+      { '@type': 'HowToTool', name: 'Renderiq AI Platform' },
+      { '@type': 'HowToTool', name: 'Architectural Design or Render' }
+    ],
+    step: [
+      {
+        '@type': 'HowToStep',
+        name: 'Create Your Render',
+        text: 'Generate a photorealistic architectural render using Renderiq AI from your design or sketch.',
+        url: `${pageUrl}#step-1`
+      },
+      {
+        '@type': 'HowToStep',
+        name: 'Choose Platform Format',
+        text: 'Select the appropriate aspect ratio: 1:1 for Instagram posts, 9:16 for Stories, 16:9 for LinkedIn, or custom dimensions.',
+        url: `${pageUrl}#step-2`
+      },
+      {
+        '@type': 'HowToStep',
+        name: 'Maintain Brand Consistency',
+        text: 'Use render chains to maintain consistent visual style across your social media feed for cohesive branding.',
+        url: `${pageUrl}#step-3`
+      },
+      {
+        '@type': 'HowToStep',
+        name: 'Export and Share',
+        text: 'Export your optimized content and share on Instagram, LinkedIn, Twitter, or other social media platforms.',
+        url: `${pageUrl}#step-4`
+      }
+    ]
+  });
+  
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <JsonLd data={howToSchema} />
+      <div className="min-h-screen bg-background">
       <section className="pt-[calc(1rem+2.75rem+1.5rem)] pb-20 px-4 bg-gradient-to-b from-pink-500/5 to-background">
         <div className="container mx-auto max-w-7xl">
           <div className="max-w-3xl">
@@ -225,6 +270,7 @@ export default function SocialMediaContentPage() {
         </div>
       </section>
     </div>
+    </>
   );
 }
 

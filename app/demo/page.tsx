@@ -13,10 +13,10 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
 
 export const metadata = {
   title: 'Renderiq Demo - Transform Sketches into Photorealistic Renders',
-  description: 'Experience Renderiq\'s AI-powered architectural visualization platform. See how we transform sketches into photorealistic renders using Google Gemini 3 Pro and Veo 3.1.',
+  description: 'Experience Renderiq\'s AI-powered architectural visualization platform. See how we transform sketches into photorealistic renders using multiple state-of-the-art AI models for image, video, and 3D generation.',
   openGraph: {
     title: 'Renderiq Demo - Transform Sketches into Photorealistic Renders',
-    description: 'Experience Renderiq\'s AI-powered architectural visualization platform. See how we transform sketches into photorealistic renders using Google Gemini 3 Pro and Veo 3.1.',
+    description: 'Experience Renderiq\'s AI-powered architectural visualization platform. See how we transform sketches into photorealistic renders using multiple state-of-the-art AI models for image, video, and 3D generation.',
     type: 'website',
     url: `${siteUrl}/demo`,
     siteName: 'Renderiq',

@@ -1,6 +1,8 @@
 import { Metadata } from 'next';
 import { JsonLd } from '@/components/seo/json-ld';
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
+
 export const metadata: Metadata = {
   title: 'Best AI Architecture Tools 2025 - Renderiq Platform',
   description: 'Discover the best AI architecture tools for 2025. Renderiq leads the industry with advanced AI-powered architectural visualization, rendering, and design automation for architects and designers.',
@@ -14,12 +16,50 @@ export const metadata: Metadata = {
     'top AI architecture tools',
     'AI architecture software review',
     'AI architectural design tools',
-    'AI visualization tools for architects'
+    'AI visualization tools for architects',
+    'AEC software tools',
+    'architecture design software',
+    'architectural visualization platform'
   ],
+  authors: [{ name: 'Renderiq' }],
+  creator: 'Renderiq',
+  publisher: 'Renderiq',
+  alternates: {
+    canonical: `${siteUrl}/ai-architecture-tools`,
+  },
   openGraph: {
     title: 'Best AI Architecture Tools 2025 - Renderiq Platform',
     description: 'Discover the best AI architecture tools for 2025. Renderiq leads the industry with advanced AI-powered architectural visualization.',
-    images: ['/ai-architecture-tools-og.png'],
+    type: 'website',
+    url: `${siteUrl}/ai-architecture-tools`,
+    siteName: 'Renderiq',
+    images: [
+      {
+        url: `${siteUrl}/og/ai-architecture-tools.jpg`,
+        width: 1200,
+        height: 630,
+        alt: 'Best AI Architecture Tools 2025 - Renderiq',
+      },
+    ],
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Best AI Architecture Tools 2025 - Renderiq Platform',
+    description: 'Discover the best AI architecture tools for 2025. Renderiq leads the industry with advanced AI-powered architectural visualization.',
+    images: [`${siteUrl}/og/ai-architecture-tools.jpg`],
+    creator: '@Renderiq',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
   },
 };
 

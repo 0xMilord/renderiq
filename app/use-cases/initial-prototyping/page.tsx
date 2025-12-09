@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ArrowLeft, Zap, Layers, Users, Clock, CheckCircle2, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { JsonLd } from '@/components/seo/json-ld';
+import { generateHowToSchema } from '@/components/seo/json-ld';
 
 function getSiteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
@@ -135,7 +137,31 @@ const applications = [
 ];
 
 export default function InitialPrototypingPage() {
+  const siteUrl = getSiteUrl();
+  const pageUrl = `${siteUrl}/use-cases/initial-prototyping`;
+  
+  // HowTo schema for featured snippet optimization
+  const howToSchema = generateHowToSchema({
+    name: 'How to Create AI Rapid Prototyping for Architecture',
+    description: 'Learn how to generate multiple architectural design concepts in minutes with AI. Rapid prototyping enables faster design exploration, early stakeholder feedback, and reduces design time by 80%.',
+    image: `${siteUrl}/og/use-cases-initial-prototyping.jpg`,
+    totalTime: 'PT5M',
+    estimatedCost: { currency: 'USD', value: '0' },
+    tool: [
+      { '@type': 'HowToTool', name: 'Renderiq AI Platform' },
+      { '@type': 'HowToTool', name: 'Project Brief or Requirements' }
+    ],
+    step: processSteps.map((w, index) => ({
+      '@type': 'HowToStep',
+      name: w.title,
+      text: w.description,
+      url: `${pageUrl}#step-${index + 1}`
+    }))
+  });
+  
   return (
+    <>
+      <JsonLd data={howToSchema} />
     <div className="min-h-screen bg-background">
       {/* Hero */}
       <section className="pt-[calc(1rem+2.75rem+1.5rem)] pb-20 px-4 bg-gradient-to-b from-yellow-500/5 to-background">
@@ -312,6 +338,7 @@ export default function InitialPrototypingPage() {
         </div>
       </section>
     </div>
+    </>
   );
 }
 

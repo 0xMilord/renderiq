@@ -1,11 +1,15 @@
 /**
- * Gemini Model Configuration
+ * Multi-Model Configuration
  * 
- * Central configuration for all supported Gemini image and video generation models
+ * Central configuration for all supported AI models across image, video, and 3D generation
  * Includes pricing, credit calculations, and model capabilities
+ * 
+ * Supported Model Providers:
+ * - Google: Gemini (image), Veo (video)
+ * - Tencent: Hunyuan3D (3D generation)
  */
 
-export type ModelType = 'image' | 'video';
+export type ModelType = 'image' | 'video' | '3d';
 export type ImageModelId = 
   | 'gemini-3-pro-image-preview'
   | 'gemini-2.5-flash-image';
@@ -17,7 +21,13 @@ export type VideoModelId =
   | 'veo-3.0-generate-001'
   | 'veo-3.0-fast-generate-001';
 
-export type ModelId = ImageModelId | VideoModelId;
+export type Model3DId =
+  | 'hunyuan3d-2.0'
+  | 'hunyuan3d-2.0-turbo'
+  | 'hunyuan3d-2.0-fast'
+  | 'hunyuan3d-2.1';
+
+export type ModelId = ImageModelId | VideoModelId | Model3DId;
 
 export interface ModelConfig {
   id: ModelId;
@@ -220,11 +230,94 @@ export const VIDEO_MODELS: Record<VideoModelId, ModelConfig> = {
 };
 
 /**
+ * 3D Generation Models
+ */
+export const MODEL3D_MODELS: Record<Model3DId, ModelConfig> = {
+  'hunyuan3d-2.0': {
+    id: 'hunyuan3d-2.0',
+    name: 'Hunyuan3D 2.0',
+    type: '3d',
+    description: 'High-quality 3D model generation from images or text. Full quality model with best results.',
+    pricing: {
+      base: 0.50, // per 3D model (estimated)
+    },
+    calculateCredits: () => {
+      return usdToCredits(0.50);
+    },
+    capabilities: {
+      supportsImageInput: true,
+      supportsTextRendering: true,
+      speed: 'standard',
+    },
+    available: true,
+    recommendedFor: ['High-quality 3D models', 'Professional assets', 'Detailed geometry'],
+  },
+  'hunyuan3d-2.0-turbo': {
+    id: 'hunyuan3d-2.0-turbo',
+    name: 'Hunyuan3D 2.0 Turbo',
+    type: '3d',
+    description: 'Fast 3D model generation with step distillation for quicker results.',
+    pricing: {
+      base: 0.30, // per 3D model (estimated)
+    },
+    calculateCredits: () => {
+      return usdToCredits(0.30);
+    },
+    capabilities: {
+      supportsImageInput: true,
+      supportsTextRendering: true,
+      speed: 'fast',
+    },
+    available: true,
+    recommendedFor: ['Fast generation', 'Quick iterations', 'Good quality'],
+  },
+  'hunyuan3d-2.0-fast': {
+    id: 'hunyuan3d-2.0-fast',
+    name: 'Hunyuan3D 2.0 Fast',
+    type: '3d',
+    description: 'Fast 3D model generation with guidance distillation for cost-effective results.',
+    pricing: {
+      base: 0.25, // per 3D model (estimated)
+    },
+    calculateCredits: () => {
+      return usdToCredits(0.25);
+    },
+    capabilities: {
+      supportsImageInput: true,
+      supportsTextRendering: true,
+      speed: 'fast',
+    },
+    available: true,
+    recommendedFor: ['Cost-effective', 'Fast generation', 'Standard quality'],
+  },
+  'hunyuan3d-2.1': {
+    id: 'hunyuan3d-2.1',
+    name: 'Hunyuan3D 2.1',
+    type: '3d',
+    description: 'Latest 3D generation model with improved quality and multi-view support.',
+    pricing: {
+      base: 0.55, // per 3D model (estimated)
+    },
+    calculateCredits: () => {
+      return usdToCredits(0.55);
+    },
+    capabilities: {
+      supportsImageInput: true,
+      supportsTextRendering: true,
+      speed: 'standard',
+    },
+    available: true,
+    recommendedFor: ['Latest features', 'Multi-view generation', 'Best quality'],
+  },
+};
+
+/**
  * All models combined
  */
 export const ALL_MODELS: Record<ModelId, ModelConfig> = {
   ...IMAGE_MODELS,
   ...VIDEO_MODELS,
+  ...MODEL3D_MODELS,
 };
 
 /**
@@ -248,7 +341,13 @@ export function getDefaultModel(type: ModelType): ModelConfig {
   if (type === 'image') {
     return IMAGE_MODELS['gemini-3-pro-image-preview'];
   }
-  return VIDEO_MODELS['veo-3.1-generate-preview'];
+  if (type === 'video') {
+    return VIDEO_MODELS['veo-3.1-generate-preview'];
+  }
+  if (type === '3d') {
+    return MODEL3D_MODELS['hunyuan3d-2.0'];
+  }
+  return IMAGE_MODELS['gemini-3-pro-image-preview'];
 }
 
 /**

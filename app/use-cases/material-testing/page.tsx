@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ArrowLeft, PaintBucket, Palette, Sun, DollarSign, CheckCircle2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { JsonLd } from '@/components/seo/json-ld';
+import { generateHowToSchema } from '@/components/seo/json-ld';
 
 function getSiteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
@@ -175,7 +177,31 @@ const workflow = [
 ];
 
 export default function MaterialTestingPage() {
+  const siteUrl = getSiteUrl();
+  const pageUrl = `${siteUrl}/use-cases/material-testing`;
+  
+  // HowTo schema for featured snippet optimization
+  const howToSchema = generateHowToSchema({
+    name: 'How to Test Architectural Materials with AI',
+    description: 'Learn how to test thousands of architectural material combinations instantly with AI. Visualize different finishes, textures, and colors in realistic lighting.',
+    image: `${siteUrl}/og/use-cases-material-testing.jpg`,
+    totalTime: 'PT5M',
+    estimatedCost: { currency: 'USD', value: '0' },
+    tool: [
+      { '@type': 'HowToTool', name: 'Renderiq AI Platform' },
+      { '@type': 'HowToTool', name: 'Architectural Design or Render' }
+    ],
+    step: workflow.map((w, index) => ({
+      '@type': 'HowToStep',
+      name: w.title,
+      text: w.description,
+      url: `${pageUrl}#step-${index + 1}`
+    }))
+  });
+  
   return (
+    <>
+      <JsonLd data={howToSchema} />
     <div className="min-h-screen bg-background">
       {/* Hero */}
       <section className="pt-[calc(1rem+2.75rem+1.5rem)] pb-20 px-4 bg-gradient-to-b from-purple-500/5 to-background">
@@ -387,6 +413,7 @@ export default function MaterialTestingPage() {
         </div>
       </section>
     </div>
+    </>
   );
 }
 

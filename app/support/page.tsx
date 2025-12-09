@@ -9,7 +9,35 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
 export const metadata: Metadata = {
   title: "Support Policy | Renderiq - AI Architectural Visualization",
   description: "Learn about Renderiq's support policy, response times, support channels, and how we help you succeed with our platform.",
-  robots: "index, follow",
+  keywords: [
+    'Renderiq support',
+    'customer support',
+    'technical support',
+    'help center',
+    'support policy',
+    'customer service',
+    'architecture software support',
+    'AEC software support',
+    'rendering software support',
+    'AI architecture support'
+  ],
+  authors: [{ name: 'Renderiq' }],
+  creator: 'Renderiq',
+  publisher: 'Renderiq',
+  alternates: {
+    canonical: `${siteUrl}/support`,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
   openGraph: {
     title: "Support Policy | Renderiq - AI Architectural Visualization",
     description: "Learn about Renderiq's support policy, response times, support channels, and how we help you succeed with our platform.",

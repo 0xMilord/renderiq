@@ -9,7 +9,34 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
 export const metadata: Metadata = {
   title: "Terms of Service | Renderiq - AI Architectural Visualization",
   description: "Read the comprehensive terms and conditions for using Renderiq's AI architectural visualization and rendering platform. Legally binding terms covering usage, payments, intellectual property, and more.",
-  robots: "index, follow",
+  keywords: [
+    'Renderiq terms of service',
+    'terms and conditions',
+    'user agreement',
+    'service terms',
+    'legal terms',
+    'platform terms',
+    'architectural software terms',
+    'AEC software terms',
+    'software license agreement'
+  ],
+  authors: [{ name: 'Renderiq' }],
+  creator: 'Renderiq',
+  publisher: 'Renderiq',
+  alternates: {
+    canonical: `${siteUrl}/terms`,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
   openGraph: {
     title: "Terms of Service | Renderiq - AI Architectural Visualization",
     description: "Read the comprehensive terms and conditions for using Renderiq's AI architectural visualization and rendering platform. Legally binding terms covering usage, payments, intellectual property, and more.",

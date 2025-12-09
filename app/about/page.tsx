@@ -3,13 +3,44 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, Building2, Users, Target, Zap, Shield, Globe, Sparkles, Code, Lightbulb } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { JsonLd } from '@/components/seo/json-ld';
+import { generateAboutPageSchema } from '@/components/seo/json-ld';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
 
+// AboutPage schema
+const aboutPageSchema = generateAboutPageSchema({
+  name: 'Renderiq',
+  description: 'Renderiq is an AI-powered platform that transforms architectural sketches and prompts into hyperrealistic renders and videos using multiple state-of-the-art AI models. We support leading models from Google (Gemini, Veo) and Tencent (Hunyuan3D) for image, video, and 3D generation. Our mission is to empower architects, designers, and creative professionals with accessible, powerful AI tools.',
+  url: `${siteUrl}/about`,
+  foundingDate: '2024'
+});
+
 export const metadata: Metadata = {
   title: "About Us | Renderiq - AI Architectural Visualization Platform",
-  description: "Learn about Renderiq's mission to revolutionize architectural visualization with AI. Our team, vision, and commitment to empowering architects and designers.",
-  robots: "index, follow",
+  description: "Learn about Renderiq's mission to revolutionize architectural visualization with AI. Our team, vision, and commitment to empowering architects, engineers, and designers in the AEC industry.",
+  keywords: [
+    "about Renderiq", "Renderiq company", "AI architecture company", "architectural visualization company", "AEC software company",
+    "architecture software company", "rendering software company", "architectural design software company", "AI rendering company",
+    "who is Renderiq", "Renderiq mission", "Renderiq vision", "Renderiq team", "architectural visualization platform company"
+  ],
+  authors: [{ name: 'Renderiq' }],
+  creator: 'Renderiq',
+  publisher: 'Renderiq',
+  alternates: {
+    canonical: `${siteUrl}/about`,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
   openGraph: {
     title: "About Us | Renderiq - AI Architectural Visualization Platform",
     description: "Learn about Renderiq's mission to revolutionize architectural visualization with AI. Our team, vision, and commitment to empowering architects and designers.",
@@ -77,7 +108,7 @@ const team = [
 ];
 
 const stats = [
-  { label: "AI Models", value: "State-of-the-Art", description: "Powered by Google Gemini 3 Pro" },
+  { label: "AI Models", value: "Multi-Model Support", description: "Google Gemini, Veo, Hunyuan3D & more" },
   { label: "Renders Generated", value: "Thousands", description: "And growing every day" },
   { label: "Users", value: "Architects Worldwide", description: "From startups to enterprises" },
   { label: "Quality", value: "Professional-Grade", description: "Used in real projects" }
@@ -85,7 +116,9 @@ const stats = [
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <JsonLd data={aboutPageSchema} />
+      <div className="min-h-screen bg-background">
       {/* Hero */}
       <section className="pt-[calc(1rem+2.75rem+1.5rem)] pb-20 px-4 bg-gradient-to-b from-primary/5 to-background">
         <div className="container mx-auto max-w-4xl text-center">
@@ -186,17 +219,22 @@ export default function AboutPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <h3 className="font-semibold mb-2">Google Gemini 3 Pro Image Preview</h3>
+                <h3 className="font-semibold mb-2">Multi-Model AI Architecture</h3>
                 <p className="text-muted-foreground leading-relaxed">
-                  We leverage Google's most advanced AI models for image generation, ensuring 
-                  the highest quality renders with photorealistic detail and architectural accuracy.
+                  We leverage multiple state-of-the-art AI models from leading providers. For image generation, 
+                  we use Google Gemini models ensuring the highest quality renders with photorealistic detail 
+                  and architectural accuracy. For video generation, we support Veo models for cinematic-quality 
+                  animations. For 3D generation, we use Tencent Hunyuan3D for converting images and text into 
+                  detailed 3D assets.
                 </p>
               </div>
               <div>
-                <h3 className="font-semibold mb-2">Gemini 2.5 Flash</h3>
+                <h3 className="font-semibold mb-2">Flexible Model Selection</h3>
                 <p className="text-muted-foreground leading-relaxed">
-                  Fast, efficient text generation powers our chat interface and prompt enhancement, 
-                  making your workflow smooth and responsive.
+                  Choose from multiple models based on your needs - standard quality for professional work, 
+                  fast models for quick iterations, or high-quality models for final presentations. Our 
+                  platform automatically selects the best model for each task while giving you control 
+                  when needed.
                 </p>
               </div>
               <div>
@@ -235,7 +273,8 @@ export default function AboutPage() {
           </div>
         </div>
       </section>
-    </div>
+      </div>
+    </>
   );
 }
 

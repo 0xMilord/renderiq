@@ -23,7 +23,7 @@ const faqs = [
     questions: [
       {
         question: 'What is Renderiq and how does it work?',
-        answer: 'Renderiq is an AI-powered architectural visualization platform powered by Google Gemini 3 Pro and Veo 3.1. Transform sketches, floor plans, and 3D models into photorealistic renders and videos using our unified chat interface or specialized tools. Simply upload your design, describe what you want, and get professional-quality visualizations in minutes. No 3D modeling software or technical skills required. Perfect for architects, interior designers, and AEC professionals.',
+        answer: 'Renderiq is an AI-powered architectural visualization platform supporting multiple state-of-the-art AI models for image, video, and 3D generation. We use leading models including Google Gemini for image generation, Veo for video generation, and Hunyuan3D for 3D model creation. Transform sketches, floor plans, and 3D models into photorealistic renders and videos using our unified chat interface or specialized tools. Simply upload your design, describe what you want, and get professional-quality visualizations in minutes. No 3D modeling software or technical skills required. Perfect for architects, interior designers, and AEC professionals.',
       },
       {
         question: 'Do I need any technical skills or 3D modeling experience to use Renderiq?',
@@ -31,7 +31,7 @@ const faqs = [
       },
       {
         question: 'What file formats does Renderiq support for uploads?',
-        answer: 'Renderiq supports common image formats including PNG, JPG, JPEG, and WebP. You can upload architectural sketches, floor plans, photos, site images, or screenshots from 3D modeling software like AutoCAD, Revit, or SketchUp. We also support video input for video-to-video transformations using Veo 3.1. All uploads are processed securely and stored in your private projects.',
+        answer: 'Renderiq supports common image formats including PNG, JPG, JPEG, and WebP. You can upload architectural sketches, floor plans, photos, site images, or screenshots from 3D modeling software like AutoCAD, Revit, or SketchUp. We also support video input for video-to-video transformations using our video generation models. All uploads are processed securely and stored in your private projects.',
       },
       {
         question: 'What makes Renderiq different from other AI rendering tools like Midjourney or DALL-E?',
@@ -68,7 +68,7 @@ const faqs = [
       },
       {
         question: 'Can I generate videos with Renderiq?',
-        answer: 'Yes! Renderiq supports video generation using Google Veo 3.1, one of the most advanced video AI models. Create cinematic-quality architectural walkthroughs, design animations, and visualization videos from text prompts or images. Video generation costs credits based on duration (typically 25 credits per second). Perfect for client presentations, marketing materials, and showcasing design concepts in motion. Export videos in 720p or 1080p resolution.',
+        answer: 'Yes! Renderiq supports video generation using multiple advanced video AI models including Veo 3.1 and Veo 3.0. Create cinematic-quality architectural walkthroughs, design animations, and visualization videos from text prompts or images. Choose between standard quality or fast generation models based on your needs. Video generation costs credits based on duration and model selection. Perfect for client presentations, marketing materials, and showcasing design concepts in motion. Export videos in 720p or 1080p resolution.',
       },
     ],
   },
@@ -77,11 +77,11 @@ const faqs = [
     questions: [
       {
         question: 'What AI models does Renderiq use for rendering?',
-        answer: 'Renderiq uses Google Gemini 3 Pro for image generation and Google Veo 3.1 for video generation. Gemini 3 Pro is architecture-aware, understands design intent, maintains proper proportions, and produces photorealistic renders. Veo 3.1 creates cinematic-quality videos with smooth motion and realistic lighting. Both models are fine-tuned specifically for AEC applications, ensuring technically accurate and professional results suitable for client presentations and design documentation.',
+        answer: 'Renderiq supports multiple state-of-the-art AI models across different generation types. For image generation, we use Google Gemini models (Gemini 3 Pro and Gemini 2.5 Flash) which are architecture-aware, understand design intent, maintain proper proportions, and produce photorealistic renders. For video generation, we support Veo 3.1 and Veo 3.0 models that create cinematic-quality videos with smooth motion and realistic lighting. For 3D model generation, we use Tencent Hunyuan3D models for converting images or text into detailed 3D assets. All models are selected and optimized for AEC applications, ensuring technically accurate and professional results suitable for client presentations and design documentation.',
       },
       {
         question: 'How long does it take to generate a render or video?',
-        answer: 'Most image renders complete in 30-60 seconds, up to 100x faster than traditional 3D rendering methods. Video generation using Veo 3.1 takes longer depending on duration and quality settings - typically 2-5 minutes for a 5-8 second video. You\'ll receive real-time updates on render progress, and all renders are automatically added to your project chains. Processing time may vary based on server load and render complexity.',
+        answer: 'Most image renders complete in 30-60 seconds, up to 100x faster than traditional 3D rendering methods. Video generation takes longer depending on duration, quality settings, and model selection - typically 2-5 minutes for a 5-8 second video. 3D model generation typically takes 3-10 minutes depending on complexity and model variant. You\'ll receive real-time updates on render progress, and all renders are automatically added to your project chains. Processing time may vary based on server load, render complexity, and selected model.',
       },
       {
         question: 'What resolution and quality can I export renders at?',

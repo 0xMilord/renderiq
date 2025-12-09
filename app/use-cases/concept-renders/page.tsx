@@ -4,6 +4,8 @@ import Script from "next/script";
 import { ArrowLeft, Eye, Sparkles, Zap, Clock, CheckCircle2, Upload, MessageSquare, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { JsonLd } from '@/components/seo/json-ld';
+import { generateHowToSchema } from '@/components/seo/json-ld';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
 
@@ -71,7 +73,7 @@ const benefits = [
   {
     icon: Zap,
     title: "Instant Visualization",
-    description: "Transform sketches into photorealistic renders in 30-60 seconds using Google Gemini 3 Pro.",
+    description: "Transform sketches into photorealistic renders in 30-60 seconds using our advanced AI image generation models.",
     metric: "30-60 second generation"
   },
   {
@@ -141,7 +143,31 @@ const useCases = [
 ];
 
 export default function ConceptRendersPage() {
+  // HowTo schema for featured snippet optimization
+  const howToSchema = generateHowToSchema({
+    name: 'How to Create Concept Renders for Early Visualization',
+    description: 'Learn how to transform architectural sketches into photorealistic concept renders using AI. Perfect for early-stage design exploration and client communication.',
+    image: `${siteUrl}/og/use-cases-concept-renders.jpg`,
+    totalTime: 'PT5M',
+    estimatedCost: {
+      currency: 'USD',
+      value: '0'
+    },
+    tool: [
+      { '@type': 'HowToTool', name: 'Renderiq AI Platform' },
+      { '@type': 'HowToTool', name: 'Architectural Sketch or Drawing' }
+    ],
+    step: workflow.map((w, index) => ({
+      '@type': 'HowToStep',
+      name: w.title,
+      text: w.description,
+      url: `${siteUrl}/use-cases/concept-renders#step-${index + 1}`
+    }))
+  });
+
   return (
+    <>
+      <JsonLd data={howToSchema} />
     <div className="min-h-screen bg-background">
       {/* Hero */}
       <section className="pt-[calc(1rem+2.75rem+1.5rem)] pb-20 px-4 bg-gradient-to-b from-blue-500/5 to-background">
@@ -185,7 +211,7 @@ export default function ConceptRendersPage() {
             <div className="space-y-6">
               <p className="text-lg text-muted-foreground">
                 Upload your initial sketches, hand drawings, or rough CAD exports directly into Renderiq's unified chat interface. 
-                The platform uses Google Gemini 3 Pro Image Preview to understand architectural context, maintaining your design 
+                The platform uses advanced AI image generation models to understand architectural context, maintaining your design 
                 proportions while adding realistic materials, lighting, and spatial depth.
               </p>
               <p className="text-lg text-muted-foreground">
@@ -350,6 +376,7 @@ export default function ConceptRendersPage() {
         </div>
       </section>
     </div>
+    </>
   );
 }
 

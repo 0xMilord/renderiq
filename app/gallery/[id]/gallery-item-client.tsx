@@ -514,9 +514,6 @@ export function GalleryItemPageClient({ item, similarItems }: GalleryItemPageCli
                           onLoad={() => {
                             setImageLoading(false);
                           }}
-                          onLoadingComplete={() => {
-                            setImageLoading(false);
-                          }}
                           onError={() => {
                             setImageError(true);
                             setImageLoading(false);

@@ -1,6 +1,8 @@
 import { Metadata } from 'next';
 import { JsonLd } from '@/components/seo/json-ld';
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
+
 export const metadata: Metadata = {
   title: 'AI Rendering Software for Architecture - Renderiq',
   description: 'Discover the best AI rendering software for architectural visualization. Renderiq offers advanced AI-powered rendering that transforms sketches into photorealistic visualizations in minutes.',
@@ -14,8 +16,53 @@ export const metadata: Metadata = {
     'AI rendering tools',
     'AI rendering technology',
     'AI rendering solutions',
-    'AI rendering for architecture'
+    'AI rendering for architecture',
+    'architecture rendering software',
+    'AEC rendering software',
+    'architectural visualization software',
+    '3D rendering software',
+    'photorealistic rendering software'
   ],
+  authors: [{ name: 'Renderiq' }],
+  creator: 'Renderiq',
+  publisher: 'Renderiq',
+  alternates: {
+    canonical: `${siteUrl}/ai-rendering-software`,
+  },
+  openGraph: {
+    title: 'AI Rendering Software for Architecture - Renderiq',
+    description: 'Discover the best AI rendering software for architectural visualization. Transform sketches into photorealistic visualizations in minutes.',
+    type: 'website',
+    url: `${siteUrl}/ai-rendering-software`,
+    siteName: 'Renderiq',
+    images: [
+      {
+        url: `${siteUrl}/og/ai-rendering-software.jpg`,
+        width: 1200,
+        height: 630,
+        alt: 'AI Rendering Software for Architecture - Renderiq',
+      },
+    ],
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'AI Rendering Software for Architecture - Renderiq',
+    description: 'Discover the best AI rendering software for architectural visualization. Transform sketches into photorealistic visualizations.',
+    images: [`${siteUrl}/og/ai-rendering-software.jpg`],
+    creator: '@Renderiq',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
 };
 
 const articleSchema = {

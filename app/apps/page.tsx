@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { AppsPageClient } from "./apps-client";
 import { getAllTools, CATEGORIES } from "@/lib/tools/registry";
+import { JsonLd } from '@/components/seo/json-ld';
 
 export const metadata: Metadata = {
   title: "AI Architecture Tools | 21 Specialized Tools for Architects | Renderiq",
@@ -41,7 +42,42 @@ export const metadata: Metadata = {
 
 export default function AppsPage() {
   const tools = getAllTools();
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
   
-  return <AppsPageClient tools={tools} categories={CATEGORIES} />;
+  // CollectionPage schema for apps listing
+  const collectionPageSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: 'AI Architecture Tools',
+    description: 'A collection of 21 specialized AI architecture tools for architects and designers, including render transformations, floor plan tools, diagrams, material testing, interior design, 3D visualization, and presentation tools.',
+    url: `${siteUrl}/apps`,
+    mainEntity: {
+      '@type': 'ItemList',
+      numberOfItems: tools.length,
+      itemListElement: tools.map((tool, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        item: {
+          '@type': 'SoftwareApplication',
+          name: tool.name,
+          description: tool.description,
+          url: `${siteUrl}/apps/${tool.slug}`,
+          applicationCategory: 'DesignApplication',
+        },
+      })),
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Renderiq',
+      url: siteUrl,
+    },
+  };
+  
+  return (
+    <>
+      <JsonLd data={collectionPageSchema} />
+      <AppsPageClient tools={tools} categories={CATEGORIES} />
+    </>
+  );
 }
 

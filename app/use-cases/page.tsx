@@ -26,6 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { primaryUseCases, industryUseCases } from "@/lib/data/use-cases";
+import { JsonLd } from '@/components/seo/json-ld';
 
 export const metadata: Metadata = {
   title: "AI Architecture Use Cases | Concept Renders, Floor Plans, Videos & More | Renderiq",
@@ -119,8 +120,41 @@ const features = [
 ];
 
 export default function UseCasesPage() {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
+  const allUseCases = [...primaryUseCases];
+  
+  // CollectionPage schema for use cases listing
+  const collectionPageSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: 'AI Architecture Use Cases',
+    description: 'A collection of powerful AI architecture use cases including concept renders, material testing, floor plan visualization, video generation, massing studies, elevations, presentation graphics, social media content, and mood matching.',
+    url: `${siteUrl}/use-cases`,
+    mainEntity: {
+      '@type': 'ItemList',
+      numberOfItems: allUseCases.length,
+      itemListElement: allUseCases.map((useCase, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        item: {
+          '@type': 'Article',
+          name: useCase.title,
+          description: useCase.description,
+          url: `${siteUrl}/use-cases/${useCase.slug}`,
+        },
+      })),
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Renderiq',
+      url: siteUrl,
+    },
+  };
+  
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <JsonLd data={collectionPageSchema} />
+      <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="relative pt-[calc(1rem+2.75rem+1.5rem)] pb-20 px-4 bg-gradient-to-b from-primary/5 to-background">
         <div className="container mx-auto max-w-7xl">
@@ -286,6 +320,7 @@ export default function UseCasesPage() {
         </div>
       </section>
     </div>
+    </>
   );
 }
 

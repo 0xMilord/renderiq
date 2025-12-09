@@ -1,6 +1,6 @@
 # Renderiq - AI Architectural Visualization Platform
 
-Transform your architectural sketches into hyperrealistic AI renders and videos using the Nano Banana SDK.
+Transform your architectural sketches into hyperrealistic AI renders and videos using multiple state-of-the-art AI models.
 
 ## Features
 
@@ -18,7 +18,7 @@ Transform your architectural sketches into hyperrealistic AI renders and videos 
 - **Database**: PostgreSQL with Drizzle ORM
 - **Authentication**: Supabase Auth
 - **Storage**: Supabase Storage
-- **AI Engine**: Nano Banana SDK
+- **AI Engine**: Multi-model support (Google Gemini, Veo, Tencent Hunyuan3D)
 - **Validation**: Zod
 - **UI Components**: Custom components with Tailwind CSS
 
@@ -72,7 +72,9 @@ Transform your architectural sketches into hyperrealistic AI renders and videos 
 - Node.js 18+ 
 - PostgreSQL database
 - Supabase account
-- Nano Banana API key
+- Google Gemini API key (for image generation)
+- Google Veo API key (for video generation)
+- Tencent Hunyuan3D API key (for 3D generation, optional)
 
 ### Installation
 
@@ -97,8 +99,9 @@ Transform your architectural sketches into hyperrealistic AI renders and videos 
    - `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase project URL
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your Supabase anon key
    - `SUPABASE_SERVICE_ROLE_KEY`: Your Supabase service role key
-   - `NANO_BANANA_API_KEY`: Your Nano Banana API key
-   - `NANO_BANANA_BASE_URL`: Nano Banana API base URL
+   - `GEMINI_API_KEY`: Your Google Gemini API key (for image generation)
+   - `GOOGLE_GENERATIVE_AI_API_KEY`: Alternative Google API key
+   - `HUNYUAN3D_API_KEY`: Your Tencent Hunyuan3D API key (for 3D generation, optional)
 
 4. **Set up the database**
    ```bash
