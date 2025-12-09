@@ -40,6 +40,7 @@ import { NodeStatusManager } from '@/lib/canvas/node-status';
 import { NodeSearchManager } from '@/components/canvas/node-search';
 import { MultiSelectManager } from '@/components/canvas/multi-select';
 import { toast } from 'sonner';
+import { useWakeLock } from '@/lib/hooks/use-wake-lock';
 
 const nodeTypes: NodeTypes = {
   text: TextNode as any,
@@ -151,6 +152,15 @@ function CanvasEditorInner({
   const multiSelectManager = useState(() => new MultiSelectManager())[0];
   const workflowExecutor = useState(() => new WorkflowExecutor(ExecutionMode.MANUAL))[0];
   const nodeStatusManager = useState(() => new NodeStatusManager())[0];
+  
+  // Screen Wake Lock - Keep screen on during node execution/generation
+  const isAnyNodeGenerating = Array.from(nodeStatuses.values()).some(
+    status => status === NodeExecutionStatus.RUNNING
+  ) || nodes.some(node => {
+    const nodeData = node.data as any;
+    return nodeData?.status === 'generating' || nodeData?.status === 'executing' || nodeData?.status === 'running';
+  });
+  useWakeLock(isAnyNodeGenerating);
 
   // Handle node data updates from custom events
   useEffect(() => {

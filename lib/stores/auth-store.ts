@@ -79,7 +79,19 @@ export const useAuthStore = create<AuthState>((set, get) => {
           async (event) => {
             logger.log('Auth state changed:', event);
             
-            // ✅ SECURITY: Use getUser() to get authenticated user data
+            // ✅ PERFORMANCE: Skip slow getUser() on SIGNED_OUT - we already know user is null
+            // Calling getUser() on a cleared session causes 30+ second timeout
+            if (event === 'SIGNED_OUT') {
+              set({ 
+                user: null, 
+                loading: false,
+                userProfile: null,
+                onboardingComplete: false 
+              });
+              return; // Early return - no slow getUser() call
+            }
+            
+            // ✅ SECURITY: Use getUser() to get authenticated user data (only for sign-in events)
             const { data: { user: authenticatedUser } } = await supabase.auth.getUser();
             
             set({ 
@@ -131,13 +143,19 @@ export const useAuthStore = create<AuthState>((set, get) => {
       set({ loading: true });
       
       try {
+        // Get the correct redirect URL for email verification
+        const origin = typeof window !== 'undefined' ? window.location.origin : '';
+        const emailRedirectTo = `${origin}/auth/callback`;
+        
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
               full_name: fullName,
+              name: fullName, // Also set name for consistency
             },
+            emailRedirectTo,
           },
         });
 
@@ -146,6 +164,12 @@ export const useAuthStore = create<AuthState>((set, get) => {
           return { error };
         }
 
+        // ✅ Supabase now handles email sending with custom templates
+        // Custom templates are deployed in Supabase Dashboard → Authentication → Email Templates
+        // No need to send via Resend - Supabase sends automatically using our branded templates
+
+        // ✅ Set user state BEFORE setting loading to false
+        // This ensures user is available when component redirects
         set({ user: data.user, loading: false });
         return { error: null };
       } catch (error) {
@@ -158,13 +182,35 @@ export const useAuthStore = create<AuthState>((set, get) => {
       set({ loading: true });
       
       try {
+        // Get user ID before signing out (for cache invalidation)
+        const { data: { user } } = await supabase.auth.getUser();
+        const userId = user?.id;
+        
         const { error } = await supabase.auth.signOut();
         
         if (error) {
           console.error('Sign out error:', error);
         }
         
-        set({ user: null, loading: false });
+        // ✅ Clear client state immediately
+        set({ 
+          user: null, 
+          userProfile: null, 
+          loading: false,
+          onboardingComplete: false 
+        });
+        
+        // ✅ Invalidate server cache (fire and forget - don't block signout)
+        if (userId) {
+          fetch('/api/auth/invalidate-cache', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId }),
+          }).catch(() => {
+            // Ignore errors - cache will expire naturally (5min TTL)
+            logger.warn('⚠️ Failed to invalidate cache on signout, will expire naturally');
+          });
+        }
       } catch (error) {
         console.error('Sign out failed:', error);
         set({ loading: false });

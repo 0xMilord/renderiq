@@ -46,12 +46,17 @@ export function BottomNav() {
   const { user, loading } = useAuth();
   const [isAppsSheetOpen, setIsAppsSheetOpen] = useState(false);
 
-  // Hide bottom nav on render routes, project/chain routes, dashboard routes, and demo route
+  // Hide bottom nav on render routes, project/chain routes, dashboard routes, demo route, and auth routes
   if (
     pathname.includes('/render') || 
     pathname.startsWith('/project/') ||
     pathname?.startsWith('/dashboard') ||
-    pathname?.startsWith('/demo')
+    pathname?.startsWith('/demo') ||
+    pathname === '/login' ||
+    pathname === '/signup' ||
+    pathname === '/verify-email' ||
+    pathname === '/forgot-password' ||
+    pathname === '/reset-password'
   ) {
     return null;
   }

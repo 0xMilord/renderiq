@@ -17,9 +17,13 @@ export function useAuth() {
   };
 
   const signOut = async () => {
+    // ✅ Await signout completion to ensure auth state is cleared
     await storeSignOut();
-    // Redirect to home immediately after logout
-    router.push('/');
+    
+    // ✅ Redirect after signout completes (prevents race conditions)
+    // Use replace instead of push to prevent back button from returning to authenticated pages
+    router.replace('/');
+    
     return { error: null };
   };
 

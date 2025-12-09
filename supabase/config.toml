@@ -1,0 +1,63 @@
+# Supabase Configuration
+# This file configures Supabase email templates for authentication flows
+
+[auth.email.template.confirmation]
+subject = "Verify Your Email Address - Renderiq"
+content_path = "./templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Reset Your Password - Renderiq"
+content_path = "./templates/recovery.html"
+
+[auth.email.template.magic_link]
+subject = "Your Magic Link - Renderiq"
+content_path = "./templates/magic_link.html"
+
+[auth.email.template.email_change]
+subject = "Confirm Email Change - Renderiq"
+content_path = "./templates/email_change.html"
+
+[auth.email.template.invite]
+subject = "You're Invited to Renderiq"
+content_path = "./templates/invite.html"
+
+[auth.email.template.reauthentication]
+subject = "Confirm Reauthentication - Renderiq"
+content_path = "./templates/reauthentication.html"
+
+# Security notification email templates
+[auth.email.notification.password_changed]
+enabled = true
+subject = "Password Changed - Renderiq"
+content_path = "./templates/password_changed.html"
+
+[auth.email.notification.email_changed]
+enabled = true
+subject = "Email Address Changed - Renderiq"
+content_path = "./templates/email_changed.html"
+
+[auth.email.notification.phone_changed]
+enabled = true
+subject = "Phone Number Changed - Renderiq"
+content_path = "./templates/phone_changed.html"
+
+[auth.email.notification.mfa_factor_enrolled]
+enabled = true
+subject = "Multi-Factor Authentication Added - Renderiq"
+content_path = "./templates/mfa_enrolled.html"
+
+[auth.email.notification.mfa_factor_unenrolled]
+enabled = true
+subject = "Multi-Factor Authentication Removed - Renderiq"
+content_path = "./templates/mfa_unenrolled.html"
+
+[auth.email.notification.identity_linked]
+enabled = true
+subject = "New Account Linked - Renderiq"
+content_path = "./templates/identity_linked.html"
+
+[auth.email.notification.identity_unlinked]
+enabled = true
+subject = "Account Unlinked - Renderiq"
+content_path = "./templates/identity_unlinked.html"
+

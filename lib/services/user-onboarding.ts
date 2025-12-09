@@ -149,6 +149,20 @@ export class UserOnboardingService {
         logger.log('⚠️ UserOnboarding: No credits awarded, skipping welcome transaction');
       }
 
+      // Send welcome email
+      try {
+        const { sendWelcomeEmail } = await import('@/lib/services/email.service');
+        await sendWelcomeEmail({
+          name: newUser.name || 'User',
+          email: newUser.email,
+          subject: 'Welcome to Renderiq!',
+          content: '',
+        });
+      } catch (error) {
+        logger.error('❌ UserOnboarding: Failed to send welcome email:', error);
+        // Don't fail profile creation if email fails
+      }
+
       // Track ambassador referral if present
       if (context?.request) {
         try {

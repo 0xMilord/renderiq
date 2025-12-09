@@ -163,6 +163,39 @@ export class InvoiceService {
 
       logger.log('✅ InvoiceService: Invoice created:', invoice.id);
 
+      // Send invoice email if payment is completed
+      if (paymentOrder.status === 'completed' && user?.email) {
+        try {
+          const { sendInvoiceEmail } = await import('@/lib/services/email.service');
+          const invoiceUrl = invoice.invoicePdfUrl 
+            ? `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/payments/invoice/${invoice.invoiceNumber}`
+            : undefined;
+
+          await sendInvoiceEmail({
+            name: user.name || 'User',
+            email: user.email,
+            amount: totalAmount,
+            currency: paymentOrder.currency || 'INR',
+            orderId: paymentOrder.id,
+            invoiceNumber: invoice.invoiceNumber,
+            invoiceUrl: invoiceUrl,
+            paymentDate: paymentOrder.createdAt || new Date(),
+            items: [
+              {
+                name: paymentOrder.type === 'credit_package' 
+                  ? (referenceDetails?.name || 'Credit Package')
+                  : (referenceDetails?.name || 'Subscription'),
+                quantity: 1,
+                price: totalAmount,
+              },
+            ],
+          });
+        } catch (error) {
+          logger.error('❌ InvoiceService: Failed to send invoice email:', error);
+          // Don't fail invoice creation if email fails
+        }
+      }
+
       return {
         success: true,
         data: invoice,

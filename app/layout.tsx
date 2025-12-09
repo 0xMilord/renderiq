@@ -11,7 +11,10 @@ import { AuthProvider } from "@/components/providers/auth-provider";
 import { JsonLd, organizationSchema, softwareSchema, websiteSchema, comprehensiveFAQSchema, siteNavigationSchema } from "@/components/seo/json-ld";
 import { SEOMonitor, SEOAnalytics } from "@/components/seo/seo-monitor";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
+import { UpdateNotification } from "@/components/pwa/update-notification";
+import { InstallSuccessToast } from "@/components/pwa/install-success-toast";
 import { ConsoleSecurityWarning } from "@/components/security/console-warning";
+import { PostInstallSetup } from "@/components/pwa/post-install-setup";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -119,11 +122,22 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="manifest" href="/manifest.json" />
+        <link rel="manifest" href="/manifest.json" crossOrigin="use-credentials" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32x32.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16x16.png" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        {/* iOS Splash Screens */}
+        <link rel="apple-touch-startup-image" href="/splash/apple-splash-640x1136.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)" />
+        <link rel="apple-touch-startup-image" href="/splash/apple-splash-750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" />
+        <link rel="apple-touch-startup-image" href="/splash/apple-splash-828x1792.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" />
+        <link rel="apple-touch-startup-image" href="/splash/apple-splash-1125x2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" />
+        <link rel="apple-touch-startup-image" href="/splash/apple-splash-1242x2208.png" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)" />
+        <link rel="apple-touch-startup-image" href="/splash/apple-splash-1242x2688.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)" />
+        <link rel="apple-touch-startup-image" href="/splash/apple-splash-1536x2048.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)" />
+        <link rel="apple-touch-startup-image" href="/splash/apple-splash-1668x2224.png" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2)" />
+        <link rel="apple-touch-startup-image" href="/splash/apple-splash-1668x2388.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)" />
+        <link rel="apple-touch-startup-image" href="/splash/apple-splash-2048x2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" />
         <meta name="theme-color" content="#D1F24A" media="(prefers-color-scheme: dark)" />
         <meta name="theme-color" content="#22c55e" media="(prefers-color-scheme: light)" />
         <meta name="mobile-web-app-capable" content="yes" />
@@ -165,6 +179,9 @@ export default function RootLayout({
         <SEOMonitor />
         <SEOAnalytics />
         <ServiceWorkerRegister />
+        <UpdateNotification />
+        <InstallSuccessToast />
+        <PostInstallSetup />
         <ConsoleSecurityWarning />
         <ThemeProvider
           attribute="class"

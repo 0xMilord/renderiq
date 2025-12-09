@@ -88,6 +88,8 @@ import { useLocalStorageMessages } from '@/lib/hooks/use-local-storage-messages'
 import { useObjectURL } from '@/lib/hooks/use-object-url';
 import { useModal } from '@/lib/hooks/use-modal';
 import { createRenderFormData } from '@/lib/utils/render-form-data';
+import { useWakeLock } from '@/lib/hooks/use-wake-lock';
+import { useDynamicTitle } from '@/lib/hooks/use-dynamic-title';
 import { retryFetch } from '@/lib/utils/retry-fetch';
 import { convertRendersToMessages, convertRenderToMessages } from '@/lib/utils/render-to-messages';
 import {
@@ -233,6 +235,13 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   const [currentRender, setCurrentRender] = useState<Render | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
+  
+  // Screen Wake Lock - Keep screen on during render generation
+  useWakeLock(isGenerating || isImageGenerating || isVideoGenerating);
+
+  // Dynamic title updates based on project/chain - using new hook
+  const chainName = chain?.name;
+  useDynamicTitle(undefined, projectName, chainName);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [referenceRenderId, setReferenceRenderId] = useState<string | undefined>();
   const [beforeAfterView, setBeforeAfterView] = useState<'before' | 'after'>('after');

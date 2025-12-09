@@ -369,7 +369,7 @@ export class ReceiptService {
   }
 
   /**
-   * Send receipt email to user (placeholder - implement email service integration)
+   * Send receipt email to user via Resend
    */
   static async sendReceiptEmail(paymentOrderId: string): Promise<{ success: boolean; error?: string }> {
     try {
@@ -405,9 +405,30 @@ export class ReceiptService {
         return { success: false, error: 'User email not found' };
       }
 
-      // TODO: Integrate with email service (Resend, SendGrid, etc.)
-      // For now, just log
-      logger.log('📧 ReceiptService: Would send receipt email to:', user.email);
+      // Send receipt email via Resend
+      const { sendPaymentReceiptEmail } = await import('@/lib/services/email.service');
+      
+      const emailResult = await sendPaymentReceiptEmail({
+        name: user.name || 'User',
+        email: user.email,
+        amount: paymentOrder.amount,
+        currency: paymentOrder.currency || 'INR',
+        orderId: paymentOrder.id,
+        receiptUrl: paymentOrder.receiptPdfUrl || undefined,
+        paymentDate: paymentOrder.createdAt || new Date(),
+        items: paymentOrder.referenceId ? [
+          {
+            name: paymentOrder.type === 'credit_package' ? 'Credit Package' : 'Subscription',
+            quantity: 1,
+            price: paymentOrder.amount,
+          },
+        ] : undefined,
+      });
+
+      if (!emailResult.success) {
+        logger.error('❌ ReceiptService: Failed to send receipt email:', emailResult.error);
+        // Continue anyway - receipt generation succeeded
+      }
 
       // Update receipt sent timestamp
       await db

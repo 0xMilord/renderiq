@@ -87,7 +87,7 @@ export default function LoginPage() {
 
 
   return (
-    <div className="h-[calc(100vh-3.55rem)] bg-background relative overflow-hidden" style={{ cursor: 'auto' }}>
+    <div className="h-screen bg-background relative overflow-hidden pt-[3.55rem]" style={{ cursor: 'auto' }}>
       {/* DotGrid Background - shown on all devices */}
       <div className="absolute inset-0 overflow-hidden z-0 opacity-30">
         <DotGrid
@@ -117,22 +117,10 @@ export default function LoginPage() {
             </div>
           
           {/* Form Content */}
-          <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 overflow-y-auto">
-          <div className="max-w-md w-full space-y-8">
-          <div className="border border-border rounded-lg p-2">
-            <h2 className="text-center text-xl font-extrabold text-foreground">
-              Sign in to your account
-            </h2>
-            <p className="mt-1 text-center text-xs text-muted-foreground">
-              Or{' '}
-              <Link href="/signup" className="font-medium text-primary hover:text-primary/80">
-                create a new account
-              </Link>
-            </p>
-          </div>
-
+          <div className="flex-1 flex items-start justify-center py-6 px-2 sm:px-3 lg:px-4 overflow-y-auto">
+          <div className="max-w-md w-full space-y-4">
           {/* Google Sign In - Prominent with Glow Effect */}
-          <div className="mt-8">
+          <div className="mt-4">
             <div className="relative w-full">
               {/* Glow/Aura effect */}
               <div className="absolute inset-0 bg-primary/20 blur-xl rounded-lg -z-10" style={{
@@ -146,10 +134,10 @@ export default function LoginPage() {
                 size="lg"
                 onClick={handleGoogleSignIn}
                 disabled={isLoading}
-                className="w-full flex items-center justify-center space-x-3 py-6 text-base font-semibold relative z-10 shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-all duration-300"
+                className="w-full flex items-center justify-center space-x-1.5 py-3 text-base font-semibold relative z-10 shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-all duration-300"
               >
                 <svg 
-                  className={`h-5 w-5 ${mounted && (resolvedTheme === 'dark' ? 'text-[hsl(0,0%,7%)]' : 'text-[hsl(0,0%,92%)]')}`}
+                  className="h-5 w-5 text-foreground"
                   viewBox="0 0 24 24"
                   fill="currentColor"
                   xmlns="http://www.w3.org/2000/svg"
@@ -162,23 +150,20 @@ export default function LoginPage() {
                 <span>Continue with Google</span>
               </Button>
             </div>
-            <p className="text-center text-sm text-muted-foreground mt-4">
-              Sign up for free 10 credits!
-            </p>
           </div>
 
           {/* Email/Password Form */}
-          <div className="mt-6">
-            <div className="relative mb-6">
+          <div className="mt-3">
+            <div className="relative mb-3">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-background text-muted-foreground">Or continue with</span>
+                <span className="px-1 bg-background text-muted-foreground">Or continue with</span>
               </div>
             </div>
-            <form className="space-y-6" onSubmit={handleSubmit}>
-            <div className="space-y-4">
+            <form className="space-y-3" onSubmit={handleSubmit}>
+            <div className="space-y-2">
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-foreground">
                   Email address
@@ -191,7 +176,7 @@ export default function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1"
+                  className="mt-0.5"
                   placeholder="Enter your email"
                 />
               </div>
@@ -200,7 +185,7 @@ export default function LoginPage() {
                 <label htmlFor="password" className="block text-sm font-medium text-foreground">
                   Password
                 </label>
-                <div className="mt-1 relative">
+                <div className="mt-0.5 relative">
                   <Input
                     id="password"
                     name="password"
@@ -209,12 +194,12 @@ export default function LoginPage() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pr-10"
+                    className="pr-5"
                     placeholder="Enter your password"
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    className="absolute inset-y-0 right-0 pr-1.5 flex items-center"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? (
@@ -228,7 +213,7 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-md p-1.5">
                 <p className="text-sm text-destructive">{error}</p>
               </div>
             )}
@@ -241,7 +226,7 @@ export default function LoginPage() {
                   type="checkbox"
                   className="h-4 w-4 text-primary focus:ring-primary border-input rounded"
                 />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-foreground">
+                <label htmlFor="remember-me" className="ml-1 block text-sm text-foreground">
                   Remember me
                 </label>
               </div>
@@ -261,7 +246,7 @@ export default function LoginPage() {
               >
                 {isLoading ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
                     Signing in...
                   </>
                 ) : (
@@ -270,6 +255,16 @@ export default function LoginPage() {
               </Button>
             </div>
           </form>
+          
+          {/* Create Account Link */}
+          <div className="text-center mt-3">
+            <p className="text-sm text-muted-foreground">
+              Don't have an account?{' '}
+              <Link href="/signup" className="font-medium text-primary hover:text-primary/80">
+                Create a new account
+              </Link>
+            </p>
+          </div>
           </div>
           </div>
           </div>
@@ -279,8 +274,8 @@ export default function LoginPage() {
         <div className="hidden lg:flex lg:w-3/4 relative z-10">
           {/* Text Overlay */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="text-center px-8 max-w-4xl">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground mb-3 leading-tight">
+            <div className="text-center px-4 max-w-4xl">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground mb-1.5 leading-tight">
                 Create what you imagine
               </h1>
               <h2 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground leading-tight">

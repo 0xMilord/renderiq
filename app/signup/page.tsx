@@ -108,18 +108,19 @@ export default function SignupPage() {
       const { error } = await signUp(formData.email, formData.password, formData.name);
       if (error) {
         setError(error instanceof Error ? error.message : String(error));
+        setIsLoading(false);
       } else {
+        // ✅ Show success state with message about checking email
         setSuccess(true);
-        // Get redirect parameter if present
-        const urlParams = new URLSearchParams(window.location.search);
-        const redirectTo = urlParams.get('redirect') || '/dashboard';
+        setIsLoading(false);
+        
+        // ✅ Redirect to verify-email page after a brief moment (allows state to update)
         setTimeout(() => {
-          router.push(redirectTo);
-        }, 2000);
+          router.push('/verify-email');
+        }, 500);
       }
-    } catch {
+    } catch (err) {
       setError('An unexpected error occurred');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -142,6 +143,16 @@ export default function SignupPage() {
     }
   };
 
+
+  // Show success message briefly, then redirect to verify-email
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        router.push('/verify-email');
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [success, router]);
 
   if (success) {
     return (
@@ -166,14 +177,32 @@ export default function SignupPage() {
               <CheckCircle className="h-6 w-6 text-primary" />
             </div>
             <h2 className="text-2xl font-bold text-foreground mb-4">
-              Account Created Successfully!
+              Account Created Successfully! 🎉
             </h2>
-            <p className="text-muted-foreground mb-6">
-              Please check your email to verify your account before signing in.
+            <p className="text-muted-foreground mb-4">
+              We've sent a verification email to <strong>{formData.email}</strong>
             </p>
-            <Link href="/login">
-              <Button>Go to Sign In</Button>
-            </Link>
+            <div className="bg-primary/10 rounded-lg p-4 mb-6">
+              <p className="text-sm text-foreground font-medium mb-2">📧 Next Steps:</p>
+              <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside text-left">
+                <li>Check your inbox (and spam folder)</li>
+                <li>Click the verification link in the email</li>
+                <li>Return here to sign in</li>
+              </ol>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Button onClick={() => router.push('/verify-email')}>
+                Go to Verification Page
+              </Button>
+              <Link href="/login">
+                <Button variant="outline" className="w-full">
+                  Go to Sign In
+                </Button>
+              </Link>
+            </div>
+            <p className="mt-4 text-xs text-muted-foreground">
+              Redirecting to verification page...
+            </p>
           </div>
         </div>
       </div>
@@ -181,7 +210,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-3.55rem)] bg-background relative overflow-hidden" style={{ cursor: 'auto' }}>
+    <div className="h-screen bg-background relative overflow-hidden pt-[3.55rem]" style={{ cursor: 'auto' }}>
       {/* DotGrid Background - shown on all devices */}
       <div className="absolute inset-0 overflow-hidden z-0 opacity-30">
         <DotGrid
@@ -211,22 +240,10 @@ export default function SignupPage() {
             </div>
           
           {/* Form Content */}
-          <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 overflow-y-auto">
-          <div className="max-w-md w-full space-y-8">
-          <div className="border border-border rounded-lg p-2">
-            <h2 className="text-center text-xl font-extrabold text-foreground">
-              Create your account
-            </h2>
-            <p className="mt-1 text-center text-xs text-muted-foreground">
-              Or{' '}
-              <Link href="/login" className="font-medium text-primary hover:text-primary/80">
-                sign in to your existing account
-              </Link>
-            </p>
-          </div>
-
+          <div className="flex-1 flex items-start justify-center py-6 px-2 sm:px-3 lg:px-4 overflow-y-auto">
+          <div className="max-w-md w-full space-y-4">
           {/* Google Sign In - Prominent with Glow Effect */}
-          <div className="mt-8">
+          <div className="mt-4">
             <div className="relative w-full">
               {/* Glow/Aura effect */}
               <div className="absolute inset-0 bg-primary/20 blur-xl rounded-lg -z-10" style={{
@@ -240,10 +257,10 @@ export default function SignupPage() {
                 size="lg"
                 onClick={handleGoogleSignIn}
                 disabled={isLoading}
-                className="w-full flex items-center justify-center space-x-3 py-6 text-base font-semibold relative z-10 shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-all duration-300"
+                className="w-full flex items-center justify-center space-x-1.5 py-3 text-base font-semibold relative z-10 shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-all duration-300"
               >
                 <svg 
-                  className={`h-5 w-5 ${mounted && (resolvedTheme === 'dark' ? 'text-[hsl(0,0%,7%)]' : 'text-[hsl(0,0%,92%)]')}`}
+                  className="h-5 w-5 text-foreground"
                   viewBox="0 0 24 24"
                   fill="currentColor"
                   xmlns="http://www.w3.org/2000/svg"
@@ -256,23 +273,23 @@ export default function SignupPage() {
                 <span>Continue with Google</span>
               </Button>
             </div>
-            <p className="text-center text-sm text-muted-foreground mt-4">
+            <p className="text-center text-sm text-muted-foreground mt-2">
               Sign up for free 10 credits!
             </p>
           </div>
 
           {/* Email/Password Form */}
-          <div className="mt-6">
-            <div className="relative mb-6">
+          <div className="mt-3">
+            <div className="relative mb-3">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-background text-muted-foreground">Or continue with</span>
+                <span className="px-1 bg-background text-muted-foreground">Or continue with</span>
               </div>
             </div>
-            <form className="space-y-6" onSubmit={handleSubmit}>
-            <div className="space-y-4">
+            <form className="space-y-3" onSubmit={handleSubmit}>
+            <div className="space-y-2">
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-foreground">
                   Full name
@@ -285,7 +302,7 @@ export default function SignupPage() {
                   required
                   value={formData.name}
                   onChange={handleChange}
-                  className="mt-1"
+                  className="mt-0.5"
                   placeholder="Enter your full name"
                 />
               </div>
@@ -302,17 +319,17 @@ export default function SignupPage() {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className="mt-1"
+                  className="mt-0.5"
                   placeholder="Enter your email"
                 />
               </div>
               
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-foreground">
                   Password
                 </label>
-                <div className="mt-1 relative">
+                <div className="mt-0.5 relative">
                   <Input
                     id="password"
                     name="password"
@@ -321,12 +338,12 @@ export default function SignupPage() {
                     required
                     value={formData.password}
                     onChange={handleChange}
-                    className="pr-10"
+                    className="pr-5"
                     placeholder="Create a password"
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    className="absolute inset-y-0 right-0 pr-1.5 flex items-center"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? (
@@ -342,7 +359,7 @@ export default function SignupPage() {
                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground">
                   Confirm password
                 </label>
-                <div className="mt-1 relative">
+                <div className="mt-0.5 relative">
                   <Input
                     id="confirmPassword"
                     name="confirmPassword"
@@ -351,12 +368,12 @@ export default function SignupPage() {
                     required
                     value={formData.confirmPassword}
                     onChange={handleChange}
-                    className="pr-10"
+                    className="pr-5"
                     placeholder="Confirm your password"
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    className="absolute inset-y-0 right-0 pr-1.5 flex items-center"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   >
                     {showConfirmPassword ? (
@@ -371,12 +388,12 @@ export default function SignupPage() {
             </div>
 
             {error && (
-              <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-md p-1.5">
                 <p className="text-sm text-destructive">{error}</p>
               </div>
             )}
 
-                  <div className="grid grid-cols-[60%_40%] gap-4 items-center">
+                  <div className="grid grid-cols-[60%_40%] gap-2 items-center">
             <div className="flex items-center">
               <input
                 id="terms"
@@ -385,7 +402,7 @@ export default function SignupPage() {
                 required
                         className="h-4 w-4 text-primary focus:ring-primary border-input rounded flex-shrink-0"
               />
-              <label htmlFor="terms" className="ml-2 block text-sm text-foreground">
+              <label htmlFor="terms" className="ml-1 block text-sm text-foreground">
                 I agree to the{' '}
                 <Link href="/terms" className="text-primary hover:text-primary/80">
                   Terms of Service
@@ -405,7 +422,7 @@ export default function SignupPage() {
               >
                 {isLoading ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
                     Creating account...
                   </>
                 ) : (
@@ -415,6 +432,16 @@ export default function SignupPage() {
                     </div>
             </div>
           </form>
+          
+          {/* Sign In Link */}
+          <div className="text-center mt-3">
+            <p className="text-sm text-muted-foreground">
+              Already have an account?{' '}
+              <Link href="/login" className="font-medium text-primary hover:text-primary/80">
+                Sign in
+              </Link>
+            </p>
+          </div>
           </div>
           </div>
           </div>
@@ -424,8 +451,8 @@ export default function SignupPage() {
         <div className="hidden lg:flex lg:w-3/4 relative z-10">
           {/* Text Overlay */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="text-center px-8 max-w-4xl">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground mb-3 leading-tight">
+            <div className="text-center px-4 max-w-4xl">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground mb-1.5 leading-tight">
                 Create what you imagine
               </h1>
               <h2 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground leading-tight">

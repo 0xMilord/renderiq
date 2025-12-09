@@ -23,7 +23,7 @@ const nextConfig: NextConfig = {
     },
   },
   // Webpack config for production builds (Turbopack not used in production)
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, dev }) => {
     if (isServer) {
       const path = require('path');
       config.resolve.alias = {
@@ -42,6 +42,41 @@ const nextConfig: NextConfig = {
         dns: false,
         child_process: false,
       };
+
+      // Add Workbox InjectManifest plugin for PWA
+      if (!dev) {
+        const { InjectManifest } = require('workbox-webpack-plugin');
+        const path = require('path');
+
+        config.plugins.push(
+          new InjectManifest({
+            swSrc: path.join(__dirname, 'public', 'sw.js'),
+            swDest: path.join(__dirname, 'public', 'sw.js'),
+            exclude: [
+              /\.map$/,
+              /manifest$/,
+              /\.htaccess$/,
+              /service-worker\.js$/,
+              /sw\.js$/,
+            ],
+            // Include all static assets and Next.js chunks
+            include: [
+              /\.js$/,
+              /\.css$/,
+              /\.woff2?$/,
+              /\.png$/,
+              /\.jpg$/,
+              /\.jpeg$/,
+              /\.svg$/,
+              /\.webp$/,
+              /\.avif$/,
+              /\.ico$/,
+            ],
+            // Maximum file size to precache (5MB)
+            maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+          })
+        );
+      }
     }
     // Exclude server-only packages from client bundle
     config.externals = config.externals || [];
@@ -302,7 +337,7 @@ const nextConfig: NextConfig = {
   
   // Rewrites for sitemap routes (map .xml URLs to route handlers)
   async rewrites() {
-    return [
+    const rewrites = [
       {
         source: '/sitemap-use-cases.xml',
         destination: '/sitemap-use-cases',
@@ -323,7 +358,18 @@ const nextConfig: NextConfig = {
         source: '/sitemap-video.xml',
         destination: '/sitemap-video',
       },
-    ]
+    ];
+
+    // ✅ Rewrite auth.renderiq.io/auth/v1/* to API proxy route
+    // This ensures the proxy works when requests come through the subdomain
+    if (process.env.NEXT_PUBLIC_MASKED_AUTH_DOMAIN) {
+      rewrites.push({
+        source: '/auth/v1/:path*',
+        destination: '/api/auth-proxy/:path*',
+      });
+    }
+
+    return rewrites;
   },
   
   // Redirects for SEO

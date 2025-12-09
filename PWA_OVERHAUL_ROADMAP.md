@@ -14,8 +14,8 @@
 - **Overall PWA Score:** 49/100 (Needs Improvement)
 - **Critical Issues:** 4
 - **High Priority Issues:** 8
-- **Medium Priority Issues:** 12
-- **Low Priority Issues:** 15
+- **Medium Priority Issues:** 14 (in roadmap)
+- **Low Priority Issues:** 8 (optional/future)
 
 ### Target After Implementation
 - **Overall PWA Score:** 85/100 (Excellent)
@@ -1006,6 +1006,294 @@ Add enhanced success feedback including toast notification and welcome message.
 
 ---
 
+### Task 3.11: Optimize Update Timing and Triggers
+**Priority:** 🟢 MEDIUM  
+**Estimated Time:** 1 hour  
+**Status:** ❌ Not Started
+
+**Description:**
+Enhance update detection to check on multiple events (push, sync, background events) in addition to window focus.
+
+**Current State:**
+- Only checks on window focus
+- No update check on service worker wake-up
+- No update check on background events
+
+**Implementation:**
+- [ ] Add update check on push notifications
+- [ ] Add update check on background sync events
+- [ ] Add update check on service worker wake-up
+- [ ] Add update check after page load (non-blocking)
+- [ ] Test update timing
+
+**Files to Modify:**
+- `lib/hooks/use-service-worker.ts` (add multiple event listeners)
+- `components/pwa/service-worker-register.tsx` (enhance update checks)
+
+**Use Cases:**
+- Faster update detection
+- Updates detected in background
+- Better update coverage
+- More reliable updates
+
+**Where Infrastructure Can Be Reused:**
+- All update scenarios
+- Background event handling
+- Service worker lifecycle
+
+---
+
+### Task 3.12: Add Offline Fallbacks for Images and API Calls
+**Priority:** 🟢 MEDIUM  
+**Estimated Time:** 1.5 hours  
+**Status:** ❌ Not Started
+
+**Description:**
+Add offline fallback images and API response fallbacks for better offline experience.
+
+**Current State:**
+- Offline page exists for navigation
+- No offline fallbacks for images
+- No offline fallbacks for API calls
+- No generic offline placeholders
+
+**Implementation:**
+- [ ] Create offline image placeholder
+- [ ] Add offline fallback for image requests
+- [ ] Add offline fallback for API calls
+- [ ] Add generic error responses
+- [ ] Test offline fallbacks
+
+**Files to Create:**
+- `public/offline-image.png` (placeholder image)
+
+**Files to Modify:**
+- `public/sw.js` (add offline fallback handlers)
+
+**Use Cases:**
+- Better offline image handling
+- Better offline API handling
+- Improved offline UX
+- Graceful degradation
+
+**Where Infrastructure Can Be Reused:**
+- All offline scenarios
+- Error handling
+- Fallback system
+
+---
+
+### Task 3.13: Implement Payment Request API (If Not Already)
+**Priority:** 🟢 MEDIUM  
+**Estimated Time:** 2 hours  
+**Status:** ⚠️ Unknown - Needs Verification
+
+**Description:**
+Implement Payment Request API for native payment UI as an alternative to Razorpay for better UX.
+
+**Current State:**
+- Using Razorpay (third-party)
+- Unknown if Payment Request API is used
+- May not be implemented
+
+**Implementation:**
+- [ ] Verify if Payment Request API is already implemented
+- [ ] If not, create Payment Request API utility
+- [ ] Add native payment UI
+- [ ] Fallback to Razorpay if not supported
+- [ ] Test payment flow
+
+**Files to Create:**
+- `lib/utils/payment-request.ts` (if not exists)
+
+**Files to Modify:**
+- `lib/actions/pricing.actions.ts` (add Payment Request API)
+- `app/pricing/page.tsx` (add native payment option)
+
+**Use Cases:**
+- Native payment UI
+- Better payment UX
+- Faster checkout
+- Reduced friction
+
+**Where Infrastructure Can Be Reused:**
+- Payment system
+- Checkout flow
+- Billing system
+
+---
+
+### Task 3.14: Verify and Validate Web Share Target
+**Priority:** 🟢 MEDIUM  
+**Estimated Time:** 30 minutes  
+**Status:** ⚠️ Partial - Share Target configured, needs validation
+
+**Description:**
+Verify that Web Share Target API is properly implemented and handles shared content correctly.
+
+**Current State:**
+- Share Target configured in manifest
+- `/api/share` route may exist
+- Need to verify implementation
+
+**Implementation:**
+- [ ] Verify `/api/share` route exists
+- [ ] Test share target handling
+- [ ] Verify multipart/form-data handling
+- [ ] Test shared content processing
+- [ ] Fix any issues found
+
+**Files to Verify:**
+- `app/api/share/route.ts` (verify exists and works)
+- `public/manifest.json` (verify share target config)
+
+**Use Cases:**
+- Receive shared content from other apps
+- Handle shared images/files
+- Process shared URLs
+- Better sharing integration
+
+**Where Infrastructure Can Be Reused:**
+- Share system
+- Content import
+- File handling
+
+---
+
+## 🟢 OPTIONAL / FUTURE ENHANCEMENTS (Beyond 24 Hours)
+
+### Task 4.1: Implement Periodic Background Sync
+**Priority:** 🟢 LOW  
+**Estimated Time:** 2 hours  
+**Status:** ❌ Not Started
+
+**Description:**
+Implement Periodic Background Sync for automatic content updates in the background.
+
+**Use Cases:**
+- Sync content updates periodically
+- Refresh cached data automatically
+- Update user data in background
+
+**Note:** This is a nice-to-have feature that can be implemented after the critical 24-hour timeline.
+
+---
+
+### Task 4.2: Implement Background Fetch for Large Downloads
+**Priority:** 🟢 LOW  
+**Estimated Time:** 2 hours  
+**Status:** ❌ Not Started
+
+**Description:**
+Implement Background Fetch API for downloading large files (renders, videos) in the background.
+
+**Use Cases:**
+- Download large renders in background
+- Download video files
+- Download project files
+
+**Note:** May not be needed for current use case. Evaluate after core features are complete.
+
+---
+
+### Task 4.3: Implement Window Management API
+**Priority:** 🟢 LOW  
+**Estimated Time:** 2 hours  
+**Status:** ❌ Not Started
+
+**Description:**
+Implement Window Management API for multi-screen support and window placement.
+
+**Use Cases:**
+- Multi-screen presentations
+- Window placement on specific screens
+- Screen property detection
+
+**Note:** Advanced feature, not critical for 24-hour timeline.
+
+---
+
+### Task 4.4: Implement Virtual Keyboard API
+**Priority:** 🟢 LOW  
+**Estimated Time:** 1.5 hours  
+**Status:** ❌ Not Started
+
+**Description:**
+Implement Virtual Keyboard API for better mobile keyboard control.
+
+**Use Cases:**
+- Better keyboard handling on mobile
+- Control keyboard behavior
+- Better layout handling
+
+**Note:** Mobile enhancement, can be added later.
+
+---
+
+### Task 4.5: Implement File System Access API
+**Priority:** 🟢 LOW  
+**Estimated Time:** 2 hours  
+**Status:** ❌ Not Started
+
+**Description:**
+Implement File System Access API for enhanced file handling (save renders to local files).
+
+**Use Cases:**
+- Save renders to local files
+- Open files from device
+- Access directories
+
+**Note:** File handlers in manifest may be sufficient. Evaluate need.
+
+---
+
+### Task 4.6: Implement New Window Opening
+**Priority:** 🟢 LOW  
+**Estimated Time:** 1 hour  
+**Status:** ❌ Not Started
+
+**Description:**
+Implement functionality to open new PWA windows for multi-tasking.
+
+**Use Cases:**
+- Multiple projects in separate windows
+- Side-by-side comparison
+- Multi-tool workflows
+
+**Note:** Nice-to-have feature for power users.
+
+---
+
+### Task 4.7: Verify Manifest Screenshots
+**Priority:** 🟢 LOW  
+**Estimated Time:** 15 minutes  
+**Status:** ❌ Not Started
+
+**Description:**
+Verify that screenshot files referenced in manifest actually exist.
+
+**Implementation:**
+- [ ] Check if `/screenshots/desktop-1.png` exists
+- [ ] Check if `/screenshots/mobile-1.png` exists
+- [ ] Create missing screenshots or remove from manifest
+- [ ] Test manifest validation
+
+**Note:** Quick validation task, can be done anytime.
+
+---
+
+### Task 4.8: Fix Manifest Icon Purpose Format (If Needed)
+**Priority:** 🟢 LOW  
+**Estimated Time:** 15 minutes  
+**Status:** ⚠️ May Not Be Needed
+
+**Description:**
+Change icon purpose format from string to array if needed (current format is valid but array is clearer).
+
+**Note:** Current format is valid per spec. Only change if desired for clarity.
+
+---
+
 ## 📊 Additional Use Cases & Infrastructure Reuse
 
 ### Render Generation Use Cases
@@ -1242,6 +1530,20 @@ Add enhanced success feedback including toast notification and welcome message.
 - [ ] Task 3.8: Add Post-Install Setup
 - [ ] Task 3.9: Implement Smart Install Timing
 - [ ] Task 3.10: Add Success Feedback
+- [ ] Task 3.11: Optimize Update Timing and Triggers
+- [ ] Task 3.12: Add Offline Fallbacks
+- [ ] Task 3.13: Implement Payment Request API (If Not Already)
+- [ ] Task 3.14: Verify Web Share Target
+
+### Phase 4: Optional / Future (Beyond 24 Hours)
+- [ ] Task 4.1: Implement Periodic Background Sync
+- [ ] Task 4.2: Implement Background Fetch
+- [ ] Task 4.3: Implement Window Management API
+- [ ] Task 4.4: Implement Virtual Keyboard API
+- [ ] Task 4.5: Implement File System Access API
+- [ ] Task 4.6: Implement New Window Opening
+- [ ] Task 4.7: Verify Manifest Screenshots
+- [ ] Task 4.8: Fix Manifest Icon Purpose Format (If Needed)
 
 ---
 
@@ -1271,11 +1573,22 @@ Add enhanced success feedback including toast notification and welcome message.
 7. Enhance background sync
 8. Add install analytics
 
-### Step 4: Polish (Tasks 3.1-3.10)
+### Step 4: Polish (Tasks 3.1-3.14)
 1. Add Web Share API
 2. Add Clipboard API
 3. Add advanced patterns
 4. Add user experience enhancements
+5. Optimize update timing
+6. Add offline fallbacks
+7. Verify Payment Request API
+8. Verify Web Share Target
+
+### Step 5: Optional Enhancements (Tasks 4.1-4.8)
+1. Add periodic background sync (if needed)
+2. Add background fetch (if needed)
+3. Add advanced window management
+4. Add mobile enhancements
+5. Verify manifest completeness
 
 ---
 

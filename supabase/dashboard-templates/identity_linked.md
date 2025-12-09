@@ -1,0 +1,135 @@
+# Identity linked
+
+**Category**: Security
+**File**: `identity_linked.html`
+
+## Deployment Steps
+
+1. Go to: https://supabase.com/dashboard/project/ncfgivjhkvorikuebtrl/auth/templates
+2. Navigate to: **Authentication → Email Templates → Security → Identity linked**
+3. Open the HTML file: `identity_linked.html`
+4. Copy ALL content (Ctrl+A, Ctrl+C)
+5. Paste into Supabase Dashboard template editor
+6. Save
+
+## Template Content
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Account Linked - Renderiq</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      color: #1a1a1a;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      background-color: #ffffff;
+      border-radius: 16px;
+      padding: 40px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    .logo {
+      font-size: 32px;
+      font-weight: bold;
+      background: linear-gradient(135deg, #22c55e 0%, #84cc16 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+    .content {
+      margin-bottom: 30px;
+      color: #1a1a1a;
+    }
+    .content h2 {
+      color: #1a1a1a;
+      margin-top: 0;
+      margin-bottom: 20px;
+      font-size: 24px;
+      font-weight: 700;
+    }
+    .content p {
+      color: #4a4a4a;
+      margin-bottom: 16px;
+      font-size: 16px;
+    }
+    .alert {
+      background-color: #fef3c7;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      padding: 16px;
+      margin: 24px 0;
+      color: #92400e;
+    }
+    .footer {
+      margin-top: 40px;
+      padding-top: 24px;
+      border-top: 1px solid #e5e7eb;
+      text-align: center;
+      font-size: 13px;
+      color: #6b7280;
+    }
+    .footer a {
+      color: #22c55e;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+      .container {
+        padding: 24px;
+        border-radius: 12px;
+      }
+      .logo {
+        font-size: 28px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">Renderiq</div>
+      <p style="color: #6b7280; font-size: 14px; margin: 0;">AI Architecture Render Software</p>
+    </div>
+    <div class="content">
+      <h2>New Account Linked</h2>
+      <p>Hi there,</p>
+      <p>A new identity ({{ .Provider }}) has been linked to your Renderiq account.</p>
+      <div class="alert">
+        <strong>⚠️ Security Notice:</strong> If you didn't link this account, please unlink it immediately and contact our support team.
+      </div>
+      <p>If this was you, no further action is needed.</p>
+    </div>
+    <div class="footer">
+      <p style="margin-bottom: 8px;">© 2025 Renderiq. All rights reserved.</p>
+      <p style="margin-bottom: 16px;">
+        <a href="{{ .SiteURL }}">Visit our website</a> • 
+        <a href="{{ .SiteURL }}/support">Support</a> • 
+        <a href="{{ .SiteURL }}/privacy">Privacy Policy</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+
+
+```

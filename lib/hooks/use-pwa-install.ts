@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import type { InstallPromptEvent } from '@/lib/utils/pwa';
+import { trackInstallEvent } from '@/lib/utils/install-analytics';
+import { setupPostInstallExperience } from '@/lib/utils/post-install-setup';
 
 export function usePWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState<InstallPromptEvent | null>(null);
@@ -26,13 +28,20 @@ export function usePWAInstall() {
       return false;
     };
 
-    setIsInstalled(checkInstalled());
+    const installed = checkInstalled();
+    setIsInstalled(installed);
+
+    // Setup post-install experience if already installed
+    if (installed) {
+      setupPostInstallExperience();
+    }
 
     // Listen for beforeinstallprompt event
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as InstallPromptEvent);
       setIsInstallable(true);
+      trackInstallEvent('prompt_shown');
     };
 
     // Listen for app installed event
@@ -40,6 +49,8 @@ export function usePWAInstall() {
       setIsInstalled(true);
       setIsInstallable(false);
       setDeferredPrompt(null);
+      trackInstallEvent('install_completed');
+      setupPostInstallExperience();
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -57,6 +68,8 @@ export function usePWAInstall() {
     }
 
     try {
+      trackInstallEvent('prompt_accepted');
+      
       // Show install prompt
       await deferredPrompt.prompt();
       
@@ -67,12 +80,16 @@ export function usePWAInstall() {
         setIsInstalled(true);
         setIsInstallable(false);
         setDeferredPrompt(null);
+        trackInstallEvent('install_completed');
+        setupPostInstallExperience();
         return true;
+      } else {
+        trackInstallEvent('prompt_dismissed');
+        return false;
       }
-      
-      return false;
     } catch (error) {
       console.error('Error installing PWA:', error);
+      trackInstallEvent('install_failed', { error: (error as Error).message });
       return false;
     }
   };

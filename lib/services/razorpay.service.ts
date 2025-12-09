@@ -291,6 +291,10 @@ export class RazorpayService {
           ReceiptService.generateReceiptPdf(paymentOrder.id).catch((error) => {
             logger.error('❌ RazorpayService: Error generating receipt:', error);
           });
+          // Send receipt email (async, don't block)
+          ReceiptService.sendReceiptEmail(paymentOrder.id).catch((error) => {
+            logger.error('❌ RazorpayService: Error sending receipt email:', error);
+          });
         } else {
           logger.error('❌ RazorpayService: Failed to create invoice:', invoiceResult.error);
         }
@@ -442,6 +446,30 @@ export class RazorpayService {
       ]);
 
       logger.log('✅ RazorpayService: Credits added successfully:', { totalCredits, newBalance });
+
+      // Send credits added email notification
+      try {
+        const [user] = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, userId))
+          .limit(1);
+
+        if (user?.email) {
+          const { sendCreditsAddedEmail } = await import('@/lib/services/email.service');
+          await sendCreditsAddedEmail({
+            name: user.name || 'User',
+            email: user.email,
+            credits: totalCredits,
+            balance: newBalance,
+            reason: `Purchased ${packageData.name}`,
+            transactionId: paymentOrderId,
+          });
+        }
+      } catch (error) {
+        logger.error('❌ RazorpayService: Failed to send credits added email:', error);
+        // Don't fail credit addition if email fails
+      }
 
       return {
         success: true,
@@ -1039,6 +1067,10 @@ Please verify the plan exists in Razorpay Dashboard.`;
               ReceiptService.generateReceiptPdf(paymentOrder.id).catch((error) => {
                 logger.error('❌ RazorpayService: Error generating receipt:', error);
               });
+              // Send receipt email (async, don't block)
+              ReceiptService.sendReceiptEmail(paymentOrder.id).catch((error) => {
+                logger.error('❌ RazorpayService: Error sending receipt email:', error);
+              });
             } else {
               logger.error('❌ RazorpayService: Failed to create invoice in verifySubscriptionPayment:', invoiceResult.error);
             }
@@ -1067,6 +1099,10 @@ Please verify the plan exists in Razorpay Dashboard.`;
               logger.log('✅ RazorpayService: Invoice created in verifySubscriptionPayment:', invoiceResult.data?.id);
               ReceiptService.generateReceiptPdf(paymentOrder.id).catch((error) => {
                 logger.error('❌ RazorpayService: Error generating receipt:', error);
+              });
+              // Send receipt email (async, don't block)
+              ReceiptService.sendReceiptEmail(paymentOrder.id).catch((error) => {
+                logger.error('❌ RazorpayService: Error sending receipt email:', error);
               });
             } else {
               logger.error('❌ RazorpayService: Failed to create invoice in verifySubscriptionPayment:', invoiceResult.error);
@@ -1271,6 +1307,30 @@ Please verify the plan exists in Razorpay Dashboard.`;
       ]);
 
       logger.log('✅ RazorpayService: Credits added successfully:', { amount: plan.creditsPerMonth, newBalance });
+
+      // Send credits added email notification
+      try {
+        const [user] = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, userId))
+          .limit(1);
+
+        if (user?.email) {
+          const { sendCreditsAddedEmail } = await import('@/lib/services/email.service');
+          await sendCreditsAddedEmail({
+            name: user.name || 'User',
+            email: user.email,
+            credits: plan.creditsPerMonth,
+            balance: newBalance,
+            reason: `Monthly credits for ${plan.name} subscription`,
+            transactionId: paymentOrderId,
+          });
+        }
+      } catch (error) {
+        logger.error('❌ RazorpayService: Failed to send subscription credits email:', error);
+        // Don't fail credit addition if email fails
+      }
 
       return { success: true, newBalance };
     } catch (error) {
@@ -1591,6 +1651,10 @@ Please verify the plan exists in Razorpay Dashboard.`;
                 ReceiptService.generateReceiptPdf(paymentOrder.id).catch((error) => {
                   logger.error('❌ RazorpayService: Error generating receipt in payment.authorized webhook:', error);
                 });
+                // Send receipt email (async, don't block)
+                ReceiptService.sendReceiptEmail(paymentOrder.id).catch((error) => {
+                  logger.error('❌ RazorpayService: Error sending receipt email in payment.authorized webhook:', error);
+                });
               } else {
                 logger.error('❌ RazorpayService: Failed to create invoice in payment.authorized webhook:', invoiceResult.error);
               }
@@ -1779,6 +1843,10 @@ Please verify the plan exists in Razorpay Dashboard.`;
         ReceiptService.generateReceiptPdf(paymentOrder.id).catch((error) => {
           logger.error('❌ RazorpayService: Error generating receipt in webhook:', error);
         });
+        // Send receipt email (async, don't block)
+        ReceiptService.sendReceiptEmail(paymentOrder.id).catch((error) => {
+          logger.error('❌ RazorpayService: Error sending receipt email in payment.captured webhook:', error);
+        });
       } else {
         logger.error('❌ RazorpayService: Failed to create invoice in payment.captured webhook:', invoiceResult.error);
       }
@@ -1791,13 +1859,67 @@ Please verify the plan exists in Razorpay Dashboard.`;
     const orderId = payload.payment?.entity?.order_id;
     if (!orderId) return;
 
-    await db
+    // Update payment order status and get the updated order
+    const updatedOrders = await db
       .update(paymentOrders)
       .set({
         status: 'failed',
         updatedAt: new Date(),
       })
-      .where(eq(paymentOrders.razorpayOrderId, orderId));
+      .where(eq(paymentOrders.razorpayOrderId, orderId))
+      .returning();
+
+    const paymentOrder = updatedOrders[0];
+    if (!paymentOrder) {
+      logger.warn('⚠️ RazorpayService: Payment order not found for failed payment:', orderId);
+      return;
+    }
+
+    // Send subscription failed email if this is a subscription payment
+    if (paymentOrder.type === 'subscription' && paymentOrder.razorpaySubscriptionId) {
+      try {
+        // Get subscription details
+        const [subscription] = await db
+          .select()
+          .from(userSubscriptions)
+          .where(eq(userSubscriptions.razorpaySubscriptionId, paymentOrder.razorpaySubscriptionId))
+          .limit(1);
+
+        if (subscription) {
+          // Get user details
+          const [user] = await db
+            .select()
+            .from(users)
+            .where(eq(users.id, subscription.userId))
+            .limit(1);
+
+          if (user?.email) {
+            // Get plan details
+            const [plan] = await db
+              .select()
+              .from(subscriptionPlans)
+              .where(eq(subscriptionPlans.id, subscription.planId))
+              .limit(1);
+
+            const { sendSubscriptionFailedEmail } = await import('@/lib/services/email.service');
+            await sendSubscriptionFailedEmail({
+              name: user.name || 'User',
+              email: user.email,
+              planName: plan?.name || 'Subscription',
+              amount: paymentOrder.amount,
+              currency: paymentOrder.currency || 'INR',
+              billingCycle: plan?.interval === 'year' ? 'yearly' : 'monthly',
+              subscriptionId: subscription.id,
+            });
+
+            logger.log('✅ RazorpayService: Subscription failed email sent:', user.email);
+          }
+        }
+      } catch (error) {
+        logger.error('❌ RazorpayService: Failed to send subscription failed email:', error);
+        // Don't fail payment failure handling if email fails
+      }
+    }
   }
 
   /**
@@ -1967,12 +2089,42 @@ Please verify the plan exists in Razorpay Dashboard.`;
           ReceiptService.generateReceiptPdf(paymentOrder.id).catch((error) => {
             logger.error('❌ RazorpayService: Error generating receipt in subscription activation webhook:', error);
           });
+          // Send receipt email (async, don't block)
+          ReceiptService.sendReceiptEmail(paymentOrder.id).catch((error) => {
+            logger.error('❌ RazorpayService: Error sending receipt email in subscription activation webhook:', error);
+          });
         } else {
           logger.error('❌ RazorpayService: Failed to create invoice in subscription.activated webhook:', invoiceResult.error);
         }
       } catch (error) {
         logger.error('❌ RazorpayService: Error creating invoice/receipt in subscription activation webhook:', error);
       }
+    }
+
+    // Send subscription activated email
+    try {
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, subscription.userId))
+        .limit(1);
+
+      if (user?.email && plan) {
+        const { sendSubscriptionActivatedEmail } = await import('@/lib/services/email.service');
+        await sendSubscriptionActivatedEmail({
+          name: user.name || 'User',
+          email: user.email,
+          planName: plan.name,
+          amount: parseFloat(plan.price.toString()),
+          currency: plan.currency || 'INR',
+          billingCycle: plan.interval === 'year' ? 'yearly' : 'monthly',
+          nextBillingDate: periodEnd,
+          subscriptionId: subscription.id,
+        });
+      }
+    } catch (error) {
+      logger.error('❌ RazorpayService: Failed to send subscription activated email:', error);
+      // Don't fail subscription activation if email fails
     }
   }
 
@@ -2183,6 +2335,10 @@ Please verify the plan exists in Razorpay Dashboard.`;
           ReceiptService.generateReceiptPdf(recurringPaymentOrder.id).catch((error) => {
             logger.error('❌ RazorpayService: Error generating receipt in subscription charge webhook:', error);
           });
+          // Send receipt email (async, don't block)
+          ReceiptService.sendReceiptEmail(recurringPaymentOrder.id).catch((error) => {
+            logger.error('❌ RazorpayService: Error sending receipt email in subscription charge webhook:', error);
+          });
         } else {
           logger.error('❌ RazorpayService: Failed to create invoice in subscription.charged webhook:', invoiceResult.error);
         }
@@ -2190,11 +2346,53 @@ Please verify the plan exists in Razorpay Dashboard.`;
         logger.error('❌ RazorpayService: Error creating invoice/receipt in subscription charge webhook:', error);
       }
     }
+
+    // Send subscription renewed email
+    try {
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, subscription.userId))
+        .limit(1);
+
+      if (user?.email && plan && recurringPaymentOrder) {
+        const { sendSubscriptionRenewedEmail } = await import('@/lib/services/email.service');
+        const invoiceUrl = recurringPaymentOrder.invoiceNumber
+          ? `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/payments/invoice/${recurringPaymentOrder.invoiceNumber}`
+          : undefined;
+
+        await sendSubscriptionRenewedEmail({
+          name: user.name || 'User',
+          email: user.email,
+          planName: plan.name,
+          amount: parseFloat(recurringPaymentOrder.amount.toString()),
+          currency: recurringPaymentOrder.currency || 'INR',
+          billingCycle: plan.interval === 'year' ? 'yearly' : 'monthly',
+          nextBillingDate: periodEnd,
+          invoiceUrl: invoiceUrl,
+        });
+      }
+    } catch (error) {
+      logger.error('❌ RazorpayService: Failed to send subscription renewed email:', error);
+      // Don't fail subscription renewal if email fails
+    }
   }
 
   private static async handleSubscriptionCancelled(payload: any) {
     const subscriptionId = payload.subscription?.entity?.id;
     if (!subscriptionId) return;
+
+    // Find subscription to get user and plan details
+    const [subscription] = await db
+      .select()
+      .from(userSubscriptions)
+      .where(eq(userSubscriptions.razorpaySubscriptionId, subscriptionId))
+      .limit(1);
+
+    if (!subscription) {
+      logger.warn('⚠️ RazorpayService: Subscription not found for cancellation:', subscriptionId);
+      return;
+    }
 
     await db
       .update(userSubscriptions)
@@ -2203,6 +2401,29 @@ Please verify the plan exists in Razorpay Dashboard.`;
         updatedAt: new Date(),
       })
       .where(eq(userSubscriptions.razorpaySubscriptionId, subscriptionId));
+
+    // Send subscription cancelled email
+    try {
+      const [user, plan] = await Promise.all([
+        db.select().from(users).where(eq(users.id, subscription.userId)).limit(1),
+        db.select().from(subscriptionPlans).where(eq(subscriptionPlans.id, subscription.planId)).limit(1),
+      ]);
+
+      if (user[0]?.email && plan[0]) {
+        const { sendSubscriptionCancelledEmail } = await import('@/lib/services/email.service');
+        await sendSubscriptionCancelledEmail({
+          name: user[0].name || 'User',
+          email: user[0].email,
+          planName: plan[0].name,
+          amount: parseFloat(plan[0].price.toString()),
+          currency: plan[0].currency || 'INR',
+          billingCycle: plan[0].interval === 'year' ? 'yearly' : 'monthly',
+        });
+      }
+    } catch (error) {
+      logger.error('❌ RazorpayService: Failed to send subscription cancelled email:', error);
+      // Don't fail cancellation if email fails
+    }
   }
 
   /**

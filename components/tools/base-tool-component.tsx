@@ -45,6 +45,7 @@ import { shouldUseRegularImg } from '@/lib/utils/storage-url';
 import { handleImageErrorWithFallback } from '@/lib/utils/cdn-fallback';
 import { ModelSelector } from '@/components/ui/model-selector';
 import { getModelConfig, getDefaultModel, ModelId, modelSupportsQuality, getMaxQuality, getSupportedResolutions } from '@/lib/config/models';
+import { useWakeLock } from '@/lib/hooks/use-wake-lock';
 
 interface BaseToolComponentProps {
   tool: ToolConfig;
@@ -118,6 +119,9 @@ export function BaseToolComponent({
   const [videoDuration, setVideoDuration] = useState<4 | 6 | 8>(8);
   const [videoModel, setVideoModel] = useState<string>('veo-3.1-generate-preview'); // Default to Veo 3.1 Standard
   const [enableAudio, setEnableAudio] = useState<boolean>(true); // Audio for Veo 3.1 models
+  
+  // Screen Wake Lock - Keep screen on during render generation
+  useWakeLock(loading || pollingRenderIds.size > 0);
 
   // Auto-adjust quality when model changes if current quality is unsupported
   useEffect(() => {

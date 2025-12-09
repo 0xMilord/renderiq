@@ -15,11 +15,38 @@ export default function VerifyEmailPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
+  // Poll for email verification status
   useEffect(() => {
     // If user is already verified, redirect to dashboard
     if (user && user.email_confirmed_at) {
       router.push('/dashboard');
+      return;
     }
+
+    // If no user, don't poll
+    if (!user) {
+      return;
+    }
+
+    // Poll every 3 seconds to check if email is verified
+    const pollInterval = setInterval(async () => {
+      try {
+        // Refresh user data from Supabase
+        const { createClient } = await import('@/lib/supabase/client');
+        const supabase = createClient();
+        const { data: { user: refreshedUser } } = await supabase.auth.getUser();
+        
+        if (refreshedUser?.email_confirmed_at) {
+          clearInterval(pollInterval);
+          router.push('/dashboard');
+        }
+      } catch (error) {
+        console.error('Error polling for email verification:', error);
+      }
+    }, 3000); // Poll every 3 seconds
+
+    // Cleanup interval on unmount
+    return () => clearInterval(pollInterval);
   }, [user, router]);
 
   const handleResendEmail = async () => {
@@ -27,13 +54,29 @@ export default function VerifyEmailPage() {
     setResendSuccess(false);
     setResendError('');
 
-    // TODO: Implement resend verification email
-    // This would call a Supabase function to resend the verification email
+    try {
+      const response = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: user?.email,
+        }),
+      });
 
-    setTimeout(() => {
-      setIsResending(false);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to resend verification email');
+      }
+
       setResendSuccess(true);
-    }, 1000);
+    } catch (error) {
+      setResendError(error instanceof Error ? error.message : 'Failed to resend verification email');
+    } finally {
+      setIsResending(false);
+    }
   };
 
   if (loading) {
@@ -45,8 +88,8 @@ export default function VerifyEmailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="h-screen bg-background pt-[3.55rem]">
+      <div className="flex items-center justify-center h-full py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
           {/* Icon */}
           <div className="text-center">
@@ -61,6 +104,10 @@ export default function VerifyEmailPage() {
               <span className="font-medium text-foreground">
                 {user?.email || 'your email address'}
               </span>
+            </p>
+            <p className="mt-4 text-xs text-muted-foreground bg-muted/30 rounded-md p-3">
+              <strong>📧 Check your inbox</strong> (and spam folder) for the verification email from Renderiq. 
+              Click the link in the email to verify your account, then come back here to sign in.
             </p>
           </div>
 

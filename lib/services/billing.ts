@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { userSubscriptions, subscriptionPlans, userCredits, creditTransactions } from '@/lib/db/schema';
+import { userSubscriptions, subscriptionPlans, userCredits, creditTransactions, users } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { RazorpayService } from './razorpay.service';
 import { logger } from '@/lib/utils/logger';
@@ -152,7 +152,45 @@ export class BillingService {
         return { success: false, error: 'Insufficient credits' };
       }
 
-      return await this.addCredits(userId, -amount, 'spent', description, referenceId, referenceType);
+      const oldBalance = userCredit[0].balance;
+      const result = await this.addCredits(userId, -amount, 'spent', description, referenceId, referenceType);
+
+      // Check if credits are running low after deduction
+      if (result.success && result.newBalance !== undefined) {
+        const creditsThreshold = parseInt(process.env.CREDITS_LOW_THRESHOLD || '10');
+        const wasAboveThreshold = oldBalance > creditsThreshold;
+        const isBelowThreshold = result.newBalance <= creditsThreshold;
+
+        // Send email if credits just dropped below threshold
+        if (wasAboveThreshold && isBelowThreshold) {
+          try {
+            const { db } = await import('@/lib/db');
+            const { users } = await import('@/lib/db/schema');
+            const [user] = await db
+              .select()
+              .from(users)
+              .where(eq(users.id, userId))
+              .limit(1);
+
+            if (user?.email) {
+              const { sendCreditsFinishedEmail } = await import('@/lib/services/email.service');
+              await sendCreditsFinishedEmail({
+                name: user.name || 'User',
+                email: user.email,
+                credits: result.newBalance,
+                balance: result.newBalance,
+                reason: 'Credits running low',
+              });
+              logger.log('✅ BillingService: Credits finished email sent:', user.email);
+            }
+          } catch (error) {
+            logger.error('❌ BillingService: Failed to send credits finished email:', error);
+            // Don't fail credit deduction if email fails
+          }
+        }
+      }
+
+      return result;
     } catch (error) {
       return {
         success: false,

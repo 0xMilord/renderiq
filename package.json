@@ -28,7 +28,9 @@
     "gcs:verify-file": "tsx scripts/verify-cdn-file.ts",
     "gcs:migrate": "tsx scripts/migrate-storage-to-gcs.ts",
     "gcs:migrate:dry-run": "tsx scripts/migrate-storage-to-gcs.ts --dry-run",
-    "gcs:update-urls": "tsx scripts/update-storage-urls.ts"
+    "gcs:update-urls": "tsx scripts/update-storage-urls.ts",
+    "deploy:templates": "tsx scripts/deploy-templates-simple.ts",
+    "templates:generate": "tsx scripts/generate-template-copy-files.ts"
   },
   "dependencies": {
     "@dicebear/collection": "^9.2.4",
@@ -115,9 +117,11 @@
     "rehype-pretty-code": "^0.13.0",
     "rehype-slug": "^6.0.0",
     "remark-gfm": "^4.0.0",
+    "resend": "^6.5.2",
     "shiki": "^1.29.2",
     "sonner": "^2.0.7",
     "stripe": "^17.4.0",
+    "supabase": "^2.65.6",
     "tailwind-animate": "^0.2.10",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
@@ -150,6 +154,7 @@
     "sharp": "^0.34.5",
     "tailwindcss": "^3.4.18",
     "tsx": "^4.19.2",
-    "typescript": "^5"
+    "typescript": "^5",
+    "workbox-webpack-plugin": "^7.4.0"
   }
 }

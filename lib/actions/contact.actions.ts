@@ -28,37 +28,23 @@ export async function submitContactForm(formData: {
     // Validate form data
     const validatedData = contactFormSchema.parse(formData);
 
-    // TODO: Implement actual email sending
-    // Options:
-    // 1. Use Resend API (recommended)
-    // 2. Use SendGrid
-    // 3. Use Nodemailer with SMTP
-    // 4. Create a support ticket in a ticketing system
+    // Send contact form email via Resend
+    const { sendContactFormEmail } = await import('@/lib/services/email.service');
     
-    // For now, log the submission (in production, you'd send an email)
-    logger.log('✅ [ContactForm] Form validated successfully');
-    
-    // Simulate email sending delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    const emailResult = await sendContactFormEmail(
+      validatedData.email,
+      validatedData.name,
+      validatedData.subject,
+      validatedData.message,
+      validatedData.type
+    );
 
-    // In production, implement something like:
-    /*
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    await resend.emails.send({
-      from: 'Renderiq <contact@renderiq.io>',
-      to: getEmailForType(validatedData.type),
-      replyTo: validatedData.email,
-      subject: `[${validatedData.type.toUpperCase()}] ${validatedData.subject}`,
-      html: `
-        <h2>New Contact Form Submission</h2>
-        <p><strong>From:</strong> ${validatedData.name} (${validatedData.email})</p>
-        <p><strong>Type:</strong> ${validatedData.type}</p>
-        <p><strong>Subject:</strong> ${validatedData.subject}</p>
-        <hr>
-        <p>${validatedData.message.replace(/\n/g, '<br>')}</p>
-      `
-    });
-    */
+    if (!emailResult.success) {
+      logger.error('❌ [ContactForm] Failed to send email:', emailResult.error);
+      // Continue anyway - form submission is logged
+    } else {
+      logger.log('✅ [ContactForm] Email sent successfully');
+    }
 
     return {
       success: true,
