@@ -387,6 +387,9 @@ export async function createRenderAction(formData: FormData) {
           // Use the isolated, specific prompt from batchRequest
           const isolatedPrompt = batchRequest.prompt;
           
+          // Determine platform: if imageType is set, it's from tools platform, otherwise render platform
+          const batchPlatform = imageType ? 'tools' : 'render';
+          
           // Create render record for this batch item
           const batchRender = await RendersDAL.create({
             projectId,
@@ -407,12 +410,13 @@ export async function createRenderAction(formData: FormData) {
               ...(batchRequest.sectionCutDirection && { sectionCutDirection: batchRequest.sectionCutDirection }),
             },
             status: 'pending',
-            chainId: finalChainId!,
-            chainPosition: currentChainPosition++,
+            chainId: batchPlatform === 'render' ? finalChainId! : undefined, // Only set chainId for render platform
+            chainPosition: batchPlatform === 'render' ? currentChainPosition++ : undefined, // Only set chainPosition for render platform
             referenceRenderId: validatedReferenceRenderId,
             uploadedImageUrl,
             uploadedImageKey,
             uploadedImageId,
+            platform: batchPlatform, // Set platform to prevent cross-contamination
           });
 
           logger.log('✅ Server Action: Batch render record created:', {
@@ -545,6 +549,10 @@ export async function createRenderAction(formData: FormData) {
     // Single render processing (existing logic)
     // Create render record in database
     logger.log('💾 Creating render record in database');
+    
+    // Determine platform: if imageType is set, it's from tools platform, otherwise render platform
+    const platform = imageType ? 'tools' : 'render';
+    
     const render = await RendersDAL.create({
       projectId,
       userId: userId,
@@ -560,12 +568,13 @@ export async function createRenderAction(formData: FormData) {
         ...(effect && { effect }),
       },
       status: 'pending',
-      chainId: finalChainId!,
-      chainPosition,
+      chainId: platform === 'render' ? finalChainId! : undefined, // Only set chainId for render platform
+      chainPosition: platform === 'render' ? chainPosition : undefined, // Only set chainPosition for render platform
       referenceRenderId: validatedReferenceRenderId,
       uploadedImageUrl,
       uploadedImageKey,
       uploadedImageId,
+      platform, // Set platform to prevent cross-contamination
     });
 
     logger.log('✅ Render record created:', render.id);

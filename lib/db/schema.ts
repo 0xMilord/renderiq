@@ -260,6 +260,8 @@ export const renders = pgTable('renders', {
   uploadedImageUrl: text('uploaded_image_url'),
   uploadedImageKey: text('uploaded_image_key'),
   uploadedImageId: uuid('uploaded_image_id').references(() => fileStorage.id),
+  // Platform identifier to prevent cross-contamination
+  platform: text('platform', { enum: ['render', 'tools', 'canvas'] }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -371,10 +373,43 @@ export const userSettings = pgTable('user_settings', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// Canvas files (Figma-like structure: Project → File → Canvas Graph)
+export const canvasFiles = pgTable('canvas_files', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  name: text('name').notNull(),
+  slug: text('slug').notNull(),
+  description: text('description'),
+  thumbnailUrl: text('thumbnail_url'),
+  thumbnailKey: text('thumbnail_key'),
+  version: integer('version').default(1).notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  isArchived: boolean('is_archived').default(false).notNull(),
+  metadata: jsonb('metadata').$type<Record<string, any>>(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Canvas file versions for version history
+export const canvasFileVersions = pgTable('canvas_file_versions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  fileId: uuid('file_id').references(() => canvasFiles.id, { onDelete: 'cascade' }).notNull(),
+  version: integer('version').notNull(),
+  graphId: uuid('graph_id').references((): any => canvasGraphs.id, { onDelete: 'set null' }),
+  name: text('name'),
+  description: text('description'),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 // Canvas graphs for node-based editor
 export const canvasGraphs = pgTable('canvas_graphs', {
   id: uuid('id').primaryKey().defaultRandom(),
-  chainId: uuid('chain_id').references(() => renderChains.id, { onDelete: 'cascade' }).notNull().unique(),
+  // Legacy: Keep chainId for backward compatibility during migration
+  chainId: uuid('chain_id').references(() => renderChains.id, { onDelete: 'cascade' }),
+  // New: Use fileId for proper Figma-like structure
+  fileId: uuid('file_id').references(() => canvasFiles.id, { onDelete: 'cascade' }),
   projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }).notNull(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   nodes: jsonb('nodes').notNull(),
@@ -383,6 +418,92 @@ export const canvasGraphs = pgTable('canvas_graphs', {
   version: integer('version').default(1).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Tools infrastructure for /apps platform
+export const tools = pgTable('tools', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  slug: text('slug').notNull().unique(),
+  name: text('name').notNull(),
+  description: text('description'),
+  category: text('category', { enum: ['transformation', 'floorplan', 'diagram', 'material', 'interior', '3d', 'presentation', 'video'] }).notNull(),
+  systemPrompt: text('system_prompt').notNull(),
+  inputType: text('input_type', { enum: ['image', 'image+text', 'multiple'] }).notNull(),
+  outputType: text('output_type', { enum: ['image', 'video', '3d', 'audio', 'doc'] }).notNull(),
+  icon: text('icon'),
+  color: text('color'),
+  priority: text('priority', { enum: ['high', 'medium', 'low'] }).default('medium').notNull(),
+  status: text('status', { enum: ['online', 'offline'] }).default('online').notNull(),
+  settingsSchema: jsonb('settings_schema').$type<Record<string, any>>(),
+  defaultSettings: jsonb('default_settings').$type<Record<string, any>>(),
+  seoMetadata: jsonb('seo_metadata').$type<{
+    title?: string;
+    description?: string;
+    keywords?: string[];
+  }>(),
+  metadata: jsonb('metadata').$type<Record<string, any>>(),
+  version: integer('version').default(1).notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Tool executions - separate from renders for /apps platform
+export const toolExecutions = pgTable('tool_executions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  toolId: uuid('tool_id').references(() => tools.id, { onDelete: 'cascade' }).notNull(),
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  // Input tracking
+  inputImages: jsonb('input_images').$type<Array<{ fileId?: string; url: string; key?: string }>>(),
+  inputText: text('input_text'),
+  inputSettings: jsonb('input_settings').$type<Record<string, any>>(),
+  // Output tracking
+  outputRenderId: uuid('output_render_id').references(() => renders.id, { onDelete: 'set null' }),
+  outputUrl: text('output_url'),
+  outputKey: text('output_key'),
+  outputFileId: uuid('output_file_id').references(() => fileStorage.id, { onDelete: 'set null' }),
+  // Execution metadata
+  status: text('status', { enum: ['pending', 'processing', 'completed', 'failed', 'cancelled'] }).default('pending').notNull(),
+  errorMessage: text('error_message'),
+  processingTime: integer('processing_time'),
+  creditsCost: integer('credits_cost').default(0).notNull(),
+  // Reproducibility
+  executionConfig: jsonb('execution_config').$type<Record<string, any>>().notNull(),
+  parentExecutionId: uuid('parent_execution_id').references((): any => toolExecutions.id, { onDelete: 'set null' }),
+  // Batch execution support
+  batchGroupId: uuid('batch_group_id'),
+  batchIndex: integer('batch_index'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  startedAt: timestamp('started_at'),
+  completedAt: timestamp('completed_at'),
+});
+
+// Tool settings templates - user-specific or global presets
+export const toolSettingsTemplates = pgTable('tool_settings_templates', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  toolId: uuid('tool_id').references(() => tools.id, { onDelete: 'cascade' }).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  description: text('description'),
+  settings: jsonb('settings').$type<Record<string, any>>().notNull(),
+  isDefault: boolean('is_default').default(false).notNull(),
+  isPublic: boolean('is_public').default(false).notNull(),
+  usageCount: integer('usage_count').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Tool analytics - usage and performance tracking
+export const toolAnalytics = pgTable('tool_analytics', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  toolId: uuid('tool_id').references(() => tools.id, { onDelete: 'cascade' }).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+  executionId: uuid('execution_id').references(() => toolExecutions.id, { onDelete: 'set null' }),
+  eventType: text('event_type', { enum: ['execution_started', 'execution_completed', 'execution_failed', 'template_used', 'settings_saved'] }).notNull(),
+  metadata: jsonb('metadata').$type<Record<string, any>>(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 // Sybil detection tables
@@ -614,6 +735,24 @@ export const selectUserSettingsSchema = createSelectSchema(userSettings);
 export const insertCanvasGraphSchema = createInsertSchema(canvasGraphs);
 export const selectCanvasGraphSchema = createSelectSchema(canvasGraphs);
 
+export const insertCanvasFileSchema = createInsertSchema(canvasFiles);
+export const selectCanvasFileSchema = createSelectSchema(canvasFiles);
+
+export const insertCanvasFileVersionSchema = createInsertSchema(canvasFileVersions);
+export const selectCanvasFileVersionSchema = createSelectSchema(canvasFileVersions);
+
+export const insertToolSchema = createInsertSchema(tools);
+export const selectToolSchema = createSelectSchema(tools);
+
+export const insertToolExecutionSchema = createInsertSchema(toolExecutions);
+export const selectToolExecutionSchema = createSelectSchema(toolExecutions);
+
+export const insertToolSettingsTemplateSchema = createInsertSchema(toolSettingsTemplates);
+export const selectToolSettingsTemplateSchema = createSelectSchema(toolSettingsTemplates);
+
+export const insertToolAnalyticsSchema = createInsertSchema(toolAnalytics);
+export const selectToolAnalyticsSchema = createSelectSchema(toolAnalytics);
+
 export const insertDeviceFingerprintSchema = createInsertSchema(deviceFingerprints);
 export const selectDeviceFingerprintSchema = createSelectSchema(deviceFingerprints);
 
@@ -704,6 +843,24 @@ export type NewUserSettings = typeof userSettings.$inferInsert;
 
 export type CanvasGraph = typeof canvasGraphs.$inferSelect;
 export type NewCanvasGraph = typeof canvasGraphs.$inferInsert;
+
+export type CanvasFile = typeof canvasFiles.$inferSelect;
+export type NewCanvasFile = typeof canvasFiles.$inferInsert;
+
+export type CanvasFileVersion = typeof canvasFileVersions.$inferSelect;
+export type NewCanvasFileVersion = typeof canvasFileVersions.$inferInsert;
+
+export type Tool = typeof tools.$inferSelect;
+export type NewTool = typeof tools.$inferInsert;
+
+export type ToolExecution = typeof toolExecutions.$inferSelect;
+export type NewToolExecution = typeof toolExecutions.$inferInsert;
+
+export type ToolSettingsTemplate = typeof toolSettingsTemplates.$inferSelect;
+export type NewToolSettingsTemplate = typeof toolSettingsTemplates.$inferInsert;
+
+export type ToolAnalytics = typeof toolAnalytics.$inferSelect;
+export type NewToolAnalytics = typeof toolAnalytics.$inferInsert;
 
 export type CreditPackage = typeof creditPackages.$inferSelect;
 export type NewCreditPackage = typeof creditPackages.$inferInsert;

@@ -22,6 +22,7 @@ export interface CreateRenderData {
   uploadedImageUrl?: string;
   uploadedImageKey?: string;
   uploadedImageId?: string;
+  platform?: 'render' | 'tools' | 'canvas'; // Platform identifier to prevent cross-contamination
 }
 
 export interface UpdateRenderData {
@@ -51,6 +52,7 @@ export class RendersDAL {
         uploadedImageUrl: data.uploadedImageUrl,
         uploadedImageKey: data.uploadedImageKey,
         uploadedImageId: data.uploadedImageId,
+        platform: data.platform || 'render', // Default to 'render' for backward compatibility
       })
       .returning();
 
