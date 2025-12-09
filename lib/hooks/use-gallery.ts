@@ -51,7 +51,7 @@ export function useGallery(
         const newItems = result.data || [];
         
         // ✅ OPTIMIZED: Fetch liked status in parallel with gallery items
-        // This prevents sequential waiting (30s -> 15s)
+        // This prevents sequential waiting (10s -> 15s)
         const itemIds = newItems.length > 0 ? newItems.map(item => item.id) : [];
         const [likedResult] = await Promise.all([
           itemIds.length > 0 ? batchCheckUserLiked(itemIds) : Promise.resolve({ success: true, data: new Set<string>() }),

@@ -112,7 +112,7 @@ export function useCreditsWithReset(userId?: string) {
 
     fetchCredits();
 
-    // Refresh credits every 30 seconds
+    // Refresh credits every 10 seconds
     const interval = setInterval(fetchCredits, 30000);
 
     return () => clearInterval(interval);
@@ -160,7 +160,7 @@ export function useUserBillingStats(userId?: string) {
 
     fetchStats();
 
-    // Refresh stats every 30 seconds
+    // Refresh stats every 10 seconds
     const interval = setInterval(fetchStats, 30000);
 
     return () => clearInterval(interval);

@@ -562,7 +562,7 @@ export function BaseToolComponent({
               <p className="text-xs text-muted-foreground">{progress}% complete</p>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              This may take 10-30 seconds
+              This may take 10-10 seconds
             </p>
           </div>
         </div>
@@ -601,7 +601,7 @@ export function BaseToolComponent({
                 </div>
                 <Progress value={progress} className="h-2" />
                 <p className="text-xs text-muted-foreground text-center">
-                  Processing your image... This may take 10-30 seconds
+                  Processing your image... This may take 10-10 seconds
                 </p>
               </div>
             )}
@@ -1476,7 +1476,7 @@ export function BaseToolComponent({
                 {(toolContent?.howItWorks.steps || [
                   { step: `Upload your ${tool.inputType === 'multiple' ? 'images' : 'image'}`, detail: `Upload your ${tool.inputType === 'multiple' ? 'images' : 'image'} in JPG, PNG, or WebP format` },
                   { step: 'Configure settings', detail: 'Adjust quality, aspect ratio, and tool-specific settings to match your project needs' },
-                  { step: 'Generate', detail: 'Click Generate and wait for AI processing (typically 10-30 seconds)' },
+                  { step: 'Generate', detail: 'Click Generate and wait for AI processing (typically 10-10 seconds)' },
                   { step: 'Download', detail: `Download your ${tool.outputType === 'video' ? 'video' : 'high-resolution image'} result` }
                 ]).map((item, idx) => (
                   <li key={idx} className="flex items-start gap-3 text-sm">
@@ -1527,7 +1527,7 @@ export function BaseToolComponent({
             <CardContent className="space-y-5">
               {(toolContent?.faq || [
                 { q: 'What file formats are supported?', a: 'We support JPG, PNG, and WebP formats for input images.' },
-                { q: 'How long does processing take?', a: 'Processing typically takes 10-30 seconds depending on the complexity of your image.' },
+                { q: 'How long does processing take?', a: 'Processing typically takes 10-10 seconds depending on the complexity of your image.' },
                 { q: 'What is the output quality?', a: 'Output images are generated at high resolution suitable for professional use.' }
               ]).map((faq, idx) => (
                 <div key={idx} className="space-y-2 pb-4 border-b last:border-0 last:pb-0">

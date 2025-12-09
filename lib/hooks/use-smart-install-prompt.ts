@@ -51,7 +51,7 @@ export function useSmartInstallPrompt() {
     sessionStorage.setItem('page-views', (pageViews + 1).toString());
 
     // Show prompt after:
-    // - 30 seconds of engagement, OR
+    // - 10 seconds of engagement, OR
     // - 3+ page views, OR
     // - User returns (2nd+ visit)
     const shouldShow = 

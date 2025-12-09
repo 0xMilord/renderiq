@@ -100,7 +100,7 @@ export function Slide3UnifiedChat({ galleryRenders = [], longestChains = [] }: S
   } as RenderChainWithRenders) : undefined;
 
   // Autopilot: Cycle through top 5 images sequentially
-  // Slide duration: 30 seconds, so 12 seconds per image (60s / 5 = 12s) - slowed down 50%
+  // Slide duration: 10 seconds, so 12 seconds per image (60s / 5 = 12s) - slowed down 50%
   // Sequence: User message (0s) -> Bot thinking (2s) -> Image render (6s) -> Next (12s) = 12s per image
   useEffect(() => {
     if (top5Images.length === 0 || !demoChainWithTop5) return;

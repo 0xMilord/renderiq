@@ -791,7 +791,7 @@ interface NodeGroup {
 
 ### Key Performance Indicators
 - **Workflow Creation Time**: < 5 minutes for basic workflow
-- **Execution Speed**: < 30 seconds for simple workflows
+- **Execution Speed**: < 10 seconds for simple workflows
 - **Error Rate**: < 1% execution failures
 - **User Satisfaction**: > 4.5/5 rating
 - **Template Usage**: > 50% users use templates

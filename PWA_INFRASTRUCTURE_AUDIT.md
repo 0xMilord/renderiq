@@ -4160,7 +4160,7 @@ export function useSmartInstallPrompt() {
     const pageViews = parseInt(sessionStorage.getItem('page-views') || '0', 10);
     
     // Show prompt after:
-    // - 30 seconds of engagement, OR
+    // - 10 seconds of engagement, OR
     // - 3+ page views, OR
     // - User returns (2nd+ visit)
     const visitCount = parseInt(localStorage.getItem('pwa-visit-count') || '0', 10) + 1;

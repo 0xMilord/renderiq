@@ -55,7 +55,7 @@ const comparisonData: ComparisonRow[] = [
   },
   {
     feature: 'Speed (Generation Time)',
-    renderiq: '< 30s',
+    renderiq: '< 10s',
     traditional3d: 'Hours/Days',
     midjourney: '1-2 min',
     gemini: '30-60s',

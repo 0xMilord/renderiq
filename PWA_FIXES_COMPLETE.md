@@ -73,7 +73,7 @@ All remaining issues from the PWA audit have been fixed. Here's what was impleme
 
 **Implementation:**
 - Engagement-based timing:
-  - After 30 seconds of engagement
+  - After 10 seconds of engagement
   - After 3+ page views
   - On 2nd+ visit
 - Dismissal tracking (max 3 dismissals)

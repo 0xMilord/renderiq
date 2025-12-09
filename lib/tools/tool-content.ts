@@ -38,7 +38,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
         },
         {
           step: 'Generate Your Section Drawing',
-          detail: 'Click Generate and our AI processes your render in 10-30 seconds. The system analyzes structural elements, materials, and spatial relationships to create an accurate section drawing following architectural drafting conventions.'
+          detail: 'Click Generate and our AI processes your render in 10-10 seconds. The system analyzes structural elements, materials, and spatial relationships to create an accurate section drawing following architectural drafting conventions.'
         },
         {
           step: 'Download & Use',
@@ -121,7 +121,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
         },
         {
           step: 'Generate CAD-Style Technical Drawing',
-          detail: 'Click Generate and the AI converts your render into a clean 2D CAD-style drawing with precise linework, proper line weights, and architectural annotations. Processing takes 10-30 seconds depending on image complexity.'
+          detail: 'Click Generate and the AI converts your render into a clean 2D CAD-style drawing with precise linework, proper line weights, and architectural annotations. Processing takes 10-10 seconds depending on image complexity.'
         },
         {
           step: 'Choose Output Quality',
@@ -299,7 +299,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
         },
         {
           step: 'Generate Stylized Render',
-          detail: 'Click Generate and our AI applies the selected effect to your render. Processing takes 10-30 seconds. The AI maintains architectural elements, proportions, and design intent while transforming the visual style to match your chosen effect.'
+          detail: 'Click Generate and our AI applies the selected effect to your render. Processing takes 10-10 seconds. The AI maintains architectural elements, proportions, and design intent while transforming the visual style to match your chosen effect.'
         },
         {
           step: 'Download Your Stylized Render',
@@ -382,7 +382,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
         },
         {
           step: 'Generate Furnished Layout',
-          detail: 'Click Generate and the AI populates your floor plan with appropriate furniture, fixtures, and interior elements in CAD architectural style. Processing takes 10-30 seconds. Furniture is scaled correctly and placed following space planning best practices.'
+          detail: 'Click Generate and the AI populates your floor plan with appropriate furniture, fixtures, and interior elements in CAD architectural style. Processing takes 10-10 seconds. Furniture is scaled correctly and placed following space planning best practices.'
         },
         {
           step: 'Choose Output Quality',
@@ -469,7 +469,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
         },
         {
           step: 'Generate 3D Axonometric View',
-          detail: 'Click Generate and the AI converts your 2D floor plan into a professional 3D axonometric diagram showing spatial volumes, relationships, and architectural elements. Processing takes 10-30 seconds. The 3D view maintains accurate proportions and spatial relationships.'
+          detail: 'Click Generate and the AI converts your 2D floor plan into a professional 3D axonometric diagram showing spatial volumes, relationships, and architectural elements. Processing takes 10-10 seconds. The 3D view maintains accurate proportions and spatial relationships.'
         },
         {
           step: 'Choose Output Quality',
@@ -556,7 +556,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
         },
         {
           step: 'Generate Technical Diagram',
-          detail: 'Click Generate and the AI converts your floor plan into a professional technical architectural diagram with proper annotations, room labels, dimensions, and architectural standards. Processing takes 10-30 seconds.'
+          detail: 'Click Generate and the AI converts your floor plan into a professional technical architectural diagram with proper annotations, room labels, dimensions, and architectural standards. Processing takes 10-10 seconds.'
         },
         {
           step: 'Choose Output Quality',
@@ -643,7 +643,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
         },
         {
           step: 'Generate Exploded Axonometric',
-          detail: 'Click Generate and the AI creates an exploded axonometric diagram showing all components separated with proper spacing. Processing takes 10-30 seconds. The exploded view maintains architectural accuracy while clearly showing component relationships.'
+          detail: 'Click Generate and the AI creates an exploded axonometric diagram showing all components separated with proper spacing. Processing takes 10-10 seconds. The exploded view maintains architectural accuracy while clearly showing component relationships.'
         },
         {
           step: 'Choose Output Quality',
@@ -730,7 +730,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
         },
         {
           step: 'Generate Multiple Perspectives',
-          detail: 'Click Generate and the AI creates multiple camera angle views including aerial (bird\'s eye), eye-level, and close-up perspectives. Processing takes 10-30 seconds. All views maintain consistent lighting and materials.'
+          detail: 'Click Generate and the AI creates multiple camera angle views including aerial (bird\'s eye), eye-level, and close-up perspectives. Processing takes 10-10 seconds. All views maintain consistent lighting and materials.'
         },
         {
           step: 'Choose Output Quality',
@@ -821,7 +821,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
         },
         {
           step: 'Generate Updated Render',
-          detail: 'Click Generate and the AI replaces textures while maintaining realistic lighting, shadows, and reflections. Processing takes 10-30 seconds. The new texture integrates seamlessly with the existing space.'
+          detail: 'Click Generate and the AI replaces textures while maintaining realistic lighting, shadows, and reflections. Processing takes 10-10 seconds. The new texture integrates seamlessly with the existing space.'
         },
         {
           step: 'Download Updated Render',
@@ -908,7 +908,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
         },
         {
           step: 'Generate Updated Facade',
-          detail: 'Click Generate and the AI replaces building materials while maintaining realistic lighting, shadows, and architectural proportions. Processing takes 10-30 seconds. The new material integrates seamlessly with the building design.'
+          detail: 'Click Generate and the AI replaces building materials while maintaining realistic lighting, shadows, and architectural proportions. Processing takes 10-10 seconds. The new material integrates seamlessly with the building design.'
         },
         {
           step: 'Download Updated Render',
@@ -995,7 +995,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
         },
         {
           step: 'Generate Updated Lighting',
-          detail: 'Click Generate and the AI adjusts lighting conditions while maintaining realistic material properties, shadows, and reflections. Processing takes 10-30 seconds. The new lighting creates the desired ambiance naturally.'
+          detail: 'Click Generate and the AI adjusts lighting conditions while maintaining realistic material properties, shadows, and reflections. Processing takes 10-10 seconds. The new lighting creates the desired ambiance naturally.'
         },
         {
           step: 'Download Updated Render',
@@ -1082,7 +1082,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
         },
         {
           step: 'Generate Updated Render',
-          detail: 'Click Generate and the AI replaces upholstery while maintaining realistic lighting, shadows, and furniture form. Processing takes 10-30 seconds. The new upholstery integrates seamlessly with the furniture and space.'
+          detail: 'Click Generate and the AI replaces upholstery while maintaining realistic lighting, shadows, and furniture form. Processing takes 10-10 seconds. The new upholstery integrates seamlessly with the furniture and space.'
         },
         {
           step: 'Download Updated Render',
@@ -1165,7 +1165,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
         },
         {
           step: 'Generate Product Placement',
-          detail: 'Click Generate and the AI places the product into your interior scene with proper scale, lighting, shadows, and perspective. Processing takes 10-30 seconds. The product integrates seamlessly, looking as if it belongs in the space.'
+          detail: 'Click Generate and the AI places the product into your interior scene with proper scale, lighting, shadows, and perspective. Processing takes 10-10 seconds. The product integrates seamlessly, looking as if it belongs in the space.'
         },
         {
           step: 'Choose Output Quality',
@@ -1256,7 +1256,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
         },
         {
           step: 'Generate Updated Render',
-          detail: 'Click Generate and the AI replaces items while maintaining realistic lighting, shadows, and spatial relationships. Processing takes 10-30 seconds. The replacement item integrates seamlessly into the space.'
+          detail: 'Click Generate and the AI replaces items while maintaining realistic lighting, shadows, and spatial relationships. Processing takes 10-10 seconds. The replacement item integrates seamlessly into the space.'
         },
         {
           step: 'Download Updated Render',
@@ -1339,7 +1339,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
         },
         {
           step: 'Generate Photorealistic Render',
-          detail: 'Click Generate and the AI transforms your moodboard into a photorealistic interior render that captures the mood, color palette, materials, and aesthetic. Processing takes 10-30 seconds. The render brings your design concept to life.'
+          detail: 'Click Generate and the AI transforms your moodboard into a photorealistic interior render that captures the mood, color palette, materials, and aesthetic. Processing takes 10-10 seconds. The render brings your design concept to life.'
         },
         {
           step: 'Choose Output Quality',
@@ -1426,7 +1426,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
         },
         {
           step: 'Generate Photorealistic Render',
-          detail: 'Click Generate and the AI transforms your 3D model into a photorealistic architectural render with realistic materials, lighting, environment, and camera composition. Processing takes 10-30 seconds. The render looks professionally rendered, not just a model view.'
+          detail: 'Click Generate and the AI transforms your 3D model into a photorealistic architectural render with realistic materials, lighting, environment, and camera composition. Processing takes 10-10 seconds. The render looks professionally rendered, not just a model view.'
         },
         {
           step: 'Choose Output Quality',
@@ -1453,7 +1453,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
       },
       {
         q: 'Is this faster than rendering in Lumion or Enscape?',
-        a: 'Much faster! This tool creates photorealistic renders in 10-30 seconds, compared to minutes or hours in traditional rendering engines. Perfect for quick previews, design exploration, or when you need a render quickly without setting up materials and lighting in a rendering engine.'
+        a: 'Much faster! This tool creates photorealistic renders in 10-10 seconds, compared to minutes or hours in traditional rendering engines. Perfect for quick previews, design exploration, or when you need a render quickly without setting up materials and lighting in a rendering engine.'
       },
       {
         q: 'Is this suitable for client presentations?',
@@ -1513,7 +1513,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
         },
         {
           step: 'Generate Photorealistic Render',
-          detail: 'Click Generate and the AI transforms your sketch into a photorealistic architectural render, maintaining design intent, proportions, and key elements while adding realistic materials, lighting, and environmental context. Processing takes 10-30 seconds.'
+          detail: 'Click Generate and the AI transforms your sketch into a photorealistic architectural render, maintaining design intent, proportions, and key elements while adding realistic materials, lighting, and environmental context. Processing takes 10-10 seconds.'
         },
         {
           step: 'Choose Output Quality',

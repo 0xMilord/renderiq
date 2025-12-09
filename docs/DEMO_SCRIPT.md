@@ -64,7 +64,7 @@
 
 ---
 
-### **Slide 4: Render Chains & Version Control (20-30 seconds)**
+### **Slide 4: Render Chains & Version Control (20-10 seconds)**
 **Visual:**
 - Timeline view showing render chain:
   - v1: Initial render

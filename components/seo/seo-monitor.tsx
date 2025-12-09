@@ -62,7 +62,7 @@ export function SEOMonitor() {
 
       const trackTimeOnPage = () => {
         const timeOnPage = Date.now() - startTime;
-        if (timeOnPage > 30000 && window.gtag) { // 30 seconds
+        if (timeOnPage > 30000 && window.gtag) { // 10 seconds
           window.gtag('event', 'engagement_time', {
             page_url: window.location.href,
             time_on_page: timeOnPage,

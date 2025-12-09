@@ -32,7 +32,7 @@
    - Custom analytics endpoint
 
 5. ✅ **Smart Install Prompt Timing** - COMPLETE
-   - Engagement-based timing (30s, 3+ page views, 2nd+ visit)
+   - Engagement-based timing (10s, 3+ page views, 2nd+ visit)
    - Dismissal tracking (max 3 dismissals)
    - Session tracking
 
@@ -117,7 +117,7 @@
 - Session metrics
 
 **Timing:**
-- After 30 seconds of engagement
+- After 10 seconds of engagement
 - After 3+ page views
 - On 2nd+ visit
 - Respects dismissals (max 3)

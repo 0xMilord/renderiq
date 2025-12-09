@@ -68,8 +68,8 @@ export const metadata: Metadata = {
 const benefits = [
   {
     icon: Play,
-    title: "30s to 5min Videos",
-    description: "Generate videos ranging from 30 seconds to 5 minutes, perfect for presentations and social media.",
+    title: "10s to 5min Videos",
+    description: "Generate videos ranging from 10 seconds to 5 minutes, perfect for presentations and social media.",
     metric: "Multiple durations"
   },
   {
@@ -148,7 +148,7 @@ export default function RapidConceptVideoPage() {
       {
         '@type': 'HowToStep',
         name: 'Describe Video Content',
-        text: 'Use natural language to describe the video you want: "walkthrough animation", "time-lapse sequence", or "style transition". Specify duration (30 seconds to 5 minutes).',
+        text: 'Use natural language to describe the video you want: "walkthrough animation", "time-lapse sequence", or "style transition". Specify duration (10 seconds to 5 minutes).',
         url: `${pageUrl}#step-3`
       },
       {
@@ -201,7 +201,7 @@ export default function RapidConceptVideoPage() {
                 or style transitions. Choose between Veo3 (higher quality) or Veo3 Fast (faster generation) models depending on your timeline.
               </p>
               <p className="text-lg text-muted-foreground">
-                Videos can range from 30 seconds to 5 minutes, perfect for client presentations, social media content, or marketing 
+                Videos can range from 10 seconds to 5 minutes, perfect for client presentations, social media content, or marketing 
                 materials. The platform supports text-to-video, image-to-video, and keyframe-sequence generation types, giving you 
                 flexibility in how you create motion. Use render chains to track video iterations and maintain consistency across 
                 sequences. This capability transforms static architectural visualization into engaging, dynamic content that better 
