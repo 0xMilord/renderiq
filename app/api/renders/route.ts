@@ -108,11 +108,21 @@ export async function POST(request: NextRequest) {
     const imageType = sanitizeInput(formData.get('imageType') as string | null);
     
     // Check if user has pro subscription
-    // Free users: renders are public (added to gallery)
-    // Pro users: renders are private (not added to gallery)
     const isPro = await BillingDAL.isUserPro(user.id);
-    const isPublic = !isPro; // Free users = public, Pro users = private
-    logger.log(`📸 Render visibility: ${isPublic ? 'PUBLIC' : 'PRIVATE'} (User is ${isPro ? 'PRO' : 'FREE'})`);
+    
+    // Get privacy preference from formData (user's choice from UI)
+    const isPublicParam = formData.get('isPublic') as string | null;
+    let isPublic: boolean;
+    
+    if (isPro) {
+      // Pro users can choose: respect their choice from UI
+      isPublic = isPublicParam === 'true' || isPublicParam === null; // Default to public if not specified
+    } else {
+      // Free users: always public (can't make private)
+      isPublic = true;
+    }
+    
+    logger.log(`📸 Render visibility: ${isPublic ? 'PUBLIC' : 'PRIVATE'} (User is ${isPro ? 'PRO' : 'FREE'}, Choice: ${isPublicParam})`);
     
     const seedParam = formData.get('seed') as string | null;
     const seed = seedParam ? parseInt(seedParam) : undefined;
@@ -683,7 +693,7 @@ export async function POST(request: NextRequest) {
 
           // Add to gallery if public
           if (isPublic) {
-            await RendersDAL.addToGallery(batchRender.id, user.id, true);
+            await RendersDAL.addToGallery(batchRender.id, user.id, isPublic);
           }
 
           // Create label for this batch item
@@ -1023,7 +1033,7 @@ export async function POST(request: NextRequest) {
       // Add to gallery if public
       if (isPublic) {
         logger.log('📸 Adding render to public gallery');
-        await RendersDAL.addToGallery(render.id, user.id, true);
+        await RendersDAL.addToGallery(render.id, user.id, isPublic);
       }
 
       logger.log('🎉 Render completed successfully');

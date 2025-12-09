@@ -2161,7 +2161,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                     </Badge>
                   )}
                   {/* Model Selector - Responsive container */}
-                  <div className="flex-1 min-w-0 max-w-full">
+                  <div className="flex-1 min-w-0 max-w-full border border-muted-foreground/20 rounded-md h-7 sm:h-8 flex items-center">
                     <ModelSelector
                       type={isVideoMode ? 'video' : 'image'}
                       value={(isVideoMode ? selectedVideoModel : selectedImageModel) as ModelId | undefined}
@@ -2189,8 +2189,31 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                       className="w-full"
                     />
                   </div>
+                  {/* Gallery and Builder Buttons - Same column as Model Selector */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsPromptGalleryOpen(true)}
+                      className="h-7 sm:h-8 px-2 text-[10px] sm:text-xs border border-muted-foreground/20 hover:border-transparent active:border-transparent focus-visible:border-transparent"
+                      disabled={isGenerating}
+                    >
+                      <BookOpen className="h-3 w-3 mr-1" />
+                      Gallery
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsPromptBuilderOpen(true)}
+                      className="h-7 sm:h-8 px-2 text-[10px] sm:text-xs border border-muted-foreground/20 hover:border-transparent active:border-transparent focus-visible:border-transparent"
+                      disabled={isGenerating}
+                    >
+                      <Wand2 className="h-3 w-3 mr-1" />
+                      Builder
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 border border-muted-foreground/20 rounded-md px-2 h-7 sm:h-8">
                   <Label htmlFor="privacy-toggle" className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 sm:gap-1.5 cursor-pointer">
                     {isPublic ? (
                       <>
@@ -2263,29 +2286,6 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                     searchTerm={mentionSearchTerm}
                     renders={chain?.renders}
                   />
-                  {/* Prompt Helper Buttons */}
-                  <div className="flex items-center gap-1 mt-1.5">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsPromptGalleryOpen(true)}
-                      className="h-6 px-2 text-[10px] sm:text-xs"
-                      disabled={isGenerating}
-                    >
-                      <BookOpen className="h-3 w-3 mr-1" />
-                      Gallery
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsPromptBuilderOpen(true)}
-                      className="h-6 px-2 text-[10px] sm:text-xs"
-                      disabled={isGenerating}
-                    >
-                      <Wand2 className="h-3 w-3 mr-1" />
-                      Builder
-                    </Button>
-                  </div>
                 </div>
                 <div className="flex flex-col gap-1">
                 <Button
@@ -2315,16 +2315,6 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                   title="Upload image"
                 >
                   <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsPromptGalleryOpen(true)}
-                  className="h-8 sm:h-9 w-8 sm:w-9 shrink-0"
-                  disabled={isGenerating}
-                  title="Prompt Gallery"
-                >
-                  <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </Button>
               </div>
               </div>
@@ -3158,29 +3148,31 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                       <Share2 className="h-3 w-3 shrink-0" />
                       <span className="hidden sm:inline">Share</span>
                     </Button>
-                    {/* Before/After Toggle - Only show when there's a previous render */}
-                    {previousRender && previousRender.outputUrl && currentRender && currentRender.type === 'image' && (
-                      <div className="flex items-center gap-1 h-7 px-2 sm:px-3 border border-input bg-background rounded-md flex-1">
-                        <Button
-                          variant={beforeAfterView === 'before' ? 'default' : 'ghost'}
-                          size="sm"
-                          onClick={() => setBeforeAfterView('before')}
-                          className="h-5 sm:h-6 px-2 sm:px-3 text-[10px] sm:text-xs flex-1"
-                          title="Before"
-                        >
-                          Before
-                        </Button>
-                        <div className="h-3 w-px bg-border"></div>
-                        <Button
-                          variant={beforeAfterView === 'after' ? 'default' : 'ghost'}
-                          size="sm"
-                          onClick={() => setBeforeAfterView('after')}
-                          className="h-5 sm:h-6 px-2 sm:px-3 text-[10px] sm:text-xs flex-1"
-                          title="After"
-                        >
-                          After
-                        </Button>
-                      </div>
+                    {/* Before/After Toggle - Show when there's uploaded image OR when no upload but previous version exists */}
+                    {currentRender && currentRender.type === 'image' && renderWithLatestData && (
+                      (renderWithLatestData.uploadedImageUrl || (!renderWithLatestData.uploadedImageUrl && previousRender && previousRender.outputUrl)) && (
+                        <div className="flex items-center gap-1 h-7 px-2 sm:px-3 border border-input bg-background rounded-md flex-1">
+                          <Button
+                            variant={beforeAfterView === 'before' ? 'default' : 'ghost'}
+                            size="sm"
+                            onClick={() => setBeforeAfterView('before')}
+                            className="h-5 sm:h-6 px-2 sm:px-3 text-[10px] sm:text-xs flex-1"
+                            title="Before"
+                          >
+                            Before
+                          </Button>
+                          <div className="h-3 w-px bg-border"></div>
+                          <Button
+                            variant={beforeAfterView === 'after' ? 'default' : 'ghost'}
+                            size="sm"
+                            onClick={() => setBeforeAfterView('after')}
+                            className="h-5 sm:h-6 px-2 sm:px-3 text-[10px] sm:text-xs flex-1"
+                            title="After"
+                          >
+                            After
+                          </Button>
+                        </div>
+                      )
                     )}
                   </div>
                 </div>
@@ -3240,57 +3232,98 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                               });
                             }}
                           />
-                        ) : previousRender && previousRender.outputUrl && renderWithLatestData ? (
-                          // Before/After Comparison - Tabs moved to header toolbar
+                        ) : renderWithLatestData && (renderWithLatestData.uploadedImageUrl || (previousRender && previousRender.outputUrl)) ? (
+                          // Before/After Comparison - Show uploaded vs rendered OR previous version vs current
                           <div className="w-full h-full">
-                            {beforeAfterView === 'before' ? (
-                              <div className="w-full h-full flex items-center justify-center relative">
-                                {shouldUseRegularImg(previousRender.outputUrl) ? (
-                                  <img
-                                    src={previousRender.outputUrl}
-                                    alt="Previous render"
-                                    className="absolute inset-0 w-full h-full object-contain cursor-pointer"
+                              {beforeAfterView === 'before' ? (
+                                <div className="w-full h-full flex items-center justify-center relative">
+                                  {/* Show uploaded image if available, otherwise show previous version */}
+                                  {renderWithLatestData.uploadedImageUrl ? (
+                                    // Before = Uploaded Image
+                                    shouldUseRegularImg(renderWithLatestData.uploadedImageUrl) ? (
+                                      <img
+                                        src={renderWithLatestData.uploadedImageUrl}
+                                        alt="Uploaded image"
+                                        className="absolute inset-0 w-full h-full object-contain cursor-pointer"
+                                        onClick={() => setIsFullscreen(true)}
+                                        onError={(e) => {
+                                          const img = e.target as HTMLImageElement;
+                                          const originalUrl = renderWithLatestData.uploadedImageUrl;
+                                          logger.error('🖼️ [MAIN RENDER DEBUG] Uploaded image load error', {
+                                            originalUrl: originalUrl?.substring(0, 50) + '...'
+                                          });
+                                          const fallbackUrl = handleImageErrorWithFallback(originalUrl || '', e);
+                                          if (fallbackUrl && fallbackUrl !== '/placeholder-image.jpg') {
+                                            img.src = fallbackUrl;
+                                          } else {
+                                            img.src = '/placeholder-image.jpg';
+                                          }
+                                        }}
+                                      />
+                                    ) : (
+                                      <Image
+                                        src={renderWithLatestData.uploadedImageUrl || '/placeholder-image.jpg'}
+                                        alt="Uploaded image"
+                                        fill
+                                        className="object-contain cursor-pointer"
+                                        sizes="100vw"
+                                        onClick={() => setIsFullscreen(true)}
+                                        onError={(e) => {
+                                          logger.error('🖼️ [MAIN RENDER DEBUG] Uploaded Next.js Image load error', {
+                                            uploadedImageUrl: renderWithLatestData.uploadedImageUrl?.substring(0, 50) + '...'
+                                          });
+                                        }}
+                                      />
+                                    )
+                                  ) : previousRender && previousRender.outputUrl ? (
+                                    // Before = Previous Version (only when no uploaded image)
+                                    shouldUseRegularImg(previousRender.outputUrl) ? (
+                                      <img
+                                        src={previousRender.outputUrl}
+                                        alt="Previous render"
+                                        className="absolute inset-0 w-full h-full object-contain cursor-pointer"
+                                        onClick={() => setIsFullscreen(true)}
+                                        onError={(e) => {
+                                          const img = e.target as HTMLImageElement;
+                                          const originalUrl = previousRender.outputUrl;
+                                          logger.error('🖼️ [MAIN RENDER DEBUG] Previous image load error', {
+                                            originalUrl: originalUrl?.substring(0, 50) + '...'
+                                          });
+                                          const fallbackUrl = handleImageErrorWithFallback(originalUrl || '', e);
+                                          if (fallbackUrl && fallbackUrl !== '/placeholder-image.jpg') {
+                                            img.src = fallbackUrl;
+                                          } else {
+                                            img.src = '/placeholder-image.jpg';
+                                          }
+                                        }}
+                                      />
+                                    ) : (
+                                      <Image
+                                        src={previousRender.outputUrl || '/placeholder-image.jpg'}
+                                        alt="Previous render"
+                                        fill
+                                        className="object-contain cursor-pointer"
+                                        sizes="100vw"
+                                        onClick={() => setIsFullscreen(true)}
+                                        onError={(e) => {
+                                          logger.error('🖼️ [MAIN RENDER DEBUG] Previous Next.js Image load error', {
+                                            outputUrl: previousRender.outputUrl?.substring(0, 50) + '...'
+                                          });
+                                        }}
+                                      />
+                                    )
+                                  ) : null}
+                                  {/* Fullscreen Toggle */}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={() => setIsFullscreen(true)}
-                                    onError={(e) => {
-                                      const img = e.target as HTMLImageElement;
-                                      const originalUrl = previousRender.outputUrl;
-                                      logger.error('🖼️ [MAIN RENDER DEBUG] Previous image load error', {
-                                        originalUrl: originalUrl?.substring(0, 50) + '...'
-                                      });
-                                      const fallbackUrl = handleImageErrorWithFallback(originalUrl || '', e);
-                                      if (fallbackUrl && fallbackUrl !== '/placeholder-image.jpg') {
-                                        img.src = fallbackUrl;
-                                      } else {
-                                        img.src = '/placeholder-image.jpg';
-                                      }
-                                    }}
-                                  />
-                                ) : (
-                                  <Image
-                                    src={previousRender.outputUrl || '/placeholder-image.jpg'}
-                                    alt="Previous render"
-                                    fill
-                                    className="object-contain cursor-pointer"
-                                    sizes="100vw"
-                                    onClick={() => setIsFullscreen(true)}
-                                    onError={(e) => {
-                                      logger.error('🖼️ [MAIN RENDER DEBUG] Previous Next.js Image load error', {
-                                        outputUrl: previousRender.outputUrl?.substring(0, 50) + '...'
-                                      });
-                                    }}
-                                  />
-                                )}
-                                {/* Fullscreen Toggle */}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setIsFullscreen(true)}
-                                  className="absolute top-2 sm:top-4 right-2 sm:right-4 bg-black/50 hover:bg-black/70 text-white h-7 w-7 sm:h-auto sm:w-auto sm:px-3"
-                                >
-                                  <Maximize className="h-3 w-3 sm:h-4 sm:w-4" />
-                                </Button>
-                              </div>
-                            ) : (
+                                    className="absolute top-2 sm:top-4 right-2 sm:right-4 bg-black/50 hover:bg-black/70 text-white h-7 w-7 sm:h-auto sm:w-auto sm:px-3"
+                                  >
+                                    <Maximize className="h-3 w-3 sm:h-4 sm:w-4" />
+                                  </Button>
+                                </div>
+                              ) : (
                               <div className="w-full h-full flex items-center justify-center relative">
                                 {shouldUseRegularImg(renderWithLatestData.outputUrl || '') ? (
                                   <img

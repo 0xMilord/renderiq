@@ -78,11 +78,21 @@ export async function createRenderAction(formData: FormData) {
     const imageType = formData.get('imageType') as string | null;
     
     // Check if user has pro subscription
-    // Free users: renders are public (added to gallery)
-    // Pro users: renders are private (not added to gallery)
     const isPro = await BillingDAL.isUserPro(userId);
-    const isPublic = !isPro; // Free users = public, Pro users = private
-    logger.log(`📸 Render visibility: ${isPublic ? 'PUBLIC' : 'PRIVATE'} (User is ${isPro ? 'PRO' : 'FREE'})`);
+    
+    // Get privacy preference from formData (user's choice from UI)
+    const isPublicParam = formData.get('isPublic') as string | null;
+    let isPublic: boolean;
+    
+    if (isPro) {
+      // Pro users can choose: respect their choice from UI
+      isPublic = isPublicParam === 'true' || isPublicParam === null; // Default to public if not specified
+    } else {
+      // Free users: always public (can't make private)
+      isPublic = true;
+    }
+    
+    logger.log(`📸 Render visibility: ${isPublic ? 'PUBLIC' : 'PRIVATE'} (User is ${isPro ? 'PRO' : 'FREE'}, Choice: ${isPublicParam})`);
     const seedParam = formData.get('seed') as string | null;
     const seed = seedParam ? parseInt(seedParam) : undefined;
     const versionContextData = formData.get('versionContext') as string | null;
@@ -795,7 +805,7 @@ async function processRenderAsync(
     // Add to gallery if public
     if (renderData.isPublic) {
       logger.log('📸 Adding render to public gallery');
-      await RendersDAL.addToGallery(renderId, renderData.userId, true);
+      await RendersDAL.addToGallery(renderId, renderData.userId, renderData.isPublic);
     }
 
     logger.log('🎉 Render completed successfully:', renderId);
