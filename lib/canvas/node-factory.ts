@@ -39,13 +39,21 @@ export interface NodeDefinition {
 export const NODE_REGISTRY: Record<NodeType, NodeDefinition> = {
   text: {
     type: 'text',
-    label: 'Text Prompt',
+    label: 'Text Prompt - Enter text prompts for image generation',
     description: 'Enter text prompts for image generation',
     category: 'input',
     defaultData: {
       prompt: '',
       placeholder: 'Enter your prompt...',
     },
+    inputs: [
+      {
+        id: 'text',
+        label: 'Text',
+        type: 'text',
+        required: false,
+      },
+    ],
     outputs: [
       {
         id: 'text',
@@ -61,7 +69,7 @@ export const NODE_REGISTRY: Record<NodeType, NodeDefinition> = {
   },
   image: {
     type: 'image',
-    label: 'Image Generator',
+    label: 'Image Generator - Generate images from prompts',
     description: 'Generate images from prompts',
     category: 'processing',
     defaultData: {
@@ -78,7 +86,13 @@ export const NODE_REGISTRY: Record<NodeType, NodeDefinition> = {
         id: 'prompt',
         label: 'Prompt',
         type: 'text',
-        required: true,
+        required: false,
+      },
+      {
+        id: 'baseImage',
+        label: 'Base Image',
+        type: 'image',
+        required: false,
       },
       {
         id: 'style',
@@ -108,9 +122,9 @@ export const NODE_REGISTRY: Record<NodeType, NodeDefinition> = {
   },
   variants: {
     type: 'variants',
-    label: 'Variants',
+    label: 'Variants - Generate multiple variations of an image',
     description: 'Generate multiple variations of an image',
-    category: 'output',
+    category: 'processing',
     defaultData: {
       count: 4,
       settings: {
@@ -143,7 +157,7 @@ export const NODE_REGISTRY: Record<NodeType, NodeDefinition> = {
   },
   style: {
     type: 'style',
-    label: 'Style Settings',
+    label: 'Style Settings - Configure rendering style and camera settings',
     description: 'Configure rendering style and camera settings',
     category: 'utility',
     defaultData: {
@@ -186,7 +200,7 @@ export const NODE_REGISTRY: Record<NodeType, NodeDefinition> = {
   },
   material: {
     type: 'material',
-    label: 'Material Settings',
+    label: 'Material Settings - Configure material properties',
     description: 'Configure material properties',
     category: 'utility',
     defaultData: {
@@ -203,6 +217,166 @@ export const NODE_REGISTRY: Record<NodeType, NodeDefinition> = {
       header: 'bg-indigo-500/20 border-indigo-500/30',
       accent: 'text-indigo-500',
       icon: 'text-indigo-500',
+    },
+  },
+  output: {
+    type: 'output',
+    label: 'Output - Final output node for images and variants',
+    description: 'Final output node for images and variants. Can output image for iterative workflows.',
+    category: 'output',
+    defaultData: {
+      status: 'idle',
+    },
+    inputs: [
+      {
+        id: 'image',
+        label: 'Image',
+        type: 'image',
+        required: false,
+      },
+      {
+        id: 'variants',
+        label: 'Variants',
+        type: 'variants',
+        required: false,
+      },
+    ],
+    outputs: [
+      {
+        id: 'image',
+        label: 'Image',
+        type: 'image',
+      },
+    ],
+    color: {
+      header: 'bg-green-500/20 border-green-500/30',
+      accent: 'text-green-500',
+      icon: 'text-green-500',
+    },
+  },
+  'prompt-builder': {
+    type: 'prompt-builder',
+    label: 'Prompt Builder - AI-powered prompt generator using dropdowns',
+    description: 'AI-powered prompt generator using dropdowns',
+    category: 'input',
+    defaultData: {
+      sceneType: 'interior',
+      style: 'modern',
+      mood: 'bright',
+      subject: 'architecture',
+      additionalDetails: '',
+      generatedPrompt: '',
+      status: 'idle',
+    },
+    outputs: [
+      {
+        id: 'prompt',
+        label: 'Generated Prompt',
+        type: 'text',
+      },
+    ],
+    color: {
+      header: 'bg-cyan-500/20 border-cyan-500/30',
+      accent: 'text-cyan-500',
+      icon: 'text-cyan-500',
+    },
+  },
+  'style-reference': {
+    type: 'style-reference',
+    label: 'Style Reference - Extract style from uploaded image',
+    description: 'Extract style from uploaded image',
+    category: 'utility',
+    defaultData: {
+      imageUrl: null,
+      imageData: null,
+      imageType: null,
+      imageName: null,
+      styleExtraction: {
+        extractCamera: true,
+        extractLighting: true,
+        extractAtmosphere: true,
+        extractEnvironment: true,
+        extractColors: true,
+        extractComposition: true,
+      },
+      extractedStyle: undefined,
+    },
+    outputs: [
+      {
+        id: 'style',
+        label: 'Style',
+        type: 'style',
+      },
+    ],
+    color: {
+      header: 'bg-amber-500/20 border-amber-500/30',
+      accent: 'text-amber-500',
+      icon: 'text-amber-500',
+    },
+  },
+  'image-input': {
+    type: 'image-input',
+    label: 'Image Input - Upload base image for image-to-image generation',
+    description: 'Upload base image for image-to-image generation',
+    category: 'input',
+    defaultData: {
+      imageUrl: null,
+      imageData: null,
+      imageType: null,
+      imageName: null,
+    },
+    outputs: [
+      {
+        id: 'image',
+        label: 'Image',
+        type: 'image',
+      },
+    ],
+    color: {
+      header: 'bg-blue-500/20 border-blue-500/30',
+      accent: 'text-blue-500',
+      icon: 'text-blue-500',
+    },
+  },
+  video: {
+    type: 'video',
+    label: 'Video Generator - Generate videos from text or animate images',
+    description: 'Generate videos from text or animate images',
+    category: 'processing',
+    defaultData: {
+      prompt: '',
+      settings: {
+        duration: 8,
+        aspectRatio: '16:9',
+        model: 'veo-3.1-generate-preview',
+      },
+      status: 'idle',
+    },
+    inputs: [
+      {
+        id: 'prompt',
+        label: 'Prompt',
+        type: 'text',
+        required: false,
+      },
+      {
+        id: 'baseImage',
+        label: 'Base Image',
+        type: 'image',
+        required: false,
+      },
+    ],
+    outputs: [
+      {
+        id: 'video',
+        label: 'Video',
+        type: 'image',
+      },
+    ],
+    color: {
+      header: 'bg-purple-500/20 border-purple-500/30',
+      accent: 'text-purple-500',
+      icon: 'text-purple-500',
     },
   },
 };
@@ -361,90 +535,195 @@ export interface NodeTemplate {
 }
 
 export const NODE_TEMPLATES: Record<string, NodeTemplate> = {
+  // Basic Templates
   basic: {
-    name: 'Basic Workflow',
+    name: 'Basic Workflow - Simple text to image generation',
     description: 'Simple text to image generation',
-    nodes: ['text', 'image'],
+    nodes: ['text', 'image', 'output'],
     connections: [
       { from: { nodeIndex: 0, handle: 'text' }, to: { nodeIndex: 1, handle: 'prompt' } },
+      { from: { nodeIndex: 1, handle: 'image' }, to: { nodeIndex: 2, handle: 'image' } },
     ],
     layout: 'horizontal',
   },
   styled: {
-    name: 'Styled Generation',
+    name: 'Styled Generation - Text to image with style settings',
     description: 'Text to image with style settings',
-    nodes: ['text', 'style', 'image'],
+    nodes: ['text', 'style', 'image', 'output'],
     connections: [
       { from: { nodeIndex: 0, handle: 'text' }, to: { nodeIndex: 2, handle: 'prompt' } },
       { from: { nodeIndex: 1, handle: 'style' }, to: { nodeIndex: 2, handle: 'style' } },
+      { from: { nodeIndex: 2, handle: 'image' }, to: { nodeIndex: 3, handle: 'image' } },
     ],
     layout: 'horizontal',
   },
   variants: {
-    name: 'Variants Workflow',
+    name: 'Variants Workflow - Generate image and create variants',
     description: 'Generate image and create variants',
-    nodes: ['text', 'image', 'variants'],
+    nodes: ['text', 'image', 'variants', 'output'],
     connections: [
       { from: { nodeIndex: 0, handle: 'text' }, to: { nodeIndex: 1, handle: 'prompt' } },
       { from: { nodeIndex: 1, handle: 'image' }, to: { nodeIndex: 2, handle: 'sourceImage' } },
+      { from: { nodeIndex: 2, handle: 'variants' }, to: { nodeIndex: 3, handle: 'variants' } },
     ],
     layout: 'horizontal',
   },
   complete: {
-    name: 'Complete Workflow',
-    description: 'Full workflow with all settings',
-    nodes: ['text', 'style', 'material', 'image', 'variants'],
+    name: 'Complete Workflow - Full workflow with all settings and variants',
+    description: 'Full workflow with all settings and variants',
+    nodes: ['text', 'style', 'material', 'image', 'variants', 'output'],
     connections: [
       { from: { nodeIndex: 0, handle: 'text' }, to: { nodeIndex: 3, handle: 'prompt' } },
       { from: { nodeIndex: 1, handle: 'style' }, to: { nodeIndex: 3, handle: 'style' } },
       { from: { nodeIndex: 2, handle: 'materials' }, to: { nodeIndex: 3, handle: 'material' } },
       { from: { nodeIndex: 3, handle: 'image' }, to: { nodeIndex: 4, handle: 'sourceImage' } },
+      { from: { nodeIndex: 4, handle: 'variants' }, to: { nodeIndex: 5, handle: 'variants' } },
     ],
     layout: 'horizontal',
   },
+  
+  // Image-to-Image Templates
+  'image-to-image': {
+    name: 'Image-to-Image - Modify an existing image with text guidance',
+    description: 'Modify an existing image with text guidance',
+    nodes: ['image-input', 'text', 'image', 'output'],
+    connections: [
+      { from: { nodeIndex: 0, handle: 'image' }, to: { nodeIndex: 2, handle: 'baseImage' } },
+      { from: { nodeIndex: 1, handle: 'text' }, to: { nodeIndex: 2, handle: 'prompt' } },
+      { from: { nodeIndex: 2, handle: 'image' }, to: { nodeIndex: 3, handle: 'image' } },
+    ],
+    layout: 'horizontal',
+  },
+  'image-to-image-styled': {
+    name: 'Image-to-Image with Style - Iterative editing with style guidance',
+    description: 'Iterative editing with style guidance',
+    nodes: ['image-input', 'text', 'style', 'image', 'output'],
+    connections: [
+      { from: { nodeIndex: 0, handle: 'image' }, to: { nodeIndex: 3, handle: 'baseImage' } },
+      { from: { nodeIndex: 1, handle: 'text' }, to: { nodeIndex: 3, handle: 'prompt' } },
+      { from: { nodeIndex: 2, handle: 'style' }, to: { nodeIndex: 3, handle: 'style' } },
+      { from: { nodeIndex: 3, handle: 'image' }, to: { nodeIndex: 4, handle: 'image' } },
+    ],
+    layout: 'horizontal',
+  },
+  
+  // Video Templates
+  'text-to-video': {
+    name: 'Text-to-Video - Generate video from text prompt',
+    description: 'Generate video from text prompt',
+    nodes: ['text', 'video', 'output'],
+    connections: [
+      { from: { nodeIndex: 0, handle: 'text' }, to: { nodeIndex: 1, handle: 'prompt' } },
+      { from: { nodeIndex: 1, handle: 'video' }, to: { nodeIndex: 2, handle: 'image' } },
+    ],
+    layout: 'horizontal',
+  },
+  'image-to-video': {
+    name: 'Image-to-Video - Animate an uploaded image into video',
+    description: 'Animate an uploaded image into video',
+    nodes: ['image-input', 'text', 'video', 'output'],
+    connections: [
+      { from: { nodeIndex: 0, handle: 'image' }, to: { nodeIndex: 2, handle: 'baseImage' } },
+      { from: { nodeIndex: 1, handle: 'text' }, to: { nodeIndex: 2, handle: 'prompt' } },
+      { from: { nodeIndex: 2, handle: 'video' }, to: { nodeIndex: 3, handle: 'image' } },
+    ],
+    layout: 'horizontal',
+  },
+  'image-to-video-animated': {
+    name: 'Image to Video (Animated) - Generate image first, then animate it into video',
+    description: 'Generate image first, then animate it into video',
+    nodes: ['text', 'image', 'video', 'output'],
+    connections: [
+      { from: { nodeIndex: 0, handle: 'text' }, to: { nodeIndex: 1, handle: 'prompt' } },
+      { from: { nodeIndex: 1, handle: 'image' }, to: { nodeIndex: 2, handle: 'baseImage' } },
+      { from: { nodeIndex: 2, handle: 'video' }, to: { nodeIndex: 3, handle: 'image' } },
+    ],
+    layout: 'horizontal',
+  },
+  
+  // Style Reference Templates
+  'style-reference': {
+    name: 'Style Reference - Extract style from reference image and apply to new generation',
+    description: 'Extract style from reference image and apply to new generation (upload image in Style Reference node)',
+    nodes: ['style-reference', 'text', 'image', 'output'],
+    connections: [
+      { from: { nodeIndex: 0, handle: 'style' }, to: { nodeIndex: 2, handle: 'style' } },
+      { from: { nodeIndex: 1, handle: 'text' }, to: { nodeIndex: 2, handle: 'prompt' } },
+      { from: { nodeIndex: 2, handle: 'image' }, to: { nodeIndex: 3, handle: 'image' } },
+    ],
+    layout: 'horizontal',
+  },
+  
+  // Prompt Builder Templates
+  'prompt-builder': {
+    name: 'AI Prompt Builder - Use AI to generate prompts, then create images',
+    description: 'Use AI to generate prompts, then create images',
+    nodes: ['prompt-builder', 'image', 'output'],
+    connections: [
+      { from: { nodeIndex: 0, handle: 'prompt' }, to: { nodeIndex: 1, handle: 'prompt' } },
+      { from: { nodeIndex: 1, handle: 'image' }, to: { nodeIndex: 2, handle: 'image' } },
+    ],
+    layout: 'horizontal',
+  },
+  'prompt-builder-styled': {
+    name: 'AI Prompt Builder with Style - AI-generated prompts with style settings',
+    description: 'AI-generated prompts with style settings',
+    nodes: ['prompt-builder', 'style', 'image', 'output'],
+    connections: [
+      { from: { nodeIndex: 0, handle: 'prompt' }, to: { nodeIndex: 2, handle: 'prompt' } },
+      { from: { nodeIndex: 1, handle: 'style' }, to: { nodeIndex: 2, handle: 'style' } },
+      { from: { nodeIndex: 2, handle: 'image' }, to: { nodeIndex: 3, handle: 'image' } },
+    ],
+    layout: 'horizontal',
+  },
+  
   // Advanced Templates
   architectural: {
-    name: 'Architectural Visualization',
-    description: 'Complete pipeline for architectural rendering',
-    nodes: ['text', 'style', 'material', 'image', 'variants'],
+    name: 'Architectural Visualization - Complete pipeline for architectural rendering with variants',
+    description: 'Complete pipeline for architectural rendering with variants',
+    nodes: ['text', 'style', 'material', 'image', 'variants', 'output'],
     connections: [
       { from: { nodeIndex: 0, handle: 'text' }, to: { nodeIndex: 3, handle: 'prompt' } },
       { from: { nodeIndex: 1, handle: 'style' }, to: { nodeIndex: 3, handle: 'style' } },
       { from: { nodeIndex: 2, handle: 'materials' }, to: { nodeIndex: 3, handle: 'material' } },
       { from: { nodeIndex: 3, handle: 'image' }, to: { nodeIndex: 4, handle: 'sourceImage' } },
+      { from: { nodeIndex: 4, handle: 'variants' }, to: { nodeIndex: 5, handle: 'variants' } },
     ],
     layout: 'horizontal',
   },
   interior: {
-    name: 'Interior Design',
+    name: 'Interior Design - Interior design visualization workflow',
     description: 'Interior design visualization workflow',
-    nodes: ['text', 'style', 'image', 'variants'],
+    nodes: ['text', 'style', 'image', 'variants', 'output'],
     connections: [
       { from: { nodeIndex: 0, handle: 'text' }, to: { nodeIndex: 2, handle: 'prompt' } },
       { from: { nodeIndex: 1, handle: 'style' }, to: { nodeIndex: 2, handle: 'style' } },
       { from: { nodeIndex: 2, handle: 'image' }, to: { nodeIndex: 3, handle: 'sourceImage' } },
+      { from: { nodeIndex: 3, handle: 'variants' }, to: { nodeIndex: 4, handle: 'variants' } },
     ],
     layout: 'horizontal',
   },
   exterior: {
-    name: 'Exterior Architecture',
+    name: 'Exterior Architecture - Exterior architectural rendering workflow',
     description: 'Exterior architectural rendering workflow',
-    nodes: ['text', 'style', 'material', 'image'],
+    nodes: ['text', 'style', 'material', 'image', 'output'],
     connections: [
       { from: { nodeIndex: 0, handle: 'text' }, to: { nodeIndex: 3, handle: 'prompt' } },
       { from: { nodeIndex: 1, handle: 'style' }, to: { nodeIndex: 3, handle: 'style' } },
       { from: { nodeIndex: 2, handle: 'materials' }, to: { nodeIndex: 3, handle: 'material' } },
+      { from: { nodeIndex: 3, handle: 'image' }, to: { nodeIndex: 4, handle: 'image' } },
     ],
     layout: 'horizontal',
   },
   product: {
-    name: 'Product Visualization',
-    description: 'Product rendering and visualization',
-    nodes: ['text', 'style', 'image', 'variants'],
+    name: 'Product Visualization - Product rendering and visualization with variants',
+    description: 'Product rendering and visualization with variants',
+    nodes: ['text', 'style', 'image', 'variants', 'output'],
     connections: [
       { from: { nodeIndex: 0, handle: 'text' }, to: { nodeIndex: 2, handle: 'prompt' } },
       { from: { nodeIndex: 1, handle: 'style' }, to: { nodeIndex: 2, handle: 'style' } },
       { from: { nodeIndex: 2, handle: 'image' }, to: { nodeIndex: 3, handle: 'sourceImage' } },
+      { from: { nodeIndex: 3, handle: 'variants' }, to: { nodeIndex: 4, handle: 'variants' } },
     ],
     layout: 'horizontal',
   },

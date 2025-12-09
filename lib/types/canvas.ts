@@ -1,6 +1,6 @@
 // Canvas node types and interfaces
 
-export type NodeType = 'text' | 'image' | 'variants' | 'style' | 'material';
+export type NodeType = 'text' | 'image' | 'variants' | 'style' | 'material' | 'output' | 'prompt-builder' | 'style-reference' | 'image-input' | 'video';
 
 export type DataType = 'string' | 'image' | 'number' | 'object' | 'array';
 
@@ -34,6 +34,8 @@ export interface ImageNodeData {
   };
   styleSettings?: StyleNodeData; // From Style Node
   materialSettings?: MaterialNodeData; // From Material Node
+  baseImageData?: string; // Base64 image data for image-to-image
+  baseImageType?: string; // MIME type of base image
   status: 'idle' | 'generating' | 'completed' | 'error';
   outputUrl?: string;
   errorMessage?: string;
@@ -100,7 +102,65 @@ export interface MaterialNodeData {
   }>;
 }
 
-export type NodeData = TextNodeData | ImageNodeData | VariantsNodeData | StyleNodeData | MaterialNodeData;
+export interface OutputNodeData {
+  imageUrl?: string;
+  variantUrl?: string;
+  variantId?: string;
+  status: 'idle' | 'ready';
+}
+
+export interface PromptBuilderNodeData {
+  sceneType: string;
+  style: string;
+  mood: string;
+  subject: string;
+  additionalDetails: string;
+  generatedPrompt: string;
+  status: 'idle' | 'generating' | 'completed' | 'error';
+  errorMessage?: string;
+}
+
+export interface StyleReferenceNodeData {
+  imageUrl?: string | null; // Image preview URL
+  imageData?: string | null; // Base64 image data
+  imageType?: string | null; // MIME type
+  imageName?: string | null; // Original filename
+  styleExtraction: {
+    extractCamera: boolean;
+    extractLighting: boolean;
+    extractAtmosphere: boolean;
+    extractEnvironment: boolean;
+    extractColors: boolean;
+    extractComposition: boolean;
+  };
+  extractedStyle?: StyleNodeData; // Extracted style from image
+  selectedStyleId?: string; // Which style to output (for multiple styles)
+}
+
+export interface ImageInputNodeData {
+  imageUrl: string | null; // Data URL for preview
+  imageData: string | null; // Base64 for API
+  imageType: string | null; // MIME type
+  imageName: string | null; // Original filename
+}
+
+export interface VideoNodeData {
+  prompt: string;
+  settings: {
+    duration: 4 | 6 | 8; // Video duration in seconds
+    aspectRatio: '16:9' | '9:16' | '1:1';
+    model?: string; // Video model ID
+  };
+  baseImageData?: string; // Base64 image data for image-to-video
+  baseImageType?: string; // MIME type of base image
+  status: 'idle' | 'generating' | 'completed' | 'error';
+  outputUrl?: string; // Video URL
+  errorMessage?: string;
+  generatedAt?: Date;
+  renderId?: string;
+}
+
+export type NodeData = TextNodeData | ImageNodeData | VariantsNodeData | StyleNodeData | MaterialNodeData | OutputNodeData | PromptBuilderNodeData | StyleReferenceNodeData | ImageInputNodeData | VideoNodeData;
 
 export interface CanvasNode {
   id: string;

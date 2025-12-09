@@ -114,20 +114,25 @@ export class ConnectionValidator {
    */
   static isTypeCompatible(
     sourceType: 'text' | 'image' | 'style' | 'material' | 'variants',
-    targetType: 'text' | 'image' | 'style' | 'material' | 'variants'
+    targetType: 'text' | 'image' | 'style' | 'material' | 'variants' | 'output'
   ): boolean {
     // Exact match
     if (sourceType === targetType) {
       return true;
     }
 
+    // Output node accepts image and variants
+    if (targetType === 'output') {
+      return sourceType === 'image' || sourceType === 'variants';
+    }
+
     // Type compatibility rules
     const compatibilityMap: Record<string, string[]> = {
       text: ['text'], // Text can only connect to text
-      image: ['image', 'variants'], // Image can connect to image or variants
+      image: ['image', 'variants', 'output'], // Image can connect to image, variants, or output
       style: ['style'], // Style can only connect to style
       material: ['material'], // Material can only connect to material
-      variants: ['variants'], // Variants can only connect to variants
+      variants: ['variants', 'output'], // Variants can connect to variants or output
     };
 
     const compatibleTypes = compatibilityMap[sourceType] || [];

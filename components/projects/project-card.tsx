@@ -44,6 +44,7 @@ interface ProjectCardProps {
   onEdit?: (project: Project) => void;
   onDuplicate?: (project: Project) => void;
   onDelete?: (project: Project) => void;
+  onSelect?: (project: Project) => void;
 }
 
 function ProjectCardComponent({ 
@@ -51,7 +52,8 @@ function ProjectCardComponent({
   viewMode, 
   onEdit, 
   onDuplicate, 
-  onDelete 
+  onDelete,
+  onSelect
 }: ProjectCardProps) {
   const latestRenders = project.latestRenders || [];
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -260,9 +262,21 @@ function ProjectCardComponent({
     );
   };
 
+  const handleCardClick = () => {
+    if (onSelect) {
+      onSelect(project);
+    }
+  };
+
   if (viewMode === 'list') {
     return (
-      <Card className="group hover:shadow-lg transition-all duration-200">
+      <Card 
+        className={cn(
+          "group hover:shadow-lg transition-all duration-200",
+          onSelect && "cursor-pointer"
+        )}
+        onClick={onSelect ? handleCardClick : undefined}
+      >
         <CardContent className="p-4">
           <div className="flex items-center space-x-4">
             <div className="relative w-12 h-12 flex-shrink-0">
@@ -290,41 +304,52 @@ function ProjectCardComponent({
                 <span>{project.renderCount || 0} renders</span>
               </div>
             </div>
-            <div className="flex items-center space-x-1 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                className="h-7 w-7 p-0"
+                className="flex-[0.55] h-8"
                 asChild
                 title="View"
+                onClick={(e) => e.stopPropagation()}
               >
                 <Link href={`/dashboard/projects/${project.slug}`}>
-                  <Eye className="h-3 w-3" />
+                  <Eye className="h-3 w-3 mr-1.5" />
+                  View
                 </Link>
               </Button>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                className="h-7 w-7 p-0"
-                onClick={() => setEditModalOpen(true)}
+                className="h-8 w-8 p-0 flex-shrink-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditModalOpen(true);
+                }}
                 title="Edit"
               >
                 <Edit className="h-3 w-3" />
               </Button>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                className="h-7 w-7 p-0"
-                onClick={() => setDuplicateModalOpen(true)}
+                className="h-8 w-8 p-0 flex-shrink-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDuplicateModalOpen(true);
+                }}
                 title="Duplicate"
               >
                 <Copy className="h-3 w-3" />
               </Button>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-                onClick={() => setDeleteDialogOpen(true)}
+                className="h-8 w-8 p-0 flex-shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950 border-red-200 dark:border-red-800"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteDialogOpen(true);
+                }}
                 title="Delete"
               >
                 <Trash2 className="h-3 w-3" />
@@ -340,8 +365,11 @@ function ProjectCardComponent({
   return (
     <Card className={cn(
       "group hover:shadow-lg transition-all duration-200 flex flex-col gap-0",
-      viewMode === 'compact' ? "" : "h-full"
-    )}>
+      viewMode === 'compact' ? "" : "h-full",
+      onSelect && "cursor-pointer"
+    )}
+    onClick={onSelect ? handleCardClick : undefined}
+    >
       <div className={cn(
         "bg-muted relative group flex-shrink-0 rounded-t-lg overflow-hidden",
         viewMode === 'compact' ? "aspect-square" : "aspect-video"
@@ -363,6 +391,7 @@ function ProjectCardComponent({
               variant="secondary"
               className="h-7 text-xs"
               asChild
+              onClick={(e) => e.stopPropagation()}
             >
               <Link href={`/dashboard/projects/${project.slug}`}>
                 <Eye className="h-3 w-3 mr-1.5" />
@@ -388,12 +417,13 @@ function ProjectCardComponent({
         <div className="border-t border-border"></div>
       </div>
       <CardContent className="pt-4 flex-shrink-0 px-6 pb-6">
-        <div className="grid grid-cols-20 gap-2">
+        <div className="flex gap-2">
           <Button
             variant="outline"
             size="sm"
-            className="col-span-11"
+            className="flex-[0.55] h-8"
             asChild
+            onClick={(e) => e.stopPropagation()}
           >
             <Link href={`/dashboard/projects/${project.slug}`}>
               <Eye className="h-3 w-3 mr-1.5" />
@@ -403,24 +433,36 @@ function ProjectCardComponent({
           <Button
             variant="outline"
             size="sm"
-            className="col-span-3"
-            onClick={() => setEditModalOpen(true)}
+            className="h-8 w-8 p-0 flex-shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditModalOpen(true);
+            }}
+            title="Edit"
           >
             <Edit className="h-3 w-3" />
           </Button>
           <Button
             variant="outline"
             size="sm"
-            className="col-span-3"
-            onClick={() => setDuplicateModalOpen(true)}
+            className="h-8 w-8 p-0 flex-shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              setDuplicateModalOpen(true);
+            }}
+            title="Duplicate"
           >
             <Copy className="h-3 w-3" />
           </Button>
           <Button
             variant="outline"
             size="sm"
-            className="col-span-3 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950 border-red-200 dark:border-red-800"
-            onClick={() => setDeleteDialogOpen(true)}
+            className="h-8 w-8 p-0 flex-shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950 border-red-200 dark:border-red-800"
+            onClick={(e) => {
+              e.stopPropagation();
+              setDeleteDialogOpen(true);
+            }}
+            title="Delete"
           >
             <Trash2 className="h-3 w-3" />
           </Button>

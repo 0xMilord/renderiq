@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   ReactFlow,
   Node,
@@ -23,6 +23,11 @@ import { ImageNode } from './nodes/image-node';
 import { VariantsNode } from './nodes/variants-node';
 import { StyleNode } from './nodes/style-node';
 import { MaterialNode } from './nodes/material-node';
+import { OutputNode } from './nodes/output-node';
+import { PromptBuilderNode } from './nodes/prompt-builder-node';
+import { StyleReferenceNode } from './nodes/style-reference-node';
+import { ImageInputNode } from './nodes/image-input-node';
+import { VideoNode } from './nodes/video-node';
 import { CanvasToolbar } from './canvas-toolbar';
 import { CustomEdge } from './custom-edge';
 import { useCanvas } from '@/lib/hooks/use-canvas';
@@ -48,6 +53,11 @@ const nodeTypes: NodeTypes = {
   variants: VariantsNode as any,
   style: StyleNode as any,
   material: MaterialNode as any,
+  output: OutputNode as any,
+  'prompt-builder': PromptBuilderNode as any,
+  'style-reference': StyleReferenceNode as any,
+  'image-input': ImageInputNode as any,
+  video: VideoNode as any,
 };
 
 const edgeTypes = {
@@ -177,80 +187,311 @@ function CanvasEditorInner({
     };
   }, [setNodes]);
 
-  // Handle node connections to pass data between nodes
+  // Create edge lookup maps for O(1) access instead of O(n) filtering
+  const edgeLookup = useMemo(() => {
+    const targetMap = new Map<string, Edge[]>();
+    const sourceMap = new Map<string, Edge[]>();
+    
+    edges.forEach(edge => {
+      if (!targetMap.has(edge.target)) {
+        targetMap.set(edge.target, []);
+      }
+      targetMap.get(edge.target)!.push(edge);
+      
+      if (!sourceMap.has(edge.source)) {
+        sourceMap.set(edge.source, []);
+      }
+      sourceMap.get(edge.source)!.push(edge);
+    });
+    
+    return { targetMap, sourceMap };
+  }, [edges]);
+
+  // Create node lookup map for O(1) access
+  const nodeLookup = useMemo(() => {
+    const map = new Map<string, Node>();
+    nodes.forEach(node => map.set(node.id, node));
+    return map;
+  }, [nodes]);
+
+  // Handle node connections to pass data between nodes - optimized with lookup maps
   useEffect(() => {
     const handleConnectionData = () => {
       setNodes((nds) => {
-        return nds.map((node) => {
-          // Find incoming connections
-          const incomingEdges = edges.filter((edge) => edge.target === node.id);
+        // Create lookup for current nodes
+        const currentNodeMap = new Map(nds.map(n => [n.id, n]));
+        let hasChanges = false;
+        const updatedNodes = nds.map((node) => {
+          const incomingEdges = edgeLookup.targetMap.get(node.id) || [];
           
-          if (node.type === 'image' && incomingEdges.length > 0) {
+          if (incomingEdges.length === 0) return node;
+
+          if (node.type === 'image') {
             const currentData = node.data as any;
             const updatedData = { ...currentData };
+            let changed = false;
 
-            // Find text node connected to image node (prompt input)
             const textEdge = incomingEdges.find((e) => e.targetHandle === 'prompt' && e.sourceHandle === 'text');
             if (textEdge) {
-              const sourceNode = nds.find((n) => n.id === textEdge.source);
-              if (sourceNode && sourceNode.type === 'text') {
+              const sourceNode = currentNodeMap.get(textEdge.source);
+              if (sourceNode?.type === 'text') {
                 const textData = sourceNode.data as any;
-                updatedData.prompt = textData.prompt || updatedData.prompt || '';
+                if (updatedData.prompt !== textData.prompt) {
+                  updatedData.prompt = textData.prompt || updatedData.prompt || '';
+                  changed = true;
+                }
               }
             }
 
-            // Find style node connected to image node (style input)
             const styleEdge = incomingEdges.find((e) => e.targetHandle === 'style' && e.sourceHandle === 'style');
             if (styleEdge) {
-              const sourceNode = nds.find((n) => n.id === styleEdge.source);
-              if (sourceNode && sourceNode.type === 'style') {
-                const styleData = sourceNode.data as any;
-                updatedData.styleSettings = styleData;
+              const sourceNode = currentNodeMap.get(styleEdge.source);
+              if (sourceNode?.type === 'style') {
+                updatedData.styleSettings = sourceNode.data;
+                changed = true;
+              } else if (sourceNode?.type === 'style-reference') {
+                // If style-reference node, use extracted style
+                const styleRefData = sourceNode.data as any;
+                if (styleRefData.extractedStyle) {
+                  updatedData.styleSettings = styleRefData.extractedStyle;
+                  changed = true;
+                } else if (styleRefData.styles && styleRefData.styles.length > 0) {
+                  // Fallback to manual styles if no extracted style
+                  const selectedStyle = styleRefData.styles.find((s: any) => s.id === styleRefData.selectedStyleId) || styleRefData.styles[0];
+                  if (selectedStyle?.style) {
+                    updatedData.styleSettings = selectedStyle.style;
+                    changed = true;
+                  }
+                }
               }
             }
 
-            // Find material node connected to image node (material input)
             const materialEdge = incomingEdges.find((e) => e.targetHandle === 'material' && e.sourceHandle === 'materials');
             if (materialEdge) {
-              const sourceNode = nds.find((n) => n.id === materialEdge.source);
-              if (sourceNode && sourceNode.type === 'material') {
-                const materialData = sourceNode.data as any;
-                updatedData.materialSettings = materialData;
+              const sourceNode = currentNodeMap.get(materialEdge.source);
+              if (sourceNode?.type === 'material') {
+                updatedData.materialSettings = sourceNode.data;
+                changed = true;
               }
             }
 
-            return {
-              ...node,
-              data: updatedData,
-            };
+            // Handle base image input (for image-to-image generation)
+            const imageEdge = incomingEdges.find((e) => e.targetHandle === 'baseImage' && e.sourceHandle === 'image');
+            if (imageEdge) {
+              const sourceNode = currentNodeMap.get(imageEdge.source);
+              if (sourceNode?.type === 'image-input') {
+                const imageInputData = sourceNode.data as any;
+                if (imageInputData.imageData && imageInputData.imageData !== updatedData.baseImageData) {
+                  updatedData.baseImageData = imageInputData.imageData;
+                  updatedData.baseImageType = imageInputData.imageType;
+                  changed = true;
+                }
+              } else if (sourceNode?.type === 'image') {
+                // Can also use output from another image node
+                const imageData = sourceNode.data as any;
+                if (imageData.outputUrl) {
+                  // Convert output URL to base64 if needed
+                  // For now, we'll need to fetch and convert
+                  // This is a simplified version - in production you'd handle this better
+                  updatedData.baseImageData = imageData.outputUrl;
+                  updatedData.baseImageType = 'image/png';
+                  changed = true;
+                }
+              } else if (sourceNode?.type === 'output') {
+                // Support Output Node → Image Node for iterative workflows
+                const outputData = sourceNode.data as any;
+                const imageUrl = outputData.imageUrl || outputData.variantUrl;
+                if (imageUrl && imageUrl !== updatedData.baseImageData) {
+                  updatedData.baseImageData = imageUrl;
+                  updatedData.baseImageType = 'image/png';
+                  changed = true;
+                }
+              }
+            }
+
+            if (changed) {
+              hasChanges = true;
+              return { ...node, data: updatedData };
+            }
+            return node;
           }
 
-          if (node.type === 'variants' && incomingEdges.length > 0) {
-            // Find image node connected to variants node
+          // Handle video node connections
+          if (node.type === 'video') {
+            const currentData = node.data as any;
+            const updatedData = { ...currentData };
+            let changed = false;
+
+            const textEdge = incomingEdges.find((e) => e.targetHandle === 'prompt' && e.sourceHandle === 'text');
+            if (textEdge) {
+              const sourceNode = currentNodeMap.get(textEdge.source);
+              if (sourceNode?.type === 'text') {
+                const textData = sourceNode.data as any;
+                if (updatedData.prompt !== textData.prompt) {
+                  updatedData.prompt = textData.prompt || updatedData.prompt || '';
+                  changed = true;
+                }
+              } else if (sourceNode?.type === 'prompt-builder') {
+                const promptBuilderData = sourceNode.data as any;
+                if (updatedData.prompt !== promptBuilderData.generatedPrompt) {
+                  updatedData.prompt = promptBuilderData.generatedPrompt || updatedData.prompt || '';
+                  changed = true;
+                }
+              }
+            }
+
+            // Handle base image input (for image-to-video generation)
+            const imageEdge = incomingEdges.find((e) => e.targetHandle === 'baseImage' && e.sourceHandle === 'image');
+            if (imageEdge) {
+              const sourceNode = currentNodeMap.get(imageEdge.source);
+              if (sourceNode?.type === 'image-input') {
+                const imageInputData = sourceNode.data as any;
+                if (imageInputData.imageData && imageInputData.imageData !== updatedData.baseImageData) {
+                  updatedData.baseImageData = imageInputData.imageData;
+                  updatedData.baseImageType = imageInputData.imageType;
+                  changed = true;
+                }
+              } else if (sourceNode?.type === 'image') {
+                // Support Image Node output → Video Node (image-to-video from generated images)
+                const imageData = sourceNode.data as any;
+                if (imageData.outputUrl) {
+                  // For generated images, we need to convert the URL to base64
+                  // For now, store the URL - the video generation API will handle it
+                  updatedData.baseImageData = imageData.outputUrl;
+                  updatedData.baseImageType = 'image/png';
+                  changed = true;
+                }
+              } else if (sourceNode?.type === 'output') {
+                // Support Output Node → Video Node for iterative workflows
+                const outputData = sourceNode.data as any;
+                const imageUrl = outputData.imageUrl || outputData.variantUrl;
+                if (imageUrl && imageUrl !== updatedData.baseImageData) {
+                  updatedData.baseImageData = imageUrl;
+                  updatedData.baseImageType = 'image/png';
+                  changed = true;
+                }
+              }
+            }
+
+            if (changed) {
+              hasChanges = true;
+              return { ...node, data: updatedData };
+            }
+            return node;
+          }
+
+          if (node.type === 'variants') {
             const imageEdge = incomingEdges.find((e) => e.targetHandle === 'sourceImage' && e.sourceHandle === 'image');
             if (imageEdge) {
-              const sourceNode = nds.find((n) => n.id === imageEdge.source);
+              const sourceNode = currentNodeMap.get(imageEdge.source);
               if (sourceNode?.type === 'image') {
                 const imageData = sourceNode.data as any;
                 const currentData = node.data as any;
-                return {
-                  ...node,
-                  data: {
-                    ...currentData,
-                    sourceImageUrl: imageData.outputUrl || currentData.sourceImageUrl || '',
-                  },
-                };
+                const newUrl = imageData.outputUrl || currentData.sourceImageUrl || '';
+                if (currentData.sourceImageUrl !== newUrl) {
+                  hasChanges = true;
+                  return {
+                    ...node,
+                    data: { ...currentData, sourceImageUrl: newUrl },
+                  };
+                }
               }
             }
+            return node;
+          }
+
+          if (node.type === 'output') {
+            const currentData = node.data as any;
+            const updatedData = { ...currentData };
+            let changed = false;
+
+            const imageEdge = incomingEdges.find((e) => e.targetHandle === 'image' && e.sourceHandle === 'image');
+            if (imageEdge) {
+              const sourceNode = currentNodeMap.get(imageEdge.source);
+              if (sourceNode?.type === 'image') {
+                const imageData = sourceNode.data as any;
+                const newUrl = imageData.outputUrl || '';
+                if (updatedData.imageUrl !== newUrl) {
+                  updatedData.imageUrl = newUrl;
+                  updatedData.status = newUrl ? 'ready' : 'idle';
+                  changed = true;
+                }
+              }
+            }
+
+            const variantsEdge = incomingEdges.find((e) => e.targetHandle === 'variants' && e.sourceHandle === 'variants');
+            if (variantsEdge) {
+              const sourceNode = currentNodeMap.get(variantsEdge.source);
+              if (sourceNode?.type === 'variants') {
+                const variantsData = sourceNode.data as any;
+                const selectedVariant = variantsData.variants?.find((v: any) => v.id === variantsData.selectedVariantId);
+                if (selectedVariant) {
+                  if (updatedData.variantUrl !== selectedVariant.url) {
+                    updatedData.variantUrl = selectedVariant.url || '';
+                    updatedData.variantId = selectedVariant.id;
+                    updatedData.status = 'ready';
+                    changed = true;
+                  }
+                }
+              }
+            }
+
+            if (changed) {
+              hasChanges = true;
+              return { ...node, data: updatedData };
+            }
+            return node;
+          }
+
+          if (node.type === 'text') {
+            const promptEdge = incomingEdges.find((e) => 
+              e.sourceHandle === 'prompt' && e.targetHandle === 'text'
+            );
+            if (promptEdge) {
+              const sourceNode = currentNodeMap.get(promptEdge.source);
+              if (sourceNode?.type === 'prompt-builder') {
+                const promptBuilderData = sourceNode.data as any;
+                const currentData = node.data as any;
+                const newPrompt = promptBuilderData.generatedPrompt || currentData.prompt || '';
+                if (currentData.prompt !== newPrompt) {
+                  hasChanges = true;
+                  return {
+                    ...node,
+                    data: { ...currentData, prompt: newPrompt },
+                  };
+                }
+              }
+            }
+            return node;
           }
 
           return node;
         });
+
+        return hasChanges ? updatedNodes : nds;
       });
     };
 
-    handleConnectionData();
-  }, [edges, setNodes]);
+    // Debounce connection data updates to avoid excessive re-renders
+    const timeoutId = setTimeout(handleConnectionData, 50);
+    return () => clearTimeout(timeoutId);
+  }, [edges, setNodes, edgeLookup]);
+
+  // Memoize nodes with status and highlighting to avoid re-rendering on every change
+  const memoizedNodes = useMemo(() => 
+    nodes.map((node) => {
+      const status = nodeStatuses.get(node.id);
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          status: status || NodeExecutionStatus.IDLE,
+        },
+        className: highlightedNodeIds.includes(node.id) ? 'ring-2 ring-primary ring-offset-2' : undefined,
+      };
+    }), 
+    [nodes, nodeStatuses, highlightedNodeIds]
+  );
 
   // Convert canvas nodes to React Flow nodes - only on initial load
   const [initialLoad, setInitialLoad] = useState(true);
@@ -262,7 +503,12 @@ function CanvasEditorInner({
           id: node.id,
           type: node.type,
           position: node.position,
-          data: node.data,
+          data: {
+            ...node.data,
+            // ✅ CRITICAL: Inject projectId and chainId into node data for render creation
+            projectId: projectId,
+            chainId: chainId,
+          },
         }));
         setNodes(rfNodes);
         // Initialize history with loaded state
@@ -270,6 +516,12 @@ function CanvasEditorInner({
       } else if (!graph || !graph.nodes || graph.nodes.length === 0) {
         // Only create default node if no graph exists at all - use factory
         const defaultNode = NodeFactory.createNode('text', { x: 100, y: 100 });
+        // ✅ CRITICAL: Inject projectId and chainId into default node
+        defaultNode.data = {
+          ...defaultNode.data,
+          projectId: projectId,
+          chainId: chainId,
+        };
         setNodes([defaultNode]);
         // Initialize history with default state
         history.initialize([defaultNode], []);
@@ -292,16 +544,54 @@ function CanvasEditorInner({
   // Convert canvas connections to React Flow edges
   useEffect(() => {
     if (graph && graph.connections) {
-      const rfEdges: Edge[] = graph.connections.map((conn: NodeConnection) => ({
-        id: conn.id,
-        source: conn.source,
-        sourceHandle: conn.sourceHandle,
-        target: conn.target,
-        targetHandle: conn.targetHandle,
-      }));
+      // Use a Set to track unique edge IDs and prevent duplicates
+      const seenIds = new Set<string>();
+      const rfEdges: Edge[] = graph.connections
+        .map((conn: NodeConnection) => {
+          // Generate a unique ID if not present or if duplicate
+          let edgeId = conn.id || `${conn.source}-${conn.target}-${conn.sourceHandle || 'default'}-${conn.targetHandle || 'default'}`;
+          
+          // If ID already seen, make it unique
+          if (seenIds.has(edgeId)) {
+            edgeId = `${edgeId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          }
+          seenIds.add(edgeId);
+          
+          return {
+            id: edgeId,
+            source: conn.source,
+            sourceHandle: conn.sourceHandle,
+            target: conn.target,
+            targetHandle: conn.targetHandle,
+          };
+        })
+        .filter((edge, index, self) => 
+          // Also filter by connection uniqueness (same source/target/handles)
+          index === self.findIndex(e => 
+            e.source === edge.source &&
+            e.target === edge.target &&
+            e.sourceHandle === edge.sourceHandle &&
+            e.targetHandle === edge.targetHandle
+          )
+        );
       setEdges(rfEdges);
     }
   }, [graph, setEdges]);
+
+  // Memoize isValidConnection callback - must be at top level (Rules of Hooks)
+  const isValidConnection = useCallback((connection: Connection) => {
+    // Use ConnectionValidator for validation
+    const validation = ConnectionValidator.validateConnection(connection, nodes);
+    if (!validation.valid) {
+      return false;
+    }
+    // Check for cycles
+    return !ConnectionValidator.wouldCreateCycle(
+      connection,
+      nodes,
+      edges.map(e => ({ source: e.source, target: e.target }))
+    );
+  }, [nodes, edges]);
 
   const onConnect = useCallback(
     (params: Connection) => {
@@ -352,10 +642,37 @@ function CanvasEditorInner({
 
       logger.log('✅ Connection accepted:', { source: params.source, target: params.target });
       setEdges((eds) => {
+        // Check if this connection already exists
+        const existingEdge = eds.find(
+          e => e.source === params.source &&
+               e.target === params.target &&
+               e.sourceHandle === params.sourceHandle &&
+               e.targetHandle === params.targetHandle
+        );
+        
+        if (existingEdge) {
+          logger.log('⚠️ Connection already exists, skipping');
+          return eds;
+        }
+        
         const newEdges = addEdge(params, eds);
+        
+        // Ensure all edges have unique IDs
+        const seenIds = new Set<string>();
+        const edgesWithUniqueIds = newEdges.map((edge) => {
+          if (seenIds.has(edge.id)) {
+            // Generate a unique ID
+            const uniqueId = `${edge.source}-${edge.target}-${edge.sourceHandle || 'default'}-${edge.targetHandle || 'default'}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            seenIds.add(uniqueId);
+            return { ...edge, id: uniqueId };
+          }
+          seenIds.add(edge.id);
+          return edge;
+        });
+        
         // Push to history after connection
-        history.pushState(nodes, newEdges);
-        return newEdges;
+        history.pushState(nodes, edgesWithUniqueIds);
+        return edgesWithUniqueIds;
       });
     },
     [setEdges, nodes, edges, history]
@@ -390,6 +707,8 @@ function CanvasEditorInner({
     shortcutHandler.on('add-text-node', () => {
       const defaultPosition = NodeFactory.getDefaultPosition(nodes);
       const newNode = NodeFactory.createNode('text', defaultPosition);
+      // ✅ CRITICAL: Inject projectId and chainId into new node
+      newNode.data = { ...newNode.data, projectId, chainId };
       setNodes((nds) => {
         const newNodes = [...nds, newNode];
         history.pushState(newNodes, edges);
@@ -400,6 +719,8 @@ function CanvasEditorInner({
     shortcutHandler.on('add-image-node', () => {
       const defaultPosition = NodeFactory.getDefaultPosition(nodes);
       const newNode = NodeFactory.createNode('image', defaultPosition);
+      // ✅ CRITICAL: Inject projectId and chainId into new node
+      newNode.data = { ...newNode.data, projectId, chainId };
       setNodes((nds) => {
         const newNodes = [...nds, newNode];
         history.pushState(newNodes, edges);
@@ -410,6 +731,8 @@ function CanvasEditorInner({
     shortcutHandler.on('add-variants-node', () => {
       const defaultPosition = NodeFactory.getDefaultPosition(nodes);
       const newNode = NodeFactory.createNode('variants', defaultPosition);
+      // ✅ CRITICAL: Inject projectId and chainId into new node
+      newNode.data = { ...newNode.data, projectId, chainId };
       setNodes((nds) => {
         const newNodes = [...nds, newNode];
         history.pushState(newNodes, edges);
@@ -420,6 +743,8 @@ function CanvasEditorInner({
     shortcutHandler.on('add-style-node', () => {
       const defaultPosition = NodeFactory.getDefaultPosition(nodes);
       const newNode = NodeFactory.createNode('style', defaultPosition);
+      // ✅ CRITICAL: Inject projectId and chainId into new node
+      newNode.data = { ...newNode.data, projectId, chainId };
       setNodes((nds) => {
         const newNodes = [...nds, newNode];
         history.pushState(newNodes, edges);
@@ -430,6 +755,20 @@ function CanvasEditorInner({
     shortcutHandler.on('add-material-node', () => {
       const defaultPosition = NodeFactory.getDefaultPosition(nodes);
       const newNode = NodeFactory.createNode('material', defaultPosition);
+      // ✅ CRITICAL: Inject projectId and chainId into new node
+      newNode.data = { ...newNode.data, projectId, chainId };
+      setNodes((nds) => {
+        const newNodes = [...nds, newNode];
+        history.pushState(newNodes, edges);
+        return newNodes;
+      });
+    });
+
+    shortcutHandler.on('add-output-node', () => {
+      const defaultPosition = NodeFactory.getDefaultPosition(nodes);
+      const newNode = NodeFactory.createNode('output', defaultPosition);
+      // ✅ CRITICAL: Inject projectId and chainId into new node
+      newNode.data = { ...newNode.data, projectId, chainId };
       setNodes((nds) => {
         const newNodes = [...nds, newNode];
         history.pushState(newNodes, edges);
@@ -565,6 +904,12 @@ function CanvasEditorInner({
           // Use factory to create node with smart positioning
           const defaultPosition = NodeFactory.getDefaultPosition(nodes);
           const newNode = NodeFactory.createNode(type, defaultPosition);
+          // ✅ CRITICAL: Inject projectId and chainId into new node
+          newNode.data = {
+            ...newNode.data,
+            projectId: projectId,
+            chainId: chainId,
+          };
           setNodes((nds) => {
             const newNodes = [...nds, newNode];
             history.pushState(newNodes, edges);
@@ -588,9 +933,19 @@ function CanvasEditorInner({
             type: 'default',
           }));
           
+          // ✅ CRITICAL: Inject projectId and chainId into template nodes
+          const nodesWithContext = templateNodes.map(node => ({
+            ...node,
+            data: {
+              ...node.data,
+              projectId: projectId,
+              chainId: chainId,
+            },
+          }));
+          
           // Update nodes first
           setNodes((nds) => {
-            const newNodes = [...nds, ...templateNodes];
+            const newNodes = [...nds, ...nodesWithContext];
             // Then update edges with the new nodes available
             setEdges((eds) => {
               const newEdges = [...eds, ...reactFlowEdges];
@@ -634,17 +989,7 @@ function CanvasEditorInner({
       />
       <div className="flex-1 relative">
         <ReactFlow
-          nodes={nodes.map((node) => {
-            const status = nodeStatuses.get(node.id);
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                status: status || NodeExecutionStatus.IDLE,
-              },
-              className: highlightedNodeIds.includes(node.id) ? 'ring-2 ring-primary ring-offset-2' : undefined,
-            };
-          })}
+          nodes={memoizedNodes}
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
@@ -658,27 +1003,21 @@ function CanvasEditorInner({
           defaultViewport={{ x: 0, y: 0, zoom: 1 }}
           defaultEdgeOptions={{
             type: 'default',
-            style: { strokeWidth: 2 },
+            style: { 
+              strokeWidth: 2,
+              strokeDasharray: '5,5', // Dashed line pattern
+            },
             animated: false,
           }}
-          connectionLineStyle={{ strokeWidth: 2 }}
+          connectionLineStyle={{ 
+            strokeWidth: 2,
+            strokeDasharray: '5,5', // Dashed line pattern for connection preview
+          }}
           nodesDraggable={true}
           nodesConnectable={true}
           elementsSelectable={true}
-          connectionMode={ConnectionMode.Loose}
-          isValidConnection={(connection) => {
-            // Use ConnectionValidator for validation
-            const validation = ConnectionValidator.validateConnection(connection, nodes);
-            if (!validation.valid) {
-              return false;
-            }
-            // Check for cycles
-            return !ConnectionValidator.wouldCreateCycle(
-              connection,
-              nodes,
-              edges.map(e => ({ source: e.source, target: e.target }))
-            );
-          }}
+          connectionMode={ConnectionMode.Strict}
+          isValidConnection={isValidConnection}
           onInit={(instance) => {
             setReactFlowInstance(instance);
           }}
@@ -702,7 +1041,7 @@ function CanvasEditorInner({
           <Background variant={BackgroundVariant.Dots} gap={12} size={1} className="[&_svg]:!stroke-border" />
           <Controls className="!bg-card !border-border [&_button]:!bg-secondary [&_button]:!border-border [&_button]:!text-foreground hover:[&_button]:!bg-accent hover:[&_button]:!text-accent-foreground" />
           <MiniMap
-            className="!bg-card !border !border-border !rounded-md !shadow-lg"
+            className="!bg-card !border !border-border !rounded-tl-md !shadow-lg"
             nodeColor={(node) => {
               const colors: Record<string, string> = {
                 text: 'hsl(var(--primary))',
@@ -710,6 +1049,7 @@ function CanvasEditorInner({
                 variants: '#ff4a9e',
                 style: '#ff9e4a',
                 material: '#9e4aff',
+                output: '#4aff9e',
               };
               return colors[node.type || 'text'] || 'hsl(var(--primary))';
             }}
@@ -720,13 +1060,16 @@ function CanvasEditorInner({
             maskStrokeWidth={2}
             pannable={false}
             zoomable={false}
+            offsetScale={10}
             style={{
               position: 'absolute',
-              bottom: '1rem',
-              right: '1rem',
+              bottom: 0,
+              right: 0,
               width: '200px',
               height: '150px',
               zIndex: 10,
+              borderBottomRightRadius: 0,
+              borderTopRightRadius: 0,
             }}
           />
         </ReactFlow>

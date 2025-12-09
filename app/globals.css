@@ -220,6 +220,8 @@
   transition: none !important;
   pointer-events: all !important;
   z-index: 50 !important;
+  position: absolute !important;
+  /* Positioning handled by inline styles in base-node.tsx for proper spacing */
 }
 
 .react-flow__node {

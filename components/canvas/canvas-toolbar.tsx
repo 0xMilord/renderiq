@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Type, Image as ImageIcon, Layers, Camera, Palette, Save, ChevronDown, FolderPlus, FileText, Sparkles, Undo2, Redo2, Download, Upload, Search, Layout, Play, Square } from 'lucide-react';
+import { Plus, Type, Image as ImageIcon, Layers, Camera, Palette, Save, ChevronDown, FolderPlus, FileText, Sparkles, Undo2, Redo2, Download, Upload, Search, Layout, Play, Square, CheckCircle, BookOpen, Video } from 'lucide-react';
 import { NodeFactory, NODE_TEMPLATES, NODE_REGISTRY } from '@/lib/canvas/node-factory';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,7 +27,7 @@ interface CanvasToolbarProps {
   projectName: string;
   chainId: string;
   chainName: string;
-  onAddNode: (type: 'text' | 'image' | 'variants' | 'style' | 'material') => void;
+  onAddNode: (type: 'text' | 'image' | 'variants' | 'style' | 'material' | 'output' | 'prompt-builder' | 'style-reference' | 'image-input' | 'video') => void;
   onAddTemplate?: (templateName: keyof typeof NODE_TEMPLATES) => void;
   onSave: () => void;
   onUndo?: () => void;
@@ -157,19 +157,21 @@ export function CanvasToolbar({
   };
 
   return (
-    <div className="h-12 bg-card border-b border-border text-card-foreground flex items-center px-4 gap-4">
-      {/* Project Dropdown */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1"
-          >
-            <span className="text-sm font-medium">{projectName}</span>
-            <ChevronDown className="h-3 w-3" />
-          </Button>
-        </DropdownMenuTrigger>
+    <div className="min-h-12 bg-card border-b border-border text-card-foreground flex flex-wrap items-center px-2 sm:px-4 gap-2 py-2">
+      {/* Row 1: Project/Chain Navigation */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Project Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1 text-xs sm:text-sm"
+            >
+              <span className="font-medium truncate max-w-[100px] sm:max-w-none">{projectName}</span>
+              <ChevronDown className="h-3 w-3 shrink-0" />
+            </Button>
+          </DropdownMenuTrigger>
         <DropdownMenuContent className="max-h-[400px] overflow-y-auto">
           <Dialog open={showNewProjectDialog} onOpenChange={setShowNewProjectDialog}>
             <DialogTrigger asChild>
@@ -229,20 +231,20 @@ export function CanvasToolbar({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <span className="text-xs text-muted-foreground">/</span>
+        <span className="text-xs text-muted-foreground shrink-0">/</span>
 
-      {/* Chain/Render Dropdown */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1"
-          >
-            <span className="text-sm text-muted-foreground">{chainName}</span>
-            <ChevronDown className="h-3 w-3" />
-          </Button>
-        </DropdownMenuTrigger>
+        {/* Chain/Render Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1 text-xs sm:text-sm"
+            >
+              <span className="text-muted-foreground truncate max-w-[80px] sm:max-w-none">{chainName}</span>
+              <ChevronDown className="h-3 w-3 shrink-0" />
+            </Button>
+          </DropdownMenuTrigger>
         <DropdownMenuContent className="max-h-[400px] overflow-y-auto">
           <Dialog open={showNewChainDialog} onOpenChange={setShowNewChainDialog}>
             <DialogTrigger asChild>
@@ -297,188 +299,192 @@ export function CanvasToolbar({
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+      </div>
 
-      <Separator orientation="vertical" className="h-6" />
+      {/* Row 1/2: Action Buttons - Wrap to second row on mobile */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Separator orientation="vertical" className="h-6 hidden sm:block" />
 
-      {/* Undo/Redo Buttons */}
-      {onUndo && onRedo && (
-        <>
-          <Button
-            onClick={onUndo}
-            variant="ghost"
-            size="sm"
-            disabled={!canUndo}
-            className="h-8 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Undo (Ctrl+Z)"
-          >
-            <Undo2 className="h-4 w-4" />
-          </Button>
-          <Button
-            onClick={onRedo}
-            variant="ghost"
-            size="sm"
-            disabled={!canRedo}
-            className="h-8 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Redo (Ctrl+Y)"
-          >
-            <Redo2 className="h-4 w-4" />
-          </Button>
-          <Separator orientation="vertical" className="h-6" />
-        </>
-      )}
-
-      {/* Save Button */}
-      <Button
-        onClick={onSave}
-        variant="ghost"
-        size="sm"
-        className="h-8 bg-primary hover:bg-primary/90 text-primary-foreground"
-        title="Save (Ctrl+S)"
-      >
-        <Save className="h-4 w-4 mr-2" />
-        Save
-      </Button>
-
-      <Separator orientation="vertical" className="h-6" />
-
-      {/* Search */}
-      {onSearch && (
-        <>
-          <div className="flex items-center gap-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search nodes..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                onSearch(e.target.value);
-              }}
-              className="h-8 w-48 bg-background border-border text-foreground placeholder:text-muted-foreground"
-            />
-          </div>
-          <Separator orientation="vertical" className="h-6" />
-        </>
-      )}
-
-      {/* Auto Layout */}
-      {onAutoLayout && (
-        <>
-          <Button
-            onClick={onAutoLayout}
-            variant="ghost"
-            size="sm"
-            className="h-8"
-            title="Auto Layout (Ctrl+L)"
-          >
-            <Layout className="h-4 w-4 mr-2" />
-            Layout
-          </Button>
-          <Separator orientation="vertical" className="h-6" />
-        </>
-      )}
-
-      {/* Execute */}
-      {onExecute && (
-        <>
-          <Button
-            onClick={onExecute}
-            variant="ghost"
-            size="sm"
-            className="h-8 bg-primary/10 hover:bg-primary/20 text-primary"
-            title="Execute Workflow (Ctrl+E)"
-          >
-            <Play className="h-4 w-4 mr-2" />
-            Execute
-          </Button>
-          <Separator orientation="vertical" className="h-6" />
-        </>
-      )}
-
-      {/* Export/Import */}
-      {(onExport || onImport) && (
-        <>
-          {onExport && (
+        {/* Undo/Redo Buttons */}
+        {onUndo && onRedo && (
+          <>
             <Button
-              onClick={onExport}
+              onClick={onUndo}
+              variant="ghost"
+              size="sm"
+              disabled={!canUndo}
+              className="h-8 w-8 p-0 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Undo (Ctrl+Z)"
+            >
+              <Undo2 className="h-4 w-4" />
+            </Button>
+            <Button
+              onClick={onRedo}
+              variant="ghost"
+              size="sm"
+              disabled={!canRedo}
+              className="h-8 w-8 p-0 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Redo (Ctrl+Y)"
+            >
+              <Redo2 className="h-4 w-4" />
+            </Button>
+            <Separator orientation="vertical" className="h-6 hidden sm:block" />
+          </>
+        )}
+
+        {/* Save Button */}
+        <Button
+          onClick={onSave}
+          variant="ghost"
+          size="sm"
+          className="h-8 bg-primary hover:bg-primary/90 text-primary-foreground"
+          title="Save (Ctrl+S)"
+        >
+          <Save className="h-4 w-4 sm:mr-2" />
+          <span className="hidden sm:inline">Save</span>
+        </Button>
+
+        <Separator orientation="vertical" className="h-6 hidden sm:block" />
+
+        {/* Search */}
+        {onSearch && (
+          <>
+            <div className="flex items-center gap-2">
+              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Input
+                placeholder="Search nodes..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  onSearch(e.target.value);
+                }}
+                className="h-8 w-32 sm:w-48 bg-background border-border text-foreground placeholder:text-muted-foreground text-xs sm:text-sm"
+              />
+            </div>
+            <Separator orientation="vertical" className="h-6 hidden sm:block" />
+          </>
+        )}
+
+        {/* Auto Layout */}
+        {onAutoLayout && (
+          <>
+            <Button
+              onClick={onAutoLayout}
               variant="ghost"
               size="sm"
               className="h-8"
-              title="Export Workflow"
+              title="Auto Layout (Ctrl+L)"
             >
-              <Download className="h-4 w-4 mr-2" />
-              Export
+              <Layout className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Layout</span>
             </Button>
-          )}
-          {onImport && (
-            <>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file && onImport) {
-                    onImport(file);
-                  }
-                }}
-              />
+            <Separator orientation="vertical" className="h-6 hidden sm:block" />
+          </>
+        )}
+
+        {/* Execute */}
+        {onExecute && (
+          <>
+            <Button
+              onClick={onExecute}
+              variant="ghost"
+              size="sm"
+              className="h-8 bg-primary/10 hover:bg-primary/20 text-primary"
+              title="Execute Workflow (Ctrl+E)"
+            >
+              <Play className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Execute</span>
+            </Button>
+            <Separator orientation="vertical" className="h-6 hidden sm:block" />
+          </>
+        )}
+
+        {/* Export/Import */}
+        {(onExport || onImport) && (
+          <>
+            {onExport && (
               <Button
-                onClick={() => fileInputRef.current?.click()}
+                onClick={onExport}
                 variant="ghost"
                 size="sm"
                 className="h-8"
-                title="Import Workflow"
+                title="Export Workflow"
               >
-                <Upload className="h-4 w-4 mr-2" />
-                Import
+                <Download className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Export</span>
               </Button>
-            </>
-          )}
-          <Separator orientation="vertical" className="h-6" />
-        </>
-      )}
-
-      {/* Add Node Dropdown */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Node
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-64">
-          {/* Templates Section */}
-          {onAddTemplate && (
-            <>
-              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                Templates
-              </div>
-              {Object.entries(NODE_TEMPLATES).map(([key, template]) => (
-                <DropdownMenuItem
-                  key={key}
-                  onClick={() => onAddTemplate(key as keyof typeof NODE_TEMPLATES)}
-                  className="cursor-pointer"
+            )}
+            {onImport && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file && onImport) {
+                      onImport(file);
+                    }
+                  }}
+                />
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8"
+                  title="Import Workflow"
                 >
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  <div className="flex flex-col">
-                    <span>{template.name}</span>
-                    <span className="text-xs text-muted-foreground">{template.description}</span>
-                  </div>
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-            </>
-          )}
-          
-          {/* Individual Nodes Section */}
-          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-            Nodes
-          </div>
+                  <Upload className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Import</span>
+                </Button>
+              </>
+            )}
+            <Separator orientation="vertical" className="h-6 hidden sm:block" />
+          </>
+        )}
+
+        {/* Add Template Dropdown */}
+        {onAddTemplate && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8"
+              >
+                <Sparkles className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Templates</span>
+              </Button>
+            </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-64">
+            {Object.entries(NODE_TEMPLATES).map(([key, template]) => (
+              <DropdownMenuItem
+                key={key}
+                onClick={() => onAddTemplate(key as keyof typeof NODE_TEMPLATES)}
+                className="cursor-pointer"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                <span>{template.name}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        )}
+
+        {/* Add Node Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8"
+            >
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Add Node</span>
+            </Button>
+          </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-64">
           {Object.values(NODE_REGISTRY).map((nodeDef) => {
             const icons: Record<string, any> = {
               text: Type,
@@ -486,6 +492,11 @@ export function CanvasToolbar({
               variants: Layers,
               style: Camera,
               material: Palette,
+              output: CheckCircle,
+              'prompt-builder': Sparkles,
+              'style-reference': BookOpen,
+              'image-input': ImageIcon,
+              video: Video,
             };
             const Icon = icons[nodeDef.type] || Plus;
             
@@ -496,15 +507,13 @@ export function CanvasToolbar({
                 className="cursor-pointer"
               >
                 <Icon className="h-4 w-4 mr-2" />
-                <div className="flex flex-col">
-                  <span>{nodeDef.label}</span>
-                  <span className="text-xs text-muted-foreground">{nodeDef.description}</span>
-                </div>
+                <span>{nodeDef.label}</span>
               </DropdownMenuItem>
             );
           })}
         </DropdownMenuContent>
       </DropdownMenu>
+      </div>
     </div>
   );
 }

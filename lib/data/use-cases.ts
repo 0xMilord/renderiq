@@ -30,6 +30,7 @@ export const primaryUseCases = [
     ],
     color: "text-blue-500",
     bgColor: "bg-blue-500/10",
+    relatedTools: ['sketch-to-render', '3d-to-render'],
   },
   {
     icon: PaintBucket,
@@ -44,6 +45,7 @@ export const primaryUseCases = [
     ],
     color: "text-purple-500",
     bgColor: "bg-purple-500/10",
+    relatedTools: ['change-texture', 'material-alteration', 'change-lighting'],
   },
   {
     icon: LayoutGrid,
@@ -58,6 +60,7 @@ export const primaryUseCases = [
     ],
     color: "text-green-500",
     bgColor: "bg-green-500/10",
+    relatedTools: ['floorplan-to-furnished', 'floorplan-to-3d', 'floorplan-technical-diagrams'],
   },
   {
     icon: Palette,
@@ -72,6 +75,7 @@ export const primaryUseCases = [
     ],
     color: "text-gray-500",
     bgColor: "bg-gray-500/10",
+    relatedTools: ['render-effects'],
   },
   {
     icon: Video,
@@ -86,6 +90,7 @@ export const primaryUseCases = [
     ],
     color: "text-red-500",
     bgColor: "bg-red-500/10",
+    relatedTools: ['render-to-video', 'text-to-video-walkthrough', 'keyframe-sequence-video'],
   },
   {
     icon: Boxes,
@@ -100,6 +105,7 @@ export const primaryUseCases = [
     ],
     color: "text-orange-500",
     bgColor: "bg-orange-500/10",
+    relatedTools: ['sketch-to-render', '3d-to-render'],
   },
   {
     icon: Layers,
@@ -114,6 +120,7 @@ export const primaryUseCases = [
     ],
     color: "text-indigo-500",
     bgColor: "bg-indigo-500/10",
+    relatedTools: ['render-to-cad', 'render-section-drawing'],
   },
   {
     icon: FileImage,
@@ -128,6 +135,7 @@ export const primaryUseCases = [
     ],
     color: "text-teal-500",
     bgColor: "bg-teal-500/10",
+    relatedTools: ['render-upscale', 'presentation-board-maker', 'portfolio-layout-generator', 'presentation-sequence-creator'],
   },
   {
     icon: Share2,
@@ -142,6 +150,7 @@ export const primaryUseCases = [
     ],
     color: "text-pink-500",
     bgColor: "bg-pink-500/10",
+    relatedTools: ['render-effects', 'render-upscale', 'multi-angle-view'],
   },
   {
     icon: ImageIcon,
@@ -156,6 +165,7 @@ export const primaryUseCases = [
     ],
     color: "text-amber-500",
     bgColor: "bg-amber-500/10",
+    relatedTools: ['render-effects', 'change-lighting'],
   },
 ] as const;
 

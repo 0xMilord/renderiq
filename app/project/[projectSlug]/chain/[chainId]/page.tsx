@@ -34,8 +34,12 @@ export default function ProjectChainPage() {
     if (authLoading) return; // Wait for auth to finish loading
     
     let mounted = true;
+    let hasFetched = false; // Prevent duplicate fetches
     
     const fetchCriticalData = async () => {
+      if (hasFetched) return; // Already fetching
+      hasFetched = true;
+      
       setLoading(true);
       setError(null);
 
@@ -63,9 +67,10 @@ export default function ProjectChainPage() {
         // ✅ CRITICAL: Set loading to false after critical data loads
         setLoading(false);
         
-        // ✅ OPTIMIZED: Load dropdown data lazily (non-blocking)
-        if (user && projectResult.success && chainResult.success) {
+        // ✅ OPTIMIZED: Load dropdown data lazily (non-blocking) - don't wait for user
+        if (projectResult.success && chainResult.success) {
           // Load projects and chains in background (don't block page render)
+          // Check for user in the promise, not in the condition
           Promise.all([
             getUserProjects(),
           ]).then(([projectsResult]) => {
@@ -123,7 +128,7 @@ export default function ProjectChainPage() {
     return () => {
       mounted = false;
     };
-  }, [projectSlug, chainId, user, authLoading]);
+  }, [projectSlug, chainId, authLoading]); // ✅ FIXED: Removed user from deps - don't wait for it
 
   // ✅ FIXED: fetchChain only fetches chain data, not all projects/chains
   // This is called by polling, so it should be lightweight
@@ -219,21 +224,36 @@ export default function ProjectChainPage() {
       {/* Spacer for navbar */}
       <div className="h-[3.5rem] shrink-0"></div>
       {/* Unified Chat Interface - Takes remaining height */}
-      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-        <UnifiedChatInterface
-          projectId={project.id}
-          chainId={chainId}
-          chain={chain}
-          onRenderComplete={handleRenderComplete}
-          onRenderStart={handleRenderStart}
-          onRefreshChain={fetchChain}
-          projectName={project.name}
-          chainName={chain?.name}
-          onBackToProjects={() => router.push('/render')}
-          projects={projects}
-          chains={chains}
-        />
-      </div>
+      {/* ✅ FIXED: Only render UnifiedChatInterface when chain is ready to prevent expensive hook calls */}
+      {chain ? (
+        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+          <UnifiedChatInterface
+            projectId={project.id}
+            chainId={chainId}
+            chain={chain}
+            onRenderComplete={handleRenderComplete}
+            onRenderStart={handleRenderStart}
+            onRefreshChain={fetchChain}
+            projectName={project.name}
+            chainName={chain?.name}
+            onBackToProjects={() => router.push('/render')}
+            projects={projects}
+            chains={chains}
+          />
+        </div>
+      ) : (
+        <div className="flex-1 flex items-center justify-center">
+          <Card className="w-96">
+            <CardContent className="p-8 text-center">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+              <h2 className="text-lg font-semibold mb-2">Loading Chain</h2>
+              <p className="text-muted-foreground">
+                Loading render chain data...
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

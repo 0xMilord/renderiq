@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     // Note: Requests without origin header are allowed (same-origin or direct API calls)
 
     const body = await request.json().catch(() => ({}));
-    const { prompt, style, quality, aspectRatio, negativePrompt, seed } = body;
+    const { prompt, style, quality, aspectRatio, negativePrompt, seed, uploadedImageData, uploadedImageType } = body;
 
     // Validate prompt
     const promptValidation = validatePrompt(prompt);
@@ -60,7 +60,9 @@ export async function POST(request: NextRequest) {
       prompt: sanitizedPrompt,
       aspectRatio: sanitizedAspectRatio,
       negativePrompt: sanitizedNegativePrompt,
-      seed: typeof seed === 'number' ? seed : undefined
+      seed: typeof seed === 'number' ? seed : undefined,
+      uploadedImageData: uploadedImageData || undefined,
+      uploadedImageType: uploadedImageType || undefined,
     });
 
     if (!result.success || !result.data) {

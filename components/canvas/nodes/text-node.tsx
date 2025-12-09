@@ -5,12 +5,13 @@ import { Position, NodeProps } from '@xyflow/react';
 import { Textarea } from '@/components/ui/textarea';
 import { Type } from 'lucide-react';
 import { TextNodeData } from '@/lib/types/canvas';
-import { BaseNode } from './base-node';
+import { BaseNode, useNodeColors } from './base-node';
 import { NodeExecutionStatus } from '@/lib/canvas/workflow-executor';
 
 export function TextNode(props: any) {
   const { data, id } = props;
   const nodeData = data || { prompt: '', placeholder: 'Enter your prompt...' };
+  const nodeColors = useNodeColors();
   
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -36,13 +37,15 @@ export function TextNode(props: any) {
       nodeId={String(id)}
       status={status}
       progress={progress}
-      outputs={[{ id: 'text', position: Position.Right, type: 'text' }]}
+      inputs={[{ id: 'text', position: Position.Left, type: 'text', label: 'Text' }]}
+      outputs={[{ id: 'text', position: Position.Right, type: 'text', label: 'Text' }]}
     >
       <Textarea
         value={nodeData.prompt || ''}
         onChange={handleChange}
         placeholder={nodeData.placeholder || 'Enter your prompt...'}
-        className="min-h-[100px] bg-background border-border text-foreground placeholder:text-muted-foreground resize-none nodrag nopan"
+        className="min-h-[100px] bg-background resize-none nodrag nopan"
+        style={{ borderColor: `${nodeColors.color}40`, color: 'inherit' }}
         onPointerDown={(e) => e.stopPropagation()}
       />
       <div className="text-xs text-muted-foreground text-right">

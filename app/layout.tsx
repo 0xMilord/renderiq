@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
+import NextTopLoader from "nextjs-toploader";
 import "./globals.css";
 import { ConditionalNavbar } from "@/components/conditional-navbar";
 import { BottomNav } from "@/components/bottom-nav";
@@ -173,6 +174,15 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased m-0 p-0`}
       >
+        <NextTopLoader
+          color="hsl(var(--primary))"
+          height={3}
+          showSpinner={false}
+          easing="ease"
+          speed={200}
+          shadow="0 0 10px hsl(var(--primary)),0 0 5px hsl(var(--primary))"
+          zIndex={9999}
+        />
         {/* Google Tag Manager (noscript) */}
         <noscript>
           <iframe 

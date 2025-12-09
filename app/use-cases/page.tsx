@@ -25,8 +25,10 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { primaryUseCases, industryUseCases } from "@/lib/data/use-cases";
 import { JsonLd } from '@/components/seo/json-ld';
+import { getToolBySlug } from '@/lib/tools/registry';
 
 export const metadata: Metadata = {
   title: "AI Architecture Use Cases | Concept Renders, Floor Plans, Videos & More | Renderiq",
@@ -189,35 +191,71 @@ export default function UseCasesPage() {
           </div>
 
           <div className="grid md:grid-cols-2 gap-8 mb-12">
-            {primaryUseCases.map((useCase) => (
-              <Card key={useCase.slug} className="group hover:shadow-lg transition-all duration-300">
-                <CardHeader>
-                  <div className={`w-12 h-12 rounded-lg ${useCase.bgColor} flex items-center justify-center mb-4`}>
-                    <useCase.icon className={`w-6 h-6 ${useCase.color}`} />
-                  </div>
-                  <CardTitle className="text-2xl mb-2">{useCase.title}</CardTitle>
-                  <CardDescription className="text-base">
-                    {useCase.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3 mb-6">
-                    {useCase.features.map((feature, idx) => (
-                      <div key={idx} className="flex items-start gap-2">
-                        <CheckCircle2 className={`w-5 h-5 ${useCase.color} mt-0.5 flex-shrink-0`} />
-                        <span className="text-sm text-foreground">{feature}</span>
+            {primaryUseCases.map((useCase) => {
+              const relatedTools = (useCase as any).relatedTools || [];
+              const toolCount = relatedTools.length;
+              
+              return (
+                <Card key={useCase.slug} className="group hover:shadow-lg transition-all duration-300">
+                  <CardHeader>
+                    <div className={`w-12 h-12 rounded-lg ${useCase.bgColor} flex items-center justify-center mb-4`}>
+                      <useCase.icon className={`w-6 h-6 ${useCase.color}`} />
+                    </div>
+                    <CardTitle className="text-2xl mb-2">{useCase.title}</CardTitle>
+                    <CardDescription className="text-base">
+                      {useCase.description}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3 mb-6">
+                      {useCase.features.map((feature, idx) => (
+                        <div key={idx} className="flex items-start gap-2">
+                          <CheckCircle2 className={`w-5 h-5 ${useCase.color} mt-0.5 flex-shrink-0`} />
+                          <span className="text-sm text-foreground">{feature}</span>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Related Tools Preview */}
+                    {toolCount > 0 && (
+                      <div className="mb-6 p-4 rounded-lg bg-muted/50 border">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-sm font-semibold text-foreground">Related Tools</span>
+                          <Badge variant="secondary">{toolCount} {toolCount === 1 ? 'tool' : 'tools'}</Badge>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {relatedTools.slice(0, 3).map((toolSlug: string) => {
+                            const tool = getToolBySlug(toolSlug);
+                            if (!tool || tool.status !== 'online') return null;
+                            return (
+                              <Link 
+                                key={toolSlug}
+                                href={`/apps/${toolSlug}`}
+                                className="text-xs px-2 py-1 bg-background border rounded-md hover:bg-primary hover:text-primary-foreground transition-colors"
+                              >
+                                {tool.name}
+                              </Link>
+                            );
+                          })}
+                          {toolCount > 3 && (
+                            <span className="text-xs px-2 py-1 text-muted-foreground">
+                              +{toolCount - 3} more
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                  <Link href={`/use-cases/${useCase.slug}`}>
-                    <Button variant="outline" className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                      Learn More
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            ))}
+                    )}
+                    
+                    <Link href={`/use-cases/${useCase.slug}`}>
+                      <Button variant="outline" className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                        Learn More
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
       </section>

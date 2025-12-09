@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { JsonLd } from '@/components/seo/json-ld';
 import { generateHowToSchema } from '@/components/seo/json-ld';
+import { RelatedTools } from '@/components/use-cases/related-tools';
+import { primaryUseCases } from '@/lib/data/use-cases';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
 
@@ -358,6 +360,21 @@ export default function ConceptRendersPage() {
           </div>
         </div>
       </section>
+
+      {/* Related Tools */}
+      {(() => {
+        const useCase = primaryUseCases.find(uc => uc.slug === 'concept-renders');
+        if (useCase && useCase.relatedTools) {
+          return (
+            <RelatedTools 
+              toolSlugs={useCase.relatedTools}
+              title="Tools for Concept Rendering"
+              description="Use these powerful AI tools to transform your sketches and ideas into photorealistic concept renders"
+            />
+          );
+        }
+        return null;
+      })()}
 
       {/* CTA */}
       <section className="py-20 px-4 bg-primary/5">

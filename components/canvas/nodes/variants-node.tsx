@@ -1,13 +1,14 @@
 'use client';
 
 import { useCallback, useState, useEffect } from 'react';
-import { Position, NodeProps } from '@xyflow/react';
+import { Position } from '@xyflow/react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import { Label } from '@/components/ui/label';
 import { Layers, Loader2, Check } from 'lucide-react';
 import { VariantsNodeData } from '@/lib/types/canvas';
 import { useNodeExecution } from '@/lib/hooks/use-node-execution';
-import { BaseNode } from './base-node';
+import { BaseNode, useNodeColors } from './base-node';
 import { NodeExecutionStatus } from '@/lib/canvas/workflow-executor';
 
 export function VariantsNode(props: any) {
@@ -22,6 +23,7 @@ export function VariantsNode(props: any) {
     variants: [],
   });
   const { generateVariants, loading } = useNodeExecution();
+  const nodeColors = useNodeColors();
 
   // Update local data when prop data changes (from connections)
   useEffect(() => {
@@ -88,17 +90,18 @@ export function VariantsNode(props: any) {
 
   return (
     <BaseNode
-      title="Variants Node"
+      title="Variants Generator"
       icon={Layers}
       nodeType="variants"
       nodeId={String(id)}
-      className="w-[500px]"
+      className="w-80"
       status={nodeStatus}
       inputs={[{ id: 'sourceImage', position: Position.Left, type: 'image', label: 'Source Image' }]}
       outputs={[{ id: 'variants', position: Position.Right, type: 'variants', label: 'Variants' }]}
     >
-
-        {localData.sourceImageUrl && (
+      <div className="space-y-3">
+        {/* Source Image Preview */}
+        {localData.sourceImageUrl ? (
           <div className="relative aspect-video bg-muted rounded border border-border overflow-hidden">
             <img
               src={localData.sourceImageUrl}
@@ -106,12 +109,19 @@ export function VariantsNode(props: any) {
               className="w-full h-full object-cover"
             />
           </div>
+        ) : (
+          <div className="relative aspect-video bg-muted rounded border border-border overflow-hidden flex items-center justify-center">
+            <p className="text-xs text-muted-foreground text-center px-4">
+              Connect an Image Node to generate variants
+            </p>
+          </div>
         )}
 
+        {/* Simple Count Slider */}
         <div>
-          <label className="text-xs text-muted-foreground mb-2 block">
+          <Label className="text-xs text-muted-foreground mb-2 block">
             Variant Count: {localData.count}
-          </label>
+          </Label>
           <Slider
             value={[localData.count]}
             onValueChange={([value]) =>
@@ -124,29 +134,22 @@ export function VariantsNode(props: any) {
           />
         </div>
 
-        <div>
-          <label className="text-xs text-muted-foreground mb-2 block">
-            Variation Strength: {localData.settings.variationStrength.toFixed(2)}
-          </label>
-          <Slider
-            value={[localData.settings.variationStrength]}
-            onValueChange={([value]) =>
-              setLocalData((prev) => ({
-                ...prev,
-                settings: { ...prev.settings, variationStrength: value },
-              }))
-            }
-            min={0}
-            max={1}
-            step={0.1}
-            className="w-full nodrag nopan"
-          />
-        </div>
-
+        {/* Generate Button */}
         <Button
           onClick={handleGenerate}
           disabled={loading || localData.status === 'generating' || !localData.sourceImageUrl}
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-8 text-xs nodrag nopan"
+          className="w-full h-8 text-xs nodrag nopan text-white"
+          style={{ backgroundColor: nodeColors.color }}
+          onMouseEnter={(e) => {
+            if (!e.currentTarget.disabled) {
+              e.currentTarget.style.backgroundColor = `${nodeColors.color}dd`;
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!e.currentTarget.disabled) {
+              e.currentTarget.style.backgroundColor = nodeColors.color;
+            }
+          }}
         >
           {loading || localData.status === 'generating' ? (
             <>
@@ -158,16 +161,19 @@ export function VariantsNode(props: any) {
           )}
         </Button>
 
+        {/* Variants Grid */}
         {localData.status === 'completed' && localData.variants.length > 0 && (
           <div className="space-y-2">
-            <div className="text-xs text-muted-foreground">Select a variant:</div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="text-xs text-muted-foreground font-semibold">
+              Select a variant ({localData.variants.length}):
+            </div>
+            <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto">
               {localData.variants.map((variant) => (
                 <div
                   key={variant.id}
                   className={`relative aspect-square bg-muted rounded border-2 overflow-hidden cursor-pointer transition-all ${
                     localData.selectedVariantId === variant.id
-                      ? 'border-primary'
+                      ? 'border-primary ring-2 ring-primary/20'
                       : 'border-border hover:border-primary/50'
                   }`}
                   onClick={() => handleSelectVariant(variant.id)}
@@ -178,8 +184,8 @@ export function VariantsNode(props: any) {
                     className="w-full h-full object-cover"
                   />
                   {localData.selectedVariantId === variant.id && (
-                    <div className="absolute top-2 right-2 bg-primary rounded-full p-1">
-                      <Check className="h-3 w-3 text-primary-foreground" />
+                    <div className="absolute top-1 right-1 rounded-full p-1 shadow-lg" style={{ backgroundColor: nodeColors.color }}>
+                      <Check className="h-3 w-3 text-white" />
                     </div>
                   )}
                 </div>
@@ -188,12 +194,13 @@ export function VariantsNode(props: any) {
           </div>
         )}
 
-      {localData.status === 'error' && (
-        <div className="text-xs text-red-400 bg-red-900/20 p-2 rounded">
-          {localData.errorMessage}
-        </div>
-      )}
+        {/* Error Message */}
+        {localData.status === 'error' && (
+          <div className="text-xs text-destructive bg-destructive/10 p-2 rounded">
+            {localData.errorMessage}
+          </div>
+        )}
+      </div>
     </BaseNode>
   );
 }
-

@@ -1,20 +1,13 @@
 'use client';
 
 import { useCallback, useState, useEffect } from 'react';
-import { Position, NodeProps, useReactFlow } from '@xyflow/react';
+import { Position, useReactFlow } from '@xyflow/react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Image as ImageIcon, Sparkles, Loader2, Download, ImageOff } from 'lucide-react';
 import { ImageNodeData } from '@/lib/types/canvas';
 import { useNodeExecution } from '@/lib/hooks/use-node-execution';
-import { BaseNode } from './base-node';
+import { BaseNode, useNodeColors } from './base-node';
 import { NodeExecutionStatus } from '@/lib/canvas/workflow-executor';
 import { logger } from '@/lib/utils/logger';
 
@@ -31,11 +24,20 @@ export function ImageNode(props: any) {
     },
     status: 'idle' as ImageNodeData['status'],
   });
+  
+  // Use default settings - style comes from Style Node connection
+  const defaultSettings = {
+    style: 'architectural',
+    quality: 'standard' as const,
+    aspectRatio: '16:9',
+  };
   const { generateImage, enhancePrompt, loading } = useNodeExecution();
+  const nodeColors = useNodeColors();
 
   // Check connections
   const edges = getEdges();
   const hasTextInput = edges.some((e) => e.target === nodeId && e.targetHandle === 'prompt');
+  const hasImageInput = edges.some((e) => e.target === nodeId && e.targetHandle === 'baseImage');
   const hasStyleInput = edges.some((e) => e.target === nodeId && e.targetHandle === 'style');
   const hasMaterialInput = edges.some((e) => e.target === nodeId && e.targetHandle === 'material');
   
@@ -50,8 +52,9 @@ export function ImageNode(props: any) {
   }, [data]);
 
   const handleGenerate = useCallback(async () => {
-    if (!localData.prompt.trim()) {
-      alert('Please enter a prompt or connect a Text Node');
+    // Allow generation with either prompt OR base image (or both for hybrid)
+    if (!localData.prompt.trim() && !localData.baseImageData) {
+      alert('Please enter a prompt, connect a Text Node, or connect an Image Input Node');
       return;
     }
 
@@ -85,10 +88,23 @@ export function ImageNode(props: any) {
     setLocalData((prev) => ({ ...prev, status: 'generating', errorMessage: undefined }));
 
     try {
+      // Use settings from style node if connected, otherwise use defaults
+      const finalSettings = localData.styleSettings 
+        ? { ...defaultSettings } // Style node provides all settings
+        : localData.settings || defaultSettings;
+      
+      // ✅ CRITICAL: Get projectId and chainId from node data
+      const nodeProjectId = (data as any)?.projectId;
+      const nodeChainId = (data as any)?.chainId;
+      
       const result = await generateImage({
         prompt: enhancedPrompt,
-        settings: localData.settings,
+        settings: finalSettings,
         nodeId: nodeId,
+        baseImageData: localData.baseImageData,
+        baseImageType: localData.baseImageType,
+        projectId: nodeProjectId,
+        chainId: nodeChainId,
       });
 
       logger.log('🎨 ImageNode: Generation result', {
@@ -144,7 +160,7 @@ export function ImageNode(props: any) {
         errorMessage: errorMsg,
       }));
     }
-  }, [localData, id, generateImage]);
+  }, [localData, id, generateImage, nodeId]);
 
   const handleEnhancePrompt = useCallback(async () => {
     if (!localData.prompt.trim()) {
@@ -179,212 +195,148 @@ export function ImageNode(props: any) {
 
   return (
     <BaseNode
-      title="Image Node"
+      title="Image Generator"
       icon={ImageIcon}
       nodeType="image"
       nodeId={nodeId}
-      className="w-96"
+      className="w-80"
       status={nodeStatus}
       inputs={[
         { id: 'prompt', position: Position.Left, label: 'Text', type: 'text' },
+        { id: 'baseImage', position: Position.Left, label: 'Base Image', type: 'image' },
         { id: 'style', position: Position.Left, label: 'Style', type: 'style' },
         { id: 'material', position: Position.Left, label: 'Material', type: 'material' },
       ]}
       outputs={[{ id: 'image', position: Position.Right, type: 'image', label: 'Image' }]}
     >
-      {/* Show connection status */}
-      <div className="flex gap-2 text-xs text-muted-foreground mb-2">
-        {hasTextInput && <span className="px-2 py-0.5 bg-primary/20 text-primary rounded">Text</span>}
-        {hasStyleInput && <span className="px-2 py-0.5 bg-primary/20 text-primary rounded">Style</span>}
-        {hasMaterialInput && <span className="px-2 py-0.5 bg-primary/20 text-primary rounded">Material</span>}
-      </div>
-
-      {/* Show placeholder image when connected, textarea when not */}
-      {hasTextInput && hasPrompt ? (
-        <div className="space-y-3">
-          <div className="relative aspect-video bg-muted rounded border border-border overflow-hidden flex items-center justify-center">
-            {localData.status === 'generating' ? (
-              <div className="text-center p-4 w-full h-full flex flex-col items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
-                <p className="text-xs text-muted-foreground">Generating image...</p>
-                <p className="text-xs text-muted-foreground font-mono truncate max-w-full px-2 mt-1">
-                  "{localData.prompt.substring(0, 50)}..."
-                </p>
-              </div>
-            ) : localData.status === 'completed' && localData.outputUrl ? (
-              <img
-                src={localData.outputUrl}
-                alt="Generated"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="text-center p-4">
-                <ImageOff className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                <p className="text-xs text-muted-foreground mb-1">Connected to Text Node</p>
-                <p className="text-xs text-muted-foreground font-mono truncate max-w-full px-2">
-                  "{localData.prompt.substring(0, 50)}..."
-                </p>
-              </div>
+      <div className="space-y-3">
+        {/* Connection Status Badges */}
+        {(hasTextInput || hasImageInput || hasStyleInput || hasMaterialInput) && (
+          <div className="flex flex-wrap gap-1.5">
+            {hasTextInput && (
+              <span className="px-2 py-0.5 rounded text-xs" style={{ backgroundColor: `${nodeColors.color}20`, color: nodeColors.color }}>Text</span>
+            )}
+            {hasImageInput && (
+              <span className="px-2 py-0.5 rounded text-xs" style={{ backgroundColor: `${nodeColors.color}20`, color: nodeColors.color }}>Base Image</span>
+            )}
+            {hasStyleInput && (
+              <span className="px-2 py-0.5 rounded text-xs" style={{ backgroundColor: `${nodeColors.color}20`, color: nodeColors.color }}>Style</span>
+            )}
+            {hasMaterialInput && (
+              <span className="px-2 py-0.5 rounded text-xs" style={{ backgroundColor: `${nodeColors.color}20`, color: nodeColors.color }}>Material</span>
             )}
           </div>
-          {localData.status !== 'generating' && (
-          <Button
-            onClick={handleGenerate}
-            disabled={!localData.prompt || loading}
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-8 text-xs nodrag nopan"
-          >
-              Generate Image
-            </Button>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <div className="relative aspect-video bg-muted rounded border border-border overflow-hidden flex items-center justify-center">
-            {localData.status === 'generating' ? (
-              <div className="text-center p-4 w-full h-full flex flex-col items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
-                <p className="text-xs text-muted-foreground">Generating image...</p>
-                <p className="text-xs text-muted-foreground font-mono truncate max-w-full px-2 mt-1">
-                  "{localData.prompt.substring(0, 50)}..."
-                </p>
-              </div>
-            ) : localData.status === 'completed' && localData.outputUrl ? (
-              <img
-                src={localData.outputUrl}
-                alt="Generated"
-                className="w-full h-full object-cover"
-              />
-            ) : null}
-          </div>
-          {localData.status !== 'generating' && (
+        )}
+
+        {/* Prompt Input - Always visible, but shows different UI based on connection */}
+        {!hasTextInput && (
+          <div className="space-y-2">
             <Textarea
               value={localData.prompt || ''}
               onChange={(e) =>
                 setLocalData((prev) => ({ ...prev, prompt: e.target.value }))
               }
-              placeholder="Enter prompt for image generation or connect Text Node..."
-              className="min-h-[80px] bg-background border-border text-foreground placeholder:text-muted-foreground resize-none nodrag nopan"
+              placeholder="Enter prompt or connect Text Node..."
+              className="min-h-[80px] bg-background resize-none nodrag nopan"
+              style={{ borderColor: `${nodeColors.color}40`, color: 'inherit' }}
             />
+            {localData.prompt && (
+              <Button
+                onClick={handleEnhancePrompt}
+                variant="outline"
+                size="sm"
+                disabled={loading}
+                className="w-full h-7 text-xs nodrag nopan"
+                style={{ borderColor: nodeColors.color, color: nodeColors.color }}
+              >
+                <Sparkles className="h-3 w-3 mr-1" />
+                Enhance Prompt
+              </Button>
+            )}
+          </div>
+        )}
+
+        {hasTextInput && hasPrompt && (
+          <div className="p-2 bg-muted rounded border border-border">
+            <p className="text-xs text-muted-foreground mb-1">Connected Prompt:</p>
+            <p className="text-xs font-mono truncate">{localData.prompt.substring(0, 60)}...</p>
+          </div>
+        )}
+
+        {/* Image Preview/Status */}
+        <div className="relative aspect-video bg-muted rounded overflow-hidden flex items-center justify-center" style={{ borderColor: `${nodeColors.color}40` }}>
+          {localData.status === 'generating' ? (
+            <div className="text-center p-4 w-full h-full flex flex-col items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin mb-3" style={{ color: nodeColors.color }} />
+              <p className="text-xs text-muted-foreground">Generating image...</p>
+              {localData.prompt && (
+                <p className="text-xs text-muted-foreground font-mono truncate max-w-full px-2 mt-1">
+                  "{localData.prompt.substring(0, 50)}..."
+                </p>
+              )}
+            </div>
+          ) : localData.status === 'completed' && localData.outputUrl ? (
+            <img
+              src={localData.outputUrl}
+              alt="Generated"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="text-center p-4">
+              <ImageOff className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+              <p className="text-xs text-muted-foreground">No image generated yet</p>
+            </div>
           )}
         </div>
-      )}
 
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Style</label>
-            <Select
-              value={localData.settings.style}
-              onValueChange={(value) =>
-                setLocalData((prev) => ({
-                  ...prev,
-                  settings: { ...prev.settings, style: value },
-                }))
-              }
-            >
-              <SelectTrigger className="bg-background border-border text-foreground h-8 text-xs nodrag nopan">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="architectural">Architectural</SelectItem>
-                <SelectItem value="modern">Modern</SelectItem>
-                <SelectItem value="photorealistic">Photorealistic</SelectItem>
-                <SelectItem value="sketch">Sketch</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Quality</label>
-            <Select
-              value={localData.settings.quality}
-              onValueChange={(value: 'standard' | 'high' | 'ultra') =>
-                setLocalData((prev) => ({
-                  ...prev,
-                  settings: { ...prev.settings, quality: value },
-                }))
-              }
-            >
-              <SelectTrigger className="bg-background border-border text-foreground h-8 text-xs nodrag nopan">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="standard">Standard</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="ultra">Ultra</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Aspect Ratio</label>
-          <Select
-            value={localData.settings.aspectRatio}
-            onValueChange={(value) =>
-              setLocalData((prev) => ({
-                ...prev,
-                settings: { ...prev.settings, aspectRatio: value },
-              }))
+        {/* Generate Button */}
+        <Button
+          onClick={handleGenerate}
+          disabled={loading || localData.status === 'generating' || (!hasPrompt && !hasImageInput)}
+          className="w-full h-8 text-xs nodrag nopan text-white"
+          style={{ backgroundColor: nodeColors.color }}
+          onMouseEnter={(e) => {
+            if (!e.currentTarget.disabled) {
+              e.currentTarget.style.backgroundColor = `${nodeColors.color}dd`;
             }
-          >
-            <SelectTrigger className="bg-background border-border text-foreground h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="16:9">16:9</SelectItem>
-              <SelectItem value="1:1">1:1</SelectItem>
-              <SelectItem value="4:3">4:3</SelectItem>
-              <SelectItem value="9:16">9:16</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+          }}
+          onMouseLeave={(e) => {
+            if (!e.currentTarget.disabled) {
+              e.currentTarget.style.backgroundColor = nodeColors.color;
+            }
+          }}
+        >
+          {loading || localData.status === 'generating' ? (
+            <>
+              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              Generating...
+            </>
+          ) : (
+            'Generate Image'
+          )}
+        </Button>
 
-      {!hasTextInput && localData.status !== 'generating' && (
-        <div className="flex gap-2">
+        {/* Download Button */}
+        {localData.status === 'completed' && localData.outputUrl && (
           <Button
-            onClick={handleEnhancePrompt}
+            onClick={handleDownload}
             variant="outline"
             size="sm"
-            disabled={loading || localData.status === ('generating' as ImageNodeData['status'])}
-            className="flex-1 h-8 text-xs nodrag nopan"
+            className="w-full h-7 text-xs nodrag nopan"
+            style={{ borderColor: nodeColors.color, color: nodeColors.color }}
           >
-            <Sparkles className="h-3 w-3 mr-1" />
-            Enhance
+            <Download className="h-3 w-3 mr-1" />
+            Download
           </Button>
-          <Button
-            onClick={handleGenerate}
-            disabled={loading || (localData.status as string) === 'generating' || !localData.prompt}
-            className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground h-8 text-xs nodrag nopan"
-          >
-            {loading || (localData.status as string) === 'generating' ? (
-              <>
-                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              'Generate'
-            )}
-          </Button>
-        </div>
-      )}
+        )}
 
-      {localData.status === 'completed' && localData.outputUrl && hasTextInput && (
-        <Button
-          onClick={handleDownload}
-          variant="outline"
-          size="sm"
-          className="w-full h-8 text-xs nodrag nopan"
-        >
-          <Download className="h-3 w-3 mr-1" />
-          Download
-        </Button>
-      )}
-
-      {localData.status === 'error' && (
-        <div className="text-xs text-destructive bg-destructive/10 p-2 rounded">
-          {localData.errorMessage}
-        </div>
-      )}
+        {/* Error Message */}
+        {localData.status === 'error' && (
+          <div className="text-xs text-destructive bg-destructive/10 p-2 rounded">
+            {localData.errorMessage}
+          </div>
+        )}
+      </div>
     </BaseNode>
   );
 }
-

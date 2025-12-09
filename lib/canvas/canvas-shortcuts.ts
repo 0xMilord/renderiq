@@ -9,6 +9,7 @@ export type ShortcutAction =
   | 'add-variants-node'
   | 'add-style-node'
   | 'add-material-node'
+  | 'add-output-node'
   | 'delete-selected'
   | 'copy-selected'
   | 'paste'

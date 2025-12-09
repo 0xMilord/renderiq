@@ -17,11 +17,12 @@ export function ConditionalFooter() {
     return null;
   }
   
-  // Hide footer on render routes, project/chain routes, dashboard routes, demo route, and auth routes
+  // Hide footer on render routes, project/chain routes, dashboard routes, canvas routes, demo route, and auth routes
   if (
     pathname?.includes('/render') || 
     pathname?.startsWith('/project/') ||
     pathname?.startsWith('/dashboard') ||
+    pathname?.startsWith('/canvas') ||
     pathname?.startsWith('/demo') ||
     pathname === '/login' ||
     pathname === '/signup' ||

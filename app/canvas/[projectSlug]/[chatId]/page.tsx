@@ -89,7 +89,7 @@ export default function CanvasEditorPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="fixed inset-0 bg-background pt-[var(--navbar-height)] flex items-center justify-center">
         <Card className="w-96 bg-card border-border">
           <CardContent className="p-8 text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
@@ -105,7 +105,7 @@ export default function CanvasEditorPage() {
 
   if (!project) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="fixed inset-0 bg-background pt-[var(--navbar-height)] flex items-center justify-center">
         <Card className="w-96 bg-card border-border">
           <CardContent className="p-8 text-center">
             <h2 className="text-lg font-semibold mb-2 text-card-foreground">Project Not Found</h2>
@@ -127,7 +127,7 @@ export default function CanvasEditorPage() {
 
   if (!chain) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="fixed inset-0 bg-background pt-[var(--navbar-height)] flex items-center justify-center">
         <Card className="w-96 bg-card border-border">
           <CardContent className="p-8 text-center">
             <h2 className="text-lg font-semibold mb-2 text-card-foreground">Canvas Not Found</h2>
@@ -156,7 +156,7 @@ export default function CanvasEditorPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-var(--navbar-height))] pt-[var(--navbar-height)] bg-background overflow-hidden">
+    <div className="fixed inset-0 bg-background pt-[var(--navbar-height)] overflow-hidden">
       <CanvasEditor
         projectId={project.id}
         chainId={chain.id}

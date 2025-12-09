@@ -5,8 +5,12 @@ import { useRouter } from 'next/navigation';
 import { useAppShortcuts } from '@/lib/hooks/use-app-shortcuts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CommonImageCard } from '@/components/common/image-card';
 import { ImageModal } from '@/components/common/image-modal';
+import { ProjectCard } from '@/components/projects/project-card';
+import { ChainCard } from '@/components/projects/chain-card';
+import { ViewModeToggle } from '@/components/projects/view-mode-toggle';
 import { 
   Plus, 
   MessageSquare, 
@@ -65,6 +69,11 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
   const [selectedRender, setSelectedRender] = useState<Render | null>(null);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const rendersPerPage = 20;
+  const [viewMode, setViewMode] = useState<'default' | 'compact' | 'list'>('default');
+  const [chainSearchQuery, setChainSearchQuery] = useState('');
+  const [chainSortBy, setChainSortBy] = useState('newest');
+  const [projectSearchQuery, setProjectSearchQuery] = useState('');
+  const [projectSortBy, setProjectSortBy] = useState('newest');
 
   // ✅ SYNC: Update local state when SSR props change (e.g., after router.refresh())
   useEffect(() => {
@@ -190,11 +199,21 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
     setSelectedRender(null);
   };
 
-  const filteredProjects = useMemo(() => 
+  // Filter projects for sidebar (uses sidebar search)
+  const filteredProjectsSidebar = useMemo(() => 
     projects.filter(project =>
       project.name.toLowerCase().includes(searchQuery.toLowerCase())
     ),
     [projects, searchQuery]
+  );
+
+  // Filter projects for main content (uses main content search)
+  const filteredProjectsMain = useMemo(() => 
+    projects.filter(project =>
+      project.name.toLowerCase().includes(projectSearchQuery.toLowerCase()) ||
+      project.description?.toLowerCase().includes(projectSearchQuery.toLowerCase())
+    ),
+    [projects, projectSearchQuery]
   );
 
   // Group chains by project
@@ -209,16 +228,68 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
     [chains]
   );
 
+  // Get chains for selected project and filter them
+  const filteredChains = useMemo(() => {
+    if (!selectedProjectId) return [];
+    const selectedChains = chainsByProject[selectedProjectId] || [];
+    return selectedChains.filter(chain =>
+      chain.name.toLowerCase().includes(chainSearchQuery.toLowerCase()) ||
+      chain.description?.toLowerCase().includes(chainSearchQuery.toLowerCase())
+    );
+  }, [chainsByProject, selectedProjectId, chainSearchQuery]);
+
+  // Get chains for selected project (for other uses)
+  const selectedProjectChains = useMemo(() => 
+    selectedProjectId ? (chainsByProject[selectedProjectId] || []) : [],
+    [selectedProjectId, chainsByProject]
+  );
+
+  const sortedChains = useMemo(() => {
+    return [...filteredChains].sort((a, b) => {
+      switch (chainSortBy) {
+        case 'newest':
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case 'oldest':
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case 'name':
+          return a.name.localeCompare(b.name);
+        default:
+          return 0;
+      }
+    });
+  }, [filteredChains, chainSortBy]);
+
+  const sortedProjects = useMemo(() => {
+    return [...filteredProjectsMain].sort((a, b) => {
+      switch (projectSortBy) {
+        case 'newest':
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case 'oldest':
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case 'name':
+          return a.name.localeCompare(b.name);
+        default:
+          return 0;
+      }
+    });
+  }, [filteredProjectsMain, projectSortBy]);
+
+  // Memoize grid columns calculation
+  const gridCols = useMemo(() => {
+    switch (viewMode) {
+      case 'compact':
+        return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6';
+      case 'list':
+        return 'grid-cols-1';
+      default:
+        return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
+    }
+  }, [viewMode]);
+
   // Get selected project
   const selectedProject = useMemo(() => 
     selectedProjectId ? projects.find(p => p.id === selectedProjectId) : null,
     [selectedProjectId, projects]
-  );
-
-  // Get chains for selected project
-  const selectedProjectChains = useMemo(() => 
-    selectedProjectId ? (chainsByProject[selectedProjectId] || []) : [],
-    [selectedProjectId, chainsByProject]
   );
 
   // Get renders for selected chain
@@ -325,7 +396,7 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
           isSidebarOpen ? "p-2" : "p-2 flex flex-col items-center gap-2"
         )}>
           {isSidebarOpen ? (
-            filteredProjects.length === 0 ? (
+            filteredProjectsSidebar.length === 0 ? (
               <div className="text-center py-8 px-4">
                 <FolderOpenIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-sm text-muted-foreground mb-4">
@@ -345,7 +416,7 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
               </div>
             ) : (
               <div className="space-y-1">
-                {filteredProjects.map((project) => {
+                {filteredProjectsSidebar.map((project) => {
                   const projectChains = chainsByProject[project.id] || [];
                   const isExpanded = expandedProjects.has(project.id);
                   
@@ -415,7 +486,7 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
             )
           ) : (
             <>
-              {filteredProjects.slice(0, 8).map((project) => {
+              {filteredProjectsSidebar.slice(0, 8).map((project) => {
                 const projectChains = chainsByProject[project.id] || [];
                 
                 return (
@@ -463,9 +534,9 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                   </div>
                 );
               })}
-              {filteredProjects.length > 8 && (
+              {filteredProjectsSidebar.length > 8 && (
                 <div className="text-[10px] text-muted-foreground text-center">
-                  +{filteredProjects.length - 8}
+                  +{filteredProjectsSidebar.length - 8}
                 </div>
               )}
             </>
@@ -558,7 +629,7 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-6 w-full min-h-0">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 w-full min-h-0">
           {selectedChainId ? (
             <div className="w-full h-full flex flex-col">
               {/* Chain Card */}
@@ -625,129 +696,165 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
           ) : selectedProjectId ? (
             /* Project Selected - Show Available Chats */
             <div className="w-full h-full flex flex-col">
-              {/* Chats Grid */}
-              {selectedProjectChains.length > 0 ? (
-                <div className="flex-1 flex flex-col">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
-                    {selectedProjectChains.map((chain) => {
-                      const latestRenders = chain.renders.slice(0, 4);
-                      return (
-                        <div
-                          key={chain.id}
-                          onClick={() => handleSelectChain(chain.id)}
-                          className={cn(
-                            "group relative cursor-pointer rounded-lg border bg-card p-5 hover:border-primary transition-all",
-                            selectedChainId === chain.id && "border-primary ring-2 ring-primary/20"
-                          )}
-                        >
-                          {/* Chat Header */}
-                          <div className="flex items-start justify-between mb-4">
-                            <div className="flex items-center gap-3 flex-1 min-w-0">
-                              <div className="h-10 w-10 rounded-lg bg-primary/20 border border-primary flex items-center justify-center shrink-0">
-                                <MessageSquare className="h-5 w-5 text-primary" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-semibold text-base truncate mb-1">
-                                  {chain.name}
-                                </h3>
-                                <p className="text-xs text-muted-foreground">
-                                  {chain.renders.length} render{chain.renders.length !== 1 ? 's' : ''}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
+              {/* Search and Filters */}
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-6">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search chains..."
+                    value={chainSearchQuery}
+                    onChange={(e) => setChainSearchQuery(e.target.value)}
+                    className="pl-10 text-sm sm:text-base"
+                  />
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <Select value={chainSortBy} onValueChange={setChainSortBy}>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="newest">Newest first</SelectItem>
+                      <SelectItem value="oldest">Oldest first</SelectItem>
+                      <SelectItem value="name">Name A-Z</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
+                </div>
+              </div>
 
-                          {/* Render Preview Grid */}
-                          {latestRenders.length > 0 ? (
-                            <div className={cn(
-                              "grid gap-2",
-                              latestRenders.length === 1 ? "grid-cols-1" :
-                              latestRenders.length === 2 ? "grid-cols-2" :
-                              latestRenders.length === 3 ? "grid-cols-3" :
-                              "grid-cols-2"
-                            )}>
-                              {latestRenders.map((render, idx) => (
-                                <div
-                                  key={render.id}
-                                  className={cn(
-                                    "relative aspect-square rounded-md overflow-hidden bg-muted border border-border group-hover:border-primary/50 transition-colors",
-                                    idx === 0 && latestRenders.length === 1 && "col-span-2 row-span-2",
-                                    idx === 0 && latestRenders.length === 3 && "col-span-2"
-                                  )}
-                                >
-                                  {render.outputUrl ? (
-                                    <img
-                                      src={render.outputUrl}
-                                      alt={`${chain.name} render ${idx + 1}`}
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center">
-                                      <MessageSquare className="h-6 w-6 text-muted-foreground" />
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="aspect-video rounded-md bg-muted/50 border border-dashed border-border flex items-center justify-center">
-                              <div className="text-center">
-                                <MessageSquare className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                                <p className="text-xs text-muted-foreground">No renders yet</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+              {/* Chains Grid */}
+              {sortedChains.length > 0 ? (
+                <div className={cn("grid gap-4", gridCols)}>
+                  {sortedChains.map((chain) => (
+                    <ChainCard
+                      key={chain.id}
+                      chain={chain}
+                      projectSlug={selectedProject?.slug}
+                      viewMode={viewMode}
+                      onSelect={handleSelectChain}
+                    />
+                  ))}
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <MessageSquare className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                  <h2 className="text-2xl font-bold mb-2">No Chats Yet</h2>
-                  <p className="text-muted-foreground mb-6">
-                    Create your first chat in {selectedProject?.name} to start rendering.
+                  <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">
+                    {chainSearchQuery ? 'No chains found' : 'No chains yet'}
+                  </h3>
+                  <p className="text-muted-foreground mb-4">
+                    {chainSearchQuery 
+                      ? 'Try adjusting your search or filters'
+                      : 'Create your first chain in this project'
+                    }
                   </p>
-                  <Button 
-                    onClick={() => handleCreateNewChain(selectedProjectId)}
-                    disabled={isCreatingChain === selectedProjectId}
-                    size="lg"
-                  >
-                    {isCreatingChain === selectedProjectId ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Start New Chat
-                      </>
-                    )}
-                  </Button>
+                  {!chainSearchQuery && (
+                    <Button 
+                      onClick={() => handleCreateNewChain(selectedProjectId)}
+                      disabled={isCreatingChain === selectedProjectId}
+                      size="lg"
+                    >
+                      {isCreatingChain === selectedProjectId ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Start New Chat
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
           ) : (
-            /* Empty State - No Project Selected */
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center max-w-md">
-                <Folder className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h2 className="text-2xl font-bold mb-2">No Project Selected</h2>
-                <p className="text-muted-foreground mb-6">
-                  Select a project from the sidebar or create a new one to get started.
-                </p>
-                <CreateProjectModal onProjectCreated={(project) => {
-              handleProjectCreated(project);
-              router.refresh();
-            }}>
-                  <Button size="lg">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create New Project
-                  </Button>
-                </CreateProjectModal>
+            /* Show All Projects */
+            <div className="w-full h-full flex flex-col">
+              {/* Search and Filters */}
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-6">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search projects..."
+                    value={projectSearchQuery}
+                    onChange={(e) => setProjectSearchQuery(e.target.value)}
+                    className="pl-10 text-sm sm:text-base"
+                  />
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <Select value={projectSortBy} onValueChange={setProjectSortBy}>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="newest">Newest first</SelectItem>
+                      <SelectItem value="oldest">Oldest first</SelectItem>
+                      <SelectItem value="name">Name A-Z</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
+                </div>
               </div>
+
+              {/* Projects Grid */}
+              {sortedProjects.length > 0 ? (
+                <div className={cn("grid gap-4", gridCols)}>
+                  {sortedProjects.map((project) => {
+                    const projectChains = chainsByProject[project.id] || [];
+                    const projectRenders = projectChains.flatMap(c => c.renders || []);
+                    const latestRenders = projectRenders
+                      .filter(r => r.status !== 'failed' && r.outputUrl)
+                      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                      .slice(0, 4)
+                      .map(r => ({
+                        id: r.id,
+                        outputUrl: r.outputUrl,
+                        status: r.status,
+                        type: r.type as 'image' | 'video',
+                        createdAt: r.createdAt
+                      }));
+
+                    return (
+                      <ProjectCard
+                        key={project.id}
+                        project={{
+                          ...project,
+                          renderCount: projectRenders.length,
+                          latestRenders
+                        }}
+                        viewMode={viewMode}
+                        onEdit={() => {}}
+                        onDuplicate={() => {}}
+                        onDelete={() => {}}
+                        onSelect={(p) => handleProjectClick(p.id)}
+                      />
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Folder className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">
+                    {projectSearchQuery ? 'No projects found' : 'No projects yet'}
+                  </h3>
+                  <p className="text-muted-foreground mb-4">
+                    {projectSearchQuery 
+                      ? 'Try adjusting your search or filters'
+                      : 'Create your first AI-generated project'
+                    }
+                  </p>
+                  {!projectSearchQuery && (
+                    <CreateProjectModal onProjectCreated={(project) => {
+                      handleProjectCreated(project);
+                      router.refresh();
+                    }}>
+                      <Button>Get Started</Button>
+                    </CreateProjectModal>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
