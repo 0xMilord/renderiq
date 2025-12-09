@@ -6,6 +6,7 @@ import { BillingDAL } from '@/lib/dal/billing';
 import { ProjectsDAL } from '@/lib/dal/projects';
 import { RendersDAL } from '@/lib/dal/renders';
 import { RenderChainsDAL } from '@/lib/dal/render-chains';
+import { RenderChainService } from '@/lib/services/render-chain';
 import { ProjectRulesDAL } from '@/lib/dal/project-rules';
 import { StorageService } from '@/lib/services/storage';
 import { logger } from '@/lib/utils/logger';
@@ -312,37 +313,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Project not found or access denied' }, { status: 403 });
     }
 
-    // Get or create chain for this project
+    // ✅ CENTRALIZED: Get or create chain for this project using centralized service
     let finalChainId = chainId;
     
     if (!finalChainId) {
-      logger.log('🔗 No chain specified, finding or creating default chain');
-      
-      // Check if project already has a default chain
-      const existingChains = await RenderChainsDAL.getByProjectId(projectId);
-      
-      if (existingChains.length > 0) {
-        // Use the most recent chain
-        finalChainId = existingChains[0].id;
-        logger.log('✅ Using existing chain:', finalChainId);
-      } else {
-        // Create a new default chain
-        const chainName = project ? `${project.name} - Iterations` : 'Default Chain';
-        const newChain = await RenderChainsDAL.create({
-          projectId,
-          name: chainName,
-          description: 'Automatic chain for render iterations',
-        });
-        finalChainId = newChain.id;
-        logger.log('✅ Created new chain:', finalChainId);
-      }
+      logger.log('🔗 No chain specified, getting or creating default chain');
+      const defaultChain = await RenderChainService.getOrCreateDefaultChain(
+        projectId,
+        project?.name
+      );
+      finalChainId = defaultChain.id;
     } else {
       logger.log('🔗 Using chain from request:', finalChainId);
     }
 
-    // Get chain position
-    const chainRenders = await RendersDAL.getByChainId(finalChainId);
-    const chainPosition = chainRenders.length;
+    // ✅ CENTRALIZED: Get chain position using centralized method
+    const chainPosition = await RenderChainService.getNextChainPosition(finalChainId);
 
     logger.log('📍 Chain position:', chainPosition);
 
@@ -357,6 +343,7 @@ export async function POST(request: NextRequest) {
       if (referenceRenderId.startsWith('temp-')) {
         logger.log('⚠️ Temporary reference render ID detected, using most recent render in chain:', referenceRenderId);
         // Use the most recent completed render in the chain as reference
+        const chainRenders = await RendersDAL.getByChainId(finalChainId);
         if (chainRenders.length > 0) {
           const mostRecentRender = chainRenders
             .filter(r => r.status === 'completed')
@@ -1038,6 +1025,9 @@ export async function POST(request: NextRequest) {
 
       logger.log('🎉 Render completed successfully');
 
+      // ✅ FIX: Fetch updated render to include all fields (uploadedImageUrl, chainPosition, etc.)
+      const updatedRender = await RendersDAL.getById(render.id);
+
       return NextResponse.json({
         success: true,
         data: {
@@ -1048,6 +1038,11 @@ export async function POST(request: NextRequest) {
           processingTime: result.data.processingTime,
           provider: result.data.provider,
           type: type, // Include type (image/video) for frontend
+          uploadedImageUrl: updatedRender?.uploadedImageUrl || null,
+          uploadedImageKey: updatedRender?.uploadedImageKey || null,
+          uploadedImageId: updatedRender?.uploadedImageId || null,
+          chainPosition: updatedRender?.chainPosition ?? null,
+          chainId: updatedRender?.chainId || null,
         },
       });
 

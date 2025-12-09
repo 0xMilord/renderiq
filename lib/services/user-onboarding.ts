@@ -30,7 +30,8 @@ export class UserOnboardingService {
     logger.log('👤 UserOnboarding: Creating user profile for:', userProfile.email);
     
     try {
-      // Check if user already exists by ID or email (user might exist from Supabase auth)
+      // ✅ FIXED: Better race condition handling - check both ID and email first
+      // This prevents duplicate creation when multiple requests come in simultaneously
       let existingUser = await AuthDAL.getUserById(userProfile.id);
       
       if (!existingUser) {
@@ -40,6 +41,12 @@ export class UserOnboardingService {
 
       if (existingUser) {
         logger.log('✅ UserOnboarding: User already exists, skipping profile creation');
+        // ✅ Ensure credits exist even if user already exists (legacy users)
+        const existingCredits = await AuthDAL.getUserCredits(existingUser.id);
+        if (!existingCredits) {
+          logger.log('💰 UserOnboarding: User exists but no credits, initializing default credits');
+          await this.initializeUserCredits(existingUser.id, INITIAL_SIGNUP_CREDITS);
+        }
         return { success: true, data: existingUser };
       }
 

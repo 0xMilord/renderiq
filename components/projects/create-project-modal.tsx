@@ -8,12 +8,13 @@ import { Label } from '@/components/ui/label';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { toast } from 'sonner';
 import { logger } from '@/lib/utils/logger';
+import type { Project } from '@/lib/db/schema';
 
 interface CreateProjectModalProps {
   children: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  onProjectCreated?: (projectId: string) => void;
+  onProjectCreated?: (project: Project) => void;
 }
 
 export function CreateProjectModal({ children, open: controlledOpen, onOpenChange, onProjectCreated }: CreateProjectModalProps) {
@@ -74,12 +75,10 @@ export function CreateProjectModal({ children, open: controlledOpen, onOpenChang
         if (formRef.current) {
           formRef.current.reset();
         }
-        // Notify parent component about the new project
+        // ✅ Notify parent component about the new project with full data for optimistic update
         if (onProjectCreated && 'data' in result && result.data && typeof result.data === 'object' && 'id' in result.data) {
-          onProjectCreated((result.data as { id: string }).id);
+          onProjectCreated(result.data as Project);
         }
-        // Refetch projects to update the list
-        // The projects will be refetched automatically due to revalidatePath in the action
       } else {
         console.error('❌ [CreateProjectModal] Project creation failed:', result.error);
         toast.error(result.error || 'Failed to create project');

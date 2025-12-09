@@ -19,19 +19,53 @@ export function useUserOnboarding() {
   } = useAuthStore();
   
   const [onboardingLoading, setOnboardingLoading] = useState(false);
+  const [onboardingError, setOnboardingError] = useState<string | null>(null);
 
   useEffect(() => {
     const handleUserOnboarding = async () => {
-      if (!user || authLoading || profileLoading) return;
+      // ✅ FIXED: Don't duplicate profile fetching - let store handle it
+      if (!user || authLoading) return;
 
       // If we have a profile, onboarding is complete
       if (userProfile) {
         setOnboardingComplete(true);
+        setOnboardingError(null); // Clear any previous errors
         return;
       }
 
-      // If no profile and not loading, we need to create one
-      if (!userProfile && !profileLoading) {
+      // ✅ FIXED: Only trigger profile creation if:
+      // 1. User exists
+      // 2. No profile exists
+      // 3. Not currently loading profile (prevents race condition)
+      // 4. Email is verified (for email/password signups)
+      // 5. Wait for store's fetchUserProfile to complete first
+      if (!userProfile && !profileLoading && user.email_confirmed_at) {
+        // ✅ FIXED: Wait a bit for store's fetchUserProfile to complete
+        // This prevents race condition where hook checks before store finishes fetching
+        // Store's fetchUserProfile runs on initialize() and onAuthStateChange
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Re-check profile after waiting (store might have fetched it)
+        const currentState = useAuthStore.getState();
+        if (currentState.userProfile) {
+          setOnboardingComplete(true);
+          return;
+        }
+        
+        // Check if profile exists on server (might be created by callback)
+        // This prevents race condition with OAuth callback
+        const { getUserProfileAction } = await import('@/lib/actions/user-onboarding.actions');
+        const existingProfile = await getUserProfileAction(user.id);
+        
+        if (existingProfile.success && existingProfile.data) {
+          // Profile exists, just update state
+          setUserProfile(existingProfile.data);
+          setOnboardingComplete(true);
+          setOnboardingError(null); // Clear any previous errors
+          return;
+        }
+
+        // Profile doesn't exist, create it
         setOnboardingLoading(true);
         
         try {
@@ -68,11 +102,16 @@ export function useUserOnboarding() {
             logger.log('✅ UserOnboarding Hook: User onboarding completed successfully');
             setUserProfile(onboardingResult.data);
             setOnboardingComplete(true);
+            setOnboardingError(null); // Clear any previous errors
           } else {
-            console.error('❌ UserOnboarding Hook: User onboarding failed:', onboardingResult.error);
+            const errorMessage = onboardingResult.error || 'Failed to create user profile';
+            console.error('❌ UserOnboarding Hook: User onboarding failed:', errorMessage);
+            setOnboardingError(errorMessage);
           }
         } catch (error) {
-          console.error('❌ UserOnboarding Hook: Error during onboarding:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error during onboarding';
+          console.error('❌ UserOnboarding Hook: Error during onboarding:', errorMessage);
+          setOnboardingError(errorMessage);
         } finally {
           setOnboardingLoading(false);
         }
@@ -81,10 +120,18 @@ export function useUserOnboarding() {
 
     handleUserOnboarding();
   }, [user, userProfile, authLoading, profileLoading, setOnboardingComplete, setUserProfile]);
+  
+  // Clear error when user changes (new user, different session)
+  useEffect(() => {
+    if (!user) {
+      setOnboardingError(null);
+    }
+  }, [user]);
 
   return {
     onboardingComplete,
     onboardingLoading: onboardingLoading || profileLoading,
     isOnboarding: !onboardingComplete && !onboardingLoading && !profileLoading && !!user,
+    onboardingError, // ✅ ADDED: Error state for components to display
   };
 }

@@ -38,9 +38,10 @@ export function useProjects() {
       logger.log('📊 [useProjects] createProject result:', result);
       
       if (result.success && 'data' in result && result.data) {
-        logger.log('✅ [useProjects] Project created, refetching projects...');
-        // Refetch to get the latest projects list including the new one
-        await fetchProjects();
+        logger.log('✅ [useProjects] Project created, updating state incrementally...');
+        // ✅ INCREMENTAL UPDATE: Add new project to state instead of refetching all
+        const newProject = result.data as Project;
+        setProjects(prev => [newProject, ...prev]);
         return { success: true, data: result.data };
       } else {
         console.error('❌ [useProjects] Project creation failed:', result.error);

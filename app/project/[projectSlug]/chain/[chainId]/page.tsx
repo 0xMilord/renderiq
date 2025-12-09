@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { UnifiedChatInterface } from '@/components/chat/unified-chat-interface';
-import { getProjectBySlug } from '@/lib/actions/projects.actions';
+import { getProjectBySlug, getUserProjects, getProjectChains } from '@/lib/actions/projects.actions';
 import { getRenderChain } from '@/lib/actions/projects.actions';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,26 +18,29 @@ export default function ProjectChainPage() {
   const router = useRouter();
   const projectSlug = params.projectSlug as string;
   const chainId = params.chainId as string;
-  const { user, loading: authLoading, initialized, initialize } = useAuthStore();
+  const { user, loading: authLoading, initialized } = useAuthStore();
   
   // ✅ OPTIMIZED: Combined state for parallel loading
   const [project, setProject] = useState<Project | null>(null);
   const [chain, setChain] = useState<RenderChainWithRenders | null>(null);
+  const [projects, setProjects] = useState<Array<{ id: string; name: string; slug: string }>>([]);
+  const [chains, setChains] = useState<Array<{ id: string; name: string; projectId: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ OPTIMIZED: Fetch project and chain in parallel
+  // ✅ OPTIMIZED: Fetch project, chain, and all projects/chains for dropdown in parallel
   const fetchData = useCallback(async () => {
-    if (!projectSlug || !chainId) return;
+    if (!projectSlug || !chainId || !user) return;
     
     setLoading(true);
     setError(null);
 
     try {
-      // ✅ OPTIMIZED: Parallelize project and chain fetching
-      const [projectResult, chainResult] = await Promise.all([
+      // ✅ OPTIMIZED: Parallelize all fetching
+      const [projectResult, chainResult, projectsResult] = await Promise.all([
         getProjectBySlug(projectSlug),
         getRenderChain(chainId),
+        getUserProjects(),
       ]);
 
       if (projectResult.success && projectResult.data) {
@@ -51,13 +54,49 @@ export default function ProjectChainPage() {
       } else {
         setError(chainResult.error || 'Failed to load chain');
       }
+
+      // Fetch all projects and chains for dropdown
+      if (projectsResult.success && projectsResult.data) {
+        const projectsList = projectsResult.data.map(p => ({
+          id: p.id,
+          name: p.name,
+          slug: p.slug,
+        }));
+        setProjects(projectsList);
+
+        // Fetch all chains for all projects in parallel
+        try {
+          const chainResults = await Promise.all(
+            projectsResult.data.map(project => getProjectChains(project.id))
+          );
+          
+          const allChains: Array<{ id: string; name: string; projectId: string }> = [];
+          chainResults.forEach((result, index) => {
+            if (result.success && result.data) {
+              const projectId = projectsResult.data[index].id;
+              result.data.forEach(chain => {
+                allChains.push({
+                  id: chain.id,
+                  name: chain.name,
+                  projectId: projectId,
+                });
+              });
+            }
+          });
+          
+          setChains(allChains);
+        } catch (err) {
+          logger.error('❌ ProjectChainPage: Error fetching chains:', err);
+          // Don't fail the whole page if chains fail to load
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       logger.error('❌ ProjectChainPage: Error fetching data:', err);
     } finally {
       setLoading(false);
     }
-  }, [projectSlug, chainId]);
+  }, [projectSlug, chainId, user]);
 
   useEffect(() => {
     fetchData();
@@ -67,10 +106,9 @@ export default function ProjectChainPage() {
     return fetchData();
   }, [fetchData]);
 
-  // Initialize auth store
-  useEffect(() => {
-    initialize();
-  }, [initialize]);
+  // ✅ REMOVED: Duplicate initialize() call
+  // AuthProvider already calls initialize(), no need to call it here
+  // Components should only read from store, not initialize it
 
   // Redirect to home if user logs out
   useEffect(() => {
@@ -157,6 +195,8 @@ export default function ProjectChainPage() {
           projectName={project.name}
           chainName={chain?.name}
           onBackToProjects={() => router.push('/render')}
+          projects={projects}
+          chains={chains}
         />
       </div>
     </div>

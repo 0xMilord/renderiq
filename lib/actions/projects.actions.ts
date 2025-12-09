@@ -468,7 +468,9 @@ export async function createRenderChain(
     }
 
     const chain = await RenderChainService.createChain(projectId, name, description);
+    // ✅ FIX: Revalidate both /engine and /render paths
     revalidatePath(`/engine`);
+    revalidatePath(`/render`);
     return { success: true, data: chain };
   } catch (error) {
     logger.error('Error in createRenderChain:', error);

@@ -8,6 +8,7 @@ import { BillingDAL } from '@/lib/dal/billing';
 import { ProjectsDAL } from '@/lib/dal/projects';
 import { RendersDAL } from '@/lib/dal/renders';
 import { RenderChainsDAL } from '@/lib/dal/render-chains';
+import { RenderChainService } from '@/lib/services/render-chain';
 import { StorageService } from '@/lib/services/storage';
 import { logger } from '@/lib/utils/logger';
 import { getCachedUser } from '@/lib/services/auth-cache';
@@ -197,32 +198,20 @@ export async function createRenderAction(formData: FormData) {
       return { success: false, error: 'Project not found or access denied' };
     }
 
-    // Get or create chain for this project
+    // ✅ CENTRALIZED: Get or create chain for this project using centralized service
     let finalChainId = chainId;
     
     if (!finalChainId) {
-      logger.log('🔗 No chain specified, finding or creating default chain');
-      
-      const existingChains = await RenderChainsDAL.getByProjectId(projectId);
-      
-      if (existingChains.length > 0) {
-        finalChainId = existingChains[0].id;
-        logger.log('✅ Using existing chain:', finalChainId);
-      } else {
-        const chainName = project ? `${project.name} - Iterations` : 'Default Chain';
-        const newChain = await RenderChainsDAL.create({
-          projectId,
-          name: chainName,
-          description: 'Automatic chain for render iterations',
-        });
-        finalChainId = newChain.id;
-        logger.log('✅ Created new chain:', finalChainId);
-      }
+      logger.log('🔗 No chain specified, getting or creating default chain');
+      const defaultChain = await RenderChainService.getOrCreateDefaultChain(
+        projectId,
+        project?.name
+      );
+      finalChainId = defaultChain.id;
     }
 
-    // Get chain position
-    const chainRenders = await RendersDAL.getByChainId(finalChainId!);
-    const chainPosition = chainRenders.length;
+    // ✅ CENTRALIZED: Get chain position using centralized method
+    const chainPosition = await RenderChainService.getNextChainPosition(finalChainId!);
 
     logger.log('📍 Chain position:', chainPosition);
 

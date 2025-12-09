@@ -1,4 +1,4 @@
-# Hunyuan3D Integration Plan for RenderIQ
+# Hunyuan3D Integration Plan for Renderiq
 
 ## Overview
 
@@ -81,7 +81,7 @@ Based on official technical architecture documentation:
 
 ---
 
-## Proposed New Tools for RenderIQ
+## Proposed New Tools for Renderiq
 
 Based on Hunyuan3D-2.5 capabilities, here are new tools to add to the `/apps` registry:
 
@@ -331,7 +331,7 @@ gcloud compute ssh hunyuan3d-server --zone=us-central1-a
 
 **Integration Flow:**
 ```
-RenderIQ Frontend → Next.js API Route → Self-Hosted Hunyuan3D API → GPU Processing → Return 3D Model
+Renderiq Frontend → Next.js API Route → Self-Hosted Hunyuan3D API → GPU Processing → Return 3D Model
 ```
 
 **Benefits:**
@@ -1036,7 +1036,7 @@ export async function POST(request: Request) {
 - **Storage**: ~$0.023/GB/month (GCS/S3 standard)
 - **Bandwidth**: ~$0.09/GB (data transfer out)
 
-### Credit Pricing (RenderIQ)
+### Credit Pricing (Renderiq)
 - Suggested pricing (adjust based on API costs):
   - Text-to-3D (standard): 5-8 credits
   - Text-to-3D (high quality): 10-15 credits
@@ -1049,7 +1049,7 @@ export async function POST(request: Request) {
 ## Architecture Integration Points
 
 ### Processing Pipeline Integration
-When integrating with RenderIQ, consider these pipeline stages:
+When integrating with Renderiq, consider these pipeline stages:
 
 1. **Input Processing**:
    - Validate prompts/images
@@ -1104,9 +1104,9 @@ async def batch_process_requests(requests: list):
 ## Future Enhancements
 
 1. **Batch Processing**: ✅ Already supported via `batch_generate()` API
-2. **3D Gallery**: Browse and explore 3D models in RenderIQ
+2. **3D Gallery**: Browse and explore 3D models in Renderiq
 3. **AR/VR Preview**: View models in AR/VR using WebXR
-4. **Model Editing**: Basic mesh editing within RenderIQ UI
+4. **Model Editing**: Basic mesh editing within Renderiq UI
 5. **Integration with Render Pipeline**: Use 3D models as input for 2D renders
 6. **Multi-View Generation**: Generate multiple views from single 3D model
 7. **Real-time Preview**: Stream generation progress to users
@@ -1117,7 +1117,7 @@ async def batch_process_requests(requests: list):
 ## Architecture Integration Points
 
 ### Processing Pipeline Integration
-When integrating with RenderIQ, consider these pipeline stages:
+When integrating with Renderiq, consider these pipeline stages:
 
 1. **Input Processing**:
    - Validate prompts/images
@@ -1313,6 +1313,6 @@ async def batch_process_requests(requests: list):
 
 **Status**: Needs verification before implementation  
 **Estimated Timeline**: 6 weeks (after verification)  
-**Priority**: High (unique differentiator for RenderIQ)  
+**Priority**: High (unique differentiator for Renderiq)  
 **Blockers**: API availability verification, open-source status confirmation
 

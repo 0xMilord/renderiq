@@ -23,6 +23,38 @@ export class RenderChainService {
   }
 
   /**
+   * ✅ CENTRALIZED: Get or create default chain for a project
+   * This centralizes the "get or create chain" logic that was duplicated
+   * in RenderService and render.actions.ts
+   */
+  static async getOrCreateDefaultChain(
+    projectId: string,
+    projectName?: string
+  ): Promise<RenderChain> {
+    logger.log('🔗 [getOrCreateDefaultChain] Getting or creating default chain for project:', projectId);
+    
+    // Check if project already has chains
+    const existingChains = await RenderChainsDAL.getByProjectId(projectId);
+    
+    if (existingChains.length > 0) {
+      // Use the most recent chain
+      const chain = existingChains[0];
+      logger.log('✅ [getOrCreateDefaultChain] Using existing chain:', chain.id);
+      return chain;
+    }
+    
+    // Create a new default chain
+    const chainName = projectName ? `${projectName} - Iterations` : 'Default Chain';
+    const newChain = await this.createChain(
+      projectId,
+      chainName,
+      'Automatic chain for render iterations'
+    );
+    logger.log('✅ [getOrCreateDefaultChain] Created new default chain:', newChain.id);
+    return newChain;
+  }
+
+  /**
    * Add a render to a chain
    */
   static async addRenderToChain(
@@ -164,6 +196,17 @@ export class RenderChainService {
       processing,
       pending,
     };
+  }
+
+  /**
+   * ✅ CENTRALIZED: Calculate next chain position for a new render
+   * This centralizes the chain position calculation logic that was duplicated
+   * in multiple places (render.actions.ts, render.ts, api/renders/route.ts)
+   */
+  static async getNextChainPosition(chainId: string): Promise<number> {
+    const renders = await RendersDAL.getByChainId(chainId);
+    // Position is 0-indexed, so next position is the current count
+    return renders.length;
   }
 }
 

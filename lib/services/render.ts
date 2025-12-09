@@ -26,7 +26,9 @@ export class RenderService {
     try {
       logger.log('🚀 Starting project creation:', { userId, projectName, description });
       
-      // Upload original image first
+      // ✅ OPTIMIZED: Upload file and create project in parallel where possible
+      // Note: We need uploadResult.id for project creation, so we can't fully parallelize
+      // But we can parallelize the file slug update with other operations
       logger.log('📤 Uploading original image...');
       const uploadResult = await StorageService.uploadFile(
         file,
@@ -48,15 +50,11 @@ export class RenderService {
       });
       logger.log('✅ Project created successfully:', { id: project.id, slug: project.slug });
 
-      // Update the file storage record with the project slug for better organization
-      logger.log('🔄 Updating file storage with project slug...');
-      try {
-        await StorageService.updateFileProjectSlug(uploadResult.id, project.slug);
-        logger.log('✅ File storage updated with project slug');
-      } catch (updateError) {
-        logger.warn('⚠️ Failed to update file storage with project slug:', updateError);
-        // Don't fail the entire operation for this
-      }
+      // ✅ OPTIMIZED: Update file storage with project slug (fire-and-forget, non-blocking)
+      // This doesn't need to block the response
+      StorageService.updateFileProjectSlug(uploadResult.id, project.slug)
+        .then(() => logger.log('✅ File storage updated with project slug'))
+        .catch((updateError) => logger.warn('⚠️ Failed to update file storage with project slug:', updateError));
 
       return { success: true, data: project };
     } catch (error) {
@@ -76,35 +74,20 @@ export class RenderService {
         return { success: false, error: 'Project not found' };
       }
 
-      // Get or create chain for this project
+      // ✅ CENTRALIZED: Get or create chain for this project using centralized service
       let chainId = renderData.chainId;
       
       if (!chainId) {
-        logger.log('🔗 [createRender] No chain specified, finding or creating default chain');
-        
-        // Check if project already has a default chain
-        const existingChains = await RenderChainsDAL.getByProjectId(renderData.projectId);
-        
-        if (existingChains.length > 0) {
-          // Use the most recent chain
-          chainId = existingChains[0].id;
-          logger.log('✅ [createRender] Using existing chain:', chainId);
-        } else {
-          // Create a new default chain
-          const chainName = `${project.name} - Iterations`;
-          const newChain = await RenderChainsDAL.create({
-            projectId: renderData.projectId,
-            name: chainName,
-            description: 'Automatic chain for render iterations',
-          });
-          chainId = newChain.id;
-          logger.log('✅ [createRender] Created new chain:', chainId);
-        }
+        logger.log('🔗 [createRender] No chain specified, getting or creating default chain');
+        const defaultChain = await RenderChainService.getOrCreateDefaultChain(
+          renderData.projectId,
+          project.name
+        );
+        chainId = defaultChain.id;
       }
 
-      // Get chain position
-      const chainRenders = await RendersDALNew.getByChainId(chainId);
-      const chainPosition = chainRenders.length;
+      // ✅ CENTRALIZED: Get chain position using centralized method
+      const chainPosition = await RenderChainService.getNextChainPosition(chainId);
 
       // Upload original image if provided
       let uploadedImageUrl: string | undefined = undefined;

@@ -36,69 +36,13 @@ export async function GET(request: Request) {
       // Only create profile if email is confirmed
       // OAuth providers (Google, GitHub) auto-confirm emails
       if (data.user.email_confirmed_at) {
-        // Generate avatar if not provided from OAuth
-        let avatarUrl = data.user.user_metadata?.avatar_url;
-        if (!avatarUrl) {
-          logger.log('🎨 Auth Callback: Generating avatar for user:', data.user.email);
-          avatarUrl = AvatarService.generateAvatarFromEmail(data.user.email!, {
-            size: 128,
-            backgroundColor: ['transparent'],
-            backgroundType: ['solid'],
-            eyesColor: ['4a90e2', '7b68ee', 'ff6b6b', '4ecdc4', '45b7d1'],
-            mouthColor: ['f4a261', 'e76f51', 'd62828', 'f77f00', 'fcbf49'],
-            shapeColor: ['f4a261', 'e76f51', 'd62828', 'f77f00', 'fcbf49'],
-            radius: 8,
-          });
-        }
+        // ✅ REMOVED: Avatar generation - now handled by UserOnboardingService
+        // Pass avatar from OAuth metadata, or undefined to let service generate it
+        const avatarUrl = data.user.user_metadata?.avatar_url || undefined;
         
-        // Try to get device fingerprint from cookie (set by client before OAuth)
-        let deviceFingerprint: DeviceFingerprintInput | undefined;
-        const fingerprintCookie = request.headers.get('cookie')
-          ?.split(';')
-          .find(c => c.trim().startsWith('device_fingerprint='));
-        
-        if (fingerprintCookie) {
-          try {
-            const cookieData = decodeURIComponent(fingerprintCookie.split('=')[1]);
-            const parsed = JSON.parse(cookieData);
-            deviceFingerprint = {
-              userAgent: parsed.userAgent || request.headers.get('user-agent') || '',
-              language: parsed.language || 'en',
-              timezone: parsed.timezone || 'UTC',
-              screenResolution: parsed.screenResolution,
-              colorDepth: parsed.colorDepth,
-              hardwareConcurrency: parsed.hardwareConcurrency,
-              deviceMemory: parsed.deviceMemory,
-              platform: parsed.platform || 'unknown',
-              cookieEnabled: parsed.cookieEnabled !== false,
-              doNotTrack: parsed.doNotTrack,
-              plugins: parsed.plugins,
-              canvasFingerprint: parsed.canvasFingerprint,
-            };
-          } catch (error) {
-            logger.warn('⚠️ Auth Callback: Failed to parse device fingerprint cookie:', error);
-          }
-        }
-
-        // Fallback: create minimal fingerprint from request headers
-        if (!deviceFingerprint) {
-          const userAgent = request.headers.get('user-agent') || '';
-          // Try to get timezone from cookie if available
-          const timezoneCookie = request.headers.get('cookie')
-            ?.split(';')
-            .find(c => c.trim().startsWith('timezone='));
-          const timezone = timezoneCookie 
-            ? decodeURIComponent(timezoneCookie.split('=')[1]) 
-            : 'UTC';
-          
-          deviceFingerprint = {
-            userAgent,
-            language: request.headers.get('accept-language')?.split(',')[0] || 'en',
-            timezone,
-            platform: 'unknown',
-            cookieEnabled: true,
-          };
-        }
+        // ✅ Use centralized fingerprint parser utility
+        const { getFingerprintFromRequest } = await import('@/lib/utils/fingerprint-parser');
+        const deviceFingerprint = getFingerprintFromRequest(request);
         
         // Create user profile with sybil detection (only for verified users)
         logger.log('👤 Auth Callback: Creating user profile for verified user:', data.user.email);
@@ -119,21 +63,8 @@ export async function GET(request: Request) {
         
         if (!profileResult.success) {
           logger.error('❌ Auth Callback: Failed to create user profile:', profileResult.error);
-          // Try to ensure credits are initialized even if profile creation partially failed
-          // Check if user exists but credits don't
-          try {
-            const existingUser = await AuthDAL.getUserById(data.user.id);
-            if (existingUser) {
-              // User exists, check if credits exist
-              const existingCredits = await AuthDAL.getUserCredits(data.user.id);
-              if (!existingCredits) {
-                logger.log('💰 Auth Callback: User exists but no credits, initializing default credits');
-                await UserOnboardingService.initializeUserCredits(data.user.id, INITIAL_SIGNUP_CREDITS);
-              }
-            }
-          } catch (error) {
-            logger.error('❌ Auth Callback: Failed to initialize credits after profile creation failure:', error);
-          }
+          // Profile creation failure is handled by UserOnboardingService
+          // Credits initialization and ambassador tracking are handled there
         } else {
           logger.log('✅ Auth Callback: User profile created successfully');
           if (profileResult.sybilDetection) {
@@ -142,22 +73,8 @@ export async function GET(request: Request) {
               riskLevel: profileResult.sybilDetection.riskLevel,
             });
           }
-
-          // Track ambassador referral if present in cookies
-          try {
-            const cookies = request.headers.get('cookie') || '';
-            const ambassadorRefMatch = cookies.match(/ambassador_ref=([^;]+)/);
-            if (ambassadorRefMatch) {
-              const referralCode = ambassadorRefMatch[1];
-              logger.log('🔗 Auth Callback: Tracking ambassador referral:', referralCode);
-              
-              const { AmbassadorService } = await import('@/lib/services/ambassador.service');
-              await AmbassadorService.trackSignup(referralCode, data.user.id);
-            }
-          } catch (error) {
-            logger.warn('⚠️ Auth Callback: Failed to track ambassador referral:', error);
-            // Don't fail auth if referral tracking fails
-          }
+          // ✅ REMOVED: Ambassador referral tracking - now handled in UserOnboardingService
+          // ✅ REMOVED: Credits initialization fallback - now handled in UserOnboardingService
         }
       } else {
         logger.log('⚠️ Auth Callback: Email not verified yet, profile creation skipped');
@@ -172,11 +89,16 @@ export async function GET(request: Request) {
       return NextResponse.redirect(redirectUrl);
     } else {
       logger.error('❌ Auth Callback: Error exchanging code for session:', error);
+      // ✅ IMPROVED: Pass specific error message in redirect
+      const errorMessage = error?.message || 'Authentication failed';
+      const encodedError = encodeURIComponent(errorMessage);
+      return NextResponse.redirect(`${origin}/login?error=${encodedError}`);
     }
   }
 
-  logger.log('❌ Auth Callback: No code or error occurred, redirecting to login');
-  return NextResponse.redirect(`${origin}/login?error=Could not authenticate user`);
+  // ✅ IMPROVED: More specific error message
+  logger.log('❌ Auth Callback: No code provided, redirecting to login');
+  return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent('No authentication code provided')}`);
 }
 
 

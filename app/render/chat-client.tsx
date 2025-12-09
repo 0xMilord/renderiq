@@ -39,12 +39,11 @@ interface ChatPageClientProps {
 
 export function ChatPageClient({ initialProjects, initialChains }: ChatPageClientProps) {
   const router = useRouter();
-  const { user, loading: authLoading, initialized, initialize } = useAuthStore();
+  const { user, loading: authLoading, initialized } = useAuthStore();
 
-  // Initialize auth store
-  useEffect(() => {
-    initialize();
-  }, [initialize]);
+  // ✅ REMOVED: Duplicate initialize() call
+  // AuthProvider already calls initialize(), no need to call it here
+  // Components should only read from store, not initialize it
 
   // Redirect to home if user logs out
   useEffect(() => {
@@ -52,6 +51,10 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
       router.push('/');
     }
   }, [user, authLoading, initialized, router]);
+
+  // ✅ OPTIMISTIC UPDATES: Stateful projects and chains that sync with SSR props
+  const [projects, setProjects] = useState<Project[]>(initialProjects);
+  const [chains, setChains] = useState<ChainWithRenders[]>(initialChains);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [isCreatingChain, setIsCreatingChain] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -62,6 +65,31 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
   const [selectedRender, setSelectedRender] = useState<Render | null>(null);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const rendersPerPage = 20;
+
+  // ✅ SYNC: Update local state when SSR props change (e.g., after router.refresh())
+  useEffect(() => {
+    setProjects(initialProjects);
+    setChains(initialChains);
+  }, [initialProjects, initialChains]);
+
+  // ✅ OPTIMISTIC: Add project immediately when created and auto-select it
+  const handleProjectCreated = (newProject: Project) => {
+    setProjects(prev => [newProject, ...prev]);
+    // ✅ AUTO-SELECT: Automatically select the newly created project
+    setSelectedProjectId(newProject.id);
+    setSelectedChainId(null); // Clear any chain selection
+    // Expand the project in sidebar
+    setExpandedProjects(prev => new Set(prev).add(newProject.id));
+    // ✅ AUTO-OPEN: Open sidebar on mobile when project is created (so user can see it)
+    if (window.innerWidth < 640) {
+      setIsSidebarOpen(true);
+    }
+  };
+
+  // ✅ OPTIMISTIC: Add chain immediately when created
+  const handleChainCreated = (newChain: ChainWithRenders) => {
+    setChains(prev => [newChain, ...prev]);
+  };
 
   const toggleProject = (projectId: string) => {
     const newExpanded = new Set(expandedProjects);
@@ -83,10 +111,22 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
   const handleCreateNewChain = async (projectId: string) => {
     setIsCreatingChain(projectId);
     try {
-      const project = initialProjects.find(p => p.id === projectId);
-      const projectChains = initialChains.filter(c => c.projectId === projectId);
+      const project = projects.find(p => p.id === projectId);
+      const projectChains = chains.filter(c => c.projectId === projectId);
       const chainName = project ? `${project.name} - Render ${projectChains.length + 1}` : 'New Render Chain';
       
+      // ✅ OPTIMISTIC: Create temporary chain immediately
+      const tempChain: ChainWithRenders = {
+        id: `temp-${Date.now()}`,
+        projectId,
+        name: chainName,
+        description: 'Render chain',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        renders: [],
+      };
+      handleChainCreated(tempChain);
+
       const result = await createRenderChain(
         projectId,
         chainName,
@@ -94,8 +134,20 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
       );
 
       if (result.success && result.data) {
+        // ✅ OPTIMISTIC: Replace temp chain with real chain
+        setChains(prev => prev.map(c => 
+          c.id === tempChain.id 
+            ? { ...result.data!, renders: [] } as ChainWithRenders
+            : c
+        ));
+        
+        // ✅ SYNC: Refresh SSR data to ensure consistency
+        router.refresh();
+        
         router.push(`/project/${project?.slug || 'project'}/chain/${result.data.id}`);
       } else {
+        // ✅ ROLLBACK: Remove temp chain on error
+        setChains(prev => prev.filter(c => c.id !== tempChain.id));
         toast.error(result.error || 'Failed to create chain');
       }
     } catch (error) {
@@ -108,7 +160,7 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
 
   const handleSelectChain = (chainId: string) => {
     setSelectedChainId(chainId);
-    const chain = initialChains.find(c => c.id === chainId);
+    const chain = chains.find(c => c.id === chainId);
     if (chain) {
       setSelectedProjectId(chain.projectId);
     }
@@ -121,9 +173,9 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
   const handleContinueEditing = () => {
     if (!selectedChainId) return;
     
-    const chain = initialChains.find(c => c.id === selectedChainId);
+    const chain = chains.find(c => c.id === selectedChainId);
     if (chain) {
-      const project = initialProjects.find(p => p.id === chain.projectId);
+      const project = projects.find(p => p.id === chain.projectId);
       router.push(`/project/${project?.slug || 'project'}/chain/${selectedChainId}`);
     }
   };
@@ -139,28 +191,28 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
   };
 
   const filteredProjects = useMemo(() => 
-    initialProjects.filter(project =>
+    projects.filter(project =>
       project.name.toLowerCase().includes(searchQuery.toLowerCase())
     ),
-    [initialProjects, searchQuery]
+    [projects, searchQuery]
   );
 
   // Group chains by project
   const chainsByProject = useMemo(() => 
-    initialChains.reduce((acc, chain) => {
+    chains.reduce((acc, chain) => {
       if (!acc[chain.projectId]) {
         acc[chain.projectId] = [];
       }
       acc[chain.projectId].push(chain);
       return acc;
     }, {} as Record<string, ChainWithRenders[]>),
-    [initialChains]
+    [chains]
   );
 
   // Get selected project
   const selectedProject = useMemo(() => 
-    selectedProjectId ? initialProjects.find(p => p.id === selectedProjectId) : null,
-    [selectedProjectId, initialProjects]
+    selectedProjectId ? projects.find(p => p.id === selectedProjectId) : null,
+    [selectedProjectId, projects]
   );
 
   // Get chains for selected project
@@ -171,8 +223,8 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
 
   // Get renders for selected chain
   const selectedChain = useMemo(() => 
-    initialChains.find(c => c.id === selectedChainId),
-    [initialChains, selectedChainId]
+    chains.find(c => c.id === selectedChainId),
+    [chains, selectedChainId]
   );
 
   const chainRenders = selectedChain?.renders || [];
@@ -238,7 +290,12 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                   className="pl-8 h-10 text-sm"
                 />
               </div>
-              <CreateProjectModal>
+              <CreateProjectModal onProjectCreated={(project) => {
+                // ✅ OPTIMISTIC: Add project immediately to sidebar
+                handleProjectCreated(project);
+                // ✅ SYNC: Refresh SSR data in background to ensure consistency
+                router.refresh();
+              }}>
                 <Button variant="outline" size="sm" className="h-10 text-sm px-3 shrink-0">
                   <Plus className="h-3.5 w-3.5 sm:mr-1" />
                   <span className="hidden sm:inline">Project</span>
@@ -246,7 +303,10 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
               </CreateProjectModal>
             </div>
           ) : (
-            <CreateProjectModal>
+            <CreateProjectModal onProjectCreated={(project) => {
+              handleProjectCreated(project);
+              router.refresh();
+            }}>
               <Button
                 variant="outline"
                 size="icon"
@@ -272,7 +332,10 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                   {searchQuery ? 'No projects found' : 'No projects yet'}
                 </p>
                 {!searchQuery && (
-                  <CreateProjectModal>
+                  <CreateProjectModal onProjectCreated={(project) => {
+              handleProjectCreated(project);
+              router.refresh();
+            }}>
                     <Button variant="outline" size="sm">
                       <Plus className="h-4 w-4 mr-2" />
                       Create First Project
@@ -431,10 +494,10 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
             {selectedChainId ? (
               <div className="min-w-0 flex-1 overflow-hidden">
                 <h1 className="text-xl font-bold truncate">
-                  {initialProjects.find(p => p.id === initialChains.find(c => c.id === selectedChainId)?.projectId)?.name}
+                  {projects.find(p => p.id === chains.find(c => c.id === selectedChainId)?.projectId)?.name}
                 </h1>
                 <p className="text-sm text-muted-foreground truncate">
-                  {initialChains.find(c => c.id === selectedChainId)?.name}
+                  {chains.find(c => c.id === selectedChainId)?.name}
                 </p>
               </div>
             ) : selectedProjectId ? (
@@ -459,7 +522,10 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
           {/* Action Buttons */}
           <div className="flex items-center gap-2 shrink-0 h-10">
             {!selectedProjectId ? (
-              <CreateProjectModal>
+              <CreateProjectModal onProjectCreated={(project) => {
+              handleProjectCreated(project);
+              router.refresh();
+            }}>
                 <Button variant="default" size="sm" className="h-9">
                   <Plus className="h-4 w-4 mr-2" />
                   <span className="hidden sm:inline">New Project</span>
@@ -672,7 +738,10 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                 <p className="text-muted-foreground mb-6">
                   Select a project from the sidebar or create a new one to get started.
                 </p>
-                <CreateProjectModal>
+                <CreateProjectModal onProjectCreated={(project) => {
+              handleProjectCreated(project);
+              router.refresh();
+            }}>
                   <Button size="lg">
                     <Plus className="h-4 w-4 mr-2" />
                     Create New Project

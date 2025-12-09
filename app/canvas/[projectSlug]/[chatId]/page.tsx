@@ -18,7 +18,7 @@ export default function CanvasEditorPage() {
   const router = useRouter();
   const projectSlug = params.projectSlug as string;
   const chatId = params.chatId as string;
-  const { user, loading: authLoading, initialized, initialize } = useAuthStore();
+  const { user, loading: authLoading, initialized } = useAuthStore();
   
   // ✅ OPTIMIZED: Combined state for parallel loading
   const [project, setProject] = useState<Project | null>(null);
@@ -63,10 +63,9 @@ export default function CanvasEditorPage() {
     fetchData();
   }, [fetchData]);
 
-  // Initialize auth store
-  useEffect(() => {
-    initialize();
-  }, [initialize]);
+  // ✅ REMOVED: Duplicate initialize() call
+  // AuthProvider already calls initialize(), no need to call it here
+  // Components should only read from store, not initialize it
 
   // Redirect to home if user logs out
   useEffect(() => {

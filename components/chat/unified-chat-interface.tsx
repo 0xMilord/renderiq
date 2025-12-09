@@ -43,7 +43,8 @@ import {
   Pencil,
   Wand2,
   FileText,
-  BookOpen
+  BookOpen,
+  CheckCircle
 } from 'lucide-react';
 import { 
   FaSquare,
@@ -136,6 +137,8 @@ interface UnifiedChatInterfaceProps {
   projectName?: string;
   chainName?: string;
   onBackToProjects?: () => void;
+  projects?: Array<{ id: string; name: string; slug: string }>;
+  chains?: Array<{ id: string; name: string; projectId: string }>;
 }
 
 // Fixed aspect ratio for better quality - using 16:9 as default
@@ -223,7 +226,9 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   onRenderStart,
   onRefreshChain,
   projectName,
-  onBackToProjects
+  onBackToProjects,
+  projects = [],
+  chains = []
 }: UnifiedChatInterfaceProps) {
   const router = useRouter();
   
@@ -352,18 +357,37 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   }, [currentRender?.id]);
   
   // Find previous render for before/after comparison
+  // ✅ FIX: Also check currentRender's referenceRenderId as fallback
   const previousRender = useMemo(() => {
-    if (!currentRender || !chain?.renders || currentRender.type === 'video') return null;
-    const currentPosition = currentRender.chainPosition ?? 0;
-    if (currentPosition === 0) return null; // No previous render if this is the first
+    if (!currentRender || currentRender.type === 'video') return null;
     
-    const prev = chain.renders.find(
-      r => r.chainPosition === currentPosition - 1 && 
-      r.status === 'completed' && 
-      r.outputUrl &&
-      r.type === 'image'
-    );
-    return prev || null;
+    // First, try to find previous render from chain.renders
+    if (chain?.renders) {
+      const currentPosition = currentRender.chainPosition ?? 0;
+      if (currentPosition > 0) {
+        const prev = chain.renders.find(
+          r => r.chainPosition === currentPosition - 1 && 
+          r.status === 'completed' && 
+          r.outputUrl &&
+          r.type === 'image'
+        );
+        if (prev) return prev;
+      }
+    }
+    
+    // ✅ FALLBACK: If not found in chain.renders, try to find by referenceRenderId
+    // This handles the case when a new render is created but chain.renders hasn't updated yet
+    if (currentRender.referenceRenderId && chain?.renders) {
+      const referencedRender = chain.renders.find(
+        r => r.id === currentRender.referenceRenderId &&
+        r.status === 'completed' &&
+        r.outputUrl &&
+        r.type === 'image'
+      );
+      if (referencedRender) return referencedRender;
+    }
+    
+    return null;
   }, [currentRender, chain]);
   
   // Google Generative AI hooks
@@ -938,6 +962,9 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     const currentPrompt = inputValue;
     setInputValue('');
     
+    // ✅ PRESERVE: Store uploaded image URL before clearing file (needed for before/after tab)
+    const preservedUploadedImageUrl = uploadedFile && previewUrl ? previewUrl : null;
+    
     // Clear uploaded file after adding to message
     if (uploadedFile) {
       setUploadedFile(null);
@@ -1116,6 +1143,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
           success: apiResult.success,
           hasData: !!apiResult.data,
           hasOutputUrl: !!apiResult.data?.outputUrl,
+          hasUploadedImageUrl: !!apiResult.data?.uploadedImageUrl,
           error: apiResult.error,
           status: response.status
         });
@@ -1126,7 +1154,10 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
             data: {
               outputUrl: apiResult.data.outputUrl || '',
               processingTime: apiResult.data.processingTime || 0,
-              provider: apiResult.data.provider || 'google-generative-ai'
+              provider: apiResult.data.provider || 'google-generative-ai',
+              uploadedImageUrl: apiResult.data.uploadedImageUrl || null,
+              uploadedImageKey: apiResult.data.uploadedImageKey || null,
+              uploadedImageId: apiResult.data.uploadedImageId || null
             }
           };
         } else {
@@ -1164,6 +1195,9 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
          // Create a new render version for this chat message
          // Use the actual render ID from the API response if available
          const renderId = apiResult.data?.id || apiResult.data?.renderId || `temp-${Date.now()}`;
+         // ✅ FIX: Preserve uploadedImageUrl from API response or use preserved URL
+         // API response has the persisted URL, but if not available, use the preserved previewUrl
+         const uploadedImageUrl = apiResult.data?.uploadedImageUrl || preservedUploadedImageUrl || null;
          const newRender: Render = {
            id: renderId, // Use actual render ID from API
            projectId,
@@ -1175,14 +1209,14 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
           },
           outputUrl: result.imageUrl || result.videoUrl || result.data?.outputUrl || '',
           outputKey: '',
-          uploadedImageUrl: null,
-          uploadedImageKey: null,
-          uploadedImageId: null,
+          uploadedImageUrl: uploadedImageUrl,
+          uploadedImageKey: apiResult.data?.uploadedImageKey || null,
+          uploadedImageId: apiResult.data?.uploadedImageId || null,
           status: 'completed',
           errorMessage: null,
           processingTime: result.processingTime,
           chainId: chainId || null,
-          chainPosition: Math.floor(messages.length / 2), // Position in chain (every 2 messages = 1 render)
+          chainPosition: apiResult.data?.chainPosition ?? Math.floor(messages.length / 2), // Use chainPosition from API if available
           referenceRenderId: currentRender?.id || null, // Reference to previous version
           creditsCost: getCreditsCost(),
           createdAt: new Date(),
@@ -1639,8 +1673,70 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                 <ArrowLeft className="h-3 w-3 mr-1" />
                 Back
               </Button>
-              <div className="text-right flex-1 min-w-0">
-                <h1 className="text-sm font-semibold truncate">{projectName}</h1>
+              <div className="flex-1 min-w-0 flex items-center justify-end gap-2">
+                {projects.length > 0 && chains.length > 0 ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2 text-sm font-semibold hover:bg-accent"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="text-right min-w-0">
+                            <div className="truncate">{projectName}</div>
+                            {chainName && (
+                              <div className="text-xs text-muted-foreground truncate">{chainName}</div>
+                            )}
+                          </div>
+                          <ChevronDown className="h-3 w-3 shrink-0" />
+                        </div>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-64 max-h-[400px] overflow-y-auto">
+                      {projects.map((project) => {
+                        const projectChains = chains.filter(c => c.projectId === project.id);
+                        return (
+                          <div key={project.id}>
+                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase">
+                              {project.name}
+                            </div>
+                            {projectChains.map((chainItem) => {
+                              const isSelected = chainItem.id === chainId && project.id === projectId;
+                              return (
+                                <DropdownMenuItem
+                                  key={chainItem.id}
+                                  onClick={() => {
+                                    router.push(`/project/${project.slug}/chain/${chainItem.id}`);
+                                  }}
+                                  className={cn(
+                                    "px-2 py-1.5 cursor-pointer",
+                                    isSelected && "bg-accent"
+                                  )}
+                                >
+                                  <div className="flex items-center gap-2 w-full">
+                                    <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                                    <span className="text-sm truncate">{chainItem.name}</span>
+                                    {isSelected && (
+                                      <CheckCircle className="h-3.5 w-3.5 ml-auto shrink-0 text-primary" />
+                                    )}
+                                  </div>
+                                </DropdownMenuItem>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <div className="text-right flex-1 min-w-0">
+                    <h1 className="text-sm font-semibold truncate">{projectName}</h1>
+                    {chainName && (
+                      <p className="text-xs text-muted-foreground truncate">{chainName}</p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1771,14 +1867,14 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-2 sm:space-y-4 min-h-0">
+        <div className="flex-1 overflow-y-auto p-1 sm:p-1 space-y-1 sm:space-y-1 min-h-0">
           {messages.length === 0 ? (
-            <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
+            <div className="max-w-4xl mx-auto p-4 sm:p-2 space-y-2">
               {/* Header */}
               <div className="text-center space-y-2">
-                <div className="flex items-center justify-center gap-2 mb-4">
+                <div className="flex items-center justify-center gap-1 mb-6">
                   <Sparkles className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
-                  <h2 className="text-xl sm:text-2xl font-bold">Welcome to RenderIQ Chat</h2>
+                  <h2 className="text-xl sm:text-2xl font-bold">Welcome to Renderiq Chat</h2>
                 </div>
                 <p className="text-sm sm:text-base text-muted-foreground">
                   Learn about all the powerful settings and controls available to create stunning renders
@@ -1786,16 +1882,16 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
               </div>
 
               {/* Tutorial Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-2">
                 {/* Model Selector */}
                 <Card className="p-4">
                   <CardContent className="p-0 space-y-2">
                     <div className="flex items-center gap-2">
                       <Zap className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold text-sm sm:text-base">Model Selector</h3>
+                      <h3 className="font-semibold text-xs sm:text-sm">Model Selector</h3>
                     </div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      Choose from various AI models optimized for images or videos. Each model has different capabilities, quality levels, and credit costs. The selector automatically shows only compatible options based on your mode.
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      Select AI model for images/videos. Different capabilities, quality, and costs. Auto-filters by mode.
                     </p>
                   </CardContent>
                 </Card>
@@ -1805,10 +1901,10 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                   <CardContent className="p-0 space-y-2">
                     <div className="flex items-center gap-2">
                       <ImageIcon className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold text-sm sm:text-base">Mode Toggle</h3>
+                      <h3 className="font-semibold text-xs sm:text-sm">Mode Toggle</h3>
                     </div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      Switch between <strong>Image Mode</strong> for static renders and <strong>Video Mode</strong> for animated sequences. Video mode allows you to animate images or create videos from scratch.
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      Toggle between Image (static) and Video (animated) modes.
                     </p>
                   </CardContent>
                 </Card>
@@ -1818,10 +1914,10 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                   <CardContent className="p-0 space-y-2">
                     <div className="flex items-center gap-2">
                       <Globe className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold text-sm sm:text-base">Environment</h3>
+                      <h3 className="font-semibold text-xs sm:text-sm">Environment</h3>
                     </div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      Set weather and lighting conditions: Sunny, Overcast, Rainy, Sunset, Sunrise, Night, Foggy, or Cloudy. This affects the overall atmosphere and mood of your render.
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      Set weather/lighting: Sunny, Overcast, Rainy, Sunset, Sunrise, Night, Foggy, Cloudy.
                     </p>
                   </CardContent>
                 </Card>
@@ -1831,10 +1927,10 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                   <CardContent className="p-0 space-y-2">
                     <div className="flex items-center gap-2">
                       <Wand2 className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold text-sm sm:text-base">Effect</h3>
+                      <h3 className="font-semibold text-xs sm:text-sm">Effect</h3>
                     </div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      Choose visualization style: Wireframe, Photoreal, Illustration, Sketch, Watercolor, Line Art, Concept Art, Architectural Drawing, or Technical Drawing. Each effect transforms your render's artistic style.
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      Visual style: Wireframe, Photoreal, Illustration, Sketch, Watercolor, Line Art, Concept Art, Architectural, Technical.
                     </p>
                   </CardContent>
                 </Card>
@@ -1844,10 +1940,10 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                   <CardContent className="p-0 space-y-2">
                     <div className="flex items-center gap-2">
                       <Sparkles className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold text-sm sm:text-base">Temperature</h3>
+                      <h3 className="font-semibold text-xs sm:text-sm">Temperature</h3>
                     </div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      Control creativity level from 0 to 1: <strong>0</strong> = strict/deterministic (consistent results), <strong>1</strong> = creative/random (more variation). Default is 0.5 for balanced results.
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      Creativity: 0 = consistent, 1 = varied. Default 0.5.
                     </p>
                   </CardContent>
                 </Card>
@@ -1857,26 +1953,10 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                   <CardContent className="p-0 space-y-2">
                     <div className="flex items-center gap-2">
                       <Zap className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold text-sm sm:text-base">Quality</h3>
+                      <h3 className="font-semibold text-xs sm:text-sm">Quality</h3>
                     </div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      <strong>Standard (1K)</strong>: 5 credits - Fast generation<br/>
-                      <strong>High (2K)</strong>: 10 credits - Balanced quality<br/>
-                      <strong>Ultra (4K)</strong>: 15 credits - Best quality<br/>
-                      Note: Available options depend on your selected model.
-                    </p>
-                  </CardContent>
-                </Card>
-
-                {/* Video Duration */}
-                <Card className="p-4">
-                  <CardContent className="p-0 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Video className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold text-sm sm:text-base">Video Duration</h3>
-                    </div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      Available in Video Mode: Choose <strong>4s</strong>, <strong>6s</strong>, or <strong>8s</strong> duration. Cost is 30 credits per second (4s: 120, 6s: 180, 8s: 240 credits).
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      Standard (1K): 5 credits | High (2K): 10 credits | Ultra (4K): 15 credits. Options vary by model.
                     </p>
                   </CardContent>
                 </Card>
@@ -1886,10 +1966,10 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                   <CardContent className="p-0 space-y-2">
                     <div className="flex items-center gap-2">
                       <ImageIcon className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold text-sm sm:text-base">Style Reference</h3>
+                      <h3 className="font-semibold text-xs sm:text-sm">Style Reference</h3>
                     </div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      Upload an image to transfer its artistic style to your generated render. Click the style reference area to upload, or click the X to remove it.
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      Upload image to transfer its style to your render.
                     </p>
                   </CardContent>
                 </Card>
@@ -1899,11 +1979,10 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                   <CardContent className="p-0 space-y-2">
                     <div className="flex items-center gap-2">
                       <Lock className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold text-sm sm:text-base">Privacy Toggle</h3>
+                      <h3 className="font-semibold text-xs sm:text-sm">Privacy Toggle</h3>
                     </div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      <strong>Public</strong>: Your renders are visible to others (Free users default)<br/>
-                      <strong>Private</strong>: Your renders are only visible to you (Pro feature). Upgrade to Pro to make renders private.
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      Public: Visible to others (Free default). Private: Only you (Pro feature).
                     </p>
                   </CardContent>
                 </Card>
@@ -1913,11 +1992,10 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                   <CardContent className="p-0 space-y-2">
                     <div className="flex items-center gap-2">
                       <BookOpen className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold text-sm sm:text-base">Gallery & Builder</h3>
+                      <h3 className="font-semibold text-xs sm:text-sm">Gallery & Builder</h3>
                     </div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      <strong>Gallery</strong>: Browse a collection of example prompts to inspire your creations.<br/>
-                      <strong>Builder</strong>: Use the prompt builder tool to craft detailed prompts with structured inputs.
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      Prompts: Browse examples. Builder: Create structured prompts.
                     </p>
                   </CardContent>
                 </Card>
@@ -1927,11 +2005,10 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                   <CardContent className="p-0 space-y-2">
                     <div className="flex items-center gap-2">
                       <Upload className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold text-sm sm:text-base">Upload & Mentions</h3>
+                      <h3 className="font-semibold text-xs sm:text-sm">Upload & Mentions</h3>
                     </div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      <strong>Upload</strong>: Attach images to use as reference or to animate in video mode.<br/>
-                      <strong>@ Mentions</strong>: Type @ in your prompt to reference previous renders in the chain for context and consistency.
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      Upload: Attach reference images or animate in video mode. @ Mentions: Type @ to reference previous renders.
                     </p>
                   </CardContent>
                 </Card>
@@ -1943,8 +2020,8 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                       <MessageSquare className="h-5 w-5 text-primary" />
                       <h3 className="font-semibold text-base sm:text-lg">Ready to Start?</h3>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      Type your prompt in the text area below, adjust settings as needed, and click the send button to generate your first render. You can refine and iterate on your renders in the conversation.
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Type your prompt, adjust settings, and click Generate. Refine renders in the conversation.
                     </p>
                   </CardContent>
                 </Card>
@@ -2324,7 +2401,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                       disabled={isGenerating}
                     >
                       <BookOpen className="h-3 w-3 mr-1" />
-                      Gallery
+                      Prompts
                     </Button>
                     <Button
                       variant="outline"
@@ -2416,17 +2493,26 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                 <Button
                   onClick={handleSendMessage}
                   disabled={!inputValue.trim() || isGenerating || (credits && credits.balance < getCreditsCost())}
-                  className="h-8 sm:h-9 w-8 sm:w-9 shrink-0"
+                  className="h-8 sm:h-9 shrink-0 px-2 sm:px-3"
                   size="sm"
                 >
                   {credits && credits.balance < getCreditsCost() ? (
-                    <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <>
+                      <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5" />
+                      <span className="text-xs sm:text-sm">Generate</span>
+                    </>
                   ) : (
                     <>
                        {isGenerating ? (
-                         <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                         <>
+                           <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin mr-1.5" />
+                           <span className="text-xs sm:text-sm">Generating...</span>
+                         </>
                        ) : (
-                         <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                         <>
+                           <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5" />
+                           <span className="text-xs sm:text-sm">Generate</span>
+                         </>
                        )}
                     </>
                   )}
@@ -2435,11 +2521,12 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                   variant="outline"
                   size="sm"
                   onClick={handleUploadModalOpen}
-                  className="h-8 sm:h-9 w-8 sm:w-9 shrink-0"
+                  className="h-8 sm:h-9 shrink-0 px-2 sm:px-3"
                   disabled={isGenerating}
                   title="Upload image"
                 >
-                  <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5" />
+                  <span className="text-xs sm:text-sm">Upload</span>
                 </Button>
               </div>
               </div>
@@ -3274,8 +3361,10 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                       <span className="hidden sm:inline">Share</span>
                     </Button>
                     {/* Before/After Toggle - Show when there's uploaded image OR when no upload but previous version exists */}
+                    {/* ✅ FIX: Check both renderWithLatestData AND currentRender for uploadedImageUrl */}
                     {currentRender && currentRender.type === 'image' && renderWithLatestData && (
-                      (renderWithLatestData.uploadedImageUrl || (!renderWithLatestData.uploadedImageUrl && previousRender && previousRender.outputUrl)) && (
+                      ((renderWithLatestData.uploadedImageUrl || currentRender.uploadedImageUrl) || 
+                       (!renderWithLatestData.uploadedImageUrl && !currentRender.uploadedImageUrl && previousRender && previousRender.outputUrl)) && (
                         <div className="flex items-center gap-1 h-7 px-2 sm:px-3 border border-input bg-background rounded-md flex-1">
                           <Button
                             variant={beforeAfterView === 'before' ? 'default' : 'ghost'}
@@ -3357,7 +3446,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                               });
                             }}
                           />
-                        ) : renderWithLatestData && (renderWithLatestData.uploadedImageUrl || (previousRender && previousRender.outputUrl)) ? (
+                        ) : renderWithLatestData && ((renderWithLatestData.uploadedImageUrl || currentRender.uploadedImageUrl) || (previousRender && previousRender.outputUrl)) ? (
                           // Before/After Comparison - Show uploaded vs rendered OR previous version vs current
                           <div className="w-full h-full">
                               {beforeAfterView === 'before' ? (

@@ -25,12 +25,11 @@ interface CanvasPageClientProps {
 
 export function CanvasPageClient({ initialProjects, initialChains }: CanvasPageClientProps) {
   const router = useRouter();
-  const { user, loading: authLoading, initialized, initialize } = useAuthStore();
+  const { user, loading: authLoading, initialized } = useAuthStore();
 
-  // Initialize auth store
-  useEffect(() => {
-    initialize();
-  }, [initialize]);
+  // ✅ REMOVED: Duplicate initialize() call
+  // AuthProvider already calls initialize(), no need to call it here
+  // Components should only read from store, not initialize it
 
   // Redirect to home if user logs out
   useEffect(() => {

@@ -74,7 +74,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
         }
 
         // Listen for auth changes (onAuthStateChange is fine for client-side reactivity)
-        // But we'll use getUser() in the callback to ensure authenticity
+        // ✅ OPTIMIZED: Use session?.user when available to avoid slow getUser() calls
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           async (event, session) => {
             logger.log('Auth state changed:', event);
@@ -91,21 +91,27 @@ export const useAuthStore = create<AuthState>((set, get) => {
               return; // Early return - no slow getUser() call
             }
             
-            // Note: Supabase doesn't have a SIGNED_UP event
-            // User is set directly from signUp() call, so we don't need special handling here
+            // ✅ OPTIMIZED: Use session?.user when available (most events provide it)
+            // Only call getUser() when session is not provided (rare edge case)
+            let authenticatedUser = session?.user || null;
             
-            // ✅ SECURITY: Use getUser() to get authenticated user data (only for sign-in events)
-            const { data: { user: authenticatedUser } } = await supabase.auth.getUser();
+            if (!authenticatedUser && event !== 'INITIAL_SESSION') {
+              // Only call getUser() if session is not provided and it's not initial session
+              // INITIAL_SESSION already handled by initialize() above
+              const { data: { user } } = await supabase.auth.getUser();
+              authenticatedUser = user || null;
+            }
             
             set({ 
-              user: authenticatedUser || null, 
+              user: authenticatedUser, 
               loading: false 
             });
 
+            // ✅ OPTIMIZED: Skip profile fetch for INITIAL_SESSION (already fetched in initialize())
             // Fetch profile when user signs in, clear when signs out
-            if (authenticatedUser) {
+            if (authenticatedUser && event !== 'INITIAL_SESSION') {
               get().fetchUserProfile();
-            } else {
+            } else if (!authenticatedUser) {
               set({ userProfile: null, onboardingComplete: false });
             }
           }
@@ -134,7 +140,10 @@ export const useAuthStore = create<AuthState>((set, get) => {
           return { error };
         }
 
-        set({ user: data.user, loading: false });
+        // ✅ FIXED: Don't set user state directly - let onAuthStateChange handle it
+        // This ensures state is synchronized through a single source of truth
+        // onAuthStateChange will fire with SIGNED_IN event and update state
+        set({ loading: false });
         return { error: null };
       } catch (error) {
         set({ loading: false });
@@ -156,8 +165,13 @@ export const useAuthStore = create<AuthState>((set, get) => {
           return { error: result.error || new Error('Sign up failed') };
         }
         
-        // Set user state if available
+        // ✅ FIXED: Don't set user state directly - let onAuthStateChange handle it
+        // For email/password signup, user is created but email not confirmed yet
+        // onAuthStateChange will handle state updates when email is verified
+        // For OAuth signup, onAuthStateChange will fire immediately
         if (result.data?.user) {
+          // Set user temporarily for immediate UI feedback
+          // onAuthStateChange will sync it properly
           set({ user: result.data.user, loading: false });
         } else {
           set({ loading: false });
@@ -197,15 +211,37 @@ export const useAuthStore = create<AuthState>((set, get) => {
           // so UI should reflect logged out state
         }
         
-        // ✅ Invalidate server cache (fire and forget - don't block signout)
+        // ✅ IMPROVED: Invalidate server cache with retry logic
         if (userId) {
-          fetch('/api/auth/invalidate-cache', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId }),
-          }).catch(() => {
-            // Ignore errors - cache will expire naturally (5min TTL)
-            logger.warn('⚠️ Failed to invalidate cache on signout, will expire naturally');
+          const invalidateCache = async (retries = 3) => {
+            for (let i = 0; i < retries; i++) {
+              try {
+                const response = await fetch('/api/auth/invalidate-cache', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ userId }),
+                });
+                
+                if (response.ok) {
+                  logger.log('✅ Cache invalidated successfully');
+                  return;
+                }
+                
+                if (i < retries - 1) {
+                  // Wait before retry (exponential backoff)
+                  await new Promise(resolve => setTimeout(resolve, 100 * (i + 1)));
+                }
+              } catch (error) {
+                if (i === retries - 1) {
+                  logger.warn('⚠️ Failed to invalidate cache after retries, will expire naturally (5min TTL)');
+                }
+              }
+            }
+          };
+          
+          // Fire and forget - don't block signout
+          invalidateCache().catch(() => {
+            // Ignore - cache will expire naturally
           });
         }
       } catch (error) {

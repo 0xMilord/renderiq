@@ -205,7 +205,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [chains, setChains] = useState<ChainWithRenders[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user, userProfile, loading: authLoading, initialized, initialize, signOut } = useAuthStore();
+  const { user, userProfile, loading: authLoading, initialized, signOut } = useAuthStore();
 
   // Get current page title (for sidebar), description, and icon (for main content)
   const currentPageTitle = getPageTitle(pathname);
@@ -232,10 +232,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     return { userName: name, userEmail: email, userAvatar: avatar, userInitials: initials };
   }, [userProfile, user]);
 
-  // Initialize auth store
-  useEffect(() => {
-    initialize();
-  }, [initialize]);
+  // ✅ REMOVED: Duplicate initialize() call
+  // AuthProvider already calls initialize(), no need to call it here
+  // Components should only read from store, not initialize it
 
   // Redirect to home if user logs out
   useEffect(() => {

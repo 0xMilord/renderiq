@@ -26,53 +26,25 @@ export async function createUserProfileAction(
 ) {
   logger.log('👤 UserOnboardingAction: Creating user profile for:', userProfile.email);
   
-  // Try to get device fingerprint from cookie if not provided
+  // ✅ Use centralized fingerprint parser utility
   let fingerprint = deviceFingerprint;
   if (!fingerprint) {
     try {
       const headersList = await headers();
       const cookieHeader = headersList.get('cookie');
-      const fingerprintCookie = cookieHeader
-        ?.split(';')
-        .find(c => c.trim().startsWith('device_fingerprint='));
       
-      if (fingerprintCookie) {
-        const cookieData = decodeURIComponent(fingerprintCookie.split('=')[1]);
-        const parsed = JSON.parse(cookieData);
-        fingerprint = {
-          userAgent: parsed.userAgent || headersList.get('user-agent') || '',
-          language: parsed.language || 'en',
-          timezone: parsed.timezone || 'UTC',
-          screenResolution: parsed.screenResolution,
-          colorDepth: parsed.colorDepth,
-          hardwareConcurrency: parsed.hardwareConcurrency,
-          deviceMemory: parsed.deviceMemory,
-          platform: parsed.platform || 'unknown',
-          cookieEnabled: parsed.cookieEnabled !== false,
-          doNotTrack: parsed.doNotTrack,
-          plugins: parsed.plugins,
-          canvasFingerprint: parsed.canvasFingerprint,
-        };
-      }
+      // Convert headers() result to Headers object for utility function
+      const headersObj = new Headers();
+      headersList.forEach((value, key) => {
+        headersObj.set(key, value);
+      });
+      
+      // Create a minimal Request object for the utility
+      const mockRequest = new Request('http://localhost', { headers: headersObj });
+      const { getFingerprintFromRequest } = await import('@/lib/utils/fingerprint-parser');
+      fingerprint = getFingerprintFromRequest(mockRequest);
     } catch (error) {
-      logger.warn('⚠️ UserOnboardingAction: Failed to parse fingerprint cookie:', error);
-    }
-  }
-
-  // Create minimal fingerprint from headers if still not available
-  if (!fingerprint) {
-    try {
-      const headersList = await headers();
-      const userAgent = headersList.get('user-agent') || '';
-      fingerprint = {
-        userAgent,
-        language: headersList.get('accept-language')?.split(',')[0] || 'en',
-        timezone: 'UTC', // Can't detect from server
-        platform: 'unknown',
-        cookieEnabled: true,
-      };
-    } catch (error) {
-      logger.warn('⚠️ UserOnboardingAction: Failed to create minimal fingerprint:', error);
+      logger.warn('⚠️ UserOnboardingAction: Failed to get fingerprint:', error);
     }
   }
 
