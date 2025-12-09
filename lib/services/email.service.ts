@@ -11,9 +11,21 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 // noreply@ addresses are flagged as suspicious by spam filters
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Renderiq <team@renderiq.io>';
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'support@renderiq.io';
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_VERCEL_URL 
-  ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` 
-  : 'http://localhost:3000';
+
+// Get app URL - use production URL in production, localhost only in development
+function getAppUrl(): string {
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  if (isProduction) {
+    // Production: use configured site URL or fallback to production domain
+    return process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://renderiq.io';
+  }
+  
+  // Development: use localhost
+  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+}
+
+const APP_URL = getAppUrl();
 
 // Types
 export interface EmailOptions {

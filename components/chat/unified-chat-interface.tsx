@@ -1773,58 +1773,183 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-2 sm:space-y-4 min-h-0">
           {messages.length === 0 ? (
-            <div className="text-center text-muted-foreground mt-8">
-              <MessageSquare className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-4 text-muted-foreground/50" />
-              <p className="text-xs sm:text-sm mb-2">No chats yet</p>
-              <p className="text-[10px] sm:text-xs text-muted-foreground/70 mb-4">Start a conversation to generate renders</p>
-              <Button
-                onClick={async () => {
-                  if (isCreatingChain) return;
-                  setIsCreatingChain(true);
-                  try {
-                    const { createRenderChain } = await import('@/lib/actions/projects.actions');
-                    const chainName = projectName ? `${projectName} - Render 1` : 'New Render Chain';
-                    
-                    const result = await createRenderChain(
-                      projectId,
-                      chainName,
-                      'Render chain'
-                    );
-
-                    if (result.success && result.data) {
-                      // Get project slug from the current URL or use a fallback
-                      const currentPath = window.location.pathname;
-                      const projectSlugMatch = currentPath.match(/\/project\/([^/]+)/);
-                      const projectSlug = projectSlugMatch ? projectSlugMatch[1] : 'project';
-                      
-                      router.push(`/project/${projectSlug}/chain/${result.data.id}`);
-                      // ✅ REMOVED: router.refresh() causes page reload - navigation is enough
-                    } else {
-                      toast.error(result.error || 'Failed to create chat');
-                    }
-                  } catch (error) {
-                    console.error('Failed to create chain:', error);
-                    toast.error('Failed to create chat');
-                  } finally {
-                    setIsCreatingChain(false);
-                  }
-                }}
-                disabled={isCreatingChain}
-                className="mt-2"
-              >
-                {isCreatingChain ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Make a new chat
-                  </>
-                )}
-                </Button>
+            <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
+              {/* Header */}
+              <div className="text-center space-y-2">
+                <div className="flex items-center justify-center gap-2 mb-4">
+                  <Sparkles className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+                  <h2 className="text-xl sm:text-2xl font-bold">Welcome to RenderIQ Chat</h2>
+                </div>
+                <p className="text-sm sm:text-base text-muted-foreground">
+                  Learn about all the powerful settings and controls available to create stunning renders
+                </p>
               </div>
+
+              {/* Tutorial Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                {/* Model Selector */}
+                <Card className="p-4">
+                  <CardContent className="p-0 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-primary" />
+                      <h3 className="font-semibold text-sm sm:text-base">Model Selector</h3>
+                    </div>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Choose from various AI models optimized for images or videos. Each model has different capabilities, quality levels, and credit costs. The selector automatically shows only compatible options based on your mode.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Mode Toggle */}
+                <Card className="p-4">
+                  <CardContent className="p-0 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <ImageIcon className="h-4 w-4 text-primary" />
+                      <h3 className="font-semibold text-sm sm:text-base">Mode Toggle</h3>
+                    </div>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Switch between <strong>Image Mode</strong> for static renders and <strong>Video Mode</strong> for animated sequences. Video mode allows you to animate images or create videos from scratch.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Environment */}
+                <Card className="p-4">
+                  <CardContent className="p-0 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-primary" />
+                      <h3 className="font-semibold text-sm sm:text-base">Environment</h3>
+                    </div>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Set weather and lighting conditions: Sunny, Overcast, Rainy, Sunset, Sunrise, Night, Foggy, or Cloudy. This affects the overall atmosphere and mood of your render.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Effect */}
+                <Card className="p-4">
+                  <CardContent className="p-0 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Wand2 className="h-4 w-4 text-primary" />
+                      <h3 className="font-semibold text-sm sm:text-base">Effect</h3>
+                    </div>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Choose visualization style: Wireframe, Photoreal, Illustration, Sketch, Watercolor, Line Art, Concept Art, Architectural Drawing, or Technical Drawing. Each effect transforms your render's artistic style.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Temperature */}
+                <Card className="p-4">
+                  <CardContent className="p-0 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      <h3 className="font-semibold text-sm sm:text-base">Temperature</h3>
+                    </div>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Control creativity level from 0 to 1: <strong>0</strong> = strict/deterministic (consistent results), <strong>1</strong> = creative/random (more variation). Default is 0.5 for balanced results.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Quality */}
+                <Card className="p-4">
+                  <CardContent className="p-0 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-primary" />
+                      <h3 className="font-semibold text-sm sm:text-base">Quality</h3>
+                    </div>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      <strong>Standard (1K)</strong>: 5 credits - Fast generation<br/>
+                      <strong>High (2K)</strong>: 10 credits - Balanced quality<br/>
+                      <strong>Ultra (4K)</strong>: 15 credits - Best quality<br/>
+                      Note: Available options depend on your selected model.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Video Duration */}
+                <Card className="p-4">
+                  <CardContent className="p-0 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Video className="h-4 w-4 text-primary" />
+                      <h3 className="font-semibold text-sm sm:text-base">Video Duration</h3>
+                    </div>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Available in Video Mode: Choose <strong>4s</strong>, <strong>6s</strong>, or <strong>8s</strong> duration. Cost is 30 credits per second (4s: 120, 6s: 180, 8s: 240 credits).
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Style Transfer */}
+                <Card className="p-4">
+                  <CardContent className="p-0 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <ImageIcon className="h-4 w-4 text-primary" />
+                      <h3 className="font-semibold text-sm sm:text-base">Style Reference</h3>
+                    </div>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Upload an image to transfer its artistic style to your generated render. Click the style reference area to upload, or click the X to remove it.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Privacy Toggle */}
+                <Card className="p-4">
+                  <CardContent className="p-0 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Lock className="h-4 w-4 text-primary" />
+                      <h3 className="font-semibold text-sm sm:text-base">Privacy Toggle</h3>
+                    </div>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      <strong>Public</strong>: Your renders are visible to others (Free users default)<br/>
+                      <strong>Private</strong>: Your renders are only visible to you (Pro feature). Upgrade to Pro to make renders private.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Gallery & Builder */}
+                <Card className="p-4">
+                  <CardContent className="p-0 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="h-4 w-4 text-primary" />
+                      <h3 className="font-semibold text-sm sm:text-base">Gallery & Builder</h3>
+                    </div>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      <strong>Gallery</strong>: Browse a collection of example prompts to inspire your creations.<br/>
+                      <strong>Builder</strong>: Use the prompt builder tool to craft detailed prompts with structured inputs.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Upload & Mentions */}
+                <Card className="p-4">
+                  <CardContent className="p-0 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Upload className="h-4 w-4 text-primary" />
+                      <h3 className="font-semibold text-sm sm:text-base">Upload & Mentions</h3>
+                    </div>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      <strong>Upload</strong>: Attach images to use as reference or to animate in video mode.<br/>
+                      <strong>@ Mentions</strong>: Type @ in your prompt to reference previous renders in the chain for context and consistency.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Quick Start */}
+                <Card className="p-4 bg-primary/5 border-primary/20 md:col-span-2">
+                  <CardContent className="p-0 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="h-5 w-5 text-primary" />
+                      <h3 className="font-semibold text-base sm:text-lg">Ready to Start?</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Type your prompt in the text area below, adjust settings as needed, and click the send button to generate your first render. You can refine and iterate on your renders in the conversation.
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
             ) : (
               (() => {
                 logger.log('🎨 UnifiedChatInterface: Rendering messages list', {

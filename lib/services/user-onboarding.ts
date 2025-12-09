@@ -30,15 +30,70 @@ export class UserOnboardingService {
     logger.log('👤 UserOnboarding: Creating user profile for:', userProfile.email);
     
     try {
-      // Check if user already exists
-      const existingUser = await AuthDAL.getUserById(userProfile.id);
+      // Check if user already exists by ID or email (user might exist from Supabase auth)
+      let existingUser = await AuthDAL.getUserById(userProfile.id);
+      
+      if (!existingUser) {
+        // Also check by email in case user was created with different ID
+        existingUser = await AuthDAL.getUserByEmail(userProfile.email);
+      }
 
       if (existingUser) {
         logger.log('✅ UserOnboarding: User already exists, skipping profile creation');
         return { success: true, data: existingUser };
       }
 
-      // Run sybil detection if device fingerprint is available
+      // Generate unique avatar if not provided (do this before creating user)
+      let avatarUrl = userProfile.avatar;
+      if (!avatarUrl) {
+        logger.log('🎨 UserOnboarding: Generating avatar for user:', userProfile.email);
+        avatarUrl = AvatarService.generateAvatarFromEmail(userProfile.email, {
+          size: 128,
+          backgroundColor: ['transparent'],
+          backgroundType: ['solid'],
+          eyesColor: ['4a90e2', '7b68ee', 'ff6b6b', '4ecdc4', '45b7d1'],
+          mouthColor: ['f4a261', 'e76f51', 'd62828', 'f77f00', 'fcbf49'],
+          shapeColor: ['f4a261', 'e76f51', 'd62828', 'f77f00', 'fcbf49'],
+          radius: 8,
+        });
+      }
+
+      // CRITICAL: Create user profile FIRST before running sybil detection
+      // This ensures the user exists in the database before we try to store device fingerprints
+      let newUser: UserProfile;
+      try {
+        newUser = await AuthDAL.createUser({
+          id: userProfile.id,
+          email: userProfile.email,
+          name: userProfile.name || undefined,
+          avatar: avatarUrl,
+          bio: undefined,
+          website: undefined,
+          location: undefined,
+          isActive: true,
+          isAdmin: false,
+          emailVerified: false,
+          lastLoginAt: undefined,
+        });
+        logger.log('✅ UserOnboarding: User profile created:', newUser.id);
+      } catch (error) {
+        // Handle duplicate user creation (race condition or user created between checks)
+        if (error instanceof Error && error.message.includes('duplicate key') || 
+            (error as any)?.cause?.code === '23505') {
+          logger.warn('⚠️ UserOnboarding: User already exists (duplicate key), fetching existing user');
+          // Try to get the existing user
+          existingUser = await AuthDAL.getUserByEmail(userProfile.email);
+          if (existingUser) {
+            logger.log('✅ UserOnboarding: Found existing user, skipping profile creation');
+            return { success: true, data: existingUser };
+          }
+          // If we still can't find it, rethrow the error
+          throw error;
+        }
+        throw error;
+      }
+
+      // NOW run sybil detection AFTER user is created (so foreign keys exist)
       let sybilResult;
       let creditsToAward = INITIAL_SIGNUP_CREDITS; // Default to 10 credits
       let ipAddress: string | undefined;
@@ -50,8 +105,8 @@ export class UserOnboardingService {
           userAgent = context.request.headers.get('user-agent') || '';
 
           sybilResult = await SybilDetectionService.detectSybil(
-            userProfile.id,
-            userProfile.email,
+            newUser.id,
+            newUser.email,
             context.deviceFingerprint,
             ipAddress,
             context.request.headers
@@ -82,8 +137,8 @@ export class UserOnboardingService {
         // Log warning for critical risk users (they get 0 credits but can still sign up)
         if (sybilResult.riskLevel === 'critical') {
           logger.warn('⚠️ UserOnboarding: Critical risk user - allowing signup with 0 credits', {
-            userId: userProfile.id,
-            email: userProfile.email,
+            userId: newUser.id,
+            email: newUser.email,
             reasons: sybilResult.reasons,
           });
         }
@@ -92,7 +147,7 @@ export class UserOnboardingService {
         if (context?.deviceFingerprint && ipAddress && userAgent) {
           const fingerprintHash = generateFingerprintHash(context.deviceFingerprint);
           await SybilDetectionService.recordActivity(
-            userProfile.id,
+            newUser.id,
             'signup',
             ipAddress,
             userAgent,
@@ -101,50 +156,18 @@ export class UserOnboardingService {
         }
       }
 
-      // Generate unique avatar if not provided
-      let avatarUrl = userProfile.avatar;
-      if (!avatarUrl) {
-        logger.log('🎨 UserOnboarding: Generating avatar for user:', userProfile.email);
-        avatarUrl = AvatarService.generateAvatarFromEmail(userProfile.email, {
-          size: 128,
-          backgroundColor: ['transparent'],
-          backgroundType: ['solid'],
-          eyesColor: ['4a90e2', '7b68ee', 'ff6b6b', '4ecdc4', '45b7d1'],
-          mouthColor: ['f4a261', 'e76f51', 'd62828', 'f77f00', 'fcbf49'],
-          shapeColor: ['f4a261', 'e76f51', 'd62828', 'f77f00', 'fcbf49'],
-          radius: 8,
-        });
-      }
-
-      // Create user profile
-      const newUser = await AuthDAL.createUser({
-        id: userProfile.id,
-        email: userProfile.email,
-        name: userProfile.name || undefined,
-        avatar: avatarUrl,
-        bio: undefined,
-        website: undefined,
-        location: undefined,
-        isActive: true,
-        isAdmin: false,
-        emailVerified: false,
-        lastLoginAt: undefined,
-      });
-
-      logger.log('✅ UserOnboarding: User profile created:', newUser.id);
-
       // CRITICAL: Always initialize user credits (even if 0 from sybil detection)
       // This ensures user has a credits record in the database
-      const creditsResult = await this.initializeUserCredits(userProfile.id, creditsToAward);
+      const creditsResult = await this.initializeUserCredits(newUser.id, creditsToAward);
       if (!creditsResult.success) {
         logger.error('❌ UserOnboarding: Failed to initialize credits, retrying with default:', creditsResult.error);
         // Retry with default credits if initialization failed
-        await this.initializeUserCredits(userProfile.id, INITIAL_SIGNUP_CREDITS);
+        await this.initializeUserCredits(newUser.id, INITIAL_SIGNUP_CREDITS);
       }
 
       // Create welcome transaction (only if credits > 0)
       if (creditsToAward > 0) {
-        await this.createWelcomeTransaction(userProfile.id, creditsToAward, sybilResult);
+        await this.createWelcomeTransaction(newUser.id, creditsToAward, sybilResult);
       } else {
         logger.log('⚠️ UserOnboarding: No credits awarded, skipping welcome transaction');
       }
@@ -174,7 +197,7 @@ export class UserOnboardingService {
             
             // Import here to avoid circular dependency
             const { AmbassadorService } = await import('./ambassador.service');
-            await AmbassadorService.trackSignup(referralCode, userProfile.id);
+            await AmbassadorService.trackSignup(referralCode, newUser.id);
           }
         } catch (error) {
           logger.warn('⚠️ UserOnboarding: Failed to track ambassador referral:', error);

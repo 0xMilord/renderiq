@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { sendWelcomeEmail } from '@/lib/services/email.service';
 import { logger } from '@/lib/utils/logger';
-import { getOAuthCallbackUrl } from '@/lib/utils/auth-redirect';
+import { getAuthRedirectUrl } from '@/lib/utils/auth-redirect';
 
 /**
  * Supabase Auth Webhook Handler
@@ -66,7 +66,12 @@ export async function POST(request: NextRequest) {
           );
 
           // Generate verification link
-          const emailRedirectTo = getOAuthCallbackUrl(request, '/');
+          // CRITICAL: Always use production URL, never localhost
+          const baseUrl = getAuthRedirectUrl(request);
+          const emailRedirectTo = `${baseUrl}/auth/callback`;
+          
+          logger.log('🔧 SupabaseAuthWebhook: emailRedirectTo:', emailRedirectTo);
+          
           const { data: tokenData, error: tokenError } = await adminClient.auth.admin.generateLink({
             type: 'signup',
             email: email,

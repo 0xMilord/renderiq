@@ -54,7 +54,6 @@ export function BottomNav() {
     pathname?.startsWith('/demo') ||
     pathname === '/login' ||
     pathname === '/signup' ||
-    pathname === '/verify-email' ||
     pathname === '/forgot-password' ||
     pathname === '/reset-password'
   ) {

@@ -8,10 +8,12 @@ import { useAuth } from '@/lib/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import DotGrid from '@/components/ui/dot-grid';
-import { Eye, EyeOff, Loader2, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, Loader2, CheckCircle, Mail, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { logger } from '@/lib/utils/logger';
 import { collectDeviceFingerprint, storeFingerprintInCookie } from '@/lib/utils/client-fingerprint';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -24,7 +26,10 @@ export default function SignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [showVerifyDialog, setShowVerifyDialog] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
+  const [resendError, setResendError] = useState('');
   const { user, loading: authLoading, signUp, signInWithGoogle } = useAuth();
   const router = useRouter();
   const { theme, resolvedTheme } = useTheme();
@@ -56,15 +61,47 @@ export default function SignupPage() {
     }
   }, []);
 
-  // Redirect authenticated users to dashboard
+  // Redirect authenticated and verified users to dashboard
+  // Don't redirect unverified users - they need to see the verification dialog
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!authLoading && user && user.email_confirmed_at) {
       // Check for redirect parameter
       const urlParams = new URLSearchParams(window.location.search);
       const redirectTo = urlParams.get('redirect') || '/dashboard';
       router.push(redirectTo);
     }
   }, [user, authLoading, router]);
+
+  // Poll for email verification status when dialog is open
+  useEffect(() => {
+    if (!showVerifyDialog || !user) return;
+
+    // If user is already verified, close dialog and redirect
+    if (user.email_confirmed_at) {
+      setShowVerifyDialog(false);
+      router.push('/dashboard');
+      return;
+    }
+
+    // Poll every 3 seconds to check if email is verified
+    const pollInterval = setInterval(async () => {
+      try {
+        const { createClient } = await import('@/lib/supabase/client');
+        const supabase = createClient();
+        const { data: { user: refreshedUser } } = await supabase.auth.getUser();
+        
+        if (refreshedUser?.email_confirmed_at) {
+          clearInterval(pollInterval);
+          setShowVerifyDialog(false);
+          router.push('/dashboard');
+        }
+      } catch (error) {
+        console.error('Error polling for email verification:', error);
+      }
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [showVerifyDialog, user, router]);
 
   // Show loading state while checking auth
   if (authLoading) {
@@ -75,8 +112,9 @@ export default function SignupPage() {
     );
   }
 
-  // Don't render signup form if user is authenticated (will redirect)
-  if (user) {
+  // Don't render signup form if user is authenticated AND verified (will redirect)
+  // Allow unverified users to see the form and verification dialog
+  if (user && user.email_confirmed_at) {
     return null;
   }
 
@@ -110,16 +148,16 @@ export default function SignupPage() {
         setError(error instanceof Error ? error.message : String(error));
         setIsLoading(false);
       } else {
-        // ✅ Show success state with message about checking email
-        setSuccess(true);
+        // Show verification dialog immediately
+        // Don't wait for auth state changes - show dialog right away
         setIsLoading(false);
+        setShowVerifyDialog(true);
         
-        // ✅ Redirect to verify-email page after a brief moment (allows state to update)
-        setTimeout(() => {
-          router.push('/verify-email');
-        }, 500);
+        // Log for debugging
+        logger.log('✅ Signup: Account created, showing verification dialog');
       }
     } catch (err) {
+      logger.error('❌ Signup: Unexpected error:', err);
       setError('An unexpected error occurred');
       setIsLoading(false);
     }
@@ -143,71 +181,35 @@ export default function SignupPage() {
     }
   };
 
+  const handleResendEmail = async () => {
+    setIsResending(true);
+    setResendSuccess(false);
+    setResendError('');
 
-  // Show success message briefly, then redirect to verify-email
-  useEffect(() => {
-    if (success) {
-      const timer = setTimeout(() => {
-        router.push('/verify-email');
-      }, 2000);
-      return () => clearTimeout(timer);
+    try {
+      const response = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to resend verification email');
+      }
+
+      setResendSuccess(true);
+    } catch (error) {
+      setResendError(error instanceof Error ? error.message : 'Failed to resend verification email');
+    } finally {
+      setIsResending(false);
     }
-  }, [success, router]);
-
-  if (success) {
-    return (
-      <div className="min-h-screen bg-background relative">
-        {/* DotGrid Background */}
-        <div className="absolute inset-0 overflow-hidden -z-0 opacity-30">
-          <DotGrid
-            dotSize={10}
-            gap={15}
-            proximity={120}
-            shockRadius={250}
-            shockStrength={5}
-            resistance={750}
-            returnDuration={1.5}
-            className="h-full w-full"
-          />
-        </div>
-        
-        <div className="flex items-center justify-center min-h-screen py-12 px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="max-w-md w-full text-center bg-background/80 backdrop-blur-sm rounded-lg p-8">
-            <div className="mx-auto h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-              <CheckCircle className="h-6 w-6 text-primary" />
-            </div>
-            <h2 className="text-2xl font-bold text-foreground mb-4">
-              Account Created Successfully! 🎉
-            </h2>
-            <p className="text-muted-foreground mb-4">
-              We've sent a verification email to <strong>{formData.email}</strong>
-            </p>
-            <div className="bg-primary/10 rounded-lg p-4 mb-6">
-              <p className="text-sm text-foreground font-medium mb-2">📧 Next Steps:</p>
-              <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside text-left">
-                <li>Check your inbox (and spam folder)</li>
-                <li>Click the verification link in the email</li>
-                <li>Return here to sign in</li>
-              </ol>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Button onClick={() => router.push('/verify-email')}>
-                Go to Verification Page
-              </Button>
-              <Link href="/login">
-                <Button variant="outline" className="w-full">
-                  Go to Sign In
-                </Button>
-              </Link>
-            </div>
-            <p className="mt-4 text-xs text-muted-foreground">
-              Redirecting to verification page...
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  };
 
   return (
     <div className="h-screen bg-background relative overflow-hidden pt-[3.55rem]" style={{ cursor: 'auto' }}>
@@ -462,6 +464,132 @@ export default function SignupPage() {
           </div>
         </div>
       </div>
+
+      {/* Email Verification Dialog */}
+      <Dialog open={showVerifyDialog} onOpenChange={setShowVerifyDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+              <Mail className="h-6 w-6 text-primary" />
+            </div>
+            <DialogTitle className="text-2xl font-bold text-center">
+              Verify your email
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              We've sent a verification link to{' '}
+              <span className="font-medium text-foreground">
+                {formData.email}
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            <p className="text-sm text-muted-foreground bg-muted/30 rounded-md p-3 text-center">
+              <strong>📧 Check your inbox</strong> (and spam folder) for the verification email from Renderiq. 
+              Click the link in the email to verify your account.
+            </p>
+
+            {/* Instructions */}
+            <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0">
+                  <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center">
+                    <span className="text-xs font-bold text-primary">1</span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm text-foreground font-medium">Check your inbox</p>
+                  <p className="text-xs text-muted-foreground">
+                    Look for an email from Renderiq with a verification link
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0">
+                  <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center">
+                    <span className="text-xs font-bold text-primary">2</span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm text-foreground font-medium">Click the verification link</p>
+                  <p className="text-xs text-muted-foreground">
+                    This confirms your email address and activates your account
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0">
+                  <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center">
+                    <span className="text-xs font-bold text-primary">3</span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm text-foreground font-medium">Start creating</p>
+                  <p className="text-xs text-muted-foreground">
+                    Once verified, you'll have full access to all features
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Success message */}
+            {resendSuccess && (
+              <Alert>
+                <CheckCircle2 className="h-4 w-4" />
+                <AlertDescription>
+                  Verification email sent! Check your inbox.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Error message */}
+            {resendError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{resendError}</AlertDescription>
+              </Alert>
+            )}
+
+            {/* Actions */}
+            <div className="space-y-2">
+              <Button
+                onClick={handleResendEmail}
+                disabled={isResending || resendSuccess}
+                variant="outline"
+                className="w-full"
+              >
+                {isResending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Sending...
+                  </>
+                ) : resendSuccess ? (
+                  <>
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Email sent!
+                  </>
+                ) : (
+                  <>
+                    <Mail className="h-4 w-4 mr-2" />
+                    Resend verification email
+                  </>
+                )}
+              </Button>
+
+              <div className="text-center">
+                <Link
+                  href="/login"
+                  className="text-sm font-medium text-primary hover:text-primary/80"
+                >
+                  Back to sign in
+                </Link>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

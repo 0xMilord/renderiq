@@ -131,10 +131,18 @@ export class AuthService {
 
       const supabase = await createClient();
       
-      // Get the correct redirect URL for email verification (handles localhost in dev)
-      const emailRedirectTo = getOAuthCallbackUrl(undefined, '/');
+      // Get the correct redirect URL for email verification
+      // CRITICAL: Always use production URL in production, never localhost
+      // Use getAuthRedirectUrl to ensure correct URL based on NODE_ENV
+      const baseUrl = getAuthRedirectUrl();
+      const emailRedirectTo = `${baseUrl}/auth/callback`;
+      
+      logger.log('🔧 AuthService: Signup emailRedirectTo:', emailRedirectTo);
       
       // Sign up with Supabase - email confirmation required
+      // NOTE: Supabase will generate the verification URL using its Site URL setting
+      // Make sure Supabase Dashboard → Authentication → URL Configuration → Site URL
+      // is set to production URL (https://renderiq.io) in production
       const { data, error } = await supabase.auth.signUp({
         email,
         password,

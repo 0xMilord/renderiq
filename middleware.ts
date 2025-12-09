@@ -132,28 +132,35 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // Check if user email is verified (for authenticated users)
+  // Allow unverified users to access login, signup, auth callback, and home
+  // They can verify their email from the dialog shown after signup
   if (user && !user.email_confirmed_at) {
-    // Allow access to verification-related pages and public pages
-    const allowedPaths = ['/verify-email', '/login', '/signup', '/auth/callback', '/'];
+    const allowedPaths = ['/login', '/signup', '/auth/callback', '/'];
     const isAllowedPath = allowedPaths.some(path => pathname.startsWith(path));
     
     if (!isAllowedPath) {
+      // Redirect to signup page where they can see verification dialog
       const url = request.nextUrl.clone();
-      url.pathname = '/verify-email';
+      url.pathname = '/signup';
       return NextResponse.redirect(url);
     }
   }
 
-  // Redirect authenticated users away from login/signup pages
-  if (user && (pathname === '/login' || pathname === '/signup')) {
+  // Redirect authenticated and verified users away from login/signup pages
+  // Allow unverified users to stay on signup page to see verification dialog
+  if (user && user.email_confirmed_at && (pathname === '/login' || pathname === '/signup')) {
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
     return NextResponse.redirect(url);
   }
 
   // Protect upload, render, dashboard, engine, and project routes
+  // IMPORTANT: Don't redirect if user is on signup/login pages - they might be in the middle of signup
+  // where no session exists yet (email confirmation required)
   if (
     !user &&
+    pathname !== '/signup' &&
+    pathname !== '/login' &&
     (pathname.startsWith('/upload') ||
      pathname.startsWith('/render') ||
      pathname.startsWith('/project') ||

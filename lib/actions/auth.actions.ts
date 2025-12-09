@@ -32,8 +32,12 @@ export async function signUpAction(email: string, password: string, name?: strin
     };
   }
 
-  // Redirect to email verification page
-  redirect('/verify-email');
+  // Return success - client will handle showing verification dialog
+  // No redirect needed as client-side signup handles the dialog
+  return {
+    success: true,
+    data: result.data,
+  };
 }
 
 export async function signOutAction() {

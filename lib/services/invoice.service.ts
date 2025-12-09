@@ -167,8 +167,13 @@ export class InvoiceService {
       if (paymentOrder.status === 'completed' && user?.email) {
         try {
           const { sendInvoiceEmail } = await import('@/lib/services/email.service');
+          // Get app URL - use production URL in production
+          const isProduction = process.env.NODE_ENV === 'production';
+          const appUrl = isProduction 
+            ? (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://renderiq.io')
+            : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000');
           const invoiceUrl = invoice.invoicePdfUrl 
-            ? `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/payments/invoice/${invoice.invoiceNumber}`
+            ? `${appUrl}/api/payments/invoice/${invoice.invoiceNumber}`
             : undefined;
 
           await sendInvoiceEmail({

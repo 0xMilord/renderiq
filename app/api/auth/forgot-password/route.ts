@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
-import { getOAuthCallbackUrl } from '@/lib/utils/auth-redirect';
+import { getAuthRedirectUrl } from '@/lib/utils/auth-redirect';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,7 +17,12 @@ export async function POST(request: NextRequest) {
     // ⚠️ DISABLED RESEND: Now uses Supabase's native email sending with custom templates
     // Supabase automatically sends emails using templates configured in Dashboard → Authentication → Email Templates
     const supabase = await createClient();
-    const emailRedirectTo = getOAuthCallbackUrl(request, '/reset-password');
+    // CRITICAL: Always use production URL, never localhost
+    const baseUrl = getAuthRedirectUrl(request);
+    const emailRedirectTo = `${baseUrl}/reset-password`;
+    
+    logger.log('🔧 ForgotPassword: emailRedirectTo:', emailRedirectTo);
+    
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: emailRedirectTo,
     });

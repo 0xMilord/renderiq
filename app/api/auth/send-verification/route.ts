@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
-import { getOAuthCallbackUrl } from '@/lib/utils/auth-redirect';
+import { getAuthRedirectUrl } from '@/lib/utils/auth-redirect';
 
 /**
  * API route to resend verification email
@@ -21,7 +21,11 @@ export async function POST(request: NextRequest) {
 
     // ✅ Use Supabase's native resend method - it will use custom templates from Dashboard
     const supabase = await createClient();
-    const emailRedirectTo = getOAuthCallbackUrl(request, '/');
+    // CRITICAL: Always use production URL, never localhost
+    const baseUrl = getAuthRedirectUrl(request);
+    const emailRedirectTo = `${baseUrl}/auth/callback`;
+    
+    logger.log('🔧 SendVerification: emailRedirectTo:', emailRedirectTo);
     
     const { error: resendError } = await supabase.auth.resend({
       type: 'signup',

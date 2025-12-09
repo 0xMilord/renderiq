@@ -76,7 +76,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
         // Listen for auth changes (onAuthStateChange is fine for client-side reactivity)
         // But we'll use getUser() in the callback to ensure authenticity
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          async (event) => {
+          async (event, session) => {
             logger.log('Auth state changed:', event);
             
             // ✅ PERFORMANCE: Skip slow getUser() on SIGNED_OUT - we already know user is null
@@ -90,6 +90,9 @@ export const useAuthStore = create<AuthState>((set, get) => {
               });
               return; // Early return - no slow getUser() call
             }
+            
+            // Note: Supabase doesn't have a SIGNED_UP event
+            // User is set directly from signUp() call, so we don't need special handling here
             
             // ✅ SECURITY: Use getUser() to get authenticated user data (only for sign-in events)
             const { data: { user: authenticatedUser } } = await supabase.auth.getUser();
@@ -143,34 +146,23 @@ export const useAuthStore = create<AuthState>((set, get) => {
       set({ loading: true });
       
       try {
-        // Get the correct redirect URL for email verification
-        const origin = typeof window !== 'undefined' ? window.location.origin : '';
-        const emailRedirectTo = `${origin}/auth/callback`;
+        // CRITICAL: Use server action to get correct production URL
+        // Client-side can't reliably detect production (NODE_ENV may not be available)
+        const { signUpAction } = await import('@/lib/actions/auth.actions');
+        const result = await signUpAction(email, password, fullName);
         
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: fullName,
-              name: fullName, // Also set name for consistency
-            },
-            emailRedirectTo,
-          },
-        });
-
-        if (error) {
+        if (!result.success || result.error) {
           set({ loading: false });
-          return { error };
+          return { error: result.error || new Error('Sign up failed') };
         }
-
-        // ✅ Supabase now handles email sending with custom templates
-        // Custom templates are deployed in Supabase Dashboard → Authentication → Email Templates
-        // No need to send via Resend - Supabase sends automatically using our branded templates
-
-        // ✅ Set user state BEFORE setting loading to false
-        // This ensures user is available when component redirects
-        set({ user: data.user, loading: false });
+        
+        // Set user state if available
+        if (result.data?.user) {
+          set({ user: result.data.user, loading: false });
+        } else {
+          set({ loading: false });
+        }
+        
         return { error: null };
       } catch (error) {
         set({ loading: false });

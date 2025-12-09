@@ -2357,8 +2357,13 @@ Please verify the plan exists in Razorpay Dashboard.`;
 
       if (user?.email && plan && recurringPaymentOrder) {
         const { sendSubscriptionRenewedEmail } = await import('@/lib/services/email.service');
+        // Get app URL - use production URL in production
+        const isProduction = process.env.NODE_ENV === 'production';
+        const appUrl = isProduction 
+          ? (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://renderiq.io')
+          : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000');
         const invoiceUrl = recurringPaymentOrder.invoiceNumber
-          ? `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/payments/invoice/${recurringPaymentOrder.invoiceNumber}`
+          ? `${appUrl}/api/payments/invoice/${recurringPaymentOrder.invoiceNumber}`
           : undefined;
 
         await sendSubscriptionRenewedEmail({
