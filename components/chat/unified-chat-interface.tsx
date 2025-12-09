@@ -42,7 +42,8 @@ import {
   Plus,
   Pencil,
   Wand2,
-  FileText
+  FileText,
+  BookOpen
 } from 'lucide-react';
 import { 
   FaSquare,
@@ -71,6 +72,8 @@ import { Switch } from '@/components/ui/switch';
 import { Lock, Globe } from 'lucide-react';
 import { logger } from '@/lib/utils/logger';
 import { MentionTagger } from './mention-tagger';
+import { PromptGalleryModal } from './prompt-gallery-modal';
+import { PromptBuilderModal } from './prompt-builder-modal';
 import type { Render } from '@/lib/types/render';
 import type { RenderChainWithRenders } from '@/lib/types/render-chain';
 import Image from 'next/image';
@@ -235,9 +238,6 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   const [currentRender, setCurrentRender] = useState<Render | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
-  
-  // Screen Wake Lock - Keep screen on during render generation
-  useWakeLock(isGenerating || isImageGenerating || isVideoGenerating);
 
   // Dynamic title updates based on project/chain - using new hook
   const chainName = chain?.name;
@@ -288,6 +288,8 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     setIsUpgradeDialogOpen,
   } = useModal();
   const [mentionSearchTerm, setMentionSearchTerm] = useState('');
+  const [isPromptGalleryOpen, setIsPromptGalleryOpen] = useState(false);
+  const [isPromptBuilderOpen, setIsPromptBuilderOpen] = useState(false);
   
   // Mention state
   const [currentMentionPosition, setCurrentMentionPosition] = useState(-1);
@@ -367,6 +369,10 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   // Google Generative AI hooks
   const { isGenerating: isImageGenerating } = useImageGeneration();
   const { isGenerating: isVideoGenerating } = useVideoGeneration();
+  
+  // Screen Wake Lock - Keep screen on during render generation
+  // Must be after isImageGenerating and isVideoGenerating are defined
+  useWakeLock(isGenerating || isImageGenerating || isVideoGenerating);
   
   // Version context hook
   const { parsePrompt } = useVersionContext();
@@ -2257,6 +2263,29 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                     searchTerm={mentionSearchTerm}
                     renders={chain?.renders}
                   />
+                  {/* Prompt Helper Buttons */}
+                  <div className="flex items-center gap-1 mt-1.5">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsPromptGalleryOpen(true)}
+                      className="h-6 px-2 text-[10px] sm:text-xs"
+                      disabled={isGenerating}
+                    >
+                      <BookOpen className="h-3 w-3 mr-1" />
+                      Gallery
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsPromptBuilderOpen(true)}
+                      className="h-6 px-2 text-[10px] sm:text-xs"
+                      disabled={isGenerating}
+                    >
+                      <Wand2 className="h-3 w-3 mr-1" />
+                      Builder
+                    </Button>
+                  </div>
                 </div>
                 <div className="flex flex-col gap-1">
                 <Button
@@ -2283,8 +2312,19 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                   onClick={handleUploadModalOpen}
                   className="h-8 sm:h-9 w-8 sm:w-9 shrink-0"
                   disabled={isGenerating}
+                  title="Upload image"
                 >
                   <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsPromptGalleryOpen(true)}
+                  className="h-8 sm:h-9 w-8 sm:w-9 shrink-0"
+                  disabled={isGenerating}
+                  title="Prompt Gallery"
+                >
+                  <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </Button>
               </div>
               </div>
@@ -3465,6 +3505,24 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         isOpen={isProjectRulesModalOpen}
         onClose={() => setIsProjectRulesModalOpen(false)}
         chainId={chainId}
+      />
+      <PromptGalleryModal
+        isOpen={isPromptGalleryOpen}
+        onClose={() => setIsPromptGalleryOpen(false)}
+        onSelectPrompt={(prompt) => {
+          setInputValue(prompt);
+          setIsPromptGalleryOpen(false);
+        }}
+        type={isVideoMode ? 'video' : 'image'}
+      />
+      <PromptBuilderModal
+        isOpen={isPromptBuilderOpen}
+        onClose={() => setIsPromptBuilderOpen(false)}
+        onSelectPrompt={(prompt) => {
+          setInputValue(prompt);
+          setIsPromptBuilderOpen(false);
+        }}
+        type={isVideoMode ? 'video' : 'image'}
       />
       <Dialog open={isLowBalanceModalOpen} onOpenChange={setIsLowBalanceModalOpen}>
         <DialogContent className="sm:max-w-md">

@@ -69,7 +69,7 @@ export default function PricingPage() {
       <div className="w-full px-4 sm:px-6 lg:px-8 pt-[calc(1rem+2.75rem+1.5rem+3rem)] pb-12 relative z-10">
         {/* Header - Full Width */}
         <div className="w-full text-center mb-12">
-          <h1 className="text-3xl font-bold tracking-tight mb-4">
+          <h1 className="text-6xl font-bold tracking-tight mb-4">
             Pricing
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
