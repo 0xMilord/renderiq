@@ -1674,7 +1674,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                 Back
               </Button>
               <div className="flex-1 min-w-0 flex items-center justify-end gap-2">
-                {projects.length > 0 && chains.length > 0 ? (
+                {projects && chains && projects.length > 0 && chains.length > 0 && projects.some(p => chains.some(c => c.projectId === p.id)) ? (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -1694,39 +1694,49 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-64 max-h-[400px] overflow-y-auto">
-                      {projects.map((project) => {
-                        const projectChains = chains.filter(c => c.projectId === project.id);
-                        return (
-                          <div key={project.id}>
-                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase">
-                              {project.name}
-                            </div>
-                            {projectChains.map((chainItem) => {
-                              const isSelected = chainItem.id === chainId && project.id === projectId;
-                              return (
-                                <DropdownMenuItem
-                                  key={chainItem.id}
-                                  onClick={() => {
-                                    router.push(`/project/${project.slug}/chain/${chainItem.id}`);
-                                  }}
-                                  className={cn(
-                                    "px-2 py-1.5 cursor-pointer",
-                                    isSelected && "bg-accent"
-                                  )}
-                                >
-                                  <div className="flex items-center gap-2 w-full">
-                                    <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-                                    <span className="text-sm truncate">{chainItem.name}</span>
-                                    {isSelected && (
-                                      <CheckCircle className="h-3.5 w-3.5 ml-auto shrink-0 text-primary" />
+                      {projects
+                        .filter(project => chains.some(c => c.projectId === project.id))
+                        .map((project) => {
+                          const projectChains = chains.filter(c => c.projectId === project.id);
+                          if (projectChains.length === 0) return null;
+                          
+                          return (
+                            <div key={project.id}>
+                              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase border-b border-border">
+                                {project.name}
+                              </div>
+                              {projectChains.map((chainItem) => {
+                                const isSelected = chainItem.id === chainId && project.id === projectId;
+                                return (
+                                  <DropdownMenuItem
+                                    key={chainItem.id}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      router.push(`/project/${project.slug}/chain/${chainItem.id}`);
+                                    }}
+                                    className={cn(
+                                      "px-2 py-1.5 cursor-pointer",
+                                      isSelected && "bg-accent"
                                     )}
-                                  </div>
-                                </DropdownMenuItem>
-                              );
-                            })}
-                          </div>
-                        );
-                      })}
+                                  >
+                                    <div className="flex items-center gap-2 w-full">
+                                      <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                                      <span className="text-sm truncate flex-1">{chainItem.name}</span>
+                                      {isSelected && (
+                                        <CheckCircle className="h-3.5 w-3.5 shrink-0 text-primary" />
+                                      )}
+                                    </div>
+                                  </DropdownMenuItem>
+                                );
+                              })}
+                            </div>
+                          );
+                        })}
+                      {projects.filter(project => chains.some(c => c.projectId === project.id)).length === 0 && (
+                        <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+                          No chains available
+                        </div>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 ) : (
@@ -3949,11 +3959,30 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
 }, (prevProps, nextProps) => {
   // ✅ Custom comparison function for React.memo
   // Only re-render if these props actually change
+  const projectsEqual = 
+    prevProps.projects?.length === nextProps.projects?.length &&
+    prevProps.projects?.every((p, i) => 
+      p.id === nextProps.projects?.[i]?.id && 
+      p.name === nextProps.projects?.[i]?.name &&
+      p.slug === nextProps.projects?.[i]?.slug
+    );
+  
+  const chainsEqual = 
+    prevProps.chains?.length === nextProps.chains?.length &&
+    prevProps.chains?.every((c, i) => 
+      c.id === nextProps.chains?.[i]?.id && 
+      c.name === nextProps.chains?.[i]?.name &&
+      c.projectId === nextProps.chains?.[i]?.projectId
+    );
+  
   return (
     prevProps.projectId === nextProps.projectId &&
     prevProps.chainId === nextProps.chainId &&
     prevProps.chain?.id === nextProps.chain?.id &&
     prevProps.chain?.renders?.length === nextProps.chain?.renders?.length &&
-    prevProps.projectName === nextProps.projectName
+    prevProps.projectName === nextProps.projectName &&
+    prevProps.chainName === nextProps.chainName &&
+    projectsEqual &&
+    chainsEqual
   );
 });

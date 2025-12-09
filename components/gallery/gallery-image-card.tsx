@@ -198,10 +198,13 @@ function GalleryImageCardComponent({
 
   // ✅ REACT 19 OPTIMIZED: Memoize derived values
   // Use original aspect ratio from image dimensions, fallback to 16:9 if not loaded yet
+  // Cap maximum aspect ratio at 16:9 to prevent overflow for very wide images
   const displayAspectRatio = useMemo(() => {
-    return imageDimensions 
+    const ratio = imageDimensions 
       ? imageDimensions.width / imageDimensions.height 
       : 16/9;
+    // Cap at 16:9 (1.778) to prevent overflow - wider images will be constrained
+    return Math.min(ratio, 16/9);
   }, [imageDimensions]);
 
   // ✅ REACT 19 OPTIMIZED: Memoize derived values
@@ -252,7 +255,7 @@ function GalleryImageCardComponent({
   };
 
   return (
-    <div className="bg-card border border-border rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-300">
+    <div className="bg-card border border-border rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-300 w-full max-w-full">
       {/* Header - User info (hidden when hideOwnerInfo is true) */}
       {!hideOwnerInfo && (
         <div className="px-4 py-3 flex items-center justify-between border-b border-border">
@@ -393,10 +396,11 @@ function GalleryImageCardComponent({
           
           <TabsContent value="generated" className="mt-0">
             <div 
-              className="relative w-full overflow-hidden bg-muted cursor-pointer"
+              className="relative w-full max-w-full overflow-hidden bg-muted cursor-pointer"
               onClick={handleCardClick}
               style={{
                 aspectRatio: displayAspectRatio,
+                maxWidth: '100%',
               }}
             >
               {imageLoading && !isVideo && (
@@ -434,9 +438,13 @@ function GalleryImageCardComponent({
                   <video
                     src={item.render.outputUrl}
                     className={cn(
-                      "w-full h-full object-contain transition-opacity duration-300",
+                      "w-full h-full max-w-full max-h-full object-contain transition-opacity duration-300",
                       videoLoading ? "opacity-0" : "opacity-100"
                     )}
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: '100%',
+                    }}
                     controls={false}
                     loop
                     muted
@@ -514,9 +522,13 @@ function GalleryImageCardComponent({
                     src={item.render.outputUrl}
                     alt={item.render.prompt || 'AI-generated architectural render'}
                     className={cn(
-                      "w-full h-full object-contain transition-opacity duration-300",
+                      "w-full h-full max-w-full max-h-full object-contain transition-opacity duration-300",
                       imageLoading ? "opacity-0" : "opacity-100"
                     )}
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: '100%',
+                    }}
                     onLoad={() => {
                       setImageLoading(false);
                       setImageError(false);
@@ -544,10 +556,11 @@ function GalleryImageCardComponent({
             {/* Only show comparison for images, never for videos */}
             {!isVideo ? (
               <div 
-                className="relative w-full overflow-visible bg-muted flex items-center justify-center"
+                className="relative w-full max-w-full overflow-hidden bg-muted flex items-center justify-center"
                 style={{
                   maxHeight: '600px',
-                  minHeight: '300px'
+                  minHeight: '300px',
+                  maxWidth: '100%',
                 }}
                 onClick={(e) => {
                   // Prevent navigation when interacting with the slider
@@ -610,10 +623,11 @@ function GalleryImageCardComponent({
         </div>
       ) : (
         <div 
-          className="relative w-full overflow-hidden bg-muted cursor-pointer"
+          className="relative w-full max-w-full overflow-hidden bg-muted cursor-pointer"
           onClick={handleCardClick}
           style={{
             aspectRatio: displayAspectRatio,
+            maxWidth: '100%',
           }}
         >
           {(imageLoading || videoLoading) && (
@@ -634,9 +648,13 @@ function GalleryImageCardComponent({
               <video
                 src={item.render.outputUrl}
                 className={cn(
-                  "w-full h-full object-contain transition-opacity duration-300",
+                  "w-full h-full max-w-full max-h-full object-contain transition-opacity duration-300",
                   videoLoading ? "opacity-0" : "opacity-100"
                 )}
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                }}
                 controls={false}
                 loop
                 muted
@@ -682,29 +700,33 @@ function GalleryImageCardComponent({
                 </div>
               )}
             </>
-          ) : item.render.outputUrl ? (
-            <>
-              {/* Always use regular img tag for Supabase/external URLs - more reliable */}
-              <img
-                ref={imageRef}
-                src={item.render.outputUrl}
-                alt={item.render.prompt || 'AI-generated architectural render'}
-                className={cn(
-                  "w-full h-full object-contain transition-opacity duration-300",
-                  imageLoading ? "opacity-0" : "opacity-100"
-                )}
-                onLoad={() => {
-                  setImageLoading(false);
-                  setImageError(false);
-                }}
-                onError={() => {
-                  setImageError(true);
-                  setImageLoading(false);
-                }}
-                loading={priority ? "eager" : "lazy"}
-              />
-            </>
-          ) : (
+              ) : item.render.outputUrl ? (
+                <>
+                  {/* Always use regular img tag for Supabase/external URLs - more reliable */}
+                  <img
+                    ref={imageRef}
+                    src={item.render.outputUrl}
+                    alt={item.render.prompt || 'AI-generated architectural render'}
+                    className={cn(
+                      "w-full h-full max-w-full max-h-full object-contain transition-opacity duration-300",
+                      imageLoading ? "opacity-0" : "opacity-100"
+                    )}
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: '100%',
+                    }}
+                    onLoad={() => {
+                      setImageLoading(false);
+                      setImageError(false);
+                    }}
+                    onError={() => {
+                      setImageError(true);
+                      setImageLoading(false);
+                    }}
+                    loading={priority ? "eager" : "lazy"}
+                  />
+                </>
+              ) : (
             // No outputUrl - show placeholder
             <div className="w-full h-full flex items-center justify-center bg-muted">
               <div className="text-center">
