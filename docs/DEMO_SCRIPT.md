@@ -13,7 +13,7 @@
 **Visual:**
 - Renderiq logo animates in (fade + scale)
 - Tagline: "Transform Sketches into Photorealistic Renders"
-- Subtitle: "Powered by Google Gemini 3 Pro & Veo 3.1"
+- Subtitle: "Powered by Multiple State-of-the-Art AI Models"
 
 **Animation:**
 - Logo: Fade in + scale (0.8 → 1.0) with bounce

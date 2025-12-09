@@ -148,7 +148,7 @@
 
 All sections align with:
 - ✅ App functionality (actual features)
-- ✅ Technical capabilities (Gemini 3 Pro, Veo 3.1)
+- ✅ Technical capabilities (Multiple AI models for image, video, and 3D generation)
 - ✅ Pricing structure
 - ✅ User workflows
 - ✅ Industry needs (AEC & Retail)

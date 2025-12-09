@@ -151,7 +151,7 @@ faq_samples:
 - Q: Can I collaborate with my team and integrate with my design workflow?
   A: Yes! Pro/Enterprise plans enable real-time team collaboration, commenting, and integration with popular CAD tools for image/screenshot exports. API and webhooks available for custom workflow integration.
 - Q: What AI models power Renderiq?
-  A: Renderiq utilizes industry-leading generative AI models for image and video, including Google Gemini, DALL·E 3, Midjourney v6, Stable Diffusion XL, Firefly, Ideogram, Leonardo, Pika, Runway Gen-3, Dream Machine, and more—chosen and tuned for architectural accuracy and high visual quality.
+  A: Renderiq utilizes industry-leading generative AI models for image, video, and 3D generation, including Google Gemini (image), Veo (video), Tencent Hunyuan3D (3D), and other state-of-the-art models—chosen and tuned for architectural accuracy and high visual quality.
 - Q: What are the export options for images and videos?
   A: Export images in HD–4K; export videos in 720p or 1080p, suitable for presentations, print, or web use.
 - Q: Are there tutorials, documentation, and support?
