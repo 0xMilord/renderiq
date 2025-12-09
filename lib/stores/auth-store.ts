@@ -179,26 +179,31 @@ export const useAuthStore = create<AuthState>((set, get) => {
     },
 
     signOut: async () => {
-      set({ loading: true });
+      // ✅ Don't set loading to true - we want immediate UI update
+      // Setting loading to true causes navbar to show skeleton perpetually
       
       try {
         // Get user ID before signing out (for cache invalidation)
         const { data: { user } } = await supabase.auth.getUser();
         const userId = user?.id;
         
-        const { error } = await supabase.auth.signOut();
-        
-        if (error) {
-          console.error('Sign out error:', error);
-        }
-        
-        // ✅ Clear client state immediately
+        // ✅ Clear client state IMMEDIATELY before signout to prevent loading state
+        // This ensures navbar updates instantly to show non-auth UI
         set({ 
           user: null, 
           userProfile: null, 
           loading: false,
           onboardingComplete: false 
         });
+        
+        // Then sign out from Supabase (this will trigger onAuthStateChange)
+        const { error } = await supabase.auth.signOut();
+        
+        if (error) {
+          console.error('Sign out error:', error);
+          // Even if signout fails, we've already cleared local state
+          // so UI should reflect logged out state
+        }
         
         // ✅ Invalidate server cache (fire and forget - don't block signout)
         if (userId) {
@@ -213,7 +218,13 @@ export const useAuthStore = create<AuthState>((set, get) => {
         }
       } catch (error) {
         console.error('Sign out failed:', error);
-        set({ loading: false });
+        // ✅ Ensure loading is false even on error
+        set({ 
+          user: null, 
+          userProfile: null, 
+          loading: false,
+          onboardingComplete: false 
+        });
       }
     },
 

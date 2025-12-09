@@ -283,7 +283,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
       },
       {
         question: `How does Renderiq help with ${mainKeyword}?`,
-        answer: `Renderiq uses multiple state-of-the-art AI models including Google Gemini for image generation, Veo for video generation, and Hunyuan3D for 3D model creation. Our architecture-aware models maintain design accuracy and create professional visualizations in minutes. The unified chat interface and render chains make it easy to iterate and refine designs.`,
+        answer: `Renderiq uses multiple state-of-the-art AI models for image, video, and 3D generation. Our architecture-aware models maintain design accuracy and create professional visualizations in minutes. The unified chat interface and render chains make it easy to iterate and refine designs.`,
       },
       {
         question: `Is ${mainKeyword} free?`,

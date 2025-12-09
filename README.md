@@ -18,7 +18,7 @@ Transform your architectural sketches into hyperrealistic AI renders and videos 
 - **Database**: PostgreSQL with Drizzle ORM
 - **Authentication**: Supabase Auth
 - **Storage**: Supabase Storage
-- **AI Engine**: Multi-model support (Google Gemini, Veo, Tencent Hunyuan3D)
+- **AI Engine**: Multi-model support for image, video, and 3D generation
 - **Validation**: Zod
 - **UI Components**: Custom components with Tailwind CSS
 
@@ -72,7 +72,7 @@ Transform your architectural sketches into hyperrealistic AI renders and videos 
 - Node.js 18+ 
 - PostgreSQL database
 - Supabase account
-- Google Gemini API key (for image generation)
+- API keys for AI models (image, video, and 3D generation)
 - Google Veo API key (for video generation)
 - Tencent Hunyuan3D API key (for 3D generation, optional)
 
@@ -99,7 +99,7 @@ Transform your architectural sketches into hyperrealistic AI renders and videos 
    - `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase project URL
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your Supabase anon key
    - `SUPABASE_SERVICE_ROLE_KEY`: Your Supabase service role key
-   - `GEMINI_API_KEY`: Your Google Gemini API key (for image generation)
+   - `GEMINI_API_KEY`: Your API key for image generation models
    - `GOOGLE_GENERATIVE_AI_API_KEY`: Alternative Google API key
    - `HUNYUAN3D_API_KEY`: Your Tencent Hunyuan3D API key (for 3D generation, optional)
 

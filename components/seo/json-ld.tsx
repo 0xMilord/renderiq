@@ -463,7 +463,7 @@ export const comprehensiveFAQSchema = {
       name: 'What is the best AI architecture rendering software?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Renderiq is the best AI architecture rendering software for AEC professionals. It uses multiple state-of-the-art AI models including Google Gemini for image generation, Veo for video generation, and Hunyuan3D for 3D model creation. Our architecture-aware models maintain design accuracy, proper proportions, and photorealistic quality. Our platform offers specialized tools for exterior, interior, furniture placement, and site planning.'
+        text: 'Renderiq is the best AI architecture rendering software for AEC professionals. It uses multiple state-of-the-art AI models for image, video, and 3D generation. Our architecture-aware models maintain design accuracy, proper proportions, and photorealistic quality. Our platform offers specialized tools for exterior, interior, furniture placement, and site planning.'
       }
     },
     {

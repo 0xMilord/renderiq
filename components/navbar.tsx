@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/lib/hooks/use-auth';
+import { useAuthStore } from '@/lib/stores/auth-store';
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
 import { useUserBillingStats } from '@/lib/hooks/use-subscription';
 import { UserDropdown } from '@/components/user-dropdown';
@@ -55,6 +56,8 @@ export function Navbar() {
   const pathname = usePathname();
   const { theme, systemTheme } = useTheme();
   const { user, loading } = useAuth();
+  // Get initialized state from store to check if auth has been initialized
+  const initialized = useAuthStore((state) => state.initialized);
   // ✅ OPTIMIZED: Use user.id directly instead of waiting for profile to prevent sequential dependency
   // This allows billing stats to fetch in parallel with profile fetch
   const { data: billingStats, loading: billingLoading } = useUserBillingStats(user?.id);
@@ -307,7 +310,9 @@ export function Navbar() {
 
           {/* Right Section: Start Creating Button, User Dropdown, and Hamburger Menu */}
           <div className="flex items-center flex-shrink-0 gap-2">
-            {loading ? (
+            {/* ✅ Safety check: Only show loading skeleton during initial auth check */}
+            {/* If user is null after initialization, show non-auth UI immediately */}
+            {loading && !initialized ? (
               <Skeleton className="w-8 h-8 rounded-full" />
             ) : (
               <>

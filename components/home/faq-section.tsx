@@ -23,7 +23,7 @@ const faqs = [
     questions: [
       {
         question: 'What is Renderiq and how does it work?',
-        answer: 'Renderiq is an AI-powered architectural visualization platform supporting multiple state-of-the-art AI models for image, video, and 3D generation. We use leading models including Google Gemini for image generation, Veo for video generation, and Hunyuan3D for 3D model creation. Transform sketches, floor plans, and 3D models into photorealistic renders and videos using our unified chat interface or specialized tools. Simply upload your design, describe what you want, and get professional-quality visualizations in minutes. No 3D modeling software or technical skills required. Perfect for architects, interior designers, and AEC professionals.',
+        answer: 'Renderiq is an AI-powered architectural visualization platform supporting multiple state-of-the-art AI models for image, video, and 3D generation. Transform sketches, floor plans, and 3D models into photorealistic renders and videos using our unified chat interface or specialized tools. Simply upload your design, describe what you want, and get professional-quality visualizations in minutes. No 3D modeling software or technical skills required. Perfect for architects, interior designers, and AEC professionals.',
       },
       {
         question: 'Do I need any technical skills or 3D modeling experience to use Renderiq?',
@@ -77,7 +77,7 @@ const faqs = [
     questions: [
       {
         question: 'What AI models does Renderiq use for rendering?',
-        answer: 'Renderiq supports multiple state-of-the-art AI models across different generation types. For image generation, we use Google Gemini models (Gemini 3 Pro and Gemini 2.5 Flash) which are architecture-aware, understand design intent, maintain proper proportions, and produce photorealistic renders. For video generation, we support Veo 3.1 and Veo 3.0 models that create cinematic-quality videos with smooth motion and realistic lighting. For 3D model generation, we use Tencent Hunyuan3D models for converting images or text into detailed 3D assets. All models are selected and optimized for AEC applications, ensuring technically accurate and professional results suitable for client presentations and design documentation.',
+        answer: 'Renderiq supports multiple state-of-the-art AI models across different generation types. For image generation, we use advanced architecture-aware models that understand design intent, maintain proper proportions, and produce photorealistic renders. For video generation, we support video models that create cinematic-quality videos with smooth motion and realistic lighting. For 3D model generation, we use 3D generation models for converting images or text into detailed 3D assets. All models are selected and optimized for AEC applications, ensuring technically accurate and professional results suitable for client presentations and design documentation.',
       },
       {
         question: 'How long does it take to generate a render or video?',

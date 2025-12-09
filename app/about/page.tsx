@@ -108,7 +108,7 @@ const team = [
 ];
 
 const stats = [
-  { label: "AI Models", value: "Multi-Model Support", description: "Google Gemini, Veo, Hunyuan3D & more" },
+  { label: "AI Models", value: "Multi-Model Support", description: "Multiple state-of-the-art models for image, video, and 3D generation" },
   { label: "Renders Generated", value: "Thousands", description: "And growing every day" },
   { label: "Users", value: "Architects Worldwide", description: "From startups to enterprises" },
   { label: "Quality", value: "Professional-Grade", description: "Used in real projects" }
@@ -222,7 +222,7 @@ export default function AboutPage() {
                 <h3 className="font-semibold mb-2">Multi-Model AI Architecture</h3>
                 <p className="text-muted-foreground leading-relaxed">
                   We leverage multiple state-of-the-art AI models from leading providers. For image generation, 
-                  we use Google Gemini models ensuring the highest quality renders with photorealistic detail 
+                  we use multiple state-of-the-art AI models ensuring the highest quality renders with photorealistic detail 
                   and architectural accuracy. For video generation, we support Veo models for cinematic-quality 
                   animations. For 3D generation, we use Tencent Hunyuan3D for converting images and text into 
                   detailed 3D assets.
