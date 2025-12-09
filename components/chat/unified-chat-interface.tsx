@@ -228,6 +228,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   const hasProcessingRendersRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const userSelectedRenderIdRef = useRef<string | null>(null);
+  const recentGenerationRef = useRef<{ timestamp: number; renderId?: string } | null>(null);
   
   // ✅ FIXED: Window visibility handling - prevent re-initialization on tab switch
   useEffect(() => {
@@ -542,11 +543,14 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesRef = useRef<Message[]>([]); // Track messages via ref
   
-  // Hooks
+  // ✅ FIXED: Memoize hooks to prevent excessive re-renders
+  // Only re-fetch when chainId or profile.id actually changes
   const { credits } = useCredits();
   const { rules: projectRules } = useProjectRules(chainId);
   const { profile } = useUserProfile();
-  const { data: isPro, loading: proLoading } = useIsPro(profile?.id);
+  // ✅ FIXED: Only check pro status when profile.id changes, not on every render
+  const profileId = profile?.id;
+  const { data: isPro, loading: proLoading } = useIsPro(profileId);
   const { upscaleImage, isUpscaling, upscalingResult, error: upscalingError } = useUpscaling();
   
   // LocalStorage management hook
@@ -877,10 +881,20 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   useEffect(() => {
     if (!chainId || !onRefreshChain || !isVisibleRef.current) return;
     
-    // Check if we have processing renders
-    const hasProcessing = chain?.renders?.some(r => 
+    // Check if we have processing renders in database OR recent local generation
+    const hasProcessingInDB = chain?.renders?.some(r => 
       r.status === 'processing' || r.status === 'pending'
-    ) || isGenerating || isImageGenerating || isVideoGenerating || isRecovering;
+    ) || false;
+    
+    const hasLocalGeneration = isGenerating || isImageGenerating || isVideoGenerating || isRecovering;
+    
+    // ✅ FIXED: Continue polling for 30 seconds after local generation completes
+    // This ensures we catch renders that complete on the server after local state clears
+    const recentGeneration = recentGenerationRef.current;
+    const shouldContinuePolling = recentGeneration && 
+      (Date.now() - recentGeneration.timestamp < 30000); // 30 seconds grace period
+    
+    const hasProcessing = hasProcessingInDB || hasLocalGeneration || shouldContinuePolling;
     
     hasProcessingRendersRef.current = hasProcessing;
     
@@ -897,7 +911,35 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       
       pollInterval = setInterval(() => {
         // Check refs to avoid stale closures
-        if (!isVisibleRef.current || !hasProcessingRendersRef.current) {
+        if (!isVisibleRef.current) {
+          if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+          }
+          return;
+        }
+        
+        // ✅ FIXED: Re-check processing state on each poll
+        // This allows polling to continue even after local generation completes
+        const currentChain = chain; // Get latest chain from closure
+        const hasProcessingInDB = currentChain?.renders?.some(r => 
+          r.status === 'processing' || r.status === 'pending'
+        ) || false;
+        
+        const recentGen = recentGenerationRef.current;
+        const shouldContinue = recentGen && 
+          (Date.now() - recentGen.timestamp < 30000);
+        
+        // Check if the recent generation render is now in the database
+        if (recentGen?.renderId && currentChain?.renders) {
+          const renderInDB = currentChain.renders.find(r => r.id === recentGen.renderId);
+          if (renderInDB && renderInDB.status === 'completed') {
+            // Render is now in DB, clear recent generation tracking
+            recentGenerationRef.current = null;
+          }
+        }
+        
+        if (!hasProcessingInDB && !shouldContinue && !hasProcessingRendersRef.current) {
           if (pollInterval) {
             clearInterval(pollInterval);
             pollInterval = null;
@@ -918,7 +960,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         pollInterval = null;
       }
     };
-  }, [chainId, throttledRefresh]); // ✅ FIXED: Use throttled refresh instead of onRefreshChain directly
+  }, [chainId, throttledRefresh, chain?.renders]); // ✅ FIXED: Include chain.renders to restart polling when it changes
   
   // ✅ FIXED: Update processing ref when state changes (separate effect)
   useEffect(() => {
@@ -1487,6 +1529,13 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         dispatchChat({ type: 'SET_CURRENT_RENDER', payload: newRender });
         onRenderComplete?.(newRender);
         
+        // ✅ FIXED: Track recent generation to continue polling after local completion
+        // This ensures we catch the render when it appears in the database
+        recentGenerationRef.current = {
+          timestamp: Date.now(),
+          renderId: renderId
+        };
+        
         // Update the assistant message with the result and render
         dispatchChat({
           type: 'UPDATE_MESSAGE',
@@ -1505,9 +1554,11 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
             : msg
         );
         
-        // ✅ REMOVED: Don't call onRefreshChain() here - it causes page reload loops
-        // The polling useEffect will handle checking for completion
-        // The local state update above is sufficient for immediate UI feedback
+        // ✅ FIXED: Trigger immediate refresh to sync with database
+        // Use setTimeout to avoid blocking the UI update
+        setTimeout(() => {
+          throttledRefresh();
+        }, 1000); // Wait 1 second for render to be saved to DB
 
         // Clear uploaded file after successful generation (but keep video mode)
         if (uploadedFile && !isVideoMode) {

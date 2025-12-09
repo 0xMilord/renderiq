@@ -163,14 +163,13 @@ export function ComparisonSection() {
         <XCircle className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground/40" />
       );
     }
-    // suppressHydrationWarning prevents hydration mismatch errors that can occur
-    // when browser extensions or cached content modify the HTML
+    // Use suppressHydrationWarning to prevent errors from browser extensions or cached content
     return (
       <span 
         className={`text-base sm:text-lg font-medium ${isRenderiq ? 'text-primary' : 'text-foreground'}`}
         suppressHydrationWarning
       >
-        {value}
+        {String(value)}
       </span>
     );
   };

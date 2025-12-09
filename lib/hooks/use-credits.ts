@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from './use-auth';
 import { getUserCredits } from '@/lib/actions/billing.actions';
 import { logger } from '@/lib/utils/logger';
+import { deduplicateRequest } from '@/lib/utils/request-deduplication';
 
 type CreditsData = {
   balance: number;
@@ -18,6 +19,8 @@ export function useCredits() {
   const [credits, setCredits] = useState<CreditsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const lastFetchRef = useRef<number>(0);
+  const FETCH_DEBOUNCE_MS = 2000; // 2 seconds debounce
 
   useEffect(() => {
     logger.log('💰 useCredits: Effect triggered, user:', !!user);
@@ -27,11 +30,27 @@ export function useCredits() {
       return;
     }
 
+    // ✅ FIXED: Debounce requests to prevent excessive calls
+    const now = Date.now();
+    const timeSinceLastFetch = now - lastFetchRef.current;
+    
+    if (timeSinceLastFetch < FETCH_DEBOUNCE_MS) {
+      logger.log('⏸️ useCredits: Debouncing request, skipping');
+      return;
+    }
+
     const fetchCredits = async () => {
       try {
+        lastFetchRef.current = Date.now();
         logger.log('🔄 useCredits: Fetching credits for user');
         setLoading(true);
-        const result = await getUserCredits();
+        
+        // ✅ FIXED: Use request deduplication to prevent duplicate calls
+        const result = await deduplicateRequest(
+          `credits-${user.id}`,
+          () => getUserCredits(),
+          true // Use cache
+        );
         
         logger.log('📥 useCredits: Credits result:', result);
         if (result.success && 'credits' in result) {

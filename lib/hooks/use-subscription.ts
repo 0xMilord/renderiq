@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getUserSubscriptionAction, getUserCreditsWithResetAction, isUserProAction, getUserBillingStatsAction } from '@/lib/actions/billing.actions';
+import { deduplicateRequest } from '@/lib/utils/request-deduplication';
 
 /**
  * Hook to get user's subscription status
@@ -47,6 +48,8 @@ export function useIsPro(userId?: string) {
   const [data, setData] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const lastFetchRef = useRef<number>(0);
+  const FETCH_DEBOUNCE_MS = 2000; // 2 seconds debounce
 
   useEffect(() => {
     if (!userId) {
@@ -54,10 +57,26 @@ export function useIsPro(userId?: string) {
       return;
     }
 
+    // ✅ FIXED: Debounce requests to prevent excessive calls
+    const now = Date.now();
+    const timeSinceLastFetch = now - lastFetchRef.current;
+    
+    if (timeSinceLastFetch < FETCH_DEBOUNCE_MS) {
+      return;
+    }
+
     const checkPro = async () => {
       try {
+        lastFetchRef.current = Date.now();
         setLoading(true);
-        const result = await isUserProAction(userId);
+        
+        // ✅ FIXED: Use request deduplication to prevent duplicate calls
+        const result = await deduplicateRequest(
+          `isPro-${userId}`,
+          () => isUserProAction(userId),
+          true // Use cache
+        );
+        
         if (result.success) {
           setData(result.data);
           setError(null);
