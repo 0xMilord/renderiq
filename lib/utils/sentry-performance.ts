@@ -15,25 +15,25 @@ export async function withDatabaseSpan<T>(
   description: string,
   fn: (span: Sentry.Span | undefined) => Promise<T>
 ): Promise<T> {
-  const transaction = Sentry.getCurrentScope().getTransaction();
-  const span = transaction?.startChild({
-    op: 'db.query',
-    description: `${operation}: ${description}`,
-    data: {
-      'db.operation': operation,
+  return Sentry.startSpan(
+    {
+      op: 'db.query',
+      name: `${operation}: ${description}`,
+      attributes: {
+        'db.operation': operation,
+      },
     },
-  });
-
-  try {
-    const result = await fn(span);
-    span?.setStatus({ code: 1, message: 'ok' }); // OK status
-    return result;
-  } catch (error) {
-    span?.setStatus({ code: 2, message: 'error' }); // Error status
-    throw error;
-  } finally {
-    span?.finish();
-  }
+    async (span) => {
+      try {
+        const result = await fn(span || undefined);
+        span?.setStatus({ code: 1, message: 'ok' }); // OK status
+        return result;
+      } catch (error) {
+        span?.setStatus({ code: 2, message: 'error' }); // Error status
+        throw error;
+      }
+    }
+  );
 }
 
 /**
@@ -44,26 +44,26 @@ export async function withExternalApiSpan<T>(
   method: string,
   fn: (span: Sentry.Span | undefined) => Promise<T>
 ): Promise<T> {
-  const transaction = Sentry.getCurrentScope().getTransaction();
-  const span = transaction?.startChild({
-    op: 'http.client',
-    description: `${method} ${url}`,
-    data: {
-      'http.method': method,
-      'http.url': url,
+  return Sentry.startSpan(
+    {
+      op: 'http.client',
+      name: `${method} ${url}`,
+      attributes: {
+        'http.method': method,
+        'http.url': url,
+      },
     },
-  });
-
-  try {
-    const result = await fn(span);
-    span?.setStatus({ code: 1, message: 'ok' });
-    return result;
-  } catch (error) {
-    span?.setStatus({ code: 2, message: 'error' });
-    throw error;
-  } finally {
-    span?.finish();
-  }
+    async (span) => {
+      try {
+        const result = await fn(span || undefined);
+        span?.setStatus({ code: 1, message: 'ok' });
+        return result;
+      } catch (error) {
+        span?.setStatus({ code: 2, message: 'error' });
+        throw error;
+      }
+    }
+  );
 }
 
 /**
@@ -74,26 +74,26 @@ export async function withFileOperationSpan<T>(
   filePath: string,
   fn: (span: Sentry.Span | undefined) => Promise<T>
 ): Promise<T> {
-  const transaction = Sentry.getCurrentScope().getTransaction();
-  const span = transaction?.startChild({
-    op: 'file.operation',
-    description: `${operation}: ${filePath}`,
-    data: {
-      'file.operation': operation,
-      'file.path': filePath,
+  return Sentry.startSpan(
+    {
+      op: 'file.operation',
+      name: `${operation}: ${filePath}`,
+      attributes: {
+        'file.operation': operation,
+        'file.path': filePath,
+      },
     },
-  });
-
-  try {
-    const result = await fn(span);
-    span?.setStatus({ code: 1, message: 'ok' });
-    return result;
-  } catch (error) {
-    span?.setStatus({ code: 2, message: 'error' });
-    throw error;
-  } finally {
-    span?.finish();
-  }
+    async (span) => {
+      try {
+        const result = await fn(span || undefined);
+        span?.setStatus({ code: 1, message: 'ok' });
+        return result;
+      } catch (error) {
+        span?.setStatus({ code: 2, message: 'error' });
+        throw error;
+      }
+    }
+  );
 }
 
 /**
@@ -104,26 +104,26 @@ export async function withAIOperationSpan<T>(
   model: string,
   fn: (span: Sentry.Span | undefined) => Promise<T>
 ): Promise<T> {
-  const transaction = Sentry.getCurrentScope().getTransaction();
-  const span = transaction?.startChild({
-    op: 'ai.operation',
-    description: `${operation} (${model})`,
-    data: {
-      'ai.operation': operation,
-      'ai.model': model,
+  return Sentry.startSpan(
+    {
+      op: 'ai.operation',
+      name: `${operation} (${model})`,
+      attributes: {
+        'ai.operation': operation,
+        'ai.model': model,
+      },
     },
-  });
-
-  try {
-    const result = await fn(span);
-    span?.setStatus({ code: 1, message: 'ok' });
-    return result;
-  } catch (error) {
-    span?.setStatus({ code: 2, message: 'error' });
-    throw error;
-  } finally {
-    span?.finish();
-  }
+    async (span) => {
+      try {
+        const result = await fn(span || undefined);
+        span?.setStatus({ code: 1, message: 'ok' });
+        return result;
+      } catch (error) {
+        span?.setStatus({ code: 2, message: 'error' });
+        throw error;
+      }
+    }
+  );
 }
 
 /**
@@ -134,26 +134,26 @@ export async function withPaymentOperationSpan<T>(
   provider: string,
   fn: (span: Sentry.Span | undefined) => Promise<T>
 ): Promise<T> {
-  const transaction = Sentry.getCurrentScope().getTransaction();
-  const span = transaction?.startChild({
-    op: 'payment.operation',
-    description: `${operation} (${provider})`,
-    data: {
-      'payment.operation': operation,
-      'payment.provider': provider,
+  return Sentry.startSpan(
+    {
+      op: 'payment.operation',
+      name: `${operation} (${provider})`,
+      attributes: {
+        'payment.operation': operation,
+        'payment.provider': provider,
+      },
     },
-  });
-
-  try {
-    const result = await fn(span);
-    span?.setStatus({ code: 1, message: 'ok' });
-    return result;
-  } catch (error) {
-    span?.setStatus({ code: 2, message: 'error' });
-    throw error;
-  } finally {
-    span?.finish();
-  }
+    async (span) => {
+      try {
+        const result = await fn(span || undefined);
+        span?.setStatus({ code: 1, message: 'ok' });
+        return result;
+      } catch (error) {
+        span?.setStatus({ code: 2, message: 'error' });
+        throw error;
+      }
+    }
+  );
 }
 
 /**
@@ -165,23 +165,23 @@ export async function withSpan<T>(
   data?: Record<string, any>,
   fn: (span: Sentry.Span | undefined) => Promise<T>
 ): Promise<T> {
-  const transaction = Sentry.getCurrentScope().getTransaction();
-  const span = transaction?.startChild({
-    op,
-    description,
-    data,
-  });
-
-  try {
-    const result = await fn(span);
-    span?.setStatus({ code: 1, message: 'ok' });
-    return result;
-  } catch (error) {
-    span?.setStatus({ code: 2, message: 'error' });
-    throw error;
-  } finally {
-    span?.finish();
-  }
+  return Sentry.startSpan(
+    {
+      op,
+      name: description,
+      attributes: data,
+    },
+    async (span) => {
+      try {
+        const result = await fn(span || undefined);
+        span?.setStatus({ code: 1, message: 'ok' });
+        return result;
+      } catch (error) {
+        span?.setStatus({ code: 2, message: 'error' });
+        throw error;
+      }
+    }
+  );
 }
 
 /**
@@ -189,10 +189,8 @@ export async function withSpan<T>(
  * Call this at the start of API route handlers for better organization
  */
 export function setTransactionName(name: string): void {
-  const transaction = Sentry.getCurrentScope().getTransaction();
-  if (transaction) {
-    transaction.setName(name);
-  }
+  // In Sentry v10, use setTransactionName directly
+  Sentry.setTransactionName(name);
 }
 
 /**

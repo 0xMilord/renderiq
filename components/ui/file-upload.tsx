@@ -177,18 +177,20 @@ export function FileUpload({
                 )}
               </div>
             ) : (
-              <div className="w-full h-full relative group/item">
-                <img
-                  src={previews[0]}
-                  alt="Preview"
-                  className="w-full h-full object-cover"
-                  draggable={false}
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover/item:bg-black/50 transition-colors flex items-center justify-center gap-2">
+              <div className="w-full h-full flex flex-col">
+                <div className="relative flex-1">
+                  <img
+                    src={previews[0]}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                    draggable={false}
+                  />
+                </div>
+                <div className="flex gap-2 p-2 border-t bg-background">
                   <Button
                     variant="secondary"
                     size="sm"
-                    className="opacity-0 group-hover/item:opacity-100 transition-opacity"
+                    className="flex-1"
                     onClick={(e) => {
                       e.stopPropagation();
                       open();
@@ -200,7 +202,7 @@ export function FileUpload({
                   <Button
                     variant="destructive"
                     size="sm"
-                    className="opacity-0 group-hover/item:opacity-100 transition-opacity"
+                    className="flex-1"
                     onClick={(e) => {
                       e.stopPropagation();
                       clearAll();

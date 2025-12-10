@@ -3,6 +3,7 @@ import { renderChains, renders, projects } from '@/lib/db/schema';
 import { eq, desc, inArray, sql } from 'drizzle-orm';
 import { CreateChainData, UpdateChainData } from '@/lib/types/render-chain';
 import { logger } from '@/lib/utils/logger';
+import { isValidUUID } from '@/lib/utils/security';
 
 export class RenderChainsDAL {
   static async create(data: CreateChainData) {
@@ -23,6 +24,12 @@ export class RenderChainsDAL {
 
   static async getById(id: string) {
     logger.log('🔍 Fetching render chain by ID:', id);
+    
+    // Validate UUID - temp IDs (starting with 'temp-') are not valid UUIDs
+    if (!isValidUUID(id) || id.startsWith('temp-')) {
+      logger.warn('⚠️ Invalid chain ID (temp or non-UUID):', id);
+      return undefined;
+    }
     
     const [chain] = await db
       .select()
@@ -163,6 +170,12 @@ export class RenderChainsDAL {
    */
   static async getChainWithRenders(chainId: string) {
     logger.log('🔍 [OPTIMIZED] Fetching chain with renders in parallel:', chainId);
+    
+    // Validate UUID - temp IDs (starting with 'temp-') are not valid UUIDs
+    if (!isValidUUID(chainId) || chainId.startsWith('temp-')) {
+      logger.warn('⚠️ Invalid chain ID (temp or non-UUID):', chainId);
+      return null;
+    }
     
     // ✅ OPTIMIZED: Fetch chain and renders in parallel (2 queries simultaneously)
     const [chainResult, rendersResult] = await Promise.all([

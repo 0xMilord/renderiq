@@ -24,7 +24,8 @@ import {
   Download,
   Eye,
   HelpCircle,
-  Maximize2
+  Maximize2,
+  Upload
 } from 'lucide-react';
 import ReactBeforeSliderComponent from 'react-before-after-slider-component';
 import 'react-before-after-slider-component/dist/build.css';
@@ -41,6 +42,8 @@ import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { FileUpload } from '@/components/ui/file-upload';
+import { UploadModal } from '@/components/chat/upload-modal';
+import { GalleryModal } from '@/components/chat/gallery-modal';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import Image from 'next/image';
 import { shouldUseRegularImg } from '@/lib/utils/storage-url';
@@ -127,6 +130,8 @@ export function BaseToolComponent({
   
   // Video-specific state
   const [videoDuration, setVideoDuration] = useState<4 | 6 | 8>(8);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false);
   const [videoModel, setVideoModel] = useState<string>('veo-3.1-generate-preview'); // Default to Veo 3.1 Standard
   const [enableAudio, setEnableAudio] = useState<boolean>(true); // Audio for Veo 3.1 models
   
@@ -310,6 +315,46 @@ export function BaseToolComponent({
       setPreviews([]);
     }
   }, []);
+
+  // Handle file selection from UploadModal
+  const handleUploadModalFileSelect = useCallback((file: File) => {
+    if (multipleImages) {
+      const newFiles = [...images, file].slice(0, maxImages);
+      handleFilesChange(newFiles);
+    } else {
+      handleFilesChange([file]);
+    }
+    setIsUploadModalOpen(false);
+  }, [images, multipleImages, maxImages, handleFilesChange]);
+
+  // Handle image selection from GalleryModal
+  const handleGalleryImageSelect = useCallback(async (image: { url: string; file?: File; render?: any }) => {
+    try {
+      let file: File;
+      
+      if (image.file) {
+        // If file is provided, use it directly
+        file = image.file;
+      } else {
+        // Otherwise, fetch the image from URL and convert to File
+        const response = await fetch(image.url);
+        const blob = await response.blob();
+        const fileName = image.url.split('/').pop() || 'gallery-image.png';
+        file = new File([blob], fileName, { type: blob.type });
+      }
+      
+      if (multipleImages) {
+        const newFiles = [...images, file].slice(0, maxImages);
+        handleFilesChange(newFiles);
+      } else {
+        handleFilesChange([file]);
+      }
+      setIsGalleryModalOpen(false);
+    } catch (error) {
+      console.error('Error loading gallery image:', error);
+      toast.error('Failed to load image from gallery');
+    }
+  }, [images, multipleImages, maxImages, handleFilesChange]);
 
   const handleGenerate = async () => {
     // For video tools, check input requirements based on inputType
@@ -655,15 +700,28 @@ export function BaseToolComponent({
   const ToolPanelContent = () => (
     <Card className="w-full min-h-[90vh] lg:sticky lg:top-20 overflow-y-auto overflow-x-hidden custom-scrollbar">
       <CardContent className="space-y-6 pt-3 pb-3 px-3">
-            {/* Upload Area - Using improved FileUpload component */}
-            <FileUpload
-              multiple={multipleImages}
-              maxFiles={maxImages}
-              accept={{ 'image/*': ['.png', '.jpg', '.jpeg', '.webp'] }}
-              onFilesChange={handleFilesChange}
-              previews={previews}
-              aspectRatio="16/9"
-            />
+            {/* Upload Area - Using FileUpload component with UploadModal integration */}
+            <div className="space-y-4">
+              <FileUpload
+                multiple={multipleImages}
+                maxFiles={maxImages}
+                accept={{ 'image/*': ['.png', '.jpg', '.jpeg', '.webp'] }}
+                onFilesChange={handleFilesChange}
+                previews={previews}
+                aspectRatio="16/9"
+              />
+              {previews.length === 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setIsUploadModalOpen(true)}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload, Capture, or Reuse Image
+                </Button>
+              )}
+            </div>
 
             {/* Error Alert */}
             {error && (
@@ -1738,6 +1796,20 @@ export function BaseToolComponent({
           message={limitDialogData.message}
         />
       )}
+      <UploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onFileSelect={handleUploadModalFileSelect}
+        onGalleryOpen={() => {
+          setIsUploadModalOpen(false);
+          setIsGalleryModalOpen(true);
+        }}
+      />
+      <GalleryModal
+        isOpen={isGalleryModalOpen}
+        onClose={() => setIsGalleryModalOpen(false)}
+        onImageSelect={handleGalleryImageSelect}
+      />
     </div>
   );
 }
