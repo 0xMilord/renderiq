@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getUserPlanLimits } from '@/lib/actions/plan-limits.actions';
+import { logger } from '@/lib/utils/logger';
+import * as Sentry from '@sentry/nextjs';
 
 export async function GET() {
   try {
@@ -9,7 +11,13 @@ export async function GET() {
     }
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Error fetching plan limits:', error);
+    logger.error('❌ Billing API: Error fetching plan limits:', error);
+    
+    Sentry.setContext('billing_api', {
+      route: '/api/billing/plan-limits',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    
     return NextResponse.json(
       { success: false, error: 'Failed to fetch plan limits' },
       { status: 500 }

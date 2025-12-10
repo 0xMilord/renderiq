@@ -352,6 +352,12 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     logger.error('🎬 Video API: Unexpected error:', error);
+    
+    // Add Sentry context for video generation errors
+    Sentry.setContext('video_api', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error'

@@ -12,6 +12,7 @@ import { StorageService } from '@/lib/services/storage';
 import { PlanLimitsService } from '@/lib/services/plan-limits.service';
 import { logger } from '@/lib/utils/logger';
 import * as Sentry from '@sentry/nextjs';
+import { setTransactionName, withDatabaseSpan, withAIOperationSpan, withFileOperationSpan } from '@/lib/utils/sentry-performance';
 import { 
   validatePrompt, 
   sanitizeInput, 
@@ -34,6 +35,9 @@ export const maxDuration = 300; // 5 minutes for video generation
 export async function POST(request: NextRequest) {
   let creditsCost: number | undefined;
   let user: { id: string } | null = null;
+  
+  // Set transaction name for better organization in Sentry
+  setTransactionName('POST /api/renders');
   
   try {
     // Rate limiting

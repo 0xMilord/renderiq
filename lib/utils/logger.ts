@@ -93,6 +93,52 @@ class Logger {
     }
   }
 
+  /**
+   * Send structured log to Sentry using Sentry.logger APIs
+   */
+  private async sendStructuredLog(level: 'info' | 'warn' | 'error', args: any[]): Promise<void> {
+    // Only send in production or if explicitly enabled
+    if (isDevelopment && !process.env.NEXT_PUBLIC_SENTRY_DEBUG) {
+      return;
+    }
+
+    try {
+      const sentry = await getSentry();
+      if (!sentry || !sentry.logger) return;
+
+      // Extract message and attributes
+      const message = args.map(arg => {
+        if (arg instanceof Error) return arg.message;
+        return typeof arg === 'string' ? arg : JSON.stringify(arg);
+      }).join(' ');
+
+      // Extract attributes from additional args
+      const attributes: Record<string, any> = {};
+      args.forEach((arg, index) => {
+        if (typeof arg === 'object' && arg !== null && !(arg instanceof Error)) {
+          Object.assign(attributes, this.redactSensitiveData(arg));
+        } else if (index > 0) {
+          attributes[`arg${index}`] = typeof arg === 'string' ? arg : JSON.stringify(arg);
+        }
+      });
+
+      // Send structured log
+      switch (level) {
+        case 'error':
+          sentry.logger.error(message, attributes);
+          break;
+        case 'warn':
+          sentry.logger.warn(message, attributes);
+          break;
+        case 'info':
+          sentry.logger.info(message, attributes);
+          break;
+      }
+    } catch (error) {
+      // Fail silently - don't break the app if Sentry fails
+    }
+  }
+
   private redactSensitiveData(data: Record<string, any>): Record<string, any> {
     const sensitiveKeys = [
       'password',
@@ -126,11 +172,21 @@ class Logger {
     if (this.shouldLog('log')) {
       console.log(...args);
     }
+    
+    // Send to Sentry via structured logging in production
+    if (!isDevelopment) {
+      this.sendStructuredLog('info', args);
+    }
   }
 
   info(...args: any[]): void {
     if (this.shouldLog('info')) {
       console.info(...args);
+    }
+    
+    // Send to Sentry via structured logging in production
+    if (!isDevelopment) {
+      this.sendStructuredLog('info', args);
     }
   }
 
@@ -139,7 +195,10 @@ class Logger {
       console.warn(...args);
     }
     
-    // Send warnings to Sentry in production
+    // Send warnings to Sentry via structured logging (if enabled)
+    this.sendStructuredLog('warn', args);
+    
+    // Also send as warning message in production
     if (!isDevelopment) {
       const message = args.map(arg => 
         typeof arg === 'string' ? arg : JSON.stringify(arg)
@@ -152,7 +211,10 @@ class Logger {
     // Always log errors
     console.error(...args);
     
-    // Send errors to Sentry
+    // Send errors to Sentry via structured logging (if enabled)
+    this.sendStructuredLog('error', args);
+    
+    // Also send as exception for error tracking
     const error = args.find(arg => arg instanceof Error);
     const message = args.map(arg => {
       if (arg instanceof Error) return arg.message;

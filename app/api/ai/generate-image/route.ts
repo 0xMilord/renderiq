@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/utils/logger';
 import { validatePrompt, sanitizeInput, isAllowedOrigin, getSafeErrorMessage, securityLog } from '@/lib/utils/security';
 import { rateLimitMiddleware } from '@/lib/utils/rate-limit';
+import * as Sentry from '@sentry/nextjs';
 
 /**
  * Google Generative AI Image Generation API Route
@@ -97,6 +98,11 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     securityLog('image_generation_error', { error: getSafeErrorMessage(error) }, 'error');
     logger.error('❌ AI Image: Generation failed', error);
+    
+    // Add Sentry context for image generation errors
+    Sentry.setContext('ai_image_generation', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
     
     // Never expose internal errors
     return NextResponse.json(

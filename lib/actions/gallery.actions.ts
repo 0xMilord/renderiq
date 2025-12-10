@@ -145,7 +145,7 @@ export async function getLongestChains(limit = 5) {
     // Chains are already sorted by popularity from the SQL query
     return { success: true, data: chains.slice(0, limit) };
   } catch (error) {
-    console.error('❌ Error in getLongestChains:', error);
+    logger.error('❌ Error in getLongestChains:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get longest chains',

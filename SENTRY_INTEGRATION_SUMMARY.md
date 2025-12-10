@@ -111,6 +111,14 @@ Set up alerts in Sentry for:
 - React component errors are caught by error boundaries
 - API route errors are tracked with context
 
+### Release Health Monitoring
+- **Session Tracking**: Automatically tracks user sessions (client) and request sessions (server)
+- **Crash-Free Rate**: Monitor percentage of sessions without crashes
+- **Release Adoption**: Track how many users are on each release
+- **Session Status**: Track healthy, errored, crashed, and abnormal sessions
+- **Automatic Release Naming**: Releases named as `renderiq@{version}-{buildId}`
+- **Release Comparison**: Compare health metrics between releases
+
 ### Sensitive Data Protection
 - Automatic redaction of passwords, tokens, API keys
 - Payment information is redacted
@@ -174,9 +182,16 @@ try {
 
 ## Documentation
 
-See `docs/SENTRY_SETUP.md` for detailed documentation on:
+See documentation files for detailed information:
+
+- **`docs/SENTRY_SETUP.md`**: Complete setup guide, configuration, and troubleshooting
+- **`docs/SENTRY_RELEASE_HEALTH.md`**: Release Health monitoring guide with metrics and alerts
+
+Key topics covered:
 - Environment variables
 - Configuration options
+- Release Health monitoring
+- Setting up alerts
 - Best practices
 - Troubleshooting
 

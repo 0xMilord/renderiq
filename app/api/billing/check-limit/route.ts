@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkProjectLimit, checkRenderLimit, checkQualityLimit, checkVideoLimit } from '@/lib/actions/plan-limits.actions';
+import { logger } from '@/lib/utils/logger';
+import * as Sentry from '@sentry/nextjs';
 
 export async function GET(request: NextRequest) {
   try {
@@ -55,7 +57,13 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Error checking limit:', error);
+    logger.error('❌ Billing API: Error checking limit:', error);
+    
+    Sentry.setContext('billing_api', {
+      route: '/api/billing/check-limit',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    
     return NextResponse.json(
       { success: false, error: 'Failed to check limit' },
       { status: 500 }

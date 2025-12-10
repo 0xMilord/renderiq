@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCachedUser } from '@/lib/services/auth-cache';
 import { RenderChainsDAL } from '@/lib/dal/render-chains';
+import { logger } from '@/lib/utils/logger';
+import * as Sentry from '@sentry/nextjs';
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,7 +22,13 @@ export async function GET(request: NextRequest) {
       data: chains
     });
   } catch (error) {
-    console.error('Error fetching chains:', error);
+    logger.error('❌ Projects API: Error fetching chains:', error);
+    
+    Sentry.setContext('projects_api', {
+      route: '/api/projects/chains',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    
     return NextResponse.json(
       { 
         success: false, 

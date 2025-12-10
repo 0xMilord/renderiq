@@ -18,7 +18,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
     const { user } = await getCachedUser();
 
     if (!user) {
-      console.error('❌ [ChatPage SSR] Auth error: No user');
+      logger.error('❌ [ChatPage SSR] Auth error: No user');
       redirect('/login');
     }
 
@@ -69,7 +69,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
       />
     );
   } catch (error) {
-    console.error('❌ [ChatPage SSR] Fatal error:', error);
+    logger.error('❌ [ChatPage SSR] Fatal error:', error);
     // Return error state instead of throwing
     return (
       <div className="flex items-center justify-center h-[calc(100vh-var(--navbar-height))]">

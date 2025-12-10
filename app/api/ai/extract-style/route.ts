@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/utils/logger';
 import { validatePrompt, sanitizeInput, getSafeErrorMessage, securityLog } from '@/lib/utils/security';
 import { rateLimitMiddleware } from '@/lib/utils/rate-limit';
+import * as Sentry from '@sentry/nextjs';
 
 /**
  * Style Extraction API Route
@@ -71,6 +72,11 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     securityLog('style_extraction_error', { error: getSafeErrorMessage(error) }, 'error');
     logger.error('❌ Style Extraction: Failed', error);
+    
+    // Add Sentry context for style extraction errors
+    Sentry.setContext('ai_style_extraction', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
     
     return NextResponse.json(
       { 

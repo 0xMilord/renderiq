@@ -5,6 +5,7 @@ import { getCachedUser } from '@/lib/services/auth-cache';
 import { StorageService } from '@/lib/services/storage';
 import { updateCanvasFileAction } from '@/lib/actions/canvas-files.actions';
 import { logger } from '@/lib/utils/logger';
+import * as Sentry from '@sentry/nextjs';
 
 export async function POST(request: NextRequest) {
   try {
@@ -57,6 +58,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     logger.error('Error uploading canvas thumbnail:', error);
+    
+    Sentry.setContext('canvas_api', {
+      route: '/api/canvas/upload-thumbnail',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    
     return NextResponse.json(
       { success: false, error: 'Failed to upload thumbnail' },
       { status: 500 }

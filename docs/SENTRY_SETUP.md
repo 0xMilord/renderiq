@@ -12,6 +12,7 @@ Sentry is integrated throughout the application to provide comprehensive error t
 - **Automatic error capture** via logger utility
 - **Error boundaries** for React components
 - **Context-aware error reporting** with user and feature information
+- **Release Health monitoring** - Track session health, crash rates, and release adoption
 
 ## Environment Variables
 
@@ -22,12 +23,26 @@ Add the following environment variables to your production environment:
 ```bash
 # Sentry DSN (Data Source Name) - Get this from your Sentry project settings
 NEXT_PUBLIC_SENTRY_DSN=https://your-sentry-dsn@sentry.io/project-id
-
-# Optional: Sentry Release (for tracking deployments)
-NEXT_PUBLIC_SENTRY_RELEASE=renderiq@1.0.0
-# or
-SENTRY_RELEASE=renderiq@1.0.0
 ```
+
+### Release Health Variables
+
+Release tracking is automatically configured, but you can override it:
+
+```bash
+# Optional: Sentry Release (for tracking deployments)
+# Format: renderiq@{version}-{buildId}
+# Example: renderiq@0.1.0-abc1234
+# 
+# If not set, it's automatically generated from:
+# - package.json version
+# - Git commit SHA (on Vercel) or build timestamp
+NEXT_PUBLIC_SENTRY_RELEASE=renderiq@1.0.0-abc1234
+# or for server-side
+SENTRY_RELEASE=renderiq@1.0.0-abc1234
+```
+
+**Note:** The release is automatically generated during build from `package.json` version and build ID. You only need to set this manually if you want a custom release identifier.
 
 ### Optional Variables
 

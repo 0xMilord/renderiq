@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { creditPackages } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
+import { logger } from '@/lib/utils/logger';
+import * as Sentry from '@sentry/nextjs';
 
 export async function GET() {
   try {
@@ -24,7 +26,13 @@ export async function GET() {
 
     return NextResponse.json({ success: true, packages: formattedPackages });
   } catch (error) {
-    console.error('Error fetching credit packages:', error);
+    logger.error('❌ Billing API: Error fetching credit packages:', error);
+    
+    Sentry.setContext('billing_api', {
+      route: '/api/billing/credit-packages',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    
     return NextResponse.json(
       { success: false, error: 'Failed to fetch credit packages' },
       { status: 500 }

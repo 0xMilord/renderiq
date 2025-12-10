@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCachedUser } from '@/lib/services/auth-cache';
 import { RendersDAL } from '@/lib/dal/renders';
+import { logger } from '@/lib/utils/logger';
+import * as Sentry from '@sentry/nextjs';
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,7 +32,13 @@ export async function GET(request: NextRequest) {
       count: likedItems.length,
     });
   } catch (error) {
-    console.error('Error fetching liked items:', error);
+    logger.error('❌ Gallery API: Error fetching liked items:', error);
+    
+    Sentry.setContext('gallery_api', {
+      route: '/api/gallery/liked',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
