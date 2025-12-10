@@ -1684,7 +1684,6 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       });
       
       // Determine error type for better user messaging
-      const errorMessage = error instanceof Error ? error.message : String(error);
       const isNetworkError = errorMessage.includes('Failed to fetch') || 
                             errorMessage.includes('network') ||
                             errorMessage.includes('timeout') ||
