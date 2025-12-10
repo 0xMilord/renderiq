@@ -88,6 +88,7 @@ import { useWakeLock } from '@/lib/hooks/use-wake-lock';
 import { useDynamicTitle } from '@/lib/hooks/use-dynamic-title';
 import { retryFetch } from '@/lib/utils/retry-fetch';
 import { convertRendersToMessages, convertRenderToMessages } from '@/lib/utils/render-to-messages';
+import { trackRenderStarted, trackRenderCompleted, trackRenderFailed, trackRenderCreditsCost } from '@/lib/utils/sentry-metrics';
 import {
   POLLING_INTERVAL,
 } from '@/lib/constants/chat-constants';
@@ -839,11 +840,65 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       messagesRef.current = mergedMessages;
       saveMessages(mergedMessages);
     } else {
-      // Not generating - safe to replace with chain.renders (single source of truth)
-      const newMessages = convertRendersToMessages(chain.renders);
-      dispatchChat({ type: 'SET_MESSAGES', payload: newMessages });
-      messagesRef.current = newMessages;
-      saveMessages(newMessages);
+      // Not generating - check if we have a recent generation that might not be in DB yet
+      const recentGen = recentGenerationRef.current;
+      const hasRecentGeneration = recentGen && (Date.now() - recentGen.timestamp < 30000); // 30 seconds
+      
+      if (hasRecentGeneration && recentGen.renderId) {
+        // Check if the recent generation render is now in the database
+        const renderInDB = chain.renders.find(r => r.id === recentGen.renderId);
+        
+        if (!renderInDB || renderInDB.status !== 'completed') {
+          // Recent generation not in DB yet or not completed - merge to preserve local render
+          const newMessagesFromChain = convertRendersToMessages(chain.renders);
+          const prevMessages = messages;
+          const mergedMessages: Message[] = [];
+          const chainMessageMap = new Map(newMessagesFromChain.map(m => [m.render?.id, m]));
+          
+          // Keep local messages with the recent generation render
+          for (const prevMsg of prevMessages) {
+            if (prevMsg.render?.id === recentGen.renderId) {
+              // Keep the local render until it appears in DB
+              mergedMessages.push(prevMsg);
+            } else if (prevMsg.render?.id) {
+              // Update with latest render data from chain
+              const chainMsg = chainMessageMap.get(prevMsg.render.id);
+              if (chainMsg) {
+                mergedMessages.push(chainMsg);
+              } else {
+                // Render was removed, keep old message
+                mergedMessages.push(prevMsg);
+              }
+            } else {
+              mergedMessages.push(prevMsg);
+            }
+          }
+          
+          // Add any new renders from chain that aren't in local messages
+          for (const chainMsg of newMessagesFromChain) {
+            if (chainMsg.render && !mergedMessages.some(m => m.render?.id === chainMsg.render?.id)) {
+              mergedMessages.push(chainMsg);
+            }
+          }
+          
+          dispatchChat({ type: 'SET_MESSAGES', payload: mergedMessages });
+          messagesRef.current = mergedMessages;
+          saveMessages(mergedMessages);
+        } else {
+          // Render is now in DB - safe to replace with chain.renders (single source of truth)
+          recentGenerationRef.current = null; // Clear tracking since it's now in DB
+          const newMessages = convertRendersToMessages(chain.renders);
+          dispatchChat({ type: 'SET_MESSAGES', payload: newMessages });
+          messagesRef.current = newMessages;
+          saveMessages(newMessages);
+        }
+      } else {
+        // No recent generation - safe to replace with chain.renders (single source of truth)
+        const newMessages = convertRendersToMessages(chain.renders);
+        dispatchChat({ type: 'SET_MESSAGES', payload: newMessages });
+        messagesRef.current = newMessages;
+        saveMessages(newMessages);
+      }
     }
     
     // Update currentRender
@@ -1306,6 +1361,11 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     // Define generationType outside try block so it's accessible in catch
     const generationType = isVideoMode ? 'video' : 'image';
     
+    // Track render started
+    const startTime = Date.now();
+    trackRenderStarted(generationType, style || 'default', quality);
+    trackRenderCreditsCost(generationType, quality, requiredCredits);
+    
     // Store API error for catch block
     let apiError: string | undefined = undefined;
 
@@ -1557,6 +1617,10 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         dispatchChat({ type: 'SET_CURRENT_RENDER', payload: newRender });
         onRenderComplete?.(newRender);
         
+        // Track render completed
+        const duration = Date.now() - startTime;
+        trackRenderCompleted(generationType, style || 'default', quality, duration);
+        
         // ✅ FIXED: Track recent generation to continue polling after local completion
         // This ensures we catch the render when it appears in the database
         recentGenerationRef.current = {
@@ -1604,6 +1668,10 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
 
     } catch (error) {
       logger.error(`Failed to generate ${generationType}:`, error);
+      
+      // Track render failed
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      trackRenderFailed(generationType, style || 'default', quality, errorMessage);
       
       // Add Sentry context for generation errors
       captureErrorWithContext(error, {

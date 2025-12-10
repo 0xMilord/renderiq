@@ -51,6 +51,7 @@ import { handleImageErrorWithFallback } from '@/lib/utils/cdn-fallback';
 import { ModelSelector } from '@/components/ui/model-selector';
 import { getModelConfig, getDefaultModel, ModelId, modelSupportsQuality, getMaxQuality, getSupportedResolutions } from '@/lib/config/models';
 import { useWakeLock } from '@/lib/hooks/use-wake-lock';
+import { trackRenderStarted, trackRenderCompleted, trackRenderFailed, trackRenderCreditsCost } from '@/lib/utils/sentry-metrics';
 
 interface BaseToolComponentProps {
   tool: ToolConfig;
@@ -390,6 +391,14 @@ export function BaseToolComponent({
     setError(null);
     setLoading(true);
     setProgress(0);
+    
+    // Track render started
+    const renderType = isVideo ? 'video' : 'image';
+    const startTime = Date.now();
+    trackRenderStarted(renderType, style, quality);
+    if (creditsCost) {
+      trackRenderCreditsCost(renderType, quality, creditsCost);
+    }
 
     try {
       // Build prompt from system prompt and tool settings
@@ -555,6 +564,11 @@ export function BaseToolComponent({
                 label: result.data.label
               });
               setResults([]);
+              
+              // Track render completed
+              const duration = Date.now() - startTime;
+              trackRenderCompleted(renderType, style, quality, duration);
+              
               await refreshCredits();
               toast.success('Render generated successfully!');
               refetchRenders();
@@ -597,6 +611,10 @@ export function BaseToolComponent({
           });
           setResults([]);
         }
+        // Track render completed
+        const duration = Date.now() - startTime;
+        trackRenderCompleted(renderType, style, quality, duration);
+        
         await refreshCredits();
         toast.success(Array.isArray(result.data)
           ? `${result.data.length} renders generated successfully!`
@@ -625,6 +643,10 @@ export function BaseToolComponent({
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to generate render';
+      
+      // Track render failed
+      trackRenderFailed(renderType, style, quality, errorMessage);
+      
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {

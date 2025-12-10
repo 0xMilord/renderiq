@@ -39,6 +39,7 @@ import { DuplicateProjectModal } from '@/components/projects/duplicate-project-m
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useCanvasFiles, useCanvasFileOperations } from '@/lib/hooks/use-canvas-files';
 import { CreateCanvasFileModal } from '@/components/canvas/create-canvas-file-modal';
+import { trackProjectCreated } from '@/lib/utils/sentry-metrics';
 import { EditCanvasFileModal } from '@/components/canvas/edit-canvas-file-modal';
 import { DeleteCanvasFileDialog } from '@/components/canvas/delete-canvas-file-dialog';
 import { DuplicateCanvasFileModal } from '@/components/canvas/duplicate-canvas-file-modal';
@@ -223,6 +224,9 @@ export function CanvasPageClient({ initialProjects }: CanvasPageClientProps) {
       });
 
       if (result.success) {
+        // Track canvas file created
+        trackProjectCreated('canvas');
+        
         refetchProjectFiles();
         if (result.data && currentProject) {
           router.push(`/canvas/${currentProject.slug}/${result.data.id}`);

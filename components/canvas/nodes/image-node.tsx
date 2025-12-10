@@ -10,6 +10,7 @@ import { useNodeExecution } from '@/lib/hooks/use-node-execution';
 import { BaseNode, useNodeColors } from './base-node';
 import { NodeExecutionStatus } from '@/lib/canvas/workflow-executor';
 import { logger } from '@/lib/utils/logger';
+import { trackRenderStarted, trackRenderCompleted, trackRenderFailed } from '@/lib/utils/sentry-metrics';
 
 export function ImageNode(props: any) {
   const { data, id } = props;
@@ -87,6 +88,13 @@ export function ImageNode(props: any) {
 
     setLocalData((prev) => ({ ...prev, status: 'generating', errorMessage: undefined }));
 
+    // Track render started
+    const startTime = Date.now();
+    const finalSettings = localData.styleSettings 
+      ? { ...defaultSettings }
+      : localData.settings || defaultSettings;
+    trackRenderStarted('image', finalSettings.style || 'architectural', finalSettings.quality || 'standard');
+
     try {
       // Use settings from style node if connected, otherwise use defaults
       const finalSettings = localData.styleSettings 
@@ -120,6 +128,10 @@ export function ImageNode(props: any) {
           urlType: outputUrl?.substring(0, 30)
         });
 
+        // Track render completed
+        const duration = Date.now() - startTime;
+        trackRenderCompleted('image', finalSettings.style || 'architectural', finalSettings.quality || 'standard', duration);
+
         setLocalData((prev) => ({
           ...prev,
           status: 'completed',
@@ -145,6 +157,10 @@ export function ImageNode(props: any) {
       } else {
         const errorMsg = result.error || 'Failed to generate image';
         console.error('❌ ImageNode: Generation failed', errorMsg);
+        
+        // Track render failed
+        trackRenderFailed('image', finalSettings.style || 'architectural', finalSettings.quality || 'standard', errorMsg);
+        
         setLocalData((prev) => ({
           ...prev,
           status: 'error',
@@ -154,6 +170,10 @@ export function ImageNode(props: any) {
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       console.error('❌ ImageNode: Generation exception', error);
+      
+      // Track render failed
+      trackRenderFailed('image', finalSettings.style || 'architectural', finalSettings.quality || 'standard', errorMsg);
+      
       setLocalData((prev) => ({
         ...prev,
         status: 'error',

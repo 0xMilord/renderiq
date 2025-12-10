@@ -18,6 +18,7 @@ import { useNodeExecution } from '@/lib/hooks/use-node-execution';
 import { BaseNode, useNodeColors } from './base-node';
 import { NodeExecutionStatus } from '@/lib/canvas/workflow-executor';
 import { logger } from '@/lib/utils/logger';
+import { trackRenderStarted, trackRenderCompleted, trackRenderFailed } from '@/lib/utils/sentry-metrics';
 
 export function VideoNode(props: any) {
   const { data, id } = props;
@@ -67,6 +68,10 @@ export function VideoNode(props: any) {
 
     setLocalData((prev) => ({ ...prev, status: 'generating', errorMessage: undefined }));
 
+    // Track render started
+    const startTime = Date.now();
+    trackRenderStarted('video', 'default', 'standard');
+
     try {
       // ✅ CRITICAL: Get projectId and fileId from node data
       const nodeProjectId = (data as any)?.projectId;
@@ -96,6 +101,10 @@ export function VideoNode(props: any) {
           urlLength: outputUrl?.length,
         });
 
+        // Track render completed
+        const duration = Date.now() - startTime;
+        trackRenderCompleted('video', 'default', 'standard', duration);
+
         setLocalData((prev) => ({
           ...prev,
           status: 'completed',
@@ -104,18 +113,28 @@ export function VideoNode(props: any) {
           renderId: result.data?.renderId,
         }));
       } else {
+        const errorMsg = result.error || 'Video generation failed';
+        
+        // Track render failed
+        trackRenderFailed('video', 'default', 'standard', errorMsg);
+        
         setLocalData((prev) => ({
           ...prev,
           status: 'error',
-          errorMessage: result.error || 'Video generation failed',
+          errorMessage: errorMsg,
         }));
       }
     } catch (error) {
       logger.error('❌ VideoNode: Generation error', error);
+      const errorMsg = error instanceof Error ? error.message : 'Video generation failed';
+      
+      // Track render failed
+      trackRenderFailed('video', 'default', 'standard', errorMsg);
+      
       setLocalData((prev) => ({
         ...prev,
         status: 'error',
-        errorMessage: error instanceof Error ? error.message : 'Video generation failed',
+        errorMessage: errorMsg,
       }));
     }
   }, [localData, generateVideo, nodeId]);

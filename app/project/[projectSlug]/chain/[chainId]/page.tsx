@@ -9,7 +9,6 @@ import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { logger } from '@/lib/utils/logger';
-import { useAuthStore } from '@/lib/stores/auth-store';
 import type { Project } from '@/lib/db/schema';
 import type { RenderChainWithRenders } from '@/lib/types/render-chain';
 
@@ -18,7 +17,6 @@ export default function ProjectChainPage() {
   const router = useRouter();
   const projectSlug = params.projectSlug as string;
   const chainId = params.chainId as string;
-  const { user, loading: authLoading, initialized } = useAuthStore();
   
   // ✅ OPTIMIZED: Combined state for parallel loading
   const [project, setProject] = useState<Project | null>(null);

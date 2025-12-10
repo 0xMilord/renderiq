@@ -13,6 +13,7 @@ import { PlanLimitsService } from '@/lib/services/plan-limits.service';
 import { logger } from '@/lib/utils/logger';
 import * as Sentry from '@sentry/nextjs';
 import { setTransactionName, withDatabaseSpan, withAIOperationSpan, withFileOperationSpan } from '@/lib/utils/sentry-performance';
+import { trackRenderStarted, trackRenderCompleted, trackRenderFailed, trackRenderCreditsCost, trackApiResponseTime, trackApiError } from '@/lib/utils/sentry-metrics';
 import { 
   validatePrompt, 
   sanitizeInput, 
@@ -35,6 +36,10 @@ export const maxDuration = 300; // 5 minutes for video generation
 export async function POST(request: NextRequest) {
   let creditsCost: number | undefined;
   let user: { id: string } | null = null;
+  const startTime = Date.now();
+  let renderType: 'image' | 'video' = 'image';
+  let renderStyle: string = '';
+  let renderQuality: string = '';
   
   // Set transaction name for better organization in Sentry
   setTransactionName('POST /api/renders');
@@ -86,6 +91,11 @@ export async function POST(request: NextRequest) {
     // Validate type
     const typeParam = sanitizeInput(formData.get('type') as string);
     const type = (typeParam === 'video' ? 'video' : 'image') as 'image' | 'video';
+    
+    // Store for metrics tracking
+    renderType = type;
+    renderStyle = style;
+    renderQuality = quality;
     
     const uploadedImageData = formData.get('uploadedImageData') as string | null;
     const uploadedImageType = formData.get('uploadedImageType') as string | null;
@@ -279,6 +289,12 @@ export async function POST(request: NextRequest) {
         isBatch: useBatchAPI,
         totalCredits: creditsCost
       });
+    }
+    
+    // Track render started and credits cost
+    if (creditsCost) {
+      trackRenderStarted(renderType, renderStyle, renderQuality);
+      trackRenderCreditsCost(renderType, renderQuality, creditsCost);
     }
 
     // ✅ CHECK LIMIT: Verify user can use this quality level
@@ -1077,6 +1093,11 @@ export async function POST(request: NextRequest) {
 
       logger.log('🎉 Render completed successfully');
 
+      // Track render completed
+      const duration = Date.now() - startTime;
+      trackRenderCompleted(renderType, renderStyle, renderQuality, duration);
+      trackApiResponseTime('/api/renders', 'POST', 200, duration);
+
       // ✅ FIX: Fetch updated render to include all fields (uploadedImageUrl, chainPosition, etc.)
       const updatedRender = await RendersDAL.getById(render.id);
 
@@ -1187,11 +1208,20 @@ export async function POST(request: NextRequest) {
       });
     }
     
+    const duration = Date.now() - startTime;
+    trackApiError('/api/renders', 'POST', 500, error instanceof Error ? error.message : 'Unknown error');
+    trackApiResponseTime('/api/renders', 'POST', 500, duration);
+    
     return NextResponse.json({ 
       success: false, 
       error: 'Internal server error',
       refunded: typeof creditsCost !== 'undefined' && user?.id
     }, { status: 500 });
+  } finally {
+    // Track API response time for successful requests
+    const duration = Date.now() - startTime;
+    // Only track if we haven't already tracked an error
+    // This will be handled by the success path or error path above
   }
 }
 
