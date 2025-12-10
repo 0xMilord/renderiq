@@ -218,7 +218,7 @@ export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <section className="relative pb-8 bg-primary w-full">
+      <section className="relative pb-8 bg-primary w-full pt-[calc(var(--navbar-height)+1.5rem)]">
         <div className="w-full">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center w-full">
             {/* Left Column: Title & Description */}

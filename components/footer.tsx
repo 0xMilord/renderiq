@@ -185,31 +185,6 @@ export function Footer() {
               ))}
             </div>
           </div>
-
-          {/* Legal Links */}
-          <div className="mb-6">
-            <h3 className="font-semibold text-foreground mb-4">Legal</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <Link href="/terms" className="text-muted-foreground hover:text-primary transition-colors">
-                Terms of Service
-              </Link>
-              <Link href="/privacy" className="text-muted-foreground hover:text-primary transition-colors">
-                Privacy Policy
-              </Link>
-              <Link href="/refund" className="text-muted-foreground hover:text-primary transition-colors">
-                Refund Policy
-              </Link>
-              <Link href="/support" className="text-muted-foreground hover:text-primary transition-colors">
-                Support Policy
-              </Link>
-              <Link href="/cookies" className="text-muted-foreground hover:text-primary transition-colors">
-                Cookie Policy
-              </Link>
-              <Link href="/dpa" className="text-muted-foreground hover:text-primary transition-colors">
-                Data Processing Agreement
-              </Link>
-            </div>
-          </div>
           
           {/* Copyright */}
           <div className="flex flex-col md:flex-row justify-between items-center pt-4 border-t">
@@ -225,6 +200,9 @@ export function Footer() {
               </Link>
               <Link href="/refund" className="hover:text-primary transition-colors">
                 Refunds
+              </Link>
+              <Link href="/support" className="hover:text-primary transition-colors">
+                Support
               </Link>
               <Link href="/cookies" className="hover:text-primary transition-colors">
                 Cookies
