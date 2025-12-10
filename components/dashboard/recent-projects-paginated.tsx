@@ -3,10 +3,11 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { FolderOpen, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import type { Project } from '@/lib/db/schema';
+import { ProjectCard } from '@/components/projects/project-card';
+import { useProjects } from '@/lib/hooks/use-projects';
 
 interface RecentProjectsPaginatedProps {
   projects: Project[];
@@ -16,6 +17,7 @@ const ITEMS_PER_PAGE = 5;
 
 export function RecentProjectsPaginated({ projects }: RecentProjectsPaginatedProps) {
   const [currentPage, setCurrentPage] = useState(1);
+  const { removeProject, duplicateProject, refetch } = useProjects();
   
   const totalPages = Math.max(1, Math.ceil(projects.length / ITEMS_PER_PAGE));
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -24,6 +26,16 @@ export function RecentProjectsPaginated({ projects }: RecentProjectsPaginatedPro
     () => projects.slice(startIndex, endIndex),
     [projects, startIndex, endIndex]
   );
+
+  const handleDeleteProject = async (project: Project) => {
+    await removeProject(project.id);
+    refetch();
+  };
+
+  const handleDuplicateProject = async (project: Project) => {
+    await duplicateProject(project.id);
+    refetch();
+  };
 
   return (
     <Card className="flex flex-col h-full">
@@ -48,33 +60,14 @@ export function RecentProjectsPaginated({ projects }: RecentProjectsPaginatedPro
           <>
             <div className="space-y-3 flex-1 min-h-0 overflow-y-auto">
               {currentProjects.map((project) => (
-                <div key={project.id} className="flex items-center justify-between p-3 border border-border rounded-lg bg-card gap-4">
-                  <div className="flex items-center space-x-3 min-w-0 flex-1">
-                    <div className="w-10 h-10 bg-muted rounded flex items-center justify-center shrink-0">
-                      <FolderOpen className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate">{project.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Created {new Date(project.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2 shrink-0">
-                    <Badge variant={
-                      project.status === 'completed' ? 'default' :
-                      project.status === 'processing' ? 'secondary' :
-                      project.status === 'failed' ? 'destructive' : 'outline'
-                    }>
-                      {project.status}
-                    </Badge>
-                    <Button asChild variant="ghost" size="sm">
-                      <Link href={`/dashboard/projects/${project.slug || project.id}`}>
-                        View
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  viewMode="list"
+                  onEdit={() => refetch()}
+                  onDuplicate={handleDuplicateProject}
+                  onDelete={handleDeleteProject}
+                />
               ))}
               {/* Placeholder items to maintain height */}
               {currentProjects.length < ITEMS_PER_PAGE && Array.from({ length: ITEMS_PER_PAGE - currentProjects.length }).map((_, i) => (

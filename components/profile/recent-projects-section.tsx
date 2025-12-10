@@ -8,13 +8,26 @@ import { Loader2, Plus, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { ProjectCard } from '@/components/projects/project-card';
 import { useRecentProjects } from '@/lib/hooks/use-recent-projects';
+import { useProjects } from '@/lib/hooks/use-projects';
+import type { Project } from '@/lib/db/schema';
 
 export function RecentProjectsSection() {
   const { projects, loading, error } = useRecentProjects();
+  const { removeProject, duplicateProject, refetch } = useProjects();
 
   // ✅ FIXED: Hooks must be called before any early returns
   // Memoize recent projects slice
   const recentProjects = useMemo(() => projects.slice(0, 2), [projects]);
+
+  const handleDeleteProject = async (project: Project) => {
+    await removeProject(project.id);
+    refetch();
+  };
+
+  const handleDuplicateProject = async (project: Project) => {
+    await duplicateProject(project.id);
+    refetch();
+  };
 
   if (loading) {
     return (
@@ -81,6 +94,9 @@ export function RecentProjectsSection() {
                   key={project.id}
                   project={project}
                   viewMode="list"
+                  onEdit={() => refetch()}
+                  onDuplicate={handleDuplicateProject}
+                  onDelete={handleDeleteProject}
                 />
               ))}
               <Button variant="outline" className="w-full" asChild>

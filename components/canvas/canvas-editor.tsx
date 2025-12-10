@@ -46,6 +46,8 @@ import { NodeSearchManager } from '@/components/canvas/node-search';
 import { MultiSelectManager } from '@/components/canvas/multi-select';
 import { toast } from 'sonner';
 import { useWakeLock } from '@/lib/hooks/use-wake-lock';
+import { captureCanvasScreenshot, uploadCanvasScreenshot } from '@/lib/utils/canvas-screenshot';
+import { updateCanvasFileAction } from '@/lib/actions/canvas-files.actions';
 
 const nodeTypes: NodeTypes = {
   text: TextNode as any,
@@ -162,6 +164,7 @@ function CanvasEditorInner({
   const multiSelectManager = useState(() => new MultiSelectManager())[0];
   const workflowExecutor = useState(() => new WorkflowExecutor(ExecutionMode.MANUAL))[0];
   const nodeStatusManager = useState(() => new NodeStatusManager())[0];
+  const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
   
   // Screen Wake Lock - Keep screen on during node execution/generation
   const isAnyNodeGenerating = Array.from(nodeStatuses.values()).some(
@@ -883,6 +886,51 @@ function CanvasEditorInner({
 
     return () => clearTimeout(timeoutId);
   }, [nodes, edges, loading, initialLoad, saveGraph]);
+
+  // Capture screenshot on component unmount or navigation
+  useEffect(() => {
+    let isMounted = true;
+    let hasCaptured = false;
+
+    const captureScreenshotOnExit = async () => {
+      if (!reactFlowInstance || !fileId || hasCaptured || isCapturingScreenshot) {
+        return;
+      }
+
+      try {
+        hasCaptured = true;
+        setIsCapturingScreenshot(true);
+        const screenshotDataUrl = await captureCanvasScreenshot(reactFlowInstance, fileId);
+        
+        if (screenshotDataUrl && isMounted) {
+          // Upload screenshot and update file
+          const uploadResult = await uploadCanvasScreenshot(fileId, screenshotDataUrl);
+          
+          if (uploadResult && isMounted) {
+            // Update canvas file with thumbnail URL
+            const formData = new FormData();
+            formData.append('thumbnailUrl', uploadResult.thumbnailUrl);
+            formData.append('thumbnailKey', uploadResult.thumbnailKey);
+            
+            await updateCanvasFileAction(fileId, formData);
+            logger.log('✅ Canvas screenshot captured and saved');
+          }
+        }
+      } catch (error) {
+        logger.error('Error capturing canvas screenshot:', error);
+      } finally {
+        if (isMounted) {
+          setIsCapturingScreenshot(false);
+        }
+      }
+    };
+
+    // Capture on unmount
+    return () => {
+      isMounted = false;
+      captureScreenshotOnExit();
+    };
+  }, [reactFlowInstance, fileId]);
 
   if (loading) {
     return (

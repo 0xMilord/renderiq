@@ -139,8 +139,9 @@ export default function ProjectChainPage() {
 
   // ✅ FIXED: fetchChain only fetches chain data, not all projects/chains
   // This is called by polling, so it should be lightweight
+  // CRITICAL: Must be stable (useCallback with minimal dependencies) to prevent infinite loops
   const fetchChain = useCallback(async () => {
-    if (!chainId || !user) return;
+    if (!chainId) return;
     
     try {
       const chainResult = await getRenderChain(chainId);
@@ -151,7 +152,7 @@ export default function ProjectChainPage() {
       logger.error('❌ ProjectChainPage: Error fetching chain:', err);
       // Don't show error to user for polling failures
     }
-  }, [chainId, user]);
+  }, [chainId]); // ✅ CRITICAL: Removed user dependency - auth is already verified
 
   // ✅ REMOVED: Duplicate initialize() call
   // AuthProvider already calls initialize(), no need to call it here
@@ -266,7 +267,7 @@ export default function ProjectChainPage() {
             onRefreshChain={fetchChain}
             projectName={project.name}
             chainName={chain?.name}
-            onBackToProjects={() => router.push(`/render?project=${projectSlug}`)}
+            onBackToProjects={() => router.push(`/render`)}
             projects={projects}
             chains={chains}
           />

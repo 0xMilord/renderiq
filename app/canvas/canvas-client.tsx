@@ -42,7 +42,6 @@ import { CreateCanvasFileModal } from '@/components/canvas/create-canvas-file-mo
 import { EditCanvasFileModal } from '@/components/canvas/edit-canvas-file-modal';
 import { DeleteCanvasFileDialog } from '@/components/canvas/delete-canvas-file-dialog';
 import { DuplicateCanvasFileModal } from '@/components/canvas/duplicate-canvas-file-modal';
-import { AlphaWarningBanner } from '@/components/ui/alpha-warning-banner';
 
 interface CanvasPageClientProps {
   initialProjects: Project[];
@@ -89,10 +88,18 @@ export function CanvasPageClient({ initialProjects }: CanvasPageClientProps) {
     setLocalProjects(canvasProjects);
   }, [initialProjects]);
 
-  // Fetch canvas files for selected project
-  const { files: projectFiles, refetch: refetchProjectFiles } = useCanvasFiles({ 
+  // Fetch canvas files for selected project - optimized to fetch immediately
+  const { files: projectFiles, loading: filesLoading, refetch: refetchProjectFiles } = useCanvasFiles({ 
     projectId: selectedProjectId || undefined 
   });
+
+  // Prefetch files when project is selected to reduce loading time
+  useEffect(() => {
+    if (selectedProjectId) {
+      // Trigger immediate fetch
+      refetchProjectFiles();
+    }
+  }, [selectedProjectId, refetchProjectFiles]);
 
   // Sync projects from hook (merge with local state to preserve newly created projects)
   // This ensures projects created in canvas don't disappear before server revalidation
@@ -294,11 +301,6 @@ export function CanvasPageClient({ initialProjects }: CanvasPageClientProps) {
         "flex flex-col h-[calc(100vh-var(--navbar-height))]"
       )}
     >
-      {/* Alpha Warning Banner */}
-      <div className="shrink-0 px-4 pt-4 pb-2">
-        <AlphaWarningBanner platform="canvas" />
-      </div>
-      
       {/* Main Content Grid */}
       <div className={cn(
         "flex-1 overflow-hidden grid",
@@ -354,7 +356,7 @@ export function CanvasPageClient({ initialProjects }: CanvasPageClientProps) {
           <>
             {/* Projects List */}
             <ScrollArea className="overflow-y-auto min-h-0">
-              <div className="p-2 space-y-1">
+              <div className="p-2 space-y-1 flex flex-col items-start">
                 {filteredProjects.map((project) => (
                   <div
                     key={project.id}
@@ -406,7 +408,7 @@ export function CanvasPageClient({ initialProjects }: CanvasPageClientProps) {
                   </div>
                 ))}
                 {filteredProjects.length === 0 && (
-                  <div className="px-3 py-8 text-center text-sm text-muted-foreground">
+                  <div className="px-3 py-8 w-full text-center text-sm text-muted-foreground">
                     <CreateProjectModal platform="canvas" onProjectCreated={handleCreateProject}>
                       <Button variant="outline" size="sm" className="mt-2">
                         <Plus className="h-3 w-3 mr-1.5" />
@@ -487,18 +489,45 @@ export function CanvasPageClient({ initialProjects }: CanvasPageClientProps) {
         <section className="overflow-y-auto w-full min-h-0">
           {selectedProjectId ? (
             <div className="p-4 sm:p-6">
-              {projectFiles && projectFiles.length > 0 ? (
+              {filesLoading ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : projectFiles && projectFiles.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {projectFiles.map((file) => (
                     <Card
                       key={file.id}
-                      className="bg-card border-border hover:border-primary transition-colors group"
+                      className="bg-card border-border hover:border-primary transition-colors group cursor-pointer"
+                      onClick={() => handleFileSelect(file)}
                     >
+                      {/* Thumbnail/Screenshot */}
+                      {file.thumbnailUrl ? (
+                        <div className="relative w-full aspect-video bg-muted overflow-hidden rounded-t-lg">
+                          <img
+                            src={file.thumbnailUrl}
+                            alt={file.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="relative w-full aspect-video bg-muted flex items-center justify-center rounded-t-lg">
+                          <FileText className="h-12 w-12 text-muted-foreground/50" />
+                        </div>
+                      )}
                       <CardHeader className="pb-3">
                         <div className="flex items-start justify-between">
-                          <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+                          <CardTitle 
+                            className="text-card-foreground text-base line-clamp-1 flex-1"
+                          >
+                            {file.name}
+                          </CardTitle>
                           <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
+                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -530,12 +559,6 @@ export function CanvasPageClient({ initialProjects }: CanvasPageClientProps) {
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
-                        <CardTitle 
-                          className="text-card-foreground text-base mt-2 line-clamp-1 cursor-pointer"
-                          onClick={() => handleFileSelect(file)}
-                        >
-                          {file.name}
-                        </CardTitle>
                         {file.description && (
                           <CardDescription className="text-muted-foreground text-xs line-clamp-2 mt-1">
                             {file.description}

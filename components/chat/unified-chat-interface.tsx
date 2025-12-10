@@ -888,30 +888,16 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     }
   }, [onRefreshChain]);
 
-  // ✅ FIXED: Consolidated polling logic - throttle to prevent excessive refreshes
+  // ✅ FIXED: Use ref to track chain to avoid dependency on chain?.renders (prevents infinite loop)
+  const chainRef = useRef(chain);
   useEffect(() => {
-    if (!chainId || !onRefreshChain || !isVisibleRef.current) return;
-    
-    // Check if we have processing renders in database OR recent local generation
-    const hasProcessingInDB = chain?.renders?.some(r => 
-      r.status === 'processing' || r.status === 'pending'
-    ) || false;
-    
-    const hasLocalGeneration = isGenerating || isImageGenerating || isVideoGenerating || isRecovering;
-    
-    // ✅ FIXED: Continue polling for 30 seconds after local generation completes
-    // This ensures we catch renders that complete on the server after local state clears
-    const recentGeneration = recentGenerationRef.current;
-    const shouldContinuePolling = recentGeneration && 
-      (Date.now() - recentGeneration.timestamp < 30000); // 30 seconds grace period
-    
-    const hasProcessing = hasProcessingInDB || hasLocalGeneration || shouldContinuePolling;
-    
-    hasProcessingRendersRef.current = hasProcessing;
-    
-    if (!hasProcessing) {
-      return;
-    }
+    chainRef.current = chain;
+  }, [chain]);
+
+  // ✅ FIXED: Consolidated polling logic - throttle to prevent excessive refreshes
+  // CRITICAL: Do NOT include chain?.renders in dependencies - it causes infinite loops
+  useEffect(() => {
+    if (!chainId || !onRefreshChain) return;
     
     // ✅ FIXED: Use a single interval that checks refs, not closure values
     // This prevents recreating the interval on every chain.renders change
@@ -930,9 +916,8 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
           return;
         }
         
-        // ✅ FIXED: Re-check processing state on each poll
-        // This allows polling to continue even after local generation completes
-        const currentChain = chain; // Get latest chain from closure
+        // ✅ FIXED: Get latest chain from ref, not closure
+        const currentChain = chainRef.current;
         const hasProcessingInDB = currentChain?.renders?.some(r => 
           r.status === 'processing' || r.status === 'pending'
         ) || false;
@@ -950,6 +935,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
           }
         }
         
+        // Check if we should continue polling
         if (!hasProcessingInDB && !shouldContinue && !hasProcessingRendersRef.current) {
           if (pollInterval) {
             clearInterval(pollInterval);
@@ -963,7 +949,23 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       }, POLLING_INTERVAL);
     };
     
-    startPolling();
+    // Start polling if we have processing renders
+    const currentChain = chainRef.current;
+    const hasProcessingInDB = currentChain?.renders?.some(r => 
+      r.status === 'processing' || r.status === 'pending'
+    ) || false;
+    
+    const hasLocalGeneration = isGenerating || isImageGenerating || isVideoGenerating || isRecovering;
+    const recentGeneration = recentGenerationRef.current;
+    const shouldContinuePolling = recentGeneration && 
+      (Date.now() - recentGeneration.timestamp < 30000);
+    
+    const hasProcessing = hasProcessingInDB || hasLocalGeneration || shouldContinuePolling;
+    hasProcessingRendersRef.current = hasProcessing;
+    
+    if (hasProcessing) {
+      startPolling();
+    }
     
     return () => {
       if (pollInterval) {
@@ -971,7 +973,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         pollInterval = null;
       }
     };
-  }, [chainId, throttledRefresh, chain?.renders]); // ✅ FIXED: Include chain.renders to restart polling when it changes
+  }, [chainId, throttledRefresh]); // ✅ CRITICAL: Removed chain?.renders to prevent infinite loop
   
   // ✅ FIXED: Update processing ref when state changes (separate effect)
   useEffect(() => {

@@ -486,6 +486,8 @@ export async function deleteProject(projectId: string) {
 
     await ProjectsDAL.delete(projectId);
     revalidatePath('/dashboard/projects');
+    revalidatePath('/render');
+    revalidatePath('/engine');
     return { success: true };
   } catch (error) {
     logger.error('Error in deleteProject:', error);
@@ -732,6 +734,89 @@ export async function getRenderChain(chainId: string) {
   }
 }
 
+export async function updateRenderChain(
+  chainId: string,
+  updateData: {
+    name?: string;
+    description?: string | null;
+  }
+) {
+  try {
+    const { user } = await getCachedUser();
+    
+    if (!user) {
+      return { success: false, error: 'Authentication required' };
+    }
+    
+    const userId = user.id;
+
+    const chain = await RenderChainService.getChain(chainId);
+    
+    if (!chain) {
+      return { success: false, error: 'Chain not found' };
+    }
+
+    // Verify project ownership
+    const project = await ProjectsDAL.getById(chain.projectId);
+    if (!project || project.userId !== userId) {
+      return { success: false, error: 'Access denied' };
+    }
+
+    const updatedChain = await RenderChainsDAL.update(chainId, updateData);
+    revalidatePath('/engine');
+    revalidatePath('/render');
+    revalidatePath(`/project/${project.slug}/chain/${chainId}`);
+    return { success: true, data: updatedChain };
+  } catch (error) {
+    logger.error('Error in updateRenderChain:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to update render chain',
+    };
+  }
+}
+
+export async function duplicateRenderChain(chainId: string, newName?: string) {
+  try {
+    const { user } = await getCachedUser();
+    
+    if (!user) {
+      return { success: false, error: 'Authentication required' };
+    }
+    
+    const userId = user.id;
+
+    const chain = await RenderChainService.getChain(chainId);
+    
+    if (!chain) {
+      return { success: false, error: 'Chain not found' };
+    }
+
+    // Verify project ownership
+    const project = await ProjectsDAL.getById(chain.projectId);
+    if (!project || project.userId !== userId) {
+      return { success: false, error: 'Access denied' };
+    }
+
+    // Create duplicate chain
+    const newChain = await RenderChainService.createChain(
+      chain.projectId,
+      newName || `${chain.name} (Copy)`,
+      chain.description || undefined
+    );
+    
+    revalidatePath('/engine');
+    revalidatePath('/render');
+    return { success: true, data: newChain };
+  } catch (error) {
+    logger.error('Error in duplicateRenderChain:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to duplicate render chain',
+    };
+  }
+}
+
 export async function deleteRenderChain(chainId: string) {
   try {
     const { user } = await getCachedUser();
@@ -756,6 +841,7 @@ export async function deleteRenderChain(chainId: string) {
 
     await RenderChainService.deleteChain(chainId);
     revalidatePath('/engine');
+    revalidatePath('/render');
     return { success: true };
   } catch (error) {
     logger.error('Error in deleteRenderChain:', error);

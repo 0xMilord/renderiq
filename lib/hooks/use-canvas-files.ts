@@ -20,12 +20,14 @@ interface UseCanvasFilesOptions {
 
 export function useCanvasFiles(options: UseCanvasFilesOptions = {}) {
   const [files, setFiles] = useState<CanvasFile[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Start as false, only set true when actually fetching
   const [error, setError] = useState<string | null>(null);
 
   const fetchFiles = useCallback(async () => {
     if (!options.projectId && !options.userId) {
+      setFiles([]);
       setLoading(false);
+      setError(null);
       return;
     }
 
@@ -46,6 +48,7 @@ export function useCanvasFiles(options: UseCanvasFilesOptions = {}) {
       setFiles(result.files || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch canvas files');
+      setFiles([]);
     } finally {
       setLoading(false);
     }

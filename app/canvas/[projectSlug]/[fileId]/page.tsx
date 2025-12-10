@@ -11,7 +11,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { logger } from '@/lib/utils/logger';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import type { Project } from '@/lib/db/schema';
-import { AlphaWarningBanner } from '@/components/ui/alpha-warning-banner';
 
 export default function CanvasEditorPage() {
   const params = useParams();
@@ -165,11 +164,6 @@ export default function CanvasEditorPage() {
 
   return (
     <div className="fixed inset-0 bg-background pt-[var(--navbar-height)] overflow-hidden flex flex-col">
-      {/* Alpha Warning Banner */}
-      <div className="shrink-0 px-4 pt-4 pb-2">
-        <AlphaWarningBanner platform="canvas" />
-      </div>
-      
       {/* Canvas Editor */}
       <div className="flex-1 overflow-hidden">
       <CanvasEditor

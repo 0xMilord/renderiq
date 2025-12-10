@@ -12,7 +12,8 @@ import {
   Copy, 
   Trash2,
   Image as ImageIcon,
-  Video
+  Video,
+  MessageSquare
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -40,12 +41,14 @@ interface ProjectCardProps {
     renderCount?: number;
     latestRenders?: LatestRender[];
   };
-  viewMode: 'default' | 'compact' | 'list';
+  viewMode: 'default' | 'compact' | 'list' | 'sidebar';
   onEdit?: (project: Project) => void;
   onDuplicate?: (project: Project) => void;
   onDelete?: (project: Project) => void;
   onSelect?: (project: Project) => void;
   viewUrl?: string; // Custom view URL, defaults to /dashboard/projects/{slug}
+  chains?: Array<{ id: string; projectId: string }>; // Optional chains to find first chain for "Continue on Chat"
+  imageAspect?: 'square' | 'video'; // Override image aspect (e.g., 16:9 in sidebar)
 }
 
 function ProjectCardComponent({ 
@@ -55,7 +58,9 @@ function ProjectCardComponent({
   onDuplicate, 
   onDelete,
   onSelect,
-  viewUrl
+  viewUrl,
+  chains,
+  imageAspect,
 }: ProjectCardProps) {
   // Default view URL to dashboard, but allow override
   const defaultViewUrl = `/dashboard/projects/${project.slug}`;
@@ -125,6 +130,23 @@ function ProjectCardComponent({
   const platformBadge = getPlatformBadge();
   const platformUrl = getPlatformUrl();
 
+  // Get "Continue on Chat" URL - navigate to first chain or render page
+  const getContinueChatUrl = () => {
+    if (chains && chains.length > 0) {
+      // Find first chain for this project
+      const firstChain = chains.find(c => c.projectId === project.id);
+      if (firstChain) {
+        return `/project/${project.slug}/chain/${firstChain.id}`;
+      }
+    }
+    // Fallback to render page - it will handle project selection
+    return `/render`;
+  };
+
+  // Determine image aspect ratio
+  const resolvedAspect = imageAspect ?? (viewMode === 'compact' ? 'square' : 'video');
+  const aspectClass = resolvedAspect === 'video' ? 'aspect-video' : 'aspect-square';
+
   const renderImageGrid = () => {
     // Filter out failed renders (should already be filtered in DAL, but double-check)
     const validRenders = latestRenders.filter(r => r.status !== 'failed' && r.outputUrl);
@@ -148,6 +170,7 @@ function ProjectCardComponent({
               alt="Latest render"
               className="w-full h-full object-cover rounded-md"
               width={48}
+              suppressHydrationWarning
               height={48}
             />
           ) : (
@@ -175,6 +198,7 @@ function ProjectCardComponent({
               src={render.outputUrl}
               alt="Render"
               className="w-full h-full object-cover"
+              suppressHydrationWarning
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-muted">
@@ -196,6 +220,7 @@ function ProjectCardComponent({
                   src={render.outputUrl}
                   alt={`Render ${index + 1}`}
                   className="w-full h-full object-cover"
+                  suppressHydrationWarning
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
@@ -224,6 +249,7 @@ function ProjectCardComponent({
                   src={render.outputUrl}
                   alt={`Render ${index + 1}`}
                   className="w-full h-full object-cover"
+                  suppressHydrationWarning
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
@@ -243,6 +269,7 @@ function ProjectCardComponent({
                 src={validRenders[2].outputUrl}
                 alt="Render 3"
                 className="w-full h-full object-cover"
+                suppressHydrationWarning
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
@@ -275,6 +302,7 @@ function ProjectCardComponent({
                   src={render.outputUrl}
                   alt={`Render ${index + 1}`}
                   className="w-full h-full object-cover"
+                  suppressHydrationWarning
                 />
                 {/* Show +N overlay on the 4th image if there are more renders */}
                 {index === 3 && remainingCount > 0 && (
@@ -300,7 +328,7 @@ function ProjectCardComponent({
     );
   };
 
-  const handleCardClick = () => {
+  const handleImageClick = () => {
     if (onSelect) {
       onSelect(project);
     } else {
@@ -309,17 +337,73 @@ function ProjectCardComponent({
     }
   };
 
+  // Get valid renders for image display
+  const validRenders = latestRenders.filter(r => r.status !== 'failed' && r.outputUrl);
+
+  if (viewMode === 'sidebar') {
+    return (
+      <Card 
+        className={cn(
+          "group hover:shadow-lg transition-all duration-200 w-full max-w-full overflow-hidden gap-0"
+        )}
+      >
+        <CardContent className="p-2 w-full min-w-0 max-w-full overflow-hidden">
+          {/* Image + Title/Description - No action buttons in sidebar */}
+          <div className="flex gap-2 items-center w-full min-w-0 max-w-full overflow-hidden box-border">
+            <div 
+              className="relative w-[54px] h-[54px] flex-shrink-0 cursor-pointer rounded-md overflow-hidden bg-muted"
+              onClick={handleImageClick}
+            >
+              {validRenders.length > 0 && validRenders[0]?.outputUrl ? (
+                <img
+                  src={validRenders[0].outputUrl}
+                  alt={project.name}
+                  className="w-full h-full object-cover"
+                  suppressHydrationWarning
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                </div>
+              )}
+              {project.status !== 'processing' && (
+                <div className="absolute -top-1 -right-1">
+                  <Badge className={cn("text-[10px] px-1 py-0", getStatusColor(project.status))}>
+                    {project.status}
+                  </Badge>
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0 flex flex-col gap-0.5 overflow-hidden max-w-full box-border">
+              <div className="flex items-center gap-2 min-w-0 w-full max-w-full box-border">
+                <h3 className="font-medium text-sm truncate flex-1 min-w-0 max-w-full box-border">{toSentenceCase(project.name)}</h3>
+                <Badge className={cn("text-[10px] px-1.5 py-0 shrink-0 flex-shrink-0", platformBadge.color)}>
+                  {platformBadge.label}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground truncate w-full max-w-full box-border">
+                {project.description || 'No description'}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (viewMode === 'list') {
     return (
       <Card 
         className={cn(
-          "group hover:shadow-lg transition-all duration-200 cursor-pointer"
+          "group hover:shadow-lg transition-all duration-200"
         )}
-        onClick={handleCardClick}
       >
         <CardContent className="p-4">
-          <div className="flex items-center space-x-4">
-            <div className="relative w-12 h-12 flex-shrink-0">
+          <div className="grid grid-cols-[auto,1fr] gap-3 items-center">
+            <div 
+              className="relative w-16 h-9 flex-shrink-0 cursor-pointer"
+              onClick={handleImageClick}
+            >
               <div className="w-full h-full bg-muted rounded-md overflow-hidden">
                 {renderImageGrid()}
               </div>
@@ -349,12 +433,12 @@ function ProjectCardComponent({
                 <span>{project.renderCount || 0} renders</span>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex gap-2 items-center">
               {onSelect ? (
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-[0.55] h-8"
+                  className="h-8 flex-1"
                   title="View"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -368,7 +452,7 @@ function ProjectCardComponent({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-[0.55] h-8"
+                  className="h-8 flex-1"
                   asChild
                   title="View"
                   onClick={(e) => e.stopPropagation()}
@@ -379,42 +463,49 @@ function ProjectCardComponent({
                   </Link>
                 </Button>
               )}
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 w-8 p-0 flex-shrink-0"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setEditModalOpen(true);
-                }}
-                title="Edit"
-              >
-                <Edit className="h-3 w-3" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 w-8 p-0 flex-shrink-0"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDuplicateModalOpen(true);
-                }}
-                title="Duplicate"
-              >
-                <Copy className="h-3 w-3" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 w-8 p-0 flex-shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950 border-red-200 dark:border-red-800"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDeleteDialogOpen(true);
-                }}
-                title="Delete"
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0 flex-shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                    title="More options"
+                  >
+                    <MoreVertical className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditModalOpen(true);
+                    }}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDuplicateModalOpen(true);
+                    }}
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Duplicate
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteDialogOpen(true);
+                    }}
+                    className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </CardContent>
@@ -425,16 +516,18 @@ function ProjectCardComponent({
   // Default and compact view
   return (
     <Card className={cn(
-      "group hover:shadow-lg transition-all duration-200 flex flex-col gap-0 cursor-pointer",
+      "group hover:shadow-lg transition-all duration-200 flex flex-col gap-0",
       viewMode === 'compact' ? "" : "h-full"
     )}
-    onClick={handleCardClick}
     >
       <div className={cn(
         "bg-muted relative group flex-shrink-0 rounded-t-lg overflow-hidden",
-        viewMode === 'compact' ? "aspect-square" : "aspect-video"
+        aspectClass
       )}>
-        <div className="w-full h-full p-1">
+        <div 
+          className="w-full h-full p-1 cursor-pointer"
+          onClick={handleImageClick}
+        >
           {renderImageGrid()}
         </div>
         {project.status !== 'processing' && (
@@ -444,39 +537,8 @@ function ProjectCardComponent({
             </Badge>
           </div>
         )}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded-t-lg flex items-center justify-center opacity-0 group-hover:opacity-100">
-          <div className="flex space-x-2">
-            {onSelect ? (
-              <Button
-                size="sm"
-                variant="secondary"
-                className="h-7 text-xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelect(project);
-                }}
-              >
-                <Eye className="h-3 w-3 mr-1.5" />
-                View
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                variant="secondary"
-                className="h-7 text-xs"
-                asChild
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Link href={platformUrl}>
-                  <Eye className="h-3 w-3 mr-1.5" />
-                  View
-                </Link>
-              </Button>
-            )}
-          </div>
-        </div>
       </div>
-      <CardHeader className="pb-2 flex-shrink-0 gap-0 px-6 pt-6">
+      <CardHeader className="p-3 flex-shrink-0 gap-0">
         <div className="flex items-start justify-between gap-2 mb-1">
           <CardTitle className={cn(
             "text-sm flex-1",
@@ -493,74 +555,83 @@ function ProjectCardComponent({
           {project.description || 'No description'}
         </CardDescription>
       </CardHeader>
-      <div className="px-6">
+      <div className="px-3">
         <div className="border-t border-border"></div>
       </div>
-      <CardContent className="pt-4 flex-shrink-0 px-6 pb-6">
-        <div className="flex gap-2">
-          {onSelect ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-[0.55] h-8"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelect(project);
-              }}
-            >
-              <Eye className="h-3 w-3 mr-1.5" />
-              View
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-[0.55] h-8"
-              asChild
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Link href={finalViewUrl}>
+      <CardContent className="p-3 flex-shrink-0">
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            {onSelect ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 flex-1"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect(project);
+                }}
+              >
                 <Eye className="h-3 w-3 mr-1.5" />
                 View
-              </Link>
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 p-0 flex-shrink-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditModalOpen(true);
-            }}
-            title="Edit"
-          >
-            <Edit className="h-3 w-3" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 p-0 flex-shrink-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDuplicateModalOpen(true);
-            }}
-            title="Duplicate"
-          >
-            <Copy className="h-3 w-3" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 p-0 flex-shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950 border-red-200 dark:border-red-800"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDeleteDialogOpen(true);
-            }}
-            title="Delete"
-          >
-            <Trash2 className="h-3 w-3" />
-          </Button>
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 flex-1"
+                asChild
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Link href={finalViewUrl}>
+                  <Eye className="h-3 w-3 mr-1.5" />
+                  View
+                </Link>
+              </Button>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 p-0 flex-shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                  title="More options"
+                >
+                  <MoreVertical className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditModalOpen(true);
+                  }}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDuplicateModalOpen(true);
+                  }}
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Duplicate
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteDialogOpen(true);
+                  }}
+                  className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </CardContent>
       <EditProjectModal

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAppShortcuts } from '@/lib/hooks/use-app-shortcuts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CommonImageCard } from '@/components/common/image-card';
 import { ImageModal } from '@/components/common/image-modal';
@@ -19,13 +20,31 @@ import {
   ChevronRight,
   ChevronDown,
   ChevronLeft,
-  Folder,
+  Folder as FolderIcon,
   FolderOpen as FolderOpenIcon,
   PanelLeftClose,
   PanelLeftOpen,
-  X
+  X,
+  Grid3x3,
+  ListTree,
+  MoreVertical,
+  Edit,
+  Copy,
+  Trash2
 } from 'lucide-react';
-import { createRenderChain } from '@/lib/actions/projects.actions';
+import { Tree, Folder, File, type TreeViewElement } from '@/components/ui/file-tree';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { EditProjectModal } from '@/components/projects/edit-project-modal';
+import { DuplicateProjectModal } from '@/components/projects/duplicate-project-modal';
+import { DeleteProjectDialog } from '@/components/projects/delete-project-dialog';
+import { createRenderChain, deleteProject, deleteRenderChain } from '@/lib/actions/projects.actions';
 import { CreateProjectModal } from '@/components/projects/create-project-modal';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -60,7 +79,6 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
   // ✅ OPTIMISTIC UPDATES: Stateful projects and chains that sync with SSR props
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [chains, setChains] = useState<ChainWithRenders[]>(initialChains);
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [isCreatingChain, setIsCreatingChain] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Start closed on mobile
@@ -75,6 +93,10 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
   const [chainSortBy, setChainSortBy] = useState('newest');
   const [projectSearchQuery, setProjectSearchQuery] = useState('');
   const [projectSortBy, setProjectSortBy] = useState('newest');
+  const [sidebarView, setSidebarView] = useState<'tree' | 'all'>('all');
+  const [editProjectModalOpen, setEditProjectModalOpen] = useState(false);
+  const [duplicateProjectModalOpen, setDuplicateProjectModalOpen] = useState(false);
+  const [deleteProjectDialogOpen, setDeleteProjectDialogOpen] = useState(false);
 
   // ✅ SYNC: Update local state when SSR props change (e.g., after router.refresh())
   useEffect(() => {
@@ -88,7 +110,6 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
       const project = projects.find(p => p.slug === initialProjectSlug);
       if (project) {
         setSelectedProjectId(project.id);
-        setExpandedProjects(prev => new Set(prev).add(project.id));
         // Clear chain selection when selecting a project
         setSelectedChainId(null);
       }
@@ -101,8 +122,8 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
     // ✅ AUTO-SELECT: Automatically select the newly created project
     setSelectedProjectId(newProject.id);
     setSelectedChainId(null); // Clear any chain selection
-    // Expand the project in sidebar
-    setExpandedProjects(prev => new Set(prev).add(newProject.id));
+    // Update URL with new project slug
+    router.replace(`/render?project=${newProject.slug}`, { scroll: false });
     // ✅ AUTO-OPEN: Open sidebar on mobile when project is created (so user can see it)
     if (window.innerWidth < 640) {
       setIsSidebarOpen(true);
@@ -114,21 +135,92 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
     setChains(prev => [newChain, ...prev]);
   };
 
-  const toggleProject = (projectId: string) => {
-    const newExpanded = new Set(expandedProjects);
-    if (newExpanded.has(projectId)) {
-      newExpanded.delete(projectId);
-      setSelectedProjectId(null);
-    } else {
-      newExpanded.add(projectId);
-      setSelectedProjectId(projectId);
+  // ✅ DELETE: Handle project deletion
+  const handleProjectDelete = async (project: Project) => {
+    try {
+      // Optimistically remove from UI
+      setProjects(prev => prev.filter(p => p.id !== project.id));
+      // Also remove associated chains
+      setChains(prev => prev.filter(c => c.projectId !== project.id));
+      
+      // Clear selection if deleted project was selected
+      if (selectedProjectId === project.id) {
+        setSelectedProjectId(null);
+        setSelectedChainId(null);
+      }
+
+      // Call delete action
+      const result = await deleteProject(project.id);
+      
+      if (result.success) {
+        toast.success('Project deleted successfully');
+        router.refresh();
+      } else {
+        // Revert optimistic update on error
+        setProjects(prev => [...prev, project].sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        ));
+        toast.error(result.error || 'Failed to delete project');
+      }
+    } catch (error) {
+      // Revert optimistic update on error
+      setProjects(prev => [...prev, project].sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      ));
+      toast.error('An error occurred while deleting the project');
+      console.error('Error deleting project:', error);
     }
-    setExpandedProjects(newExpanded);
+  };
+
+  // ✅ DELETE: Handle chain deletion
+  const handleChainDelete = async (chain: RenderChain) => {
+    try {
+      // Optimistically remove from UI
+      setChains(prev => prev.filter(c => c.id !== chain.id));
+      
+      // Clear selection if deleted chain was selected
+      if (selectedChainId === chain.id) {
+        setSelectedChainId(null);
+      }
+
+      // Call delete action
+      const result = await deleteRenderChain(chain.id);
+      
+      if (result.success) {
+        toast.success('Chain deleted successfully');
+        router.refresh();
+      } else {
+        // Revert optimistic update on error
+        setChains(prev => [...prev, chain as ChainWithRenders].sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        ));
+        toast.error(result.error || 'Failed to delete chain');
+      }
+    } catch (error) {
+      // Revert optimistic update on error
+      setChains(prev => [...prev, chain as ChainWithRenders].sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      ));
+      toast.error('An error occurred while deleting the chain');
+      console.error('Error deleting chain:', error);
+    }
+  };
+
+  const handleViewAll = () => {
+    setSelectedProjectId(null);
+    setSelectedChainId(null);
+    router.replace('/render', { scroll: false });
   };
 
   const handleProjectClick = (projectId: string) => {
     setSelectedProjectId(projectId);
     setSelectedChainId(null); // Clear chain selection when selecting project
+    
+    // Update URL with project slug
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      router.replace(`/render?project=${project.slug}`, { scroll: false });
+    }
   };
 
   const handleCreateNewChain = async (projectId: string) => {
@@ -186,6 +278,11 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
     const chain = chains.find(c => c.id === chainId);
     if (chain) {
       setSelectedProjectId(chain.projectId);
+      // Update URL with project slug when chain is selected
+      const project = projects.find(p => p.id === chain.projectId);
+      if (project) {
+        router.replace(`/render?project=${project.slug}`, { scroll: false });
+      }
     }
     // Close sidebar on mobile after selecting a chain
     if (window.innerWidth < 640) { // sm breakpoint
@@ -325,12 +422,36 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
     setCurrentPage(1);
   }, [selectedChainId]);
 
-  // Auto-expand project when selected
-  useEffect(() => {
-    if (selectedProjectId && !expandedProjects.has(selectedProjectId)) {
-      setExpandedProjects(prev => new Set(prev).add(selectedProjectId));
+
+  // Build tree structure for file-tree component
+  const treeElements: TreeViewElement[] = useMemo(() => {
+    return filteredProjectsSidebar.map(project => {
+      const projectChains = chainsByProject[project.id] || [];
+      return {
+        id: project.id,
+        name: project.name,
+        isSelectable: true,
+        children: projectChains.map(chain => ({
+          id: chain.id,
+          name: chain.name,
+          isSelectable: true,
+        })),
+      };
+    });
+  }, [filteredProjectsSidebar, chainsByProject]);
+
+  // Get initial expanded items (selected project)
+  const initialExpandedItems = useMemo(() => {
+    if (selectedProjectId) {
+      return [selectedProjectId];
     }
-  }, [selectedProjectId, expandedProjects]);
+    return [];
+  }, [selectedProjectId]);
+
+  // Get initial selected item (selected chain or project)
+  const initialSelectedId = useMemo(() => {
+    return selectedChainId || selectedProjectId || undefined;
+  }, [selectedChainId, selectedProjectId]);
 
   // Auto-open sidebar on desktop, keep closed on mobile
   useEffect(() => {
@@ -351,213 +472,267 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
       {/* Sidebar */}
       <div
         className={cn(
-          "flex flex-col border-r bg-card transition-all duration-300 shrink-0",
+          "flex flex-col border-r bg-card transition-all duration-300 shrink-0 overflow-hidden",
           isSidebarOpen 
-            ? "w-full max-w-[40vw] sm:w-80" 
+            ? "w-full max-w-[50vw] sm:w-80" 
             : "w-12"
         )}
       >
-        {/* Sidebar Header */}
-        <div className={cn(
-          "border-b shrink-0 flex items-end",
-          isSidebarOpen ? "px-4 h-16 pb-3" : "px-0 h-16 justify-center pb-3"
-        )}>
-          
-          {/* Search and Create Project in same row */}
-          {isSidebarOpen ? (
-            <div className="flex items-center gap-2 h-10 w-full">
-              <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 h-10 text-sm"
-                />
-              </div>
-              <CreateProjectModal onProjectCreated={(project) => {
-                // ✅ OPTIMISTIC: Add project immediately to sidebar
-                handleProjectCreated(project);
-                // ✅ SYNC: Refresh SSR data in background to ensure consistency
-                router.refresh();
-              }}>
-                <Button variant="outline" size="sm" className="h-10 text-sm px-3 shrink-0">
-                  <Plus className="h-3.5 w-3.5 sm:mr-1" />
-                  <span className="hidden sm:inline">Project</span>
-                </Button>
-              </CreateProjectModal>
+        {isSidebarOpen ? (
+          <Tabs value={sidebarView} onValueChange={(v) => setSidebarView(v as 'tree' | 'all')} className="flex-1 flex flex-col overflow-hidden w-full min-w-0 gap-0">
+            {/* Sidebar Header - Tabs */}
+            <div className="border-b shrink-0 flex items-end px-4 h-16 pb-3">
+              <TabsList className="grid w-full grid-cols-2 min-w-0 h-10">
+                <TabsTrigger value="all" className="text-xs">
+                  <Grid3x3 className="h-3 w-3 mr-1.5" />
+                  All
+                </TabsTrigger>
+                <TabsTrigger value="tree" className="text-xs">
+                  <ListTree className="h-3 w-3 mr-1.5" />
+                  Tree
+                </TabsTrigger>
+              </TabsList>
             </div>
-          ) : (
-            <CreateProjectModal onProjectCreated={(project) => {
-              handleProjectCreated(project);
-              router.refresh();
-            }}>
+
+            {/* View All Button */}
+            <div className="px-4 py-4 border-b shrink-0 w-full min-w-0 overflow-hidden h-[73px]">
               <Button
                 variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                title="New Project"
+                size="sm"
+                onClick={handleViewAll}
+                className="w-full h-10 text-sm"
               >
-                <Plus className="h-4 w-4" />
+                View All
               </Button>
-            </CreateProjectModal>
-          )}
-        </div>
+            </div>
 
-        {/* Project Tree */}
-        <div className={cn(
-          "flex-1 overflow-y-auto",
-          isSidebarOpen ? "p-2" : "p-2 flex flex-col items-center gap-2"
-        )}>
-          {isSidebarOpen ? (
-            filteredProjectsSidebar.length === 0 ? (
-              <div className="text-center py-8 px-4">
-                <FolderOpenIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-sm text-muted-foreground mb-4">
-                  {searchQuery ? 'No projects found' : 'No projects yet'}
-                </p>
-                {!searchQuery && (
-                  <CreateProjectModal 
-                    platform="render"
-                    onProjectCreated={(project) => {
-              handleProjectCreated(project);
-              router.refresh();
-            }}>
-                    <Button variant="outline" size="sm">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create First Project
-                    </Button>
-                  </CreateProjectModal>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {filteredProjectsSidebar.map((project) => {
-                  const projectChains = chainsByProject[project.id] || [];
-                  const isExpanded = expandedProjects.has(project.id);
-                  
-                  return (
-                    <div key={project.id} className="space-y-0.5">
-                      {/* Project Row - Click to open modal */}
-                      <button
-                        type="button"
-                        className={cn(
-                          "w-full flex items-center gap-1 px-2 py-1.5 rounded-md border border-transparent hover:bg-primary/20 hover:border-primary cursor-pointer group transition-colors text-left",
-                          selectedProjectId === project.id && "bg-primary/20 border-primary text-foreground"
-                        )}
-                        onClick={() => handleProjectClick(project.id)}
-                      >
-                        <Folder className={cn(
-                          "h-4 w-4 flex-shrink-0 transition-colors",
-                          selectedProjectId === project.id 
-                            ? "text-foreground" 
-                            : "text-primary group-hover:text-foreground"
-                        )} />
-                        <span className="text-sm font-medium truncate flex-1">
-                          {project.name}
-                        </span>
-                        {projectChains.length > 0 && (
-                          <span className={cn(
-                            "text-xs",
-                            selectedProjectId === project.id 
-                              ? "text-accent-foreground/70" 
-                              : "text-muted-foreground"
-                          )}>
-                            {projectChains.length}
-                          </span>
-                        )}
-                      </button>
-                      
-                      {/* Show chains inline when project is selected */}
-                      {selectedProjectId === project.id && projectChains.length > 0 && (
-                        <div className="ml-4 space-y-0.5 mt-1">
-                          {projectChains.map((chain) => (
-                            <button
-                              key={chain.id}
-                              type="button"
-                              className={cn(
-                                "w-full flex items-center gap-2 px-2 py-1.5 rounded-md border border-transparent hover:bg-primary/20 hover:border-primary cursor-pointer transition-colors group text-left",
-                                selectedChainId === chain.id && "bg-primary/20 border-primary text-foreground"
+            {/* All Projects View - List Layout */}
+            <TabsContent value="all" className="flex-1 overflow-hidden m-0 mt-2 min-w-0">
+              {filteredProjectsSidebar.length === 0 ? (
+                <div className="text-center py-8 px-4 h-full flex flex-col items-center justify-center">
+                  <FolderOpenIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {searchQuery ? 'No projects found' : 'No projects yet'}
+                  </p>
+                  {!searchQuery && (
+                    <CreateProjectModal 
+                      platform="render"
+                      onProjectCreated={(project) => {
+                        handleProjectCreated(project);
+                        router.refresh();
+                      }}>
+                      <Button variant="outline" size="sm">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create First Project
+                      </Button>
+                    </CreateProjectModal>
+                  )}
+                </div>
+              ) : (
+                <ScrollArea className="h-full overflow-hidden w-full">
+                  <div className="px-2 py-2 min-w-0 w-full max-w-full overflow-hidden box-border">
+                    <div className="flex flex-col gap-1 min-w-0 w-full max-w-full">
+                      {filteredProjectsSidebar.map((project) => {
+                        const projectChains = chainsByProject[project.id] || [];
+                        const projectRenders = projectChains.flatMap(c => c.renders || []);
+                        const latestRender = projectRenders
+                          .filter(r => r.status !== 'failed' && r.outputUrl)
+                          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+                        const isSelected = selectedProjectId === project.id;
+                        const platformBadge = project.platform === 'render' || !project.platform
+                          ? { label: 'Render', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' }
+                          : project.platform === 'tools'
+                          ? { label: 'Tools', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' }
+                          : { label: 'Canvas', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' };
+
+                        return (
+                          <div
+                            key={project.id}
+                            onClick={() => handleProjectClick(project.id)}
+                            className={cn(
+                              "flex items-center gap-2 p-2 rounded-md cursor-pointer transition-colors min-w-0 w-full max-w-full overflow-hidden",
+                              isSelected 
+                                ? "bg-muted" 
+                                : "hover:bg-muted/50"
+                            )}
+                          >
+                            {/* Thumbnail */}
+                            <div className="relative w-10 h-10 flex-shrink-0 rounded overflow-hidden bg-muted">
+                              {latestRender?.outputUrl ? (
+                                <img
+                                  src={latestRender.outputUrl}
+                                  alt={project.name}
+                                  className="w-full h-full object-cover"
+                                  suppressHydrationWarning
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <FolderIcon className="h-4 w-4 text-muted-foreground" />
+                                </div>
                               )}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSelectChain(chain.id);
-                              }}
+                            </div>
+                            
+                            {/* Project Info */}
+                            <div className="flex-1 min-w-0 flex flex-col gap-0.5 overflow-hidden">
+                              <h3 className="font-medium text-sm truncate min-w-0">
+                                {project.name.charAt(0).toUpperCase() + project.name.slice(1).toLowerCase()}
+                              </h3>
+                              <p className="text-xs text-muted-foreground truncate min-w-0">
+                                {project.description || `${projectChains.length} chat${projectChains.length !== 1 ? 's' : ''}`}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </ScrollArea>
+              )}
+            </TabsContent>
+
+            {/* Tree View */}
+            <TabsContent value="tree" className="flex-1 overflow-hidden m-0 mt-2">
+              {filteredProjectsSidebar.length === 0 ? (
+                <div className="text-center py-8 px-4 h-full flex flex-col items-center justify-center">
+                  <FolderOpenIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {searchQuery ? 'No projects found' : 'No projects yet'}
+                  </p>
+                  {!searchQuery && (
+                    <CreateProjectModal 
+                      platform="render"
+                      onProjectCreated={(project) => {
+                        handleProjectCreated(project);
+                        router.refresh();
+                      }}>
+                      <Button variant="outline" size="sm">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create First Project
+                      </Button>
+                    </CreateProjectModal>
+                  )}
+                </div>
+              ) : (
+                <Tree
+                  initialSelectedId={initialSelectedId}
+                  initialExpandedItems={initialExpandedItems}
+                  elements={treeElements}
+                  indicator={true}
+                  className="h-full"
+                >
+                  {treeElements.map((projectElement) => {
+                    const isProjectSelected = selectedProjectId === projectElement.id;
+                    return (
+                      <Folder
+                        key={projectElement.id}
+                        element={projectElement.name}
+                        value={projectElement.id}
+                        isSelect={isProjectSelected}
+                        className={cn(
+                          "px-2 py-1.5",
+                          isProjectSelected && "bg-primary/20"
+                        )}
+                        onFolderSelect={handleProjectClick}
+                      >
+                        {projectElement.children?.map((chainElement) => {
+                          const isChainSelected = selectedChainId === chainElement.id;
+                          return (
+                            <File
+                              key={chainElement.id}
+                              value={chainElement.id}
+                              isSelect={isChainSelected}
+                              fileIcon={<MessageSquare className="size-4" />}
+                              className={cn(
+                                "px-2 py-1.5 w-full text-left",
+                                isChainSelected && "bg-primary/20"
+                              )}
+                              handleSelect={(id) => handleSelectChain(id)}
                             >
-                              <MessageSquare className={cn(
-                                "h-3.5 w-3.5 flex-shrink-0 transition-colors",
-                                selectedChainId === chain.id 
-                                  ? "text-foreground" 
-                                  : "text-muted-foreground group-hover:text-foreground"
-                              )} />
-                              <span className="text-sm truncate">{chain.name}</span>
-                            </button>
-                          ))}
-                        </div>
+                              {chainElement.name}
+                            </File>
+                          );
+                        })}
+                      </Folder>
+                    );
+                  })}
+                </Tree>
+              )}
+            </TabsContent>
+          </Tabs>
+        ) : (
+          <div className="flex flex-col h-full w-full">
+            {/* Active Tab Indicator */}
+            <div className="border-b shrink-0 flex flex-col items-center justify-center px-0 h-16 pb-3 gap-1">
+              {sidebarView === 'all' ? (
+                <>
+                  <Grid3x3 className="h-4 w-4 text-primary" />
+                  <span className="text-xs text-primary font-medium">All</span>
+                </>
+              ) : (
+                <>
+                  <ListTree className="h-4 w-4 text-primary" />
+                  <span className="text-xs text-primary font-medium">Tree</span>
+                </>
+              )}
+            </div>
+
+            {/* Project Count Button */}
+            <div className="border-b shrink-0 flex items-center justify-center px-0 h-[73px]">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleViewAll}
+                className="h-10 w-8 p-0 text-xs font-semibold text-primary"
+                title={`${filteredProjectsSidebar.length} projects`}
+              >
+                {filteredProjectsSidebar.length}
+              </Button>
+            </div>
+
+            {/* Thumbnails Scroll Area */}
+            <ScrollArea className="flex-1 overflow-hidden w-full">
+              <div className="px-2 py-2 flex flex-col gap-1 min-h-0">
+                {filteredProjectsSidebar.slice(0, 20).map((project) => {
+                  const projectChains = chainsByProject[project.id] || [];
+                  const projectRenders = projectChains.flatMap(c => c.renders || []);
+                  const latestRender = projectRenders
+                    .filter(r => r.status !== 'failed' && r.outputUrl)
+                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+                  const isSelected = selectedProjectId === project.id;
+
+                  return (
+                    <div
+                      key={project.id}
+                      onClick={() => handleProjectClick(project.id)}
+                      className={cn(
+                        "flex items-center justify-center p-2 rounded-md cursor-pointer transition-colors",
+                        isSelected 
+                          ? "bg-muted" 
+                          : "hover:bg-muted/50"
                       )}
+                      title={project.name}
+                    >
+                      <div className="relative w-10 h-10 rounded overflow-hidden">
+                        {latestRender?.outputUrl ? (
+                          <img
+                            src={latestRender.outputUrl}
+                            alt={project.name}
+                            className="w-full h-full object-cover"
+                            suppressHydrationWarning
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-muted">
+                            <FolderIcon className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
               </div>
-            )
-          ) : (
-            <>
-              {filteredProjectsSidebar.slice(0, 8).map((project) => {
-                const projectChains = chainsByProject[project.id] || [];
-                
-                return (
-                  <div key={project.id} className="flex flex-col items-center gap-1 w-full">
-                    <button
-                      onClick={() => toggleProject(project.id)}
-                      className={cn(
-                        "w-8 h-8 flex items-center justify-center rounded-lg border border-transparent hover:bg-primary/20 hover:border-primary transition-colors group",
-                        expandedProjects.has(project.id) && "bg-primary/20 border-primary text-foreground"
-                      )}
-                      title={project.name}
-                    >
-                      {expandedProjects.has(project.id) ? (
-                        <FolderOpenIcon className="h-4 w-4 text-foreground transition-colors" />
-                      ) : (
-                        <Folder className="h-4 w-4 text-primary group-hover:text-foreground transition-colors" />
-                      )}
-                    </button>
-                    
-                    {expandedProjects.has(project.id) && projectChains.length > 0 && (
-                      <div className="flex flex-col items-center gap-1 w-full">
-                        {projectChains.slice(0, 3).map((chain) => (
-                          <button
-                            key={chain.id}
-                            onClick={() => handleSelectChain(chain.id)}
-                            className={cn(
-                              "w-6 h-6 flex items-center justify-center rounded border border-transparent hover:bg-primary/20 hover:border-primary transition-colors group",
-                              selectedChainId === chain.id && "bg-primary/20 border-primary text-foreground"
-                            )}
-                            title={chain.name}
-                          >
-                            <MessageSquare className={cn(
-                              "h-3 w-3 transition-colors",
-                              selectedChainId === chain.id ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
-                            )} />
-                          </button>
-                        ))}
-                        {projectChains.length > 3 && (
-                          <div className="text-[10px] text-muted-foreground">
-                            +{projectChains.length - 3}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              {filteredProjectsSidebar.length > 8 && (
-                <div className="text-[10px] text-muted-foreground text-center">
-                  +{filteredProjectsSidebar.length - 8}
-                </div>
-              )}
-            </>
-          )}
-        </div>
+            </ScrollArea>
+          </div>
+        )}
       </div>
 
 
@@ -613,39 +788,76 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
               handleProjectCreated(project);
               router.refresh();
             }}>
-                <Button variant="default" size="sm" className="h-9">
+                <Button variant="default" size="sm" className="h-8">
                   <Plus className="h-4 w-4 mr-2" />
                   <span className="hidden sm:inline">New Project</span>
                   <span className="sm:hidden">Project</span>
                 </Button>
               </CreateProjectModal>
             ) : selectedProjectId && !selectedChainId ? (
-              <Button 
-                variant="default" 
-                size="sm" 
-                className="h-9"
-                onClick={() => handleCreateNewChain(selectedProjectId)}
-                disabled={isCreatingChain === selectedProjectId}
-              >
-                {isCreatingChain === selectedProjectId ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    <span className="hidden sm:inline">Creating...</span>
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4 mr-2" />
-                    <span className="hidden sm:inline">Start New Chat</span>
-                    <span className="sm:hidden">New Chat</span>
-                  </>
+              <>
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  className="h-8"
+                  onClick={() => handleCreateNewChain(selectedProjectId)}
+                  disabled={isCreatingChain === selectedProjectId}
+                >
+                  {isCreatingChain === selectedProjectId ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <span className="hidden sm:inline">Creating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      <span className="hidden sm:inline">Start New Chat</span>
+                      <span className="sm:hidden">New Chat</span>
+                    </>
+                  )}
+                </Button>
+                {selectedProject && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        title="More options"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => setEditProjectModalOpen(true)}
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setDuplicateProjectModalOpen(true)}
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        Duplicate
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setDeleteProjectDialogOpen(true)}
+                        className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 )}
-              </Button>
+              </>
             ) : null}
           </div>
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 w-full min-h-0">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-4 w-full min-h-0">
           {selectedChainId ? (
             <div className="w-full h-full flex flex-col">
               {/* Chain Card */}
@@ -713,19 +925,19 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
             /* Project Selected - Show Available Chats */
             <div className="w-full h-full flex flex-col">
               {/* Search and Filters */}
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-6">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <div className="grid grid-cols-3 gap-2 mb-0 items-center">
+                <div className="relative col-span-1">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
-                    placeholder="Search chats..."
+                    placeholder="Search..."
                     value={chainSearchQuery}
                     onChange={(e) => setChainSearchQuery(e.target.value)}
-                    className="pl-10 text-sm sm:text-base"
+                    className="pl-8 h-8 text-xs"
                   />
                 </div>
-                <div className="flex gap-2 flex-wrap">
+                <div className="col-span-1">
                   <Select value={chainSortBy} onValueChange={setChainSortBy}>
-                    <SelectTrigger className="w-[140px]">
+                    <SelectTrigger size="sm" className="w-full h-8 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -734,20 +946,24 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
                       <SelectItem value="name">Name A-Z</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="col-span-1 flex justify-end">
                   <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
                 </div>
               </div>
 
               {/* Chains Grid */}
               {sortedChains.length > 0 ? (
-                <div className={cn("grid gap-4", gridCols)}>
+                <div className={cn("grid gap-4 mt-8", gridCols)}>
                   {sortedChains.map((chain) => (
                     <ChainCard
                       key={chain.id}
                       chain={chain}
                       projectSlug={selectedProject?.slug}
+                      projects={projects.map(p => ({ id: p.id, slug: p.slug }))}
                       viewMode={viewMode}
                       onSelect={handleSelectChain}
+                      onDelete={handleChainDelete}
                     />
                   ))}
                 </div>
@@ -789,19 +1005,19 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
             /* Show All Projects */
             <div className="w-full h-full flex flex-col">
               {/* Search and Filters */}
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-6">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <div className="grid grid-cols-3 gap-2 mb-4 sm:mb-6 items-center">
+                <div className="relative col-span-1">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
-                    placeholder="Search projects..."
+                    placeholder="Search..."
                     value={projectSearchQuery}
                     onChange={(e) => setProjectSearchQuery(e.target.value)}
-                    className="pl-10 text-sm sm:text-base"
+                    className="pl-8 h-8 text-xs"
                   />
                 </div>
-                <div className="flex gap-2 flex-wrap">
+                <div className="col-span-1">
                   <Select value={projectSortBy} onValueChange={setProjectSortBy}>
-                    <SelectTrigger className="w-[140px]">
+                    <SelectTrigger size="sm" className="w-full h-8 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -810,6 +1026,8 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
                       <SelectItem value="name">Name A-Z</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="col-span-1 flex justify-end">
                   <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
                 </div>
               </div>
@@ -840,10 +1058,12 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
                           renderCount: projectRenders.length,
                           latestRenders
                         }}
+                        imageAspect="video"
+                        chains={chains.map(c => ({ id: c.id, projectId: c.projectId }))}
                         viewMode={viewMode}
-                        onEdit={() => {}}
-                        onDuplicate={() => {}}
-                        onDelete={() => {}}
+                        onEdit={() => router.refresh()}
+                        onDuplicate={() => router.refresh()}
+                        onDelete={handleProjectDelete}
                         onSelect={(p) => handleProjectClick(p.id)}
                         // On render page, clicking View should select the project to show chains
                         viewUrl={undefined} // Let onSelect handle it instead
@@ -853,7 +1073,7 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <Folder className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <FolderIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-foreground mb-2">
                     {projectSearchQuery ? 'No projects found' : 'No projects yet'}
                   </h3>
@@ -884,6 +1104,38 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
         onClose={handleCloseModal}
         item={selectedRender}
       />
+
+      {/* Project Action Modals */}
+      {selectedProject && (
+        <>
+          <EditProjectModal
+            project={selectedProject}
+            open={editProjectModalOpen}
+            onOpenChange={setEditProjectModalOpen}
+            onProjectUpdated={(updatedProject) => {
+              setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
+              router.refresh();
+            }}
+          />
+          <DuplicateProjectModal
+            project={selectedProject}
+            open={duplicateProjectModalOpen}
+            onOpenChange={setDuplicateProjectModalOpen}
+            onProjectDuplicated={(duplicatedProject) => {
+              setProjects(prev => [duplicatedProject, ...prev]);
+              router.refresh();
+            }}
+          />
+          <DeleteProjectDialog
+            project={selectedProject}
+            open={deleteProjectDialogOpen}
+            onOpenChange={setDeleteProjectDialogOpen}
+            onConfirm={async () => {
+              await handleProjectDelete(selectedProject);
+            }}
+          />
+        </>
+      )}
 
     </div>
   );
