@@ -705,14 +705,14 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
                       key={project.id}
                       onClick={() => handleProjectClick(project.id)}
                       className={cn(
-                        "flex items-center justify-center p-2 rounded-md cursor-pointer transition-colors",
+                        "flex items-center justify-center p-1 rounded-md cursor-pointer transition-colors",
                         isSelected 
                           ? "bg-muted" 
                           : "hover:bg-muted/50"
                       )}
                       title={project.name}
                     >
-                      <div className="relative w-10 h-10 rounded overflow-hidden">
+                      <div className="relative w-8 h-8 rounded overflow-hidden">
                         {latestRender?.outputUrl ? (
                           <img
                             src={latestRender.outputUrl}
@@ -722,7 +722,7 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center bg-muted">
-                            <FolderIcon className="h-4 w-4 text-muted-foreground" />
+                            <FolderIcon className="h-3 w-3 text-muted-foreground" />
                           </div>
                         )}
                       </div>
@@ -773,7 +773,7 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
               </div>
             ) : (
               <div className="min-w-0 flex-1 overflow-hidden">
-                <h1 className="text-xl font-bold truncate">Projects & Chats</h1>
+                <h1 className="text-xl font-bold truncate">All Projects & Chats</h1>
                 <p className="text-sm text-muted-foreground truncate">
                   Select a project to get started
                 </p>
@@ -925,8 +925,8 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
             /* Project Selected - Show Available Chats */
             <div className="w-full h-full flex flex-col">
               {/* Search and Filters */}
-              <div className="grid grid-cols-3 gap-2 mb-0 items-center">
-                <div className="relative col-span-1">
+              <div className="flex gap-2 mb-0 items-center">
+                <div className="relative flex-1 min-w-0">
                   <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
                     placeholder="Search..."
@@ -935,9 +935,9 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
                     className="pl-8 h-8 text-xs"
                   />
                 </div>
-                <div className="col-span-1">
+                <div className="shrink-0">
                   <Select value={chainSortBy} onValueChange={setChainSortBy}>
-                    <SelectTrigger size="sm" className="w-full h-8 text-xs">
+                    <SelectTrigger size="sm" className="w-auto min-w-[140px] h-8 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -947,7 +947,7 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="col-span-1 flex justify-end">
+                <div className="shrink-0">
                   <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
                 </div>
               </div>
@@ -1005,8 +1005,8 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
             /* Show All Projects */
             <div className="w-full h-full flex flex-col">
               {/* Search and Filters */}
-              <div className="grid grid-cols-3 gap-2 mb-4 sm:mb-6 items-center">
-                <div className="relative col-span-1">
+              <div className="flex gap-2 mb-4 sm:mb-6 items-center">
+                <div className="relative flex-1 min-w-0">
                   <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
                     placeholder="Search..."
@@ -1015,9 +1015,9 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
                     className="pl-8 h-8 text-xs"
                   />
                 </div>
-                <div className="col-span-1">
+                <div className="shrink-0">
                   <Select value={projectSortBy} onValueChange={setProjectSortBy}>
-                    <SelectTrigger size="sm" className="w-full h-8 text-xs">
+                    <SelectTrigger size="sm" className="w-auto min-w-[140px] h-8 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1027,7 +1027,7 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="col-span-1 flex justify-end">
+                <div className="shrink-0">
                   <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
                 </div>
               </div>
