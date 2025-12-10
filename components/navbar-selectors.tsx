@@ -45,7 +45,7 @@ export function NavbarSelectors() {
       }
     }
     
-    // Check for /canvas/[projectSlug]/[chatId]
+    // Check for /canvas/[projectSlug]/[fileId] (fileId contains file slug)
     if (pathname.startsWith('/canvas/')) {
       if (parts.length >= 2 && parts[0] === 'canvas') {
         return parts[1];
@@ -206,10 +206,10 @@ export function NavbarSelectors() {
             ) : (
               <>
                 <MessageSquare className="h-3 w-3 mr-2 text-muted-foreground shrink-0" />
-                <SelectValue placeholder="Select Chain" className="truncate">
+                <SelectValue placeholder="Select Chat" className="truncate">
                   {currentChainId 
-                    ? availableChains.find(c => c.id === currentChainId)?.name || 'Chain'
-                    : 'Select Chain'}
+                    ? availableChains.find(c => c.id === currentChainId)?.name || 'Chat'
+                    : 'Select Chat'}
                 </SelectValue>
               </>
             )}
@@ -217,7 +217,7 @@ export function NavbarSelectors() {
           <SelectContent>
             {availableChains.length === 0 ? (
               <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                {chainsLoading ? 'Loading chains...' : 'No chains yet'}
+                {chainsLoading ? 'Loading chats...' : 'No chats yet'}
               </div>
             ) : (
               availableChains.map((chain) => (

@@ -15,7 +15,7 @@ interface GenerateImageParams {
   baseImageData?: string | null; // Base64 image data for image-to-image
   baseImageType?: string | null; // MIME type
   projectId?: string; // Project ID for render creation
-  chainId?: string; // Chain ID for render creation
+  fileId?: string; // Canvas file ID for render creation
 }
 
 interface GenerateVariantsParams {
@@ -39,7 +39,7 @@ interface GenerateVideoParams {
   baseImageType?: string | null;
   model?: string;
   projectId?: string; // Project ID for render creation
-  chainId?: string; // Chain ID for render creation
+  fileId?: string; // Canvas file ID for render creation
 }
 
 export function useNodeExecution() {
@@ -92,18 +92,19 @@ export function useNodeExecution() {
           formData.append('aspectRatio', params.settings.aspectRatio);
           formData.append('type', 'image');
           
-          // ✅ CRITICAL: Include projectId and chainId for proper render creation
+          // ✅ CRITICAL: Include projectId and fileId for proper render creation
           if (params.projectId) {
             formData.append('projectId', params.projectId);
             console.log('✅ [Canvas] Creating render with projectId:', params.projectId);
           } else {
             console.warn('⚠️ [Canvas] No projectId provided for render creation');
           }
-          if (params.chainId) {
-            formData.append('chainId', params.chainId);
-            console.log('✅ [Canvas] Creating render with chainId:', params.chainId);
+          if (params.fileId) {
+            formData.append('fileId', params.fileId);
+            formData.append('platform', 'canvas'); // Mark as canvas platform
+            console.log('✅ [Canvas] Creating render with fileId:', params.fileId);
           } else {
-            console.warn('⚠️ [Canvas] No chainId provided for render creation');
+            console.warn('⚠️ [Canvas] No fileId provided for render creation');
           }
           
           // Try to upload base64 image to storage if it's a data URL
@@ -114,7 +115,7 @@ export function useNodeExecution() {
 
           console.log('📊 [Canvas] Creating render record for image generation', {
             hasProjectId: !!params.projectId,
-            hasChainId: !!params.chainId,
+            hasFileId: !!params.fileId,
             promptLength: params.prompt.length,
           });
 
@@ -129,13 +130,13 @@ export function useNodeExecution() {
             console.log('✅ [Canvas] Render record created successfully', {
               renderId: renderResult.data?.id,
               projectId: params.projectId,
-              chainId: params.chainId,
+              fileId: params.fileId,
             });
           } else {
             console.error('❌ [Canvas] Failed to create render record', {
               error: renderResult.error,
               projectId: params.projectId,
-              chainId: params.chainId,
+              fileId: params.fileId,
             });
           }
           
@@ -224,12 +225,13 @@ export function useNodeExecution() {
       formData.append('aspectRatio', params.aspectRatio);
       formData.append('model', params.model || 'veo-3.1-generate-preview');
       formData.append('generationType', params.baseImageData ? 'image-to-video' : 'text-to-video');
-      // ✅ CRITICAL: Use actual projectId and chainId instead of hardcoded 'canvas'
+      // ✅ CRITICAL: Use actual projectId and fileId for canvas renders
       if (params.projectId) {
         formData.append('projectId', params.projectId);
       }
-      if (params.chainId) {
-        formData.append('chainId', params.chainId);
+      if (params.fileId) {
+        formData.append('fileId', params.fileId);
+        formData.append('platform', 'canvas'); // Mark as canvas platform
       }
       
       if (params.baseImageData) {

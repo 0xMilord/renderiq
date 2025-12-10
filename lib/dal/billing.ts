@@ -156,9 +156,12 @@ export class BillingDAL {
     logger.log('💰 BillingDAL: Getting monthly credits:', { userId, periodStart, periodEnd });
     
     try {
-      const [earnedResult] = await db
+      // ✅ OPTIMIZED: Single query with conditional aggregation instead of 2 separate queries
+      // This reduces from 2 sequential queries to 1 query
+      const [result] = await db
         .select({
-          total: sql<number>`COALESCE(SUM(CASE WHEN ${creditTransactions.type} IN ('earned', 'bonus', 'refund') THEN ${creditTransactions.amount} ELSE 0 END), 0)`,
+          earned: sql<number>`COALESCE(SUM(CASE WHEN ${creditTransactions.type} IN ('earned', 'bonus', 'refund') THEN ${creditTransactions.amount} ELSE 0 END), 0)`,
+          spent: sql<number>`COALESCE(SUM(CASE WHEN ${creditTransactions.type} = 'spent' THEN ABS(${creditTransactions.amount}) ELSE 0 END), 0)`,
         })
         .from(creditTransactions)
         .where(
@@ -169,21 +172,8 @@ export class BillingDAL {
           )
         );
 
-      const [spentResult] = await db
-        .select({
-          total: sql<number>`COALESCE(SUM(CASE WHEN ${creditTransactions.type} = 'spent' THEN ABS(${creditTransactions.amount}) ELSE 0 END), 0)`,
-        })
-        .from(creditTransactions)
-        .where(
-          and(
-            eq(creditTransactions.userId, userId),
-            gte(creditTransactions.createdAt, periodStart),
-            lte(creditTransactions.createdAt, periodEnd)
-          )
-        );
-
-      const monthlyEarned = Number(earnedResult?.total || 0);
-      const monthlySpent = Number(spentResult?.total || 0);
+      const monthlyEarned = Number(result?.earned || 0);
+      const monthlySpent = Number(result?.spent || 0);
 
       logger.log(`✅ BillingDAL: Monthly credits - Earned: ${monthlyEarned}, Spent: ${monthlySpent}`);
       
@@ -207,11 +197,12 @@ export class BillingDAL {
     logger.log('💰 BillingDAL: Getting user credits with reset and monthly info:', userId);
     
     try {
-      // Get subscription to access currentPeriodStart
-      const subscription = await this.getUserSubscription(userId);
-      
-      // Get credits data
-      const creditsData = await this.getUserCreditsWithReset(userId);
+      // ✅ OPTIMIZED: Parallelize independent queries
+      // Subscription and credits data can be fetched in parallel
+      const [subscription, creditsData] = await Promise.all([
+        this.getUserSubscription(userId),
+        this.getUserCreditsWithReset(userId),
+      ]);
       
       if (!creditsData) {
         return null;

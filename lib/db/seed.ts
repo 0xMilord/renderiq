@@ -49,8 +49,8 @@ export async function seedSubscriptionPlans() {
       currency: 'INR',
       interval: 'month' as const,
       creditsPerMonth: 100,
-      maxProjects: 25,
-      maxRendersPerProject: 20,
+      maxProjects: null, // Unlimited
+      maxRendersPerProject: null, // Unlimited
       features: [
         '100 credits per month',
         '25 projects maximum',
@@ -71,8 +71,8 @@ export async function seedSubscriptionPlans() {
       currency: 'INR',
       interval: 'year' as const,
       creditsPerMonth: 100,
-      maxProjects: 25,
-      maxRendersPerProject: 20,
+      maxProjects: null, // Unlimited
+      maxRendersPerProject: null, // Unlimited
       features: [
         '100 credits per month',
         '25 projects maximum',

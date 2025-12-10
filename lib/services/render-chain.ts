@@ -98,6 +98,28 @@ export class RenderChainService {
   }
 
   /**
+   * ✅ OPTIMIZED: Batch get chains for multiple projects in ONE query
+   * This replaces sequential calls to getProjectChains for each project
+   */
+  static async getChainsForProjects(projectIds: string[]): Promise<Record<string, RenderChain[]>> {
+    if (projectIds.length === 0) return {};
+    
+    logger.log('🔍 [BATCH] Fetching chains for', projectIds.length, 'projects');
+    
+    const allChains = await RenderChainsDAL.getByProjectIds(projectIds);
+    
+    // Group chains by projectId
+    const chainsByProject = allChains.reduce((acc, chain) => {
+      if (!acc[chain.projectId]) acc[chain.projectId] = [];
+      acc[chain.projectId].push(chain);
+      return acc;
+    }, {} as Record<string, RenderChain[]>);
+    
+    logger.log(`✅ [BATCH] Found chains for ${Object.keys(chainsByProject).length} projects`);
+    return chainsByProject;
+  }
+
+  /**
    * Update chain context by analyzing renders
    */
   static async updateChainContext(chainId: string, context: ChainContext): Promise<void> {

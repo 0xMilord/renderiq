@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 interface ChatPageProps {
-  searchParams: Promise<{ chain?: string }>;
+  searchParams: Promise<{ chain?: string; prompt?: string; project?: string }>;
 }
 
 export default async function ChatPage({ searchParams }: ChatPageProps) {
@@ -22,43 +22,32 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
       redirect('/login');
     }
 
-    // ✅ FIXED: Handle chain query parameter - redirect to proper project/chain route
+    // Handle chain query parameter - redirect to proper project/chain route
+    // This is for backward compatibility with old URLs using ?chain=...
     const params = await searchParams;
     if (params.chain) {
-      logger.log('🔍 [ChatPage SSR] Chain query parameter detected, redirecting:', params.chain);
+      // Fetch chain to get projectId
+      const chainResult = await getRenderChain(params.chain);
       
-      try {
-        // Fetch chain to get projectId
-        const chainResult = await getRenderChain(params.chain);
+      if (chainResult.success && chainResult.data) {
+        // Get project to get slug
+        const project = await ProjectsDAL.getById(chainResult.data.projectId);
         
-        if (chainResult.success && chainResult.data) {
-          // Get project to get slug
-          const project = await ProjectsDAL.getById(chainResult.data.projectId);
-          
-          if (project) {
-            logger.log('✅ [ChatPage SSR] Redirecting to project/chain route:', {
-              projectSlug: project.slug,
-              chainId: params.chain
-            });
-            redirect(`/project/${project.slug}/chain/${params.chain}`);
-          } else {
-            logger.error('❌ [ChatPage SSR] Project not found for chain:', params.chain);
-          }
-        } else {
-          logger.error('❌ [ChatPage SSR] Chain not found:', params.chain);
+        if (project) {
+          // Redirect to proper route structure: /project/{slug}/chain/{chainId}
+          // Note: redirect() throws NEXT_REDIRECT which is expected behavior
+          redirect(`/project/${project.slug}/chain/${params.chain}`);
         }
-      } catch (error) {
-        logger.error('❌ [ChatPage SSR] Error fetching chain for redirect:', error);
-        // Continue to render normal page if redirect fails
       }
+      // If chain not found, continue to render normal page
     }
 
     logger.log('🚀 [ChatPage SSR] Fetching data for user:', user.id);
     const startTime = Date.now();
 
-    // Batch fetch: Get all projects and chains with renders in minimal queries
+    // Batch fetch: Get render platform projects and chains with renders in minimal queries
     const [projects, chainsWithRenders] = await Promise.all([
-      ProjectsDAL.getByUserId(user.id),
+      ProjectsDAL.getByUserId(user.id, 100, 0, 'render'),
       RenderChainsDAL.getUserChainsWithRenders(user.id)
     ]);
 
@@ -69,10 +58,14 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
       totalRenders: chainsWithRenders.reduce((sum, c) => sum + c.renders.length, 0)
     });
 
+    // Extract project slug from query params if present
+    const projectSlug = params.project;
+
     return (
       <ChatPageClient
         initialProjects={projects}
         initialChains={chainsWithRenders}
+        initialProjectSlug={projectSlug}
       />
     );
   } catch (error) {

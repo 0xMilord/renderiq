@@ -26,15 +26,11 @@ export async function getPublicGallery(
 ) {
   try {
     const offset = (page - 1) * limit;
-    
-    // ✅ OPTIMIZED: Pass filters and sort options to DAL for server-side processing
-    // This prevents fetching ALL items and filtering client-side (major performance win)
     const items = await RendersDAL.getPublicGallery(limit, offset, {
       sortBy: options?.sortBy || 'newest',
       filters: options?.filters,
       searchQuery: options?.searchQuery,
     });
-    
     return { success: true, data: items };
   } catch (error) {
     return {

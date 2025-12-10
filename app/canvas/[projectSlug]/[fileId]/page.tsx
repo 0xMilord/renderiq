@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getProjectBySlug } from '@/lib/actions/projects.actions';
-import { getRenderChain } from '@/lib/actions/projects.actions';
+import { getCanvasFileByIdAction } from '@/lib/actions/canvas-files.actions';
 import { CanvasEditor } from '@/components/canvas/canvas-editor';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,45 +11,52 @@ import { Card, CardContent } from '@/components/ui/card';
 import { logger } from '@/lib/utils/logger';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import type { Project } from '@/lib/db/schema';
-import type { RenderChainWithRenders } from '@/lib/types/render-chain';
+import { AlphaWarningBanner } from '@/components/ui/alpha-warning-banner';
 
 export default function CanvasEditorPage() {
   const params = useParams();
   const router = useRouter();
   const projectSlug = params.projectSlug as string;
-  const chatId = params.chatId as string;
+  const fileId = params.fileId as string; // Route param is fileId (actual UUID)
   const { user, loading: authLoading, initialized } = useAuthStore();
   
-  // ✅ OPTIMIZED: Combined state for parallel loading
   const [project, setProject] = useState<Project | null>(null);
-  const [chain, setChain] = useState<RenderChainWithRenders | null>(null);
+  const [file, setFile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ OPTIMIZED: Fetch project and chain in parallel
   const fetchData = useCallback(async () => {
-    if (!projectSlug || !chatId) return;
+    if (!projectSlug || !fileId) return;
     
     setLoading(true);
     setError(null);
 
     try {
-      // ✅ OPTIMIZED: Parallelize project and chain fetching
-      const [projectResult, chainResult] = await Promise.all([
-        getProjectBySlug(projectSlug),
-        getRenderChain(chatId),
-      ]);
-
-      if (projectResult.success && projectResult.data) {
-        setProject(projectResult.data);
-      } else {
+      // Fetch project first
+      const projectResult = await getProjectBySlug(projectSlug);
+      
+      if (!projectResult.success || !projectResult.data) {
         setError(projectResult.error || 'Failed to load project');
+        setLoading(false);
+        return;
       }
 
-      if (chainResult.success && chainResult.data) {
-        setChain(chainResult.data);
+      setProject(projectResult.data);
+
+      // Fetch canvas file by ID
+      const fileResult = await getCanvasFileByIdAction(fileId);
+      
+      if (fileResult.success && fileResult.file) {
+        // Verify the file belongs to the project
+        if (fileResult.file.projectId !== projectResult.data.id) {
+          setError('Canvas file does not belong to this project');
+          setLoading(false);
+          return;
+        }
+        setFile(fileResult.file);
+        logger.log('✅ CanvasEditorPage: Loaded canvas file', { fileId: fileResult.file.id });
       } else {
-        setError(chainResult.error || 'Failed to load chain');
+        setError(fileResult.error || 'Failed to load canvas file');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -57,7 +64,7 @@ export default function CanvasEditorPage() {
     } finally {
       setLoading(false);
     }
-  }, [projectSlug, chatId]);
+  }, [projectSlug, fileId]);
 
   useEffect(() => {
     fetchData();
@@ -75,17 +82,18 @@ export default function CanvasEditorPage() {
   }, [user, authLoading, initialized, router]);
 
   useEffect(() => {
-    if (project && chain) {
+    if (project && file) {
       logger.log('🔍 CanvasEditorPage: Component state', {
         projectSlug,
-        chatId,
+        routeFileId: fileId,
         hasProject: !!project,
         projectId: project?.id,
-        hasChain: !!chain,
+        hasFile: !!file,
+        fileId: file?.id,
         loading
       });
     }
-  }, [projectSlug, chatId, project, chain, loading]);
+  }, [projectSlug, fileId, project, file, loading]);
 
   if (loading) {
     return (
@@ -125,14 +133,14 @@ export default function CanvasEditorPage() {
     );
   }
 
-  if (!chain) {
+  if (!file) {
     return (
       <div className="fixed inset-0 bg-background pt-[var(--navbar-height)] flex items-center justify-center">
         <Card className="w-96 bg-card border-border">
           <CardContent className="p-8 text-center">
-            <h2 className="text-lg font-semibold mb-2 text-card-foreground">Canvas Not Found</h2>
+            <h2 className="text-lg font-semibold mb-2 text-card-foreground">Canvas File Not Found</h2>
             <p className="text-muted-foreground mb-4">
-              The canvas workflow you're looking for doesn't exist. A render chain is required to create a canvas.
+              The canvas file you're looking for doesn't exist.
             </p>
             <div className="flex flex-col gap-2">
               <Button 
@@ -143,10 +151,10 @@ export default function CanvasEditorPage() {
                 Back to Canvas
               </Button>
               <Button 
-                onClick={() => router.push(`/canvas/${projectSlug}`)}
+                onClick={() => router.push(`/canvas`)}
                 variant="outline"
               >
-                View Project
+                View Projects
               </Button>
             </div>
           </CardContent>
@@ -156,14 +164,22 @@ export default function CanvasEditorPage() {
   }
 
   return (
-    <div className="fixed inset-0 bg-background pt-[var(--navbar-height)] overflow-hidden">
+    <div className="fixed inset-0 bg-background pt-[var(--navbar-height)] overflow-hidden flex flex-col">
+      {/* Alpha Warning Banner */}
+      <div className="shrink-0 px-4 pt-4 pb-2">
+        <AlphaWarningBanner platform="canvas" />
+      </div>
+      
+      {/* Canvas Editor */}
+      <div className="flex-1 overflow-hidden">
       <CanvasEditor
         projectId={project.id}
-        chainId={chain.id}
+        fileId={file.id}
         projectSlug={projectSlug}
         projectName={project.name}
-        chainName={chain.name}
+        fileName={file.name || 'Canvas'}
       />
+      </div>
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { ProjectsDAL } from '@/lib/dal/projects';
 import { RendersDAL } from '@/lib/dal/renders';
 import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { RenderChainService } from '@/lib/services/render-chain';
+import { PlanLimitsService } from '@/lib/services/plan-limits.service';
 import { StorageService } from '@/lib/services/storage';
 import { logger } from '@/lib/utils/logger';
 import { getCachedUser } from '@/lib/services/auth-cache';
@@ -121,6 +122,55 @@ export async function createRenderAction(formData: FormData) {
       projectId
     });
 
+    // ✅ CHECK LIMIT: Verify user can use this quality level
+    if (quality !== 'standard') {
+      const qualityLimitCheck = await PlanLimitsService.checkQualityLimit(userId, quality);
+      if (!qualityLimitCheck.allowed) {
+        logger.warn('❌ Quality limit check failed:', qualityLimitCheck);
+        return {
+          success: false,
+          error: qualityLimitCheck.error || 'Quality level not available',
+          limitReached: true,
+          limitType: qualityLimitCheck.limitType,
+          current: qualityLimitCheck.current,
+          limit: qualityLimitCheck.limit,
+          planName: qualityLimitCheck.planName,
+        };
+      }
+    }
+
+    // ✅ CHECK LIMIT: Verify user can generate videos
+    if (type === 'video') {
+      const videoLimitCheck = await PlanLimitsService.checkVideoLimit(userId);
+      if (!videoLimitCheck.allowed) {
+        logger.warn('❌ Video limit check failed:', videoLimitCheck);
+        return {
+          success: false,
+          error: videoLimitCheck.error || 'Video generation not available',
+          limitReached: true,
+          limitType: videoLimitCheck.limitType,
+          current: videoLimitCheck.current,
+          limit: videoLimitCheck.limit,
+          planName: videoLimitCheck.planName,
+        };
+      }
+    }
+
+    // ✅ CHECK LIMIT: Verify user can create more renders in this project
+    const renderLimitCheck = await PlanLimitsService.checkRenderLimit(userId, projectId);
+    if (!renderLimitCheck.allowed) {
+      logger.warn('❌ Render limit check failed:', renderLimitCheck);
+      return {
+        success: false,
+        error: renderLimitCheck.error || 'Render limit reached',
+        limitReached: true,
+        limitType: renderLimitCheck.limitType,
+        current: renderLimitCheck.current,
+        limit: renderLimitCheck.limit,
+        planName: renderLimitCheck.planName,
+      };
+    }
+
     // Calculate credits cost
     // Image: 5 credits base (standard), 10 credits (high), 15 credits (ultra)
     // For upscaling: multiply by resolution multiplier (1K=1x, 2K=2x, 4K=4x)
@@ -178,7 +228,22 @@ export async function createRenderAction(formData: FormData) {
 
     logger.log('💰 Credits cost:', creditsCost);
 
-    // Check if user has enough credits
+    // ✅ CHECK LIMIT: Verify user has enough credits
+    const creditsLimitCheck = await PlanLimitsService.checkCreditsLimit(userId, creditsCost);
+    if (!creditsLimitCheck.allowed) {
+      logger.warn('❌ Credits limit check failed:', creditsLimitCheck);
+      return {
+        success: false,
+        error: creditsLimitCheck.error || 'Insufficient credits',
+        limitReached: true,
+        limitType: creditsLimitCheck.limitType,
+        current: creditsLimitCheck.current,
+        limit: creditsLimitCheck.limit,
+        planName: creditsLimitCheck.planName,
+      };
+    }
+
+    // Deduct credits
     const deductResult = await deductCredits(
       creditsCost,
       `Generated ${type} - ${style} style`,
@@ -187,8 +252,8 @@ export async function createRenderAction(formData: FormData) {
     );
 
     if (!deductResult.success) {
-      logger.warn('❌ Insufficient credits:', deductResult.error);
-      return { success: false, error: deductResult.error || 'Insufficient credits' };
+      logger.warn('❌ Credit deduction failed:', deductResult.error);
+      return { success: false, error: deductResult.error || 'Failed to deduct credits' };
     }
 
     // Verify project exists and belongs to user

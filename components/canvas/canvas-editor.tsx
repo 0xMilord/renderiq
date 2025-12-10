@@ -66,10 +66,10 @@ const edgeTypes = {
 
 interface CanvasEditorProps {
   projectId: string;
-  chainId: string;
+  fileId: string;
   projectSlug: string;
   projectName: string;
-  chainName: string;
+  fileName: string;
 }
 
 // Component that uses ReactFlow hooks - must be inside ReactFlow
@@ -137,10 +137,10 @@ function CanvasControls({
 // Inner component that uses ReactFlow hooks
 function CanvasEditorInner({
   projectId,
-  chainId,
+  fileId,
   projectSlug,
   projectName,
-  chainName,
+  fileName,
   graph,
   loading,
   saveGraph,
@@ -505,9 +505,9 @@ function CanvasEditorInner({
           position: node.position,
           data: {
             ...node.data,
-            // ✅ CRITICAL: Inject projectId and chainId into node data for render creation
+            // ✅ CRITICAL: Inject projectId and fileId into node data for render creation
             projectId: projectId,
-            chainId: chainId,
+            fileId: fileId,
           },
         }));
         setNodes(rfNodes);
@@ -516,11 +516,11 @@ function CanvasEditorInner({
       } else if (!graph || !graph.nodes || graph.nodes.length === 0) {
         // Only create default node if no graph exists at all - use factory
         const defaultNode = NodeFactory.createNode('text', { x: 100, y: 100 });
-        // ✅ CRITICAL: Inject projectId and chainId into default node
+        // ✅ CRITICAL: Inject projectId and fileId into default node
         defaultNode.data = {
           ...defaultNode.data,
           projectId: projectId,
-          chainId: chainId,
+          fileId: fileId,
         };
         setNodes([defaultNode]);
         // Initialize history with default state
@@ -707,8 +707,8 @@ function CanvasEditorInner({
     shortcutHandler.on('add-text-node', () => {
       const defaultPosition = NodeFactory.getDefaultPosition(nodes);
       const newNode = NodeFactory.createNode('text', defaultPosition);
-      // ✅ CRITICAL: Inject projectId and chainId into new node
-      newNode.data = { ...newNode.data, projectId, chainId };
+      // ✅ CRITICAL: Inject projectId and fileId into new node
+      newNode.data = { ...newNode.data, projectId, fileId };
       setNodes((nds) => {
         const newNodes = [...nds, newNode];
         history.pushState(newNodes, edges);
@@ -719,8 +719,8 @@ function CanvasEditorInner({
     shortcutHandler.on('add-image-node', () => {
       const defaultPosition = NodeFactory.getDefaultPosition(nodes);
       const newNode = NodeFactory.createNode('image', defaultPosition);
-      // ✅ CRITICAL: Inject projectId and chainId into new node
-      newNode.data = { ...newNode.data, projectId, chainId };
+      // ✅ CRITICAL: Inject projectId and fileId into new node
+      newNode.data = { ...newNode.data, projectId, fileId };
       setNodes((nds) => {
         const newNodes = [...nds, newNode];
         history.pushState(newNodes, edges);
@@ -731,8 +731,8 @@ function CanvasEditorInner({
     shortcutHandler.on('add-variants-node', () => {
       const defaultPosition = NodeFactory.getDefaultPosition(nodes);
       const newNode = NodeFactory.createNode('variants', defaultPosition);
-      // ✅ CRITICAL: Inject projectId and chainId into new node
-      newNode.data = { ...newNode.data, projectId, chainId };
+      // ✅ CRITICAL: Inject projectId and fileId into new node
+      newNode.data = { ...newNode.data, projectId, fileId };
       setNodes((nds) => {
         const newNodes = [...nds, newNode];
         history.pushState(newNodes, edges);
@@ -743,8 +743,8 @@ function CanvasEditorInner({
     shortcutHandler.on('add-style-node', () => {
       const defaultPosition = NodeFactory.getDefaultPosition(nodes);
       const newNode = NodeFactory.createNode('style', defaultPosition);
-      // ✅ CRITICAL: Inject projectId and chainId into new node
-      newNode.data = { ...newNode.data, projectId, chainId };
+      // ✅ CRITICAL: Inject projectId and fileId into new node
+      newNode.data = { ...newNode.data, projectId, fileId };
       setNodes((nds) => {
         const newNodes = [...nds, newNode];
         history.pushState(newNodes, edges);
@@ -755,8 +755,8 @@ function CanvasEditorInner({
     shortcutHandler.on('add-material-node', () => {
       const defaultPosition = NodeFactory.getDefaultPosition(nodes);
       const newNode = NodeFactory.createNode('material', defaultPosition);
-      // ✅ CRITICAL: Inject projectId and chainId into new node
-      newNode.data = { ...newNode.data, projectId, chainId };
+      // ✅ CRITICAL: Inject projectId and fileId into new node
+      newNode.data = { ...newNode.data, projectId, fileId };
       setNodes((nds) => {
         const newNodes = [...nds, newNode];
         history.pushState(newNodes, edges);
@@ -767,8 +767,8 @@ function CanvasEditorInner({
     shortcutHandler.on('add-output-node', () => {
       const defaultPosition = NodeFactory.getDefaultPosition(nodes);
       const newNode = NodeFactory.createNode('output', defaultPosition);
-      // ✅ CRITICAL: Inject projectId and chainId into new node
-      newNode.data = { ...newNode.data, projectId, chainId };
+      // ✅ CRITICAL: Inject projectId and fileId into new node
+      newNode.data = { ...newNode.data, projectId, fileId };
       setNodes((nds) => {
         const newNodes = [...nds, newNode];
         history.pushState(newNodes, edges);
@@ -898,17 +898,17 @@ function CanvasEditorInner({
         projectId={projectId}
         projectSlug={projectSlug}
         projectName={projectName}
-        chainId={chainId}
-        chainName={chainName}
+        fileId={fileId}
+        fileName={fileName}
         onAddNode={(type) => {
           // Use factory to create node with smart positioning
           const defaultPosition = NodeFactory.getDefaultPosition(nodes);
           const newNode = NodeFactory.createNode(type, defaultPosition);
-          // ✅ CRITICAL: Inject projectId and chainId into new node
+          // ✅ CRITICAL: Inject projectId and fileId into new node
           newNode.data = {
             ...newNode.data,
             projectId: projectId,
-            chainId: chainId,
+            fileId: fileId,
           };
           setNodes((nds) => {
             const newNodes = [...nds, newNode];
@@ -933,13 +933,13 @@ function CanvasEditorInner({
             type: 'default',
           }));
           
-          // ✅ CRITICAL: Inject projectId and chainId into template nodes
+          // ✅ CRITICAL: Inject projectId and fileId into template nodes
           const nodesWithContext = templateNodes.map(node => ({
             ...node,
             data: {
               ...node.data,
               projectId: projectId,
-              chainId: chainId,
+              fileId: fileId,
             },
           }));
           
@@ -1081,21 +1081,21 @@ function CanvasEditorInner({
 // Outer wrapper component that provides ReactFlowProvider
 export function CanvasEditor({
   projectId,
-  chainId,
+  fileId,
   projectSlug,
   projectName,
-  chainName,
+  fileName,
 }: CanvasEditorProps) {
-  const { graph, loading, saveGraph } = useCanvas(chainId);
+  const { graph, loading, saveGraph } = useCanvas(fileId);
 
   return (
     <ReactFlowProvider>
       <CanvasEditorInner
         projectId={projectId}
-        chainId={chainId}
+        fileId={fileId}
         projectSlug={projectSlug}
         projectName={projectName}
-        chainName={chainName}
+        fileName={fileName}
         graph={graph}
         loading={loading}
         saveGraph={saveGraph}

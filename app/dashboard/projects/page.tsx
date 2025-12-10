@@ -17,6 +17,7 @@ import type { Project } from '@/lib/db/schema';
 type ViewMode = 'default' | 'compact' | 'list';
 
 export default function ProjectsPage() {
+  // Fetch ALL projects (no platform filter for dashboard)
   const { projects, loading, error, removeProject, duplicateProject, refetch } = useProjects();
   const [viewMode, setViewMode] = useState<ViewMode>('default');
   const [searchQuery, setSearchQuery] = useState('');

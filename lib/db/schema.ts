@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, integer, boolean, jsonb, decimal, bigint } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, uuid, integer, boolean, jsonb, decimal, bigint, uniqueIndex } from 'drizzle-orm/pg-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 
 // Users table with enhanced profile
@@ -177,6 +177,8 @@ export const projects = pgTable('projects', {
   isPublic: boolean('is_public').default(false).notNull(),
   tags: jsonb('tags').$type<string[]>(),
   metadata: jsonb('metadata').$type<Record<string, any>>(),
+  // Platform identifier to prevent cross-contamination between render, tools, and canvas
+  platform: text('platform', { enum: ['render', 'tools', 'canvas'] }).default('render').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -406,10 +408,10 @@ export const canvasFileVersions = pgTable('canvas_file_versions', {
 // Canvas graphs for node-based editor
 export const canvasGraphs = pgTable('canvas_graphs', {
   id: uuid('id').primaryKey().defaultRandom(),
-  // Legacy: Keep chainId for backward compatibility during migration
+  // Legacy: Keep chainId for backward compatibility during migration (nullable)
   chainId: uuid('chain_id').references(() => renderChains.id, { onDelete: 'cascade' }),
-  // New: Use fileId for proper Figma-like structure
-  fileId: uuid('file_id').references(() => canvasFiles.id, { onDelete: 'cascade' }),
+  // New: Use fileId for proper Figma-like structure (required for new records)
+  fileId: uuid('file_id').references(() => canvasFiles.id, { onDelete: 'cascade' }).notNull(),
   projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }).notNull(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   nodes: jsonb('nodes').notNull(),
@@ -418,7 +420,10 @@ export const canvasGraphs = pgTable('canvas_graphs', {
   version: integer('version').default(1).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+}, (table) => ({
+  // Unique constraint: one graph per file (Figma-like structure)
+  fileIdUnique: uniqueIndex('idx_canvas_graphs_file_id_unique').on(table.fileId),
+}));
 
 // Tools infrastructure for /apps platform
 export const tools = pgTable('tools', {

@@ -1,9 +1,10 @@
 import { redirect } from 'next/navigation';
 import { getCachedUser } from '@/lib/services/auth-cache';
-import { ProjectsDAL } from '@/lib/dal/projects';
-import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { CanvasPageClient } from './canvas-client';
 import { logger } from '@/lib/utils/logger';
+import { db } from '@/lib/db';
+import { projects } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -20,22 +21,23 @@ export default async function CanvasPage() {
     logger.log('🚀 [CanvasPage SSR] Fetching data for user:', user.id);
     const startTime = Date.now();
 
-    // Batch fetch: Get all projects and chains
-    const [projects, chainsWithRenders] = await Promise.all([
-      ProjectsDAL.getByUserId(user.id),
-      RenderChainsDAL.getUserChainsWithRenders(user.id)
-    ]);
+    // ✅ Show only canvas platform projects (hierarchy: Projects → Files → Canvas)
+    // Projects can exist without files, and files can exist without canvas graphs
+    // This allows users to create projects and then add canvas files to them
+    const allProjects = await db
+      .select()
+      .from(projects)
+      .where(and(eq(projects.userId, user.id), eq(projects.platform, 'canvas')))
+      .orderBy(projects.createdAt);
 
     const endTime = Date.now();
     logger.log(`✅ [CanvasPage SSR] Data fetched in ${endTime - startTime}ms`, {
-      projects: projects.length,
-      chains: chainsWithRenders.length,
+      projects: allProjects.length,
     });
 
     return (
       <CanvasPageClient
-        initialProjects={projects}
-        initialChains={chainsWithRenders}
+        initialProjects={allProjects}
       />
     );
   } catch (error) {

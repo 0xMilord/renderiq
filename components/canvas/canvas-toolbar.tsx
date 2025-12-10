@@ -18,15 +18,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { getUserProjects, createProject } from '@/lib/actions/projects.actions';
-import { getProjectChains, createRenderChain } from '@/lib/actions/projects.actions';
+import { getCanvasFilesAction } from '@/lib/actions/canvas-files.actions';
+import { useCanvasFileOperations } from '@/lib/hooks/use-canvas-files';
 import type { Project } from '@/lib/db/schema';
+import type { CanvasFile } from '@/lib/db/schema';
 
 interface CanvasToolbarProps {
   projectId: string;
   projectSlug: string;
   projectName: string;
-  chainId: string;
-  chainName: string;
+  fileId: string;
+  fileName: string;
   onAddNode: (type: 'text' | 'image' | 'variants' | 'style' | 'material' | 'output' | 'prompt-builder' | 'style-reference' | 'image-input' | 'video') => void;
   onAddTemplate?: (templateName: keyof typeof NODE_TEMPLATES) => void;
   onSave: () => void;
@@ -45,8 +47,8 @@ export function CanvasToolbar({
   projectId, 
   projectSlug, 
   projectName, 
-  chainId, 
-  chainName, 
+  fileId,
+  fileName,
   onAddNode,
   onAddTemplate,
   onSave,
@@ -62,16 +64,18 @@ export function CanvasToolbar({
 }: CanvasToolbarProps) {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [chains, setChains] = useState<any[]>([]);
+  const [files, setFiles] = useState<CanvasFile[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
-  const [loadingChains, setLoadingChains] = useState(false);
+  const [loadingFiles, setLoadingFiles] = useState(false);
   const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
-  const [showNewChainDialog, setShowNewChainDialog] = useState(false);
+  const [showNewFileDialog, setShowNewFileDialog] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDescription, setNewProjectDescription] = useState('');
-  const [newChainName, setNewChainName] = useState('');
+  const [newFileName, setNewFileName] = useState('');
+  const [newFileDescription, setNewFileDescription] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { createFile } = useCanvasFileOperations();
 
   // Fetch projects
   const fetchProjects = useCallback(async () => {
@@ -88,26 +92,26 @@ export function CanvasToolbar({
     }
   }, []);
 
-  // Fetch chains for current project
-  const fetchChains = useCallback(async () => {
+  // Fetch canvas files for current project
+  const fetchFiles = useCallback(async () => {
     if (!projectId) return;
-    setLoadingChains(true);
+    setLoadingFiles(true);
     try {
-      const result = await getProjectChains(projectId);
-      if (result.success && result.data) {
-        setChains(result.data);
+      const result = await getCanvasFilesAction({ projectId });
+      if (result.success && result.files) {
+        setFiles(result.files);
       }
     } catch (error) {
-      console.error('Failed to fetch chains:', error);
+      console.error('Failed to fetch canvas files:', error);
     } finally {
-      setLoadingChains(false);
+      setLoadingFiles(false);
     }
   }, [projectId]);
 
   useEffect(() => {
     fetchProjects();
-    fetchChains();
-  }, [fetchProjects, fetchChains]);
+    fetchFiles();
+  }, [fetchProjects, fetchFiles]);
 
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return;
@@ -123,37 +127,51 @@ export function CanvasToolbar({
         setShowNewProjectDialog(false);
         setNewProjectName('');
         setNewProjectDescription('');
-        // Navigate to new project's first chain or create one
-        router.push(`/canvas/${result.data.slug}`);
+        // Navigate to canvas home for the new project
+        router.push(`/canvas`);
       }
     } catch (error) {
       console.error('Failed to create project:', error);
     }
   };
 
-  const handleCreateChain = async () => {
-    if (!newChainName.trim() || !projectId) return;
+  const handleCreateFile = async () => {
+    if (!newFileName.trim() || !projectId) return;
     
     try {
-      const result = await createRenderChain(projectId, newChainName);
+      // Generate slug from name
+      const slug = newFileName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .substring(0, 50);
+
+      const result = await createFile({
+        projectId,
+        name: newFileName,
+        slug,
+        description: newFileDescription.trim() || undefined,
+      });
+
       if (result.success && result.data) {
-        await fetchChains();
-        setShowNewChainDialog(false);
-        setNewChainName('');
-        // Navigate to new chain
+        await fetchFiles();
+        setShowNewFileDialog(false);
+        setNewFileName('');
+        setNewFileDescription('');
+        // Navigate to new file
         router.push(`/canvas/${projectSlug}/${result.data.id}`);
       }
     } catch (error) {
-      console.error('Failed to create chain:', error);
+      console.error('Failed to create canvas file:', error);
     }
   };
 
   const handleProjectSelect = (project: Project) => {
-    router.push(`/canvas/${project.slug}`);
+    router.push(`/canvas`);
   };
 
-  const handleChainSelect = (chain: any) => {
-    router.push(`/canvas/${projectSlug}/${chain.id}`);
+  const handleFileSelect = (file: CanvasFile) => {
+    router.push(`/canvas/${projectSlug}/${file.id}`);
   };
 
   return (
@@ -233,7 +251,7 @@ export function CanvasToolbar({
 
         <span className="text-xs text-muted-foreground shrink-0">/</span>
 
-        {/* Chain/Render Dropdown */}
+        {/* Canvas File Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -241,59 +259,72 @@ export function CanvasToolbar({
               size="sm"
               className="h-8 gap-1 text-xs sm:text-sm"
             >
-              <span className="text-muted-foreground truncate max-w-[80px] sm:max-w-none">{chainName}</span>
+              <span className="text-muted-foreground truncate max-w-[80px] sm:max-w-none">
+                {fileName || 'Select File'}
+              </span>
               <ChevronDown className="h-3 w-3 shrink-0" />
             </Button>
           </DropdownMenuTrigger>
         <DropdownMenuContent className="max-h-[400px] overflow-y-auto">
-          <Dialog open={showNewChainDialog} onOpenChange={setShowNewChainDialog}>
+          <Dialog open={showNewFileDialog} onOpenChange={setShowNewFileDialog}>
             <DialogTrigger asChild>
               <DropdownMenuItem
                 onSelect={(e) => {
                   e.preventDefault();
-                  setShowNewChainDialog(true);
+                  setShowNewFileDialog(true);
                 }}
                 className="cursor-pointer"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Create New Render
+                Create New Canvas File
               </DropdownMenuItem>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Create New Render</DialogTitle>
+                <DialogTitle>Create New Canvas File</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label>Render Name</Label>
+                  <Label>File Name</Label>
                   <Input
-                    value={newChainName}
-                    onChange={(e) => setNewChainName(e.target.value)}
-                    placeholder="Enter render name"
+                    value={newFileName}
+                    onChange={(e) => setNewFileName(e.target.value)}
+                    placeholder="Enter file name"
+                  />
+                </div>
+                <div>
+                  <Label>Description (Optional)</Label>
+                  <Textarea
+                    value={newFileDescription}
+                    onChange={(e) => setNewFileDescription(e.target.value)}
+                    placeholder="Enter file description"
+                    rows={3}
                   />
                 </div>
                 <Button
-                  onClick={handleCreateChain}
+                  onClick={handleCreateFile}
                   className="w-full"
                 >
-                  Create Render
+                  Create File
                 </Button>
               </div>
             </DialogContent>
           </Dialog>
           <DropdownMenuSeparator />
-          {loadingChains ? (
+          {loadingFiles ? (
             <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
+          ) : files.length === 0 ? (
+            <DropdownMenuItem disabled>No files yet</DropdownMenuItem>
           ) : (
-            chains.map((chain) => (
+            files.map((file) => (
               <DropdownMenuItem
-                key={chain.id}
-                onClick={() => handleChainSelect(chain)}
+                key={file.id}
+                onClick={() => handleFileSelect(file)}
                 className={`cursor-pointer ${
-                  chain.id === chainId ? 'bg-accent' : ''
+                  file.id === fileId ? 'bg-accent' : ''
                 }`}
               >
-                {chain.name || `Render ${chain.id.slice(0, 8)}`}
+                {file.name || file.slug}
               </DropdownMenuItem>
             ))
           )}

@@ -1,77 +1,35 @@
 import { db } from '@/lib/db';
-import { canvasGraphs, renderChains, canvasFiles } from '@/lib/db/schema';
-import { eq, or, isNull } from 'drizzle-orm';
+import { canvasGraphs, canvasFiles } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 import { CanvasState } from '@/lib/types/canvas';
 import { logger } from '@/lib/utils/logger';
 
 export class CanvasDAL {
   // ============================================================================
-  // LEGACY: Chain-based access (for backward compatibility)
-  // ============================================================================
-
-  static async getByChainId(chainId: string) {
-    try {
-      const [graph] = await db
-        .select()
-        .from(canvasGraphs)
-        .where(eq(canvasGraphs.chainId, chainId))
-        .limit(1);
-
-      if (!graph) {
-        return null;
-      }
-
-      // Get chain to verify project relationship
-      const [chain] = await db
-        .select()
-        .from(renderChains)
-        .where(eq(renderChains.id, chainId))
-        .limit(1);
-
-      if (!chain) {
-        return null;
-      }
-
-      return {
-        ...graph,
-        projectId: chain.projectId,
-      };
-    } catch (error) {
-      logger.error('Error getting canvas graph by chainId:', error);
-      throw error;
-    }
-  }
-
-  // ============================================================================
-  // NEW: File-based access (Figma-like structure)
+  // File-based access (Figma-like structure)
   // ============================================================================
 
   static async getByFileId(fileId: string) {
     try {
-      const [graph] = await db
-        .select()
+      // ✅ OPTIMIZED: Use INNER JOIN to fetch graph and file in a single query
+      // This reduces from 2 sequential queries to 1 query
+      const [result] = await db
+        .select({
+          graph: canvasGraphs,
+          projectId: canvasFiles.projectId,
+        })
         .from(canvasGraphs)
+        .innerJoin(canvasFiles, eq(canvasGraphs.fileId, canvasFiles.id))
         .where(eq(canvasGraphs.fileId, fileId))
         .limit(1);
 
-      if (!graph) {
-        return null;
-      }
-
-      // Get file to verify project relationship
-      const [file] = await db
-        .select()
-        .from(canvasFiles)
-        .where(eq(canvasFiles.id, fileId))
-        .limit(1);
-
-      if (!file) {
+      if (!result || !result.graph) {
         return null;
       }
 
       return {
-        ...graph,
-        projectId: file.projectId,
+        ...result.graph,
+        projectId: result.projectId,
       };
     } catch (error) {
       logger.error('Error getting canvas graph by fileId:', error);
@@ -80,61 +38,35 @@ export class CanvasDAL {
   }
 
   // ============================================================================
-  // SAVE GRAPH (supports both legacy chainId and new fileId)
+  // SAVE GRAPH (file-based only)
   // ============================================================================
 
   static async saveGraph(
-    identifier: { chainId?: string; fileId?: string },
+    fileId: string,
     userId: string,
     state: CanvasState
   ) {
     try {
-      let projectId: string;
-      let existing: any = null;
+      // ✅ OPTIMIZED: Fetch file and existing graph together in a single query
+      const [fileWithGraph] = await db
+        .select({
+          file: canvasFiles,
+          graph: canvasGraphs,
+        })
+        .from(canvasFiles)
+        .leftJoin(canvasGraphs, eq(canvasFiles.id, canvasGraphs.fileId))
+        .where(eq(canvasFiles.id, fileId))
+        .limit(1);
 
-      // Determine if using fileId (new) or chainId (legacy)
-      if (identifier.fileId) {
-        // New file-based approach
-        const [file] = await db
-          .select()
-          .from(canvasFiles)
-          .where(eq(canvasFiles.id, identifier.fileId))
-          .limit(1);
-
-        if (!file) {
-          return { success: false, error: 'Canvas file not found' };
-        }
-
-        projectId = file.projectId;
-
-        // Check if graph exists for this file
-        existing = await this.getByFileId(identifier.fileId);
-      } else if (identifier.chainId) {
-        // Legacy chain-based approach
-        const [chain] = await db
-          .select()
-          .from(renderChains)
-          .where(eq(renderChains.id, identifier.chainId))
-          .limit(1);
-
-        if (!chain) {
-          return { success: false, error: 'Chain not found' };
-        }
-
-        projectId = chain.projectId;
-
-        // Check if graph exists for this chain
-        existing = await this.getByChainId(identifier.chainId);
-      } else {
-        return { success: false, error: 'Either fileId or chainId must be provided' };
+      if (!fileWithGraph || !fileWithGraph.file) {
+        return { success: false, error: 'Canvas file not found' };
       }
+
+      const projectId = fileWithGraph.file.projectId;
+      const existing = fileWithGraph.graph || null;
 
       if (existing) {
         // Update existing graph
-        const whereCondition = identifier.fileId
-          ? eq(canvasGraphs.fileId, identifier.fileId)
-          : eq(canvasGraphs.chainId, identifier.chainId!);
-
         const [updated] = await db
           .update(canvasGraphs)
           .set({
@@ -144,7 +76,7 @@ export class CanvasDAL {
             version: existing.version + 1,
             updatedAt: new Date(),
           })
-          .where(whereCondition)
+          .where(eq(canvasGraphs.fileId, fileId))
           .returning();
 
         logger.log('✅ Canvas graph updated:', updated.id);
@@ -157,8 +89,7 @@ export class CanvasDAL {
         const [created] = await db
           .insert(canvasGraphs)
           .values({
-            chainId: identifier.chainId || null,
-            fileId: identifier.fileId || null,
+            fileId: fileId,
             projectId,
             userId,
             nodes: state.nodes as any,
@@ -181,19 +112,6 @@ export class CanvasDAL {
         error: error instanceof Error ? error.message : 'Failed to save canvas graph',
       };
     }
-  }
-
-  // ============================================================================
-  // MIGRATION: Get graph by either chainId or fileId
-  // ============================================================================
-
-  static async getGraph(identifier: { chainId?: string; fileId?: string }) {
-    if (identifier.fileId) {
-      return await this.getByFileId(identifier.fileId);
-    } else if (identifier.chainId) {
-      return await this.getByChainId(identifier.chainId);
-    }
-    return null;
   }
 }
 

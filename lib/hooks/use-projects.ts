@@ -5,7 +5,7 @@ import { getUserProjects, createProject, deleteProject, duplicateProject, getPro
 import type { Project } from '@/lib/db/schema';
 import { logger } from '@/lib/utils/logger';
 
-export function useProjects() {
+export function useProjects(platform?: 'render' | 'tools' | 'canvas') {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -14,7 +14,7 @@ export function useProjects() {
     try {
       setLoading(true);
       setError(null);
-      const result = await getUserProjects();
+      const result = await getUserProjects(platform);
       
       if (result.success) {
         setProjects(result.data || []);
@@ -41,12 +41,28 @@ export function useProjects() {
         logger.log('✅ [useProjects] Project created, updating state incrementally...');
         // ✅ INCREMENTAL UPDATE: Add new project to state instead of refetching all
         const newProject = result.data as Project;
-        setProjects(prev => [newProject, ...prev]);
+        // ✅ FILTER: Only add if platform matches (or if no platform filter is set)
+        if (!platform || newProject.platform === platform) {
+          setProjects(prev => [newProject, ...prev]);
+        }
         return { success: true, data: result.data };
       } else {
+        // ✅ FIXED: Pass through limitReached data from action
+        const limitData = (result as any).limitReached ? {
+          limitReached: (result as any).limitReached,
+          limitType: (result as any).limitType,
+          current: (result as any).current,
+          limit: (result as any).limit,
+          planName: (result as any).planName,
+        } : undefined;
+        
         console.error('❌ [useProjects] Project creation failed:', result.error);
         setError(result.error || 'Failed to create project');
-        return { success: false, error: result.error };
+        return { 
+          success: false, 
+          error: result.error,
+          ...limitData, // Spread limit data if present
+        };
       }
     } catch (err) {
       console.error('❌ [useProjects] Unexpected error:', err);
@@ -122,7 +138,7 @@ export function useProjects() {
 
   useEffect(() => {
     fetchProjects();
-  }, []);
+  }, [platform]);
 
   return {
     projects,

@@ -21,7 +21,10 @@ export class RenderService {
     userId: string,
     file: File,
     projectName: string,
-    description?: string
+    description?: string,
+    tags?: string[],
+    isPublic?: boolean,
+    platform: 'render' | 'tools' | 'canvas' = 'render'
   ) {
     try {
       logger.log('🚀 Starting project creation:', { userId, projectName, description });
@@ -47,6 +50,9 @@ export class RenderService {
         description,
         originalImageId: uploadResult.id, // Use the file ID from storage
         status: 'processing',
+        isPublic: isPublic || false,
+        tags: tags,
+        platform: platform,
       });
       logger.log('✅ Project created successfully:', { id: project.id, slug: project.slug });
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -32,9 +32,11 @@ import { ToolConfig } from '@/lib/tools/registry';
 import { TOOL_CONTENT } from '@/lib/tools/tool-content';
 import { createRenderAction } from '@/lib/actions/render.actions';
 import { useCredits } from '@/lib/hooks/use-credits';
-import { useRenders } from '@/lib/hooks/use-renders';
+import { useToolRenders } from '@/lib/hooks/use-tool-renders';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { toast } from 'sonner';
+import { LimitReachedDialog } from '@/components/billing/limit-reached-dialog';
+import type { LimitType } from '@/lib/services/plan-limits.service';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -87,15 +89,15 @@ export function BaseToolComponent({
   const projectId = propProjectId;
   const projectLoading = false; // No longer loading projects automatically
   
-  // Fetch renders for this project and filter by tool
-  const { renders, loading: rendersLoading, refetch: refetchRenders } = useRenders(projectId);
-  const toolRenders = renders.filter(render => {
-    // Check if render was created with this tool via settings.imageType
-    if (render.settings && typeof render.settings === 'object' && 'imageType' in render.settings) {
-      return (render.settings as { imageType?: string }).imageType === tool.id;
-    }
-    return false;
-  }).filter(render => render.status === 'completed' && render.outputUrl); // Show all completed renders from this tool
+  // Declare polling state before useToolRenders hook
+  const [pollingRenderIds, setPollingRenderIds] = useState<Set<string>>(new Set());
+  const pollingActiveRef = useRef(false);
+  const pollingIdsRef = useRef<Set<string>>(new Set());
+  
+  // ✅ UPDATED: Use tool_executions instead of filtering renders
+  // This uses the new dedicated infrastructure for tools
+  // Include processing renders when we're actively polling
+  const { toolRenders, loading: rendersLoading, refetch: refetchRenders } = useToolRenders(tool, projectId, pollingRenderIds.size > 0);
   
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
@@ -108,7 +110,15 @@ export function BaseToolComponent({
   const [selectedRenderIndex, setSelectedRenderIndex] = useState<number | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [fullscreenImage, setFullscreenImage] = useState<{ url: string; label?: string } | null>(null);
-  const [pollingRenderIds, setPollingRenderIds] = useState<Set<string>>(new Set());
+  // ✅ Limit dialog state
+  const [limitDialogOpen, setLimitDialogOpen] = useState(false);
+  const [limitDialogData, setLimitDialogData] = useState<{
+    limitType: LimitType;
+    current: number;
+    limit: number | null;
+    planName: string;
+    message?: string;
+  } | null>(null);
   
   const [quality, setQuality] = useState<'standard' | 'high' | 'ultra'>('standard');
   const [aspectRatio, setAspectRatio] = useState<string>('16:9');
@@ -138,16 +148,38 @@ export function BaseToolComponent({
   
   // Poll for render updates
   const pollForRenderUpdates = useCallback(async (renderIds: string[]) => {
-    if (!projectId) return;
+    if (!projectId || renderIds.length === 0) {
+      pollingActiveRef.current = false;
+      pollingIdsRef.current = new Set();
+      setPollingRenderIds(new Set());
+      return;
+    }
     
+    if (pollingActiveRef.current) {
+      // Already polling, just update the refs and state
+      pollingIdsRef.current = new Set(renderIds);
+      setPollingRenderIds(new Set(renderIds));
+      return;
+    }
+    
+    pollingActiveRef.current = true;
+    pollingIdsRef.current = new Set(renderIds);
     setPollingRenderIds(new Set(renderIds));
     const pollInterval = 2000; // Poll every 2 seconds
     const maxPollTime = 5 * 60 * 1000; // Max 5 minutes
     const startTime = Date.now();
+    let pollTimeout: NodeJS.Timeout | null = null;
     
     const poll = async () => {
-      if (Date.now() - startTime > maxPollTime) {
+      // Check if we should stop polling
+      const currentIds = Array.from(pollingIdsRef.current);
+      if (currentIds.length === 0 || Date.now() - startTime > maxPollTime) {
+        pollingActiveRef.current = false;
+        pollingIdsRef.current = new Set();
         setPollingRenderIds(new Set());
+        if (pollTimeout) {
+          clearTimeout(pollTimeout);
+        }
         return;
       }
       
@@ -155,58 +187,88 @@ export function BaseToolComponent({
         // Refresh renders to get latest status
         await refetchRenders();
         
-        // Get updated renders from the hook
-        const updatedRenders = renders.filter(r => 
-          renderIds.includes(r.id) && 
-          r.status === 'completed' && 
-          r.outputUrl
-        );
+        // Get current polling IDs from ref
+        const currentPollingIds = Array.from(pollingIdsRef.current);
+        
+        // Get updated renders from the hook (will include processing renders now)
+        const updatedRenders = toolRenders.filter(r => {
+          const renderId = r.renderId || r.id;
+          return currentPollingIds.includes(renderId) && 
+                 r.status === 'completed' && 
+                 r.outputUrl;
+        });
         
         if (updatedRenders.length > 0) {
-          // Update results with completed renders
-          setResults(prev => prev.map(result => {
-            const updated = updatedRenders.find(r => r.id === result.renderId);
-            if (updated) {
-              return {
-                ...result,
-                outputUrl: updated.outputUrl || result.outputUrl,
-                isPolling: false
-              };
-            }
-            return result;
-          }));
+          // Update results with completed renders individually
+          setResults(prev => {
+            const updated = prev.map(result => {
+              const render = updatedRenders.find(r => (r.renderId || r.id) === result.renderId);
+              if (render && render.outputUrl) {
+                // Show toast for each completed render
+                if (result.isPolling && !result.outputUrl) {
+                  toast.success(`${result.label || 'Render'} completed!`);
+                }
+                return {
+                  ...result,
+                  outputUrl: render.outputUrl,
+                  isPolling: false
+                };
+              }
+              return result;
+            });
+            return updated;
+          });
           
           // Remove completed renders from polling set
-          const remainingIds = renderIds.filter(id => 
-            !updatedRenders.some(r => r.id === id)
+          const remainingIds = currentPollingIds.filter(id => 
+            !updatedRenders.some(r => (r.renderId || r.id) === id)
           );
           
           if (remainingIds.length === 0) {
             // All renders completed
+            pollingActiveRef.current = false;
+            pollingIdsRef.current = new Set();
             setPollingRenderIds(new Set());
             await refreshCredits();
-            toast.success(`${renderIds.length} renders generated successfully!`);
+            toast.success(`All ${currentPollingIds.length} renders generated successfully!`);
             refetchRenders();
             setActiveTab('output');
+            if (pollTimeout) {
+              clearTimeout(pollTimeout);
+            }
             return;
           } else {
+            pollingIdsRef.current = new Set(remainingIds);
             setPollingRenderIds(new Set(remainingIds));
             // Continue polling for remaining renders
-            setTimeout(poll, pollInterval);
+            pollTimeout = setTimeout(poll, pollInterval);
           }
         } else {
           // No renders completed yet, continue polling
-          setTimeout(poll, pollInterval);
+          pollTimeout = setTimeout(poll, pollInterval);
         }
       } catch (error) {
         console.error('Error polling for renders:', error);
+        pollingActiveRef.current = false;
+        pollingIdsRef.current = new Set();
         setPollingRenderIds(new Set());
+        if (pollTimeout) {
+          clearTimeout(pollTimeout);
+        }
       }
     };
     
     // Start polling
-    setTimeout(poll, pollInterval);
-  }, [projectId, renders, refetchRenders, refreshCredits]);
+    pollTimeout = setTimeout(poll, pollInterval);
+  }, [projectId, toolRenders, refetchRenders, refreshCredits]);
+  
+  // Trigger polling when pollingRenderIds changes (but only if not already polling)
+  useEffect(() => {
+    if (pollingRenderIds.size > 0 && !pollingActiveRef.current) {
+      const renderIds = Array.from(pollingRenderIds);
+      pollForRenderUpdates(renderIds);
+    }
+  }, [pollingRenderIds.size, pollForRenderUpdates]); // Only trigger when size changes
 
   // Calculate credits cost - use model-based pricing if model is selected, otherwise use custom or default
   const isVideo = tool.outputType === 'video';
@@ -427,8 +489,9 @@ export function BaseToolComponent({
               setActiveTab('output');
               
               if (needsPolling) {
-                // Start polling for render updates
-                setPollingRenderIds(new Set(result.data.map((r: any) => r.renderId).filter((id: string) => id)));
+                // Start polling for render updates - this will trigger the useEffect
+                const renderIds = result.data.map((r: any) => r.renderId).filter((id: string) => id);
+                setPollingRenderIds(new Set(renderIds));
               } else {
                 // All renders are complete, show them immediately
                 await refreshCredits();
@@ -495,6 +558,19 @@ export function BaseToolComponent({
         // Switch to output tab to show result
         setActiveTab('output');
       } else {
+        // ✅ CHECK: Handle limit errors
+        if ((result as any).limitReached) {
+          const limitData = result as any;
+          setLimitDialogData({
+            limitType: limitData.limitType || 'credits',
+            current: limitData.current || 0,
+            limit: limitData.limit ?? null,
+            planName: limitData.planName || 'Free',
+            message: result.error,
+          });
+          setLimitDialogOpen(true);
+          return; // Exit early - don't show error toast
+        }
         throw new Error(result.error || 'Failed to generate render');
       }
     } catch (err) {
@@ -1641,6 +1717,22 @@ export function BaseToolComponent({
           )}
         </DialogContent>
       </Dialog>
+      
+      {/* ✅ Limit Reached Dialog */}
+      {limitDialogData && (
+        <LimitReachedDialog
+          isOpen={limitDialogOpen}
+          onClose={() => {
+            setLimitDialogOpen(false);
+            setLimitDialogData(null);
+          }}
+          limitType={limitDialogData.limitType}
+          current={limitDialogData.current}
+          limit={limitDialogData.limit}
+          planName={limitDialogData.planName}
+          message={limitDialogData.message}
+        />
+      )}
     </div>
   );
 }

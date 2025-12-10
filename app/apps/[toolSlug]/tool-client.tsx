@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Wrench } from 'lucide-react';
 import { isToolAccessible } from '@/lib/tools/feature-flags';
+import { AlphaWarningBanner } from '@/components/ui/alpha-warning-banner';
 
 interface ToolPageClientProps {
   tool: ToolConfig;

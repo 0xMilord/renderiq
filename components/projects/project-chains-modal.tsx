@@ -48,18 +48,18 @@ export function ProjectChainsModal({
       const result = await createRenderChain(
         project.id,
         chainName,
-        'Render chain'
+        'Chat'
       );
 
       if (result.success && result.data) {
         router.push(`/project/${project.slug || 'project'}/chain/${result.data.id}`);
         onClose();
       } else {
-        toast.error(result.error || 'Failed to create chain');
+        toast.error(result.error || 'Failed to create chat');
       }
     } catch (error) {
-      console.error('Failed to create chain:', error);
-      toast.error('Failed to create chain');
+      console.error('Failed to create chat:', error);
+      toast.error('Failed to create chat');
     } finally {
       setIsCreatingChain(false);
     }
@@ -98,7 +98,7 @@ export function ProjectChainsModal({
             />
           </div>
 
-          {/* Chains List */}
+          {/* Chats List */}
           <div className="flex-1 overflow-y-auto min-h-0">
             {filteredChains.length === 0 ? (
               <div className="text-center py-8">

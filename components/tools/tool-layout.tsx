@@ -61,7 +61,7 @@ export function ToolLayout({ tool, children, onProjectChange, hintMessage }: Too
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
+      {/* Header - Fixed below navbar */}
       <div className="border-b fixed top-[var(--navbar-height)] left-0 right-0 z-10 w-full pointer-events-none bg-background">
         <div className="w-full max-w-[1920px] mx-auto px-4 pt-2 pb-1 pointer-events-auto">
           {/* Desktop Layout */}
@@ -197,7 +197,7 @@ export function ToolLayout({ tool, children, onProjectChange, hintMessage }: Too
         </div>
       </div>
 
-      {/* Main Content - Minimum 90vh height */}
+      {/* Main Content - Adjusted to account for header */}
       <div className="w-full max-w-[1920px] mx-auto px-4 py-8 pt-[calc(var(--navbar-height)+3.25rem+1.5rem)] min-h-[90vh]">
         {children}
       </div>

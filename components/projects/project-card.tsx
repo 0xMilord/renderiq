@@ -45,6 +45,7 @@ interface ProjectCardProps {
   onDuplicate?: (project: Project) => void;
   onDelete?: (project: Project) => void;
   onSelect?: (project: Project) => void;
+  viewUrl?: string; // Custom view URL, defaults to /dashboard/projects/{slug}
 }
 
 function ProjectCardComponent({ 
@@ -53,8 +54,12 @@ function ProjectCardComponent({
   onEdit, 
   onDuplicate, 
   onDelete,
-  onSelect
+  onSelect,
+  viewUrl
 }: ProjectCardProps) {
+  // Default view URL to dashboard, but allow override
+  const defaultViewUrl = `/dashboard/projects/${project.slug}`;
+  const finalViewUrl = viewUrl || defaultViewUrl;
   const latestRenders = project.latestRenders || [];
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
@@ -86,6 +91,39 @@ function ProjectCardComponent({
     // Convert to sentence case: first letter uppercase, rest lowercase
     return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
   };
+
+  // Get platform badge info
+  const getPlatformBadge = () => {
+    const platform = project.platform || 'render';
+    switch (platform) {
+      case 'render':
+        return { label: 'Render', variant: 'default' as const, color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' };
+      case 'tools':
+        return { label: 'Tools', variant: 'secondary' as const, color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' };
+      case 'canvas':
+        return { label: 'Canvas', variant: 'outline' as const, color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' };
+      default:
+        return { label: 'Render', variant: 'default' as const, color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' };
+    }
+  };
+
+  // Get navigation URL based on platform
+  const getPlatformUrl = () => {
+    const platform = project.platform || 'render';
+    switch (platform) {
+      case 'render':
+        return `/render`; // Render page will handle project selection
+      case 'tools':
+        return `/apps`; // Tools page
+      case 'canvas':
+        return `/canvas`; // Canvas page
+      default:
+        return `/dashboard/projects/${project.slug}`;
+    }
+  };
+
+  const platformBadge = getPlatformBadge();
+  const platformUrl = getPlatformUrl();
 
   const renderImageGrid = () => {
     // Filter out failed renders (should already be filtered in DAL, but double-check)
@@ -265,6 +303,9 @@ function ProjectCardComponent({
   const handleCardClick = () => {
     if (onSelect) {
       onSelect(project);
+    } else {
+      // Navigate to platform-specific page
+      window.location.href = platformUrl;
     }
   };
 
@@ -272,10 +313,9 @@ function ProjectCardComponent({
     return (
       <Card 
         className={cn(
-          "group hover:shadow-lg transition-all duration-200",
-          onSelect && "cursor-pointer"
+          "group hover:shadow-lg transition-all duration-200 cursor-pointer"
         )}
-        onClick={onSelect ? handleCardClick : undefined}
+        onClick={handleCardClick}
       >
         <CardContent className="p-4">
           <div className="flex items-center space-x-4">
@@ -292,7 +332,12 @@ function ProjectCardComponent({
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-medium text-sm truncate">{toSentenceCase(project.name)}</h3>
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-medium text-sm truncate">{toSentenceCase(project.name)}</h3>
+                <Badge className={cn("text-[10px] px-1.5 py-0 shrink-0", platformBadge.color)}>
+                  {platformBadge.label}
+                </Badge>
+              </div>
               <p className="text-xs text-muted-foreground truncate">
                 {project.description || 'No description'}
               </p>
@@ -305,19 +350,35 @@ function ProjectCardComponent({
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-[0.55] h-8"
-                asChild
-                title="View"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Link href={`/dashboard/projects/${project.slug}`}>
+              {onSelect ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-[0.55] h-8"
+                  title="View"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelect(project);
+                  }}
+                >
                   <Eye className="h-3 w-3 mr-1.5" />
                   View
-                </Link>
-              </Button>
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-[0.55] h-8"
+                  asChild
+                  title="View"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Link href={platformUrl}>
+                    <Eye className="h-3 w-3 mr-1.5" />
+                    View
+                  </Link>
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -364,11 +425,10 @@ function ProjectCardComponent({
   // Default and compact view
   return (
     <Card className={cn(
-      "group hover:shadow-lg transition-all duration-200 flex flex-col gap-0",
-      viewMode === 'compact' ? "" : "h-full",
-      onSelect && "cursor-pointer"
+      "group hover:shadow-lg transition-all duration-200 flex flex-col gap-0 cursor-pointer",
+      viewMode === 'compact' ? "" : "h-full"
     )}
-    onClick={onSelect ? handleCardClick : undefined}
+    onClick={handleCardClick}
     >
       <div className={cn(
         "bg-muted relative group flex-shrink-0 rounded-t-lg overflow-hidden",
@@ -386,26 +446,46 @@ function ProjectCardComponent({
         )}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded-t-lg flex items-center justify-center opacity-0 group-hover:opacity-100">
           <div className="flex space-x-2">
-            <Button
-              size="sm"
-              variant="secondary"
-              className="h-7 text-xs"
-              asChild
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Link href={`/dashboard/projects/${project.slug}`}>
+            {onSelect ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-7 text-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect(project);
+                }}
+              >
                 <Eye className="h-3 w-3 mr-1.5" />
                 View
-              </Link>
-            </Button>
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-7 text-xs"
+                asChild
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Link href={platformUrl}>
+                  <Eye className="h-3 w-3 mr-1.5" />
+                  View
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
       </div>
       <CardHeader className="pb-2 flex-shrink-0 gap-0 px-6 pt-6">
-        <CardTitle className={cn(
-          "text-sm",
-          viewMode === 'compact' ? "line-clamp-1" : "line-clamp-2"
-        )}>{toSentenceCase(project.name)}</CardTitle>
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <CardTitle className={cn(
+            "text-sm flex-1",
+            viewMode === 'compact' ? "line-clamp-1" : "line-clamp-2"
+          )}>{toSentenceCase(project.name)}</CardTitle>
+          <Badge className={cn("text-[10px] px-1.5 py-0 shrink-0", platformBadge.color)}>
+            {platformBadge.label}
+          </Badge>
+        </div>
         <CardDescription className={cn(
           "text-xs",
           viewMode === 'compact' ? "line-clamp-1" : "line-clamp-2"
@@ -418,18 +498,33 @@ function ProjectCardComponent({
       </div>
       <CardContent className="pt-4 flex-shrink-0 px-6 pb-6">
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-[0.55] h-8"
-            asChild
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Link href={`/dashboard/projects/${project.slug}`}>
+          {onSelect ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-[0.55] h-8"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(project);
+              }}
+            >
               <Eye className="h-3 w-3 mr-1.5" />
               View
-            </Link>
-          </Button>
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-[0.55] h-8"
+              asChild
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Link href={finalViewUrl}>
+                <Eye className="h-3 w-3 mr-1.5" />
+                View
+              </Link>
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"

@@ -34,31 +34,35 @@ export class CanvasFilesDAL {
   static async create(data: CreateCanvasFileData) {
     logger.log('📝 Creating canvas file:', { name: data.name, projectId: data.projectId });
     
-    // Check if slug already exists for this project
-    const existing = await this.getBySlug(data.projectId, data.slug);
-    if (existing) {
-      throw new Error(`Canvas file with slug "${data.slug}" already exists in this project`);
+    // ✅ OPTIMIZED: Let database handle uniqueness constraint instead of pre-check
+    // This eliminates one query and handles race conditions better
+    try {
+      const [file] = await db
+        .insert(canvasFiles)
+        .values({
+          projectId: data.projectId,
+          userId: data.userId,
+          name: data.name,
+          slug: data.slug,
+          description: data.description,
+          thumbnailUrl: data.thumbnailUrl,
+          thumbnailKey: data.thumbnailKey,
+          metadata: data.metadata,
+          version: 1,
+          isActive: true,
+          isArchived: false,
+        })
+        .returning();
+
+      logger.log('✅ Canvas file created:', file.id);
+      return file;
+    } catch (error: any) {
+      // Handle unique constraint violation (PostgreSQL error code 23505)
+      if (error?.code === '23505' || error?.message?.includes('unique') || error?.message?.includes('duplicate')) {
+        throw new Error(`Canvas file with slug "${data.slug}" already exists in this project`);
+      }
+      throw error;
     }
-
-    const [file] = await db
-      .insert(canvasFiles)
-      .values({
-        projectId: data.projectId,
-        userId: data.userId,
-        name: data.name,
-        slug: data.slug,
-        description: data.description,
-        thumbnailUrl: data.thumbnailUrl,
-        thumbnailKey: data.thumbnailKey,
-        metadata: data.metadata,
-        version: 1,
-        isActive: true,
-        isArchived: false,
-      })
-      .returning();
-
-    logger.log('✅ Canvas file created:', file.id);
-    return file;
   }
 
   static async getById(id: string) {
@@ -87,6 +91,7 @@ export class CanvasFilesDAL {
   }
 
   static async getByProject(projectId: string, includeArchived = false) {
+    // ✅ OPTIMIZED: Uses partial index idx_canvas_files_project_active_updated when filtering active files
     const whereCondition = includeArchived
       ? eq(canvasFiles.projectId, projectId)
       : and(
@@ -100,9 +105,11 @@ export class CanvasFilesDAL {
       .from(canvasFiles)
       .where(whereCondition)
       .orderBy(desc(canvasFiles.updatedAt));
+    // Uses: idx_canvas_files_project_active_updated (partial composite index) when includeArchived=false
   }
 
   static async getByUser(userId: string, includeArchived = false) {
+    // ✅ OPTIMIZED: Uses partial index idx_canvas_files_user_active_updated when filtering active files
     const whereCondition = includeArchived
       ? eq(canvasFiles.userId, userId)
       : and(
@@ -116,35 +123,34 @@ export class CanvasFilesDAL {
       .from(canvasFiles)
       .where(whereCondition)
       .orderBy(desc(canvasFiles.updatedAt));
+    // Uses: idx_canvas_files_user_active_updated (partial composite index) when includeArchived=false
   }
 
   static async update(id: string, data: UpdateCanvasFileData) {
-    // If updating slug, check for conflicts
-    if (data.slug) {
-      const [file] = await db
-        .select()
-        .from(canvasFiles)
+    // ✅ OPTIMIZED: Let database handle uniqueness constraint instead of pre-check
+    // This eliminates 2 sequential queries and handles race conditions better
+    try {
+      const [updated] = await db
+        .update(canvasFiles)
+        .set({
+          ...data,
+          updatedAt: new Date(),
+        })
         .where(eq(canvasFiles.id, id))
-        .limit(1);
+        .returning();
 
-      if (file) {
-        const existing = await this.getBySlug(file.projectId, data.slug);
-        if (existing && existing.id !== id) {
-          throw new Error(`Canvas file with slug "${data.slug}" already exists in this project`);
-        }
+      if (!updated) {
+        return null;
       }
+
+      return updated;
+    } catch (error: any) {
+      // Handle unique constraint violation (PostgreSQL error code 23505)
+      if (error?.code === '23505' || error?.message?.includes('unique') || error?.message?.includes('duplicate')) {
+        throw new Error(`Canvas file with slug "${data.slug}" already exists in this project`);
+      }
+      throw error;
     }
-
-    const [updated] = await db
-      .update(canvasFiles)
-      .set({
-        ...data,
-        updatedAt: new Date(),
-      })
-      .where(eq(canvasFiles.id, id))
-      .returning();
-
-    return updated || null;
   }
 
   static async delete(id: string) {
@@ -157,6 +163,81 @@ export class CanvasFilesDAL {
         updatedAt: new Date(),
       })
       .where(eq(canvasFiles.id, id));
+  }
+
+  /**
+   * ✅ NEW: Duplicate canvas file with its graph
+   * Creates a new file with a copy of the graph
+   */
+  static async duplicate(fileId: string, newName?: string) {
+    logger.log('📋 Duplicating canvas file:', fileId);
+    
+    try {
+      // Get original file with graph
+      const original = await this.getFileWithGraph(fileId);
+      
+      if (!original || !original.file) {
+        throw new Error('Canvas file not found');
+      }
+
+      // Generate new slug
+      const baseSlug = newName 
+        ? newName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').substring(0, 50)
+        : `${original.file.slug}-copy`;
+      
+      // Ensure unique slug
+      let slug = baseSlug;
+      let counter = 1;
+      while (true) {
+        const existing = await this.getBySlug(original.file.projectId, slug);
+        if (!existing) break;
+        slug = `${baseSlug}-${counter}`;
+        counter++;
+        if (counter > 100) {
+          slug = `${baseSlug}-${Date.now()}`;
+          break;
+        }
+      }
+
+      // Create new file
+      const [duplicatedFile] = await db
+        .insert(canvasFiles)
+        .values({
+          projectId: original.file.projectId,
+          userId: original.file.userId,
+          name: newName || `${original.file.name} (Copy)`,
+          slug,
+          description: original.file.description,
+          thumbnailUrl: original.file.thumbnailUrl,
+          thumbnailKey: original.file.thumbnailKey,
+          version: 1,
+          isActive: true,
+          isArchived: false,
+          metadata: original.file.metadata,
+        })
+        .returning();
+
+      // Duplicate graph if it exists
+      if (original.graph) {
+        await db
+          .insert(canvasGraphs)
+          .values({
+            fileId: duplicatedFile.id,
+            projectId: duplicatedFile.projectId,
+            userId: duplicatedFile.userId,
+            nodes: original.graph.nodes,
+            connections: original.graph.connections,
+            viewport: original.graph.viewport,
+            version: 1,
+          });
+      }
+
+      logger.log('✅ Canvas file duplicated:', duplicatedFile.id);
+      return duplicatedFile;
+    } catch (error) {
+      logger.error('Error duplicating canvas file:', error);
+      throw error;
+    }
   }
 
   static async incrementVersion(id: string) {
@@ -240,45 +321,53 @@ export class CanvasFilesDAL {
   // ============================================================================
 
   static async getFileWithGraph(fileId: string) {
-    const [file] = await db
-      .select()
+    // ✅ OPTIMIZED: Use LEFT JOIN to fetch file and graph in a single query
+    // This reduces from 2 sequential queries to 1 query
+    const [result] = await db
+      .select({
+        file: canvasFiles,
+        graph: canvasGraphs,
+      })
       .from(canvasFiles)
+      .leftJoin(canvasGraphs, eq(canvasFiles.id, canvasGraphs.fileId))
       .where(eq(canvasFiles.id, fileId))
       .limit(1);
 
-    if (!file) {
+    if (!result || !result.file) {
       return null;
     }
 
-    // Get associated graph (if exists)
-    const [graph] = await db
-      .select()
-      .from(canvasGraphs)
-      .where(eq(canvasGraphs.fileId, fileId))
-      .limit(1);
-
     return {
-      file,
-      graph: graph || null,
+      file: result.file,
+      graph: result.graph || null,
     };
   }
 
   static async getFileWithGraphBySlug(projectId: string, slug: string) {
-    const file = await this.getBySlug(projectId, slug);
-    if (!file) {
+    // ✅ OPTIMIZED: Use LEFT JOIN to fetch file and graph in a single query
+    // This reduces from 2 sequential queries to 1 query
+    const [result] = await db
+      .select({
+        file: canvasFiles,
+        graph: canvasGraphs,
+      })
+      .from(canvasFiles)
+      .leftJoin(canvasGraphs, eq(canvasFiles.id, canvasGraphs.fileId))
+      .where(
+        and(
+          eq(canvasFiles.projectId, projectId),
+          eq(canvasFiles.slug, slug)
+        )
+      )
+      .limit(1);
+
+    if (!result || !result.file) {
       return null;
     }
 
-    // Get associated graph (if exists)
-    const [graph] = await db
-      .select()
-      .from(canvasGraphs)
-      .where(eq(canvasGraphs.fileId, file.id))
-      .limit(1);
-
     return {
-      file,
-      graph: graph || null,
+      file: result.file,
+      graph: result.graph || null,
     };
   }
 }

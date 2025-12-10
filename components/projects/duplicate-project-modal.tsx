@@ -98,7 +98,7 @@ export function DuplicateProjectModal({ project, open, onOpenChange, onProjectDu
                 className="w-full"
               />
               <p className="text-xs text-muted-foreground">
-                This will create a copy of the project with all its render chains and renders.
+                This will create a copy of the project with all its chats and renders.
               </p>
             </div>
           </div>

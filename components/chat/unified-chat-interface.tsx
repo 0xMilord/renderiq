@@ -66,6 +66,8 @@ import { ProjectRulesModal } from './project-rules-modal';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Lock, Globe } from 'lucide-react';
+import { LimitReachedDialog } from '@/components/billing/limit-reached-dialog';
+import type { LimitType } from '@/lib/services/plan-limits.service';
 import { logger } from '@/lib/utils/logger';
 import { MentionTagger } from './mention-tagger';
 import { PromptGalleryModal } from './prompt-gallery-modal';
@@ -223,6 +225,15 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   // ✅ FIXED: Network recovery state (declared early to avoid hoisting issues)
   const [isRecovering, setIsRecovering] = useState(false);
   const [recoveryRenderId, setRecoveryRenderId] = useState<string | null>(null);
+  // ✅ Limit dialog state
+  const [limitDialogOpen, setLimitDialogOpen] = useState(false);
+  const [limitDialogData, setLimitDialogData] = useState<{
+    limitType: LimitType;
+    current: number;
+    limit: number | null;
+    planName: string;
+    message?: string;
+  } | null>(null);
   const isVisibleRef = useRef(true);
   const lastRefreshTimeRef = useRef<number>(0);
   const hasProcessingRendersRef = useRef(false);
@@ -1467,6 +1478,20 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
           // Store error message for catch block
           apiError = apiResult.error || 'Image generation failed';
           
+          // ✅ CHECK: Handle limit errors - show limit dialog instead of generic error
+          if (apiResult.limitReached) {
+            setLimitDialogData({
+              limitType: apiResult.limitType || 'credits',
+              current: apiResult.current || 0,
+              limit: apiResult.limit ?? null,
+              planName: apiResult.planName || 'Free',
+              message: apiError,
+            });
+            setLimitDialogOpen(true);
+            // Don't show error toast for limit errors - dialog handles it
+            return; // Exit early - don't proceed with error handling
+          }
+          
           // Check if it's a Google API error (should refund)
           const isGoogleError = apiError.includes('Google') || 
                                 apiError.includes('Gemini') ||
@@ -2046,7 +2071,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                         })}
                       {projects.filter(project => chains.some(c => c.projectId === project.id)).length === 0 && (
                         <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                          No chains available
+                          No chats available
                         </div>
                       )}
                     </DropdownMenuContent>
@@ -4272,6 +4297,22 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
             </div>
           </div>
         </div>
+      )}
+      
+      {/* ✅ Limit Reached Dialog */}
+      {limitDialogData && (
+        <LimitReachedDialog
+          isOpen={limitDialogOpen}
+          onClose={() => {
+            setLimitDialogOpen(false);
+            setLimitDialogData(null);
+          }}
+          limitType={limitDialogData.limitType}
+          current={limitDialogData.current}
+          limit={limitDialogData.limit}
+          planName={limitDialogData.planName}
+          message={limitDialogData.message}
+        />
       )}
     </div>
   );

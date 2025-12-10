@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { projectRules } from '@/lib/db/schema';
-import { eq, and, asc } from 'drizzle-orm';
+import { eq, and, asc, inArray } from 'drizzle-orm';
 import type { NewProjectRule, ProjectRule } from '@/lib/db/schema';
 import { logger } from '@/lib/utils/logger';
 
@@ -124,6 +124,41 @@ export class ProjectRulesDAL {
       return rule || null;
     } catch (error) {
       logger.error('❌ ProjectRulesDAL: Error getting rule by ID:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * ✅ OPTIMIZED: Batch operation for getting active rules for multiple chains
+   * Returns rules grouped by chainId
+   */
+  static async getActiveRulesByChainIds(chainIds: string[]): Promise<Record<string, ProjectRule[]>> {
+    if (chainIds.length === 0) return {};
+    
+    logger.log('📋 ProjectRulesDAL: Batch getting active rules for', chainIds.length, 'chains');
+    try {
+      const rules = await db
+        .select()
+        .from(projectRules)
+        .where(
+          and(
+            inArray(projectRules.chainId, chainIds),
+            eq(projectRules.isActive, true)
+          )
+        )
+        .orderBy(asc(projectRules.order), asc(projectRules.createdAt));
+      
+      // Group by chainId
+      const rulesByChain = rules.reduce((acc, rule) => {
+        if (!acc[rule.chainId]) acc[rule.chainId] = [];
+        acc[rule.chainId].push(rule);
+        return acc;
+      }, {} as Record<string, ProjectRule[]>);
+      
+      logger.log(`✅ ProjectRulesDAL: Found rules for ${Object.keys(rulesByChain).length} chains`);
+      return rulesByChain;
+    } catch (error) {
+      logger.error('❌ ProjectRulesDAL: Error batch getting active rules:', error);
       throw error;
     }
   }

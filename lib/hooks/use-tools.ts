@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { Tool, ToolExecution } from '@/lib/db/schema';
+import { getToolsAction, getToolBySlugAction, getToolExecutionsAction } from '@/lib/actions/tools.actions';
 
 interface UseToolsOptions {
   category?: 'transformation' | 'floorplan' | 'diagram' | 'material' | 'interior' | '3d' | 'presentation' | 'video';
@@ -19,18 +20,17 @@ export function useTools(options: UseToolsOptions = {}) {
       setLoading(true);
       setError(null);
 
-      const params = new URLSearchParams();
-      if (options.category) params.append('category', options.category);
-      if (options.outputType) params.append('outputType', options.outputType);
-      if (options.includeInactive) params.append('includeInactive', 'true');
+      const result = await getToolsAction({
+        category: options.category,
+        outputType: options.outputType,
+        includeInactive: options.includeInactive,
+      });
 
-      const response = await fetch(`/api/tools?${params.toString()}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch tools');
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch tools');
       }
 
-      const data = await response.json();
-      setTools(data.tools || []);
+      setTools(result.tools || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch tools');
     } finally {
@@ -57,17 +57,22 @@ export function useTool(slug: string) {
 
   useEffect(() => {
     async function fetchTool() {
+      if (!slug) {
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(`/api/tools/${slug}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch tool');
+        const result = await getToolBySlugAction(slug);
+        
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to fetch tool');
         }
 
-        const data = await response.json();
-        setTool(data.tool || null);
+        setTool(result.tool || null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch tool');
       } finally {
@@ -75,9 +80,7 @@ export function useTool(slug: string) {
       }
     }
 
-    if (slug) {
-      fetchTool();
-    }
+    fetchTool();
   }, [slug]);
 
   return {
@@ -102,18 +105,17 @@ export function useToolExecutions(projectId?: string, toolId?: string, limit?: n
       setLoading(true);
       setError(null);
 
-      const params = new URLSearchParams();
-      if (projectId) params.append('projectId', projectId);
-      if (toolId) params.append('toolId', toolId);
-      if (limit) params.append('limit', limit.toString());
+      const result = await getToolExecutionsAction({
+        projectId,
+        toolId,
+        limit,
+      });
 
-      const response = await fetch(`/api/tools/executions?${params.toString()}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch tool executions');
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch tool executions');
       }
 
-      const data = await response.json();
-      setExecutions(data.executions || []);
+      setExecutions(result.executions || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch tool executions');
     } finally {

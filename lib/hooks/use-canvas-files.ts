@@ -2,6 +2,15 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { CanvasFile } from '@/lib/db/schema';
+import { 
+  getCanvasFilesAction, 
+  getCanvasFileBySlugAction,
+  createCanvasFileAction,
+  updateCanvasFileAction,
+  deleteCanvasFileAction,
+  duplicateCanvasFileAction
+} from '@/lib/actions/canvas-files.actions';
+import { toast } from 'sonner';
 
 interface UseCanvasFilesOptions {
   projectId?: string;
@@ -24,18 +33,17 @@ export function useCanvasFiles(options: UseCanvasFilesOptions = {}) {
       setLoading(true);
       setError(null);
 
-      const params = new URLSearchParams();
-      if (options.projectId) params.append('projectId', options.projectId);
-      if (options.userId) params.append('userId', options.userId);
-      if (options.includeArchived) params.append('includeArchived', 'true');
+      const result = await getCanvasFilesAction({
+        projectId: options.projectId,
+        userId: options.userId,
+        includeArchived: options.includeArchived,
+      });
 
-      const response = await fetch(`/api/canvas/files?${params.toString()}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch canvas files');
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch canvas files');
       }
 
-      const data = await response.json();
-      setFiles(data.files || []);
+      setFiles(result.files || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch canvas files');
     } finally {
@@ -72,14 +80,14 @@ export function useCanvasFile(projectId?: string, slug?: string) {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(`/api/canvas/files/${projectId}/${slug}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch canvas file');
+        const result = await getCanvasFileBySlugAction(projectId, slug);
+        
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to fetch canvas file');
         }
 
-        const data = await response.json();
-        setFile(data.file || null);
-        setGraph(data.graph || null);
+        setFile(result.file || null);
+        setGraph(result.graph || null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch canvas file');
       } finally {
@@ -95,6 +103,125 @@ export function useCanvasFile(projectId?: string, slug?: string) {
     graph,
     loading,
     error,
+  };
+}
+
+/**
+ * ✅ NEW: Hook for canvas file CRUD operations
+ */
+export function useCanvasFileOperations() {
+  const [loading, setLoading] = useState(false);
+
+  const createFile = useCallback(async (data: {
+    projectId: string;
+    name: string;
+    slug: string;
+    description?: string;
+  }) => {
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('projectId', data.projectId);
+      formData.append('name', data.name);
+      formData.append('slug', data.slug);
+      if (data.description) {
+        formData.append('description', data.description);
+      }
+
+      const result = await createCanvasFileAction(formData);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create canvas file');
+      }
+
+      toast.success('Canvas file created successfully');
+      return { success: true, data: result.data };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create canvas file';
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const updateFile = useCallback(async (fileId: string, data: {
+    name?: string;
+    slug?: string;
+    description?: string;
+  }) => {
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      if (data.name) formData.append('name', data.name);
+      if (data.slug) formData.append('slug', data.slug);
+      if (data.description !== undefined) {
+        formData.append('description', data.description || '');
+      }
+
+      const result = await updateCanvasFileAction(fileId, formData);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update canvas file');
+      }
+
+      toast.success('Canvas file updated successfully');
+      return { success: true, data: result.data };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update canvas file';
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const deleteFile = useCallback(async (fileId: string) => {
+    setLoading(true);
+    try {
+      const result = await deleteCanvasFileAction(fileId);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete canvas file');
+      }
+
+      toast.success('Canvas file deleted successfully');
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete canvas file';
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const duplicateFile = useCallback(async (fileId: string, newName?: string) => {
+    setLoading(true);
+    try {
+      const result = await duplicateCanvasFileAction(fileId, newName);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to duplicate canvas file');
+      }
+
+      toast.success('Canvas file duplicated successfully');
+      return { success: true, data: result.data };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to duplicate canvas file';
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return {
+    createFile,
+    updateFile,
+    deleteFile,
+    duplicateFile,
+    loading,
   };
 }
 

@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
-import { renders, renderChains, galleryItems, users, userLikes } from '@/lib/db/schema';
-import { eq, and, desc, sql, inArray, ne, or, like } from 'drizzle-orm';
+import { renders, renderChains, galleryItems, users, userLikes, toolExecutions, tools, userSubscriptions, subscriptionPlans } from '@/lib/db/schema';
+import { eq, and, desc, sql, inArray, ne, or, like, isNotNull } from 'drizzle-orm';
 import { ContextData, CreateRenderWithChainData } from '@/lib/types/render-chain';
 import { logger } from '@/lib/utils/logger';
 
@@ -198,7 +198,7 @@ export class RendersDAL {
   /**
    * Get render with all related context data
    * ✅ OPTIMIZED: Parallelized queries instead of sequential
-   * Note: Could be further optimized with SQL JOINs if needed
+   * Note: Self-joins in Drizzle are complex, so parallel queries are the best approach here
    */
   static async getWithContext(renderId: string) {
     logger.log('🔍 Fetching render with context:', renderId);
@@ -213,7 +213,8 @@ export class RendersDAL {
       return null;
     }
 
-    // ✅ OPTIMIZED: Parallelize related data fetching
+    // ✅ OPTIMIZED: Parallelize related data fetching (3 queries simultaneously)
+    // This is more efficient than sequential queries and simpler than complex self-joins
     const [parentRender, referenceRender, chain] = await Promise.all([
       render.parentRenderId 
         ? db.select().from(renders).where(eq(renders.id, render.parentRenderId)).limit(1).then(r => r[0] || null)
@@ -307,10 +308,12 @@ export class RendersDAL {
       searchQuery?: string;
     }
   ) {
-    logger.log('🖼️ Fetching public gallery items:', { limit, offset, options });
-    
-    // Build WHERE conditions
-    const whereConditions = [eq(galleryItems.isPublic, true)];
+    // Build WHERE conditions - start with base filters
+    const whereConditions = [
+      eq(galleryItems.isPublic, true),
+      eq(renders.status, 'completed'),
+      isNotNull(renders.outputUrl)
+    ];
     
     // ✅ OPTIMIZED: Apply filters in SQL (much faster than client-side)
     if (options?.filters) {
@@ -344,11 +347,9 @@ export class RendersDAL {
         const ratioConditions = aspectRatio.map(ratio => {
           const normalized = ratio.replace(/[:\/]/g, ':');
           const altFormat = ratio.includes(':') ? ratio.replace(':', '/') : ratio.replace('/', ':');
-          // Check for both formats (16:9 and 16/9)
           return sql`(
             ${renders.settings}->>'aspectRatio' = ${normalized} OR
-            ${renders.settings}->>'aspectRatio' = ${altFormat} OR
-            REPLACE(REPLACE(${renders.settings}->>'aspectRatio', '/', ':'), ':', ':') = ${normalized}
+            ${renders.settings}->>'aspectRatio' = ${altFormat}
           )`;
         });
         whereConditions.push(or(...ratioConditions));
@@ -356,7 +357,7 @@ export class RendersDAL {
     }
     
     // Search query filter
-    if (options?.searchQuery) {
+    if (options?.searchQuery && options.searchQuery.trim()) {
       const searchTerm = `%${options.searchQuery.toLowerCase()}%`;
       whereConditions.push(
         or(
@@ -388,6 +389,7 @@ export class RendersDAL {
         break;
     }
     
+    // ✅ OPTIMIZED: Single query with all joins - PostgreSQL optimizes this well
     const items = await db
       .select({
         id: galleryItems.id,
@@ -416,17 +418,34 @@ export class RendersDAL {
           id: users.id,
           name: users.name,
           avatar: users.avatar,
+          // ✅ FIXED: Use raw SQL column names with aliases in EXISTS subquery
+          isPro: sql<boolean>`EXISTS (
+            SELECT 1 
+            FROM ${userSubscriptions} us
+            INNER JOIN ${subscriptionPlans} sp ON us.plan_id = sp.id
+            WHERE us.user_id = ${users.id}
+              AND us.status = 'active'
+              AND sp.name IN ('Pro', 'Starter', 'Enterprise')
+            LIMIT 1
+          )`.as('is_pro'),
+        },
+        tool: {
+          id: tools.id,
+          slug: tools.slug,
+          name: tools.name,
+          category: tools.category,
         },
       })
       .from(galleryItems)
       .innerJoin(renders, eq(galleryItems.renderId, renders.id))
       .innerJoin(users, eq(galleryItems.userId, users.id))
+      .leftJoin(toolExecutions, eq(renders.id, toolExecutions.outputRenderId))
+      .leftJoin(tools, eq(toolExecutions.toolId, tools.id))
       .where(and(...whereConditions))
       .orderBy(orderByClause)
       .limit(limit)
       .offset(offset);
 
-    logger.log(`✅ Found ${items.length} public gallery items (server-side filtered/sorted)`);
     return items;
   }
 
@@ -687,11 +706,29 @@ export class RendersDAL {
           id: users.id,
           name: users.name,
           avatar: users.avatar,
+          // ✅ OPTIMIZED: Use EXISTS subquery instead of JOIN - much faster
+          isPro: sql<boolean>`EXISTS (
+            SELECT 1 
+            FROM ${userSubscriptions} us
+            INNER JOIN ${subscriptionPlans} sp ON us.plan_id = sp.id
+            WHERE us.user_id = ${users.id}
+              AND us.status = 'active'
+              AND sp.name IN ('Pro', 'Starter', 'Enterprise')
+            LIMIT 1
+          )`.as('is_pro'),
+        },
+        tool: {
+          id: tools.id,
+          slug: tools.slug,
+          name: tools.name,
+          category: tools.category,
         },
       })
       .from(galleryItems)
       .innerJoin(renders, eq(galleryItems.renderId, renders.id))
       .innerJoin(users, eq(galleryItems.userId, users.id))
+      .leftJoin(toolExecutions, eq(renders.id, toolExecutions.outputRenderId))
+      .leftJoin(tools, eq(toolExecutions.toolId, tools.id))
       .where(and(
         eq(galleryItems.id, itemId),
         eq(galleryItems.isPublic, true)

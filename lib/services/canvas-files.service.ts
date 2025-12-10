@@ -89,7 +89,7 @@ export class CanvasFilesService {
    * Save canvas graph state
    */
   static async saveGraph(fileId: string, userId: string, state: CanvasState) {
-    const result = await CanvasDAL.saveGraph({ fileId }, userId, state);
+    const result = await CanvasDAL.saveGraph(fileId, userId, state);
 
     if (result.success && result.data) {
       // Increment file version
@@ -133,6 +133,13 @@ export class CanvasFilesService {
    */
   static async getLatestVersion(fileId: string) {
     return await CanvasFilesDAL.getLatestVersion(fileId);
+  }
+
+  /**
+   * Duplicate canvas file with its graph
+   */
+  static async duplicateFile(fileId: string, newName?: string) {
+    return await CanvasFilesDAL.duplicate(fileId, newName);
   }
 }
 

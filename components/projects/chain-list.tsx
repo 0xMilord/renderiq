@@ -29,13 +29,13 @@ function ChainListComponent({ chains, projectId, projectSlug, onCreateChain }: C
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
           <GitBranch className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No Render Chains Yet</h3>
+          <h3 className="text-lg font-semibold mb-2">No Chats Yet</h3>
           <p className="text-sm text-muted-foreground mb-4 text-center">
-            Chains will be created automatically when you generate renders
+            Chats will be created automatically when you generate renders
           </p>
           <Button onClick={onCreateChain}>
             <Plus className="h-4 w-4 mr-2" />
-            Create Chain
+            Create Chat
           </Button>
         </CardContent>
       </Card>
@@ -101,13 +101,13 @@ function ChainListComponent({ chains, projectId, projectSlug, onCreateChain }: C
                 
                 {/* Action Buttons - Moved below images */}
                 <div className="grid grid-cols-2 gap-2">
-                  <Link href={projectSlug ? `/project/${projectSlug}/chain/${chain.id}` : `/render?chain=${chain.id}`}>
+                  <Link href={`/project/${projectSlug || 'project'}/chain/${chain.id}`}>
                     <Button variant="outline" size="sm" className="w-full text-xs sm:text-sm">
                       <ImageIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                       Continue
                     </Button>
                   </Link>
-                  <Link href={projectSlug ? `/project/${projectSlug}/chain/${chain.id}` : `/dashboard/projects/${projectId}/chain/${chain.id}`}>
+                  <Link href={`/project/${projectSlug || 'project'}/chain/${chain.id}`}>
                     <Button size="sm" className="w-full text-xs sm:text-sm">
                       View Details
                       <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 ml-1" />

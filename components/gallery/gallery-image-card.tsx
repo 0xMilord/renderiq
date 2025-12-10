@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, memo, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Heart, Eye, User, Loader2, Share2, Copy, Check } from 'lucide-react';
+import { Heart, Eye, User, Loader2, Share2, Copy, Check, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -89,6 +89,23 @@ function GalleryImageCardComponent({
   // Approximate: ~50-60 characters per line, so ~150-180 chars for 3 lines
   const shouldShowMoreButton = useMemo(() => item.render.prompt.length > 150, [item.render.prompt.length]);
 
+  // Get tool information from item.tool (from DAL) or fallback to render settings
+  const toolName = useMemo(() => {
+    // First try to get from tool object (from DAL join)
+    if (item.tool?.name) {
+      return item.tool.name;
+    }
+    // Fallback to render settings (for legacy data)
+    const toolId = (item.render.settings as any)?.imageType;
+    if (toolId) {
+      return toolId
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+    }
+    return null;
+  }, [item.tool, item.render.settings]);
+
   useEffect(() => {
     // Reset loading states when URL changes
     if (!item.render.outputUrl) {
@@ -118,17 +135,25 @@ function GalleryImageCardComponent({
   // Use ref to prevent duplicate calls
   const likeStatusCheckedRef = useRef(false);
   
-  // Update liked status when prop changes (from batched check)
+  // ✅ FIXED: Sync liked status from prop or item data
+  // Always sync with prop when it changes (prop is source of truth from hook)
   useEffect(() => {
+    // Priority: initialIsLiked prop (from likedItems set) > item.liked (if exists) > check server
     if (initialIsLiked !== undefined) {
       setIsLiked(initialIsLiked);
-      likeStatusCheckedRef.current = true; // Mark as checked if provided from parent
+      likeStatusCheckedRef.current = true;
+      return;
     }
-  }, [initialIsLiked]);
-  
-  useEffect(() => {
-    // Only check if not provided from parent and not already checked
-    if (initialIsLiked !== undefined || likeStatusCheckedRef.current) return;
+    
+    // Check if item has liked property (from server)
+    if ('liked' in item && typeof (item as any).liked === 'boolean') {
+      setIsLiked((item as any).liked);
+      likeStatusCheckedRef.current = true;
+      return;
+    }
+    
+    // Only check server if not already checked and not provided
+    if (likeStatusCheckedRef.current) return;
     
     const fetchLikeStatus = async () => {
       likeStatusCheckedRef.current = true;
@@ -143,18 +168,48 @@ function GalleryImageCardComponent({
       }
     };
     fetchLikeStatus();
-  }, [item.id, initialIsLiked]);
+  }, [item.id, initialIsLiked, item]);
+  
+  // ✅ FIXED: Sync likes count with item.likes when it changes (from hook's items array update)
+  useEffect(() => {
+    setLikesCount(item.likes);
+  }, [item.likes]);
 
+  // ✅ FIXED: Prevent rapid clicks with a ref
+  const isLikingRef = useRef(false);
+  
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
-    if (!onLike) return;
+    if (!onLike || isLikingRef.current) return; // Prevent rapid clicks
     
-    const result = await onLike(item.id);
-    if (result.success && result.data) {
-      setIsLiked(result.data.liked);
-      setLikesCount(result.data.likes);
+    // ✅ OPTIMISTIC UPDATE: Update UI immediately before server response
+    const previousLiked = isLiked;
+    const previousCount = likesCount;
+    const newLiked = !previousLiked;
+    const newCount = newLiked ? previousCount + 1 : Math.max(0, previousCount - 1);
+    
+    setIsLiked(newLiked);
+    setLikesCount(newCount);
+    isLikingRef.current = true;
+    
+    try {
+      // Then call the server action
+      const result = await onLike(item.id);
+      
+      // ✅ FIXED: Always sync with server response to prevent state desync
+      if (result.success && result.data) {
+        // Server response is the source of truth
+        setIsLiked(result.data.liked);
+        setLikesCount(result.data.likes);
+      } else {
+        // ✅ ROLLBACK on error: Revert optimistic update if server call failed
+        setIsLiked(previousLiked);
+        setLikesCount(previousCount);
+      }
+    } finally {
+      isLikingRef.current = false;
     }
   };
 
@@ -269,21 +324,31 @@ function GalleryImageCardComponent({
                 onMouseLeave={() => setShowUserCard(false)}
               >
                 {item.user.avatar && !avatarError ? (
-                  <div className="relative w-8 h-8 shrink-0 max-w-[32px] max-h-[32px] overflow-hidden rounded-full">
+                  <div className="relative w-8 h-8 shrink-0 max-w-[32px] max-h-[32px] overflow-hidden rounded-md border border-border">
                     <Image
                       src={item.user.avatar}
                       alt={item.user.name || 'User'}
                       width={32}
                       height={32}
-                      className="rounded-full object-cover w-full h-full"
+                      className="object-cover w-full h-full"
                       style={{ maxWidth: '32px', maxHeight: '32px' }}
                       unoptimized={item.user.avatar.includes('dicebear.com')}
                       onError={() => setAvatarError(true)}
                     />
+                    {item.user.isPro && (
+                      <div className="absolute bottom-0 left-0 right-0 h-1/4 bg-primary flex items-center justify-center">
+                        <span className="text-[6px] font-bold text-primary-foreground leading-none">PRO</span>
+                      </div>
+                    )}
                   </div>
                 ) : (
-                  <div className="w-8 h-8 shrink-0 max-w-[32px] max-h-[32px] rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-xs">
+                  <div className="relative w-8 h-8 shrink-0 max-w-[32px] max-h-[32px] rounded-md bg-primary/20 border border-border flex items-center justify-center text-primary font-semibold text-xs">
                     {getUserInitials()}
+                    {item.user.isPro && (
+                      <div className="absolute bottom-0 left-0 right-0 h-1/4 bg-primary flex items-center justify-center">
+                        <span className="text-[6px] font-bold text-primary-foreground leading-none">PRO</span>
+                      </div>
+                    )}
                   </div>
                 )}
                 <span className="text-sm font-semibold text-foreground">
@@ -300,21 +365,31 @@ function GalleryImageCardComponent({
                 >
                   <div className="flex items-start gap-3 mb-3">
                     {item.user.avatar && !avatarError ? (
-                      <div className="relative w-12 h-12 shrink-0 max-w-[48px] max-h-[48px] overflow-hidden rounded-full ring-2 ring-primary/20">
+                      <div className="relative w-12 h-12 shrink-0 max-w-[48px] max-h-[48px] overflow-hidden rounded-md border-2 border-primary/20">
                         <Image
                           src={item.user.avatar}
                           alt={item.user.name || 'User'}
                           width={48}
                           height={48}
-                          className="rounded-full object-cover w-full h-full"
+                          className="object-cover w-full h-full"
                           style={{ maxWidth: '48px', maxHeight: '48px' }}
                           unoptimized={item.user.avatar.includes('dicebear.com')}
                           onError={() => setAvatarError(true)}
                         />
+                        {item.user.isPro && (
+                          <div className="absolute bottom-0 left-0 right-0 h-1/4 bg-primary flex items-center justify-center">
+                            <span className="text-[8px] font-bold text-primary-foreground leading-none">PRO</span>
+                          </div>
+                        )}
                       </div>
                     ) : (
-                      <div className="w-12 h-12 shrink-0 max-w-[48px] max-h-[48px] rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-base ring-2 ring-primary/20">
+                      <div className="relative w-12 h-12 shrink-0 max-w-[48px] max-h-[48px] rounded-md bg-primary/20 border-2 border-primary/20 flex items-center justify-center text-primary font-semibold text-base">
                         {getUserInitials()}
+                        {item.user.isPro && (
+                          <div className="absolute bottom-0 left-0 right-0 h-1/4 bg-primary flex items-center justify-center">
+                            <span className="text-[8px] font-bold text-primary-foreground leading-none">PRO</span>
+                          </div>
+                        )}
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
@@ -403,6 +478,25 @@ function GalleryImageCardComponent({
                 maxWidth: '100%',
               }}
             >
+              {/* Tool Badge Overlay */}
+              {toolName && item.tool?.slug && (
+                <div className="absolute bottom-2 left-2 z-20">
+                  <Link
+                    href={`/apps/${item.tool.slug}`}
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent card click
+                    }}
+                    className="inline-block"
+                  >
+                    <Badge 
+                      variant="default" 
+                      className="text-xs bg-primary/90 text-primary-foreground backdrop-blur-sm hover:bg-primary cursor-pointer transition-colors"
+                    >
+                      {toolName}
+                    </Badge>
+                  </Link>
+                </div>
+              )}
               {imageLoading && !isVideo && (
                 <div className="absolute inset-0 flex items-center justify-center bg-muted z-10">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -630,6 +724,25 @@ function GalleryImageCardComponent({
             maxWidth: '100%',
           }}
         >
+          {/* Tool Badge Overlay */}
+          {toolName && item.tool?.slug && (
+            <div className="absolute bottom-2 left-2 z-20">
+              <Link
+                href={`/apps/${item.tool.slug}`}
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent card click
+                }}
+                className="inline-block"
+              >
+                <Badge 
+                  variant="default" 
+                  className="text-xs bg-primary/90 text-primary-foreground backdrop-blur-sm hover:bg-primary cursor-pointer transition-colors"
+                >
+                  {toolName}
+                </Badge>
+              </Link>
+            </div>
+          )}
           {(imageLoading || videoLoading) && (
             <div className="absolute inset-0 flex items-center justify-center bg-muted z-10">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -739,91 +852,9 @@ function GalleryImageCardComponent({
       )}
 
       {/* Actions Section */}
-      <div className="px-4 py-3 space-y-2">
-        {/* Action Buttons */}
-        <div className="flex items-center justify-between">
-          {hideOwnerInfo ? (
-            // Owner view: Like button next to view count
-            <>
-              <div className="flex items-center gap-4">
-                <button className="text-foreground hover:text-muted-foreground transition-colors">
-                  <Share2 className="h-6 w-6" />
-                </button>
-              </div>
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={handleLike}
-                  className={cn(
-                    "transition-colors flex items-center gap-1",
-                    isLiked ? "text-red-500" : "text-foreground hover:text-red-500"
-                  )}
-                >
-                  <Heart className={cn(
-                    "h-6 w-6",
-                    isLiked && "fill-current"
-                  )} />
-                  <span className="text-sm font-medium">{likesCount}</span>
-                </button>
-                <button 
-                  onClick={handleCardClick}
-                  className="text-foreground hover:text-muted-foreground transition-colors flex items-center gap-1"
-                  title={`${item.views} views`}
-                >
-                  <Eye className="h-6 w-6" />
-                  <span className="text-sm font-medium">{item.views}</span>
-                </button>
-              </div>
-            </>
-          ) : (
-            // Regular view: Like button on left, view count on right
-            <>
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={handleLike}
-                  className={cn(
-                    "transition-colors",
-                    isLiked ? "text-red-500" : "text-foreground hover:text-red-500"
-                  )}
-                >
-                  <Heart className={cn(
-                    "h-6 w-6",
-                    isLiked && "fill-current"
-                  )} />
-                </button>
-                <button className="text-foreground hover:text-muted-foreground transition-colors">
-                  <Share2 className="h-6 w-6" />
-                </button>
-              </div>
-              <button 
-                onClick={handleCardClick}
-                className="text-foreground hover:text-muted-foreground transition-colors flex items-center gap-1"
-                title={`${item.views} views`}
-              >
-                <Eye className="h-6 w-6" />
-                <span className="text-sm font-medium">{item.views}</span>
-              </button>
-            </>
-          )}
-        </div>
-
-        {/* Likes Count (hidden in owner view since it's shown next to view count) */}
-        {!hideOwnerInfo && (
-          <div className="text-sm font-semibold text-foreground">
-            {likesCount.toLocaleString()} {likesCount === 1 ? 'like' : 'likes'}
-          </div>
-        )}
-
-        {/* Caption */}
+      <div className="px-4 py-3 space-y-3">
+        {/* Prompt - Show prompt instead of username */}
         <div className="text-sm">
-          {!hideOwnerInfo && item.user && (
-            <Link
-              href={getUsernameUrl()}
-              onClick={handleUserClick}
-              className="font-semibold text-foreground hover:opacity-80 mr-2"
-            >
-              {item.user.name || 'Anonymous'}
-            </Link>
-          )}
           <div className="inline-block w-full">
             <div className="flex items-start gap-2">
               <span
@@ -862,7 +893,7 @@ function GalleryImageCardComponent({
         </div>
 
         {/* Metadata as Tags */}
-        <div className="flex flex-wrap gap-2 pt-1">
+        <div className="flex flex-wrap gap-2">
           {isVideo && (
             <Badge variant="default" className="text-xs bg-primary text-primary-foreground">
               🎬 Video
@@ -885,9 +916,40 @@ function GalleryImageCardComponent({
           )}
         </div>
 
-        {/* Timestamp */}
-        <div className="text-xs text-muted-foreground uppercase tracking-wide">
-          {formatDate(item.createdAt)}
+        {/* Bottom Row: Views, Likes, Share, Date - Multi-column layout */}
+        <div className="grid grid-cols-4 gap-2 pt-2 border-t border-border">
+          <button 
+            onClick={handleCardClick}
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-xs"
+            title={`${item.views} views`}
+          >
+            <Eye className="h-4 w-4" />
+            <span className="font-medium">{item.views.toLocaleString()}</span>
+          </button>
+          <button
+            onClick={handleLike}
+            className={cn(
+              "flex items-center gap-1.5 transition-colors text-xs",
+              isLiked ? "text-red-500" : "text-muted-foreground hover:text-red-500"
+            )}
+          >
+            <Heart className={cn(
+              "h-4 w-4",
+              isLiked && "fill-current"
+            )} />
+            <span className="font-medium">{likesCount.toLocaleString()}</span>
+          </button>
+          <button 
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-xs"
+            title="Share"
+          >
+            <Share2 className="h-4 w-4" />
+            <span className="font-medium">Share</span>
+          </button>
+          <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+            <Calendar className="h-4 w-4" />
+            <span className="font-medium">{formatDate(item.createdAt)}</span>
+          </div>
         </div>
       </div>
 

@@ -46,14 +46,8 @@ export default function ProjectSlugPage() {
   const [activeTab, setActiveTab] = useState<'chains' | 'renders'>('chains');
 
   // Use the renders hook with proper architecture
-  const { renders, chains, loading: rendersLoading, error: rendersError, fetchChains } = useRenders(project?.id || null);
-
-  // Fetch chains when project is loaded
-  useEffect(() => {
-    if (project?.id) {
-      fetchChains();
-    }
-  }, [project?.id, fetchChains]);
+  // The hook automatically fetches chains when projectId changes
+  const { renders, chains, loading: rendersLoading, error: rendersError } = useRenders(project?.id || null);
 
   // ✅ REACT 19 OPTIMIZED: Use useMemo for derived state instead of useEffect
   // In React 19, useEffect should NOT be used for derived state - use useMemo instead
@@ -283,6 +277,7 @@ export default function ProjectSlugPage() {
             <ChainList 
               chains={chainsWithRenders} 
               projectId={project.id}
+              projectSlug={project.slug}
               onCreateChain={handleCreateChain}
             />
           </TabsContent>
@@ -361,8 +356,8 @@ export default function ProjectSlugPage() {
           onDownload={handleDownload}
           onShare={handleShare}
           onRemix={(prompt) => {
-            // Navigate to engine with the prompt
-            router.push(`/render?prompt=${encodeURIComponent(prompt)}`);
+            // Navigate to render page - prompt will be handled client-side
+            router.push(`/render`);
           }}
         />
       )}

@@ -68,9 +68,9 @@ export function VideoNode(props: any) {
     setLocalData((prev) => ({ ...prev, status: 'generating', errorMessage: undefined }));
 
     try {
-      // ✅ CRITICAL: Get projectId and chainId from node data
+      // ✅ CRITICAL: Get projectId and fileId from node data
       const nodeProjectId = (data as any)?.projectId;
-      const nodeChainId = (data as any)?.chainId;
+      const nodeFileId = (data as any)?.fileId;
       
       const result = await generateVideo({
         prompt: localData.prompt,
@@ -81,7 +81,7 @@ export function VideoNode(props: any) {
         baseImageType: localData.baseImageType,
         model: localData.settings.model,
         projectId: nodeProjectId,
-        chainId: nodeChainId,
+        fileId: nodeFileId,
       });
 
       logger.log('🎬 VideoNode: Generation result', {

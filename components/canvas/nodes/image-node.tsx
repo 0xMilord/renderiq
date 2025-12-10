@@ -93,9 +93,9 @@ export function ImageNode(props: any) {
         ? { ...defaultSettings } // Style node provides all settings
         : localData.settings || defaultSettings;
       
-      // ✅ CRITICAL: Get projectId and chainId from node data
+      // ✅ CRITICAL: Get projectId and fileId from node data
       const nodeProjectId = (data as any)?.projectId;
-      const nodeChainId = (data as any)?.chainId;
+      const nodeFileId = (data as any)?.fileId;
       
       const result = await generateImage({
         prompt: enhancedPrompt,
@@ -104,7 +104,7 @@ export function ImageNode(props: any) {
         baseImageData: localData.baseImageData,
         baseImageType: localData.baseImageType,
         projectId: nodeProjectId,
-        chainId: nodeChainId,
+        fileId: nodeFileId,
       });
 
       logger.log('🎨 ImageNode: Generation result', {

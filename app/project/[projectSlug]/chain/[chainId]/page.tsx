@@ -28,10 +28,13 @@ export default function ProjectChainPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ FIXED: Don't wait for user - fetch critical data first, then load dropdown data lazily
+  // ✅ FIXED: Fetch immediately - middleware already verified auth server-side
+  // Actions use getCachedUser() which works with server-side auth
   useEffect(() => {
     if (!projectSlug || !chainId) return;
-    if (authLoading) return; // Wait for auth to finish loading
+    // ✅ OPTIMIZED: Don't wait for client-side auth - middleware already verified user exists
+    // If middleware allowed the request, user exists server-side
+    // Actions will handle auth errors if needed
     
     let mounted = true;
     let hasFetched = false; // Prevent duplicate fetches
@@ -56,24 +59,27 @@ export default function ProjectChainPage() {
           setProject(projectResult.data);
         } else {
           setError(projectResult.error || 'Failed to load project');
+          setLoading(false);
+          return; // Don't continue if project fails
         }
 
         if (chainResult.success && chainResult.data) {
           setChain(chainResult.data);
         } else {
           setError(chainResult.error || 'Failed to load chain');
+          setLoading(false);
+          return; // Don't continue if chain fails
         }
         
         // ✅ CRITICAL: Set loading to false after critical data loads
         setLoading(false);
         
-        // ✅ OPTIMIZED: Load dropdown data lazily (non-blocking) - don't wait for user
+        // ✅ OPTIMIZED: Load dropdown data lazily (non-blocking)
         if (projectResult.success && chainResult.success) {
           // Load projects and chains in background (don't block page render)
-          // Check for user in the promise, not in the condition
           Promise.all([
             getUserProjects(),
-          ]).then(([projectsResult]) => {
+          ]).then(async ([projectsResult]) => {
             if (!mounted) return;
             
             if (projectsResult.success && projectsResult.data) {
@@ -84,31 +90,32 @@ export default function ProjectChainPage() {
               }));
               setProjects(projectsList);
 
-              // Fetch chains lazily (can be slow, don't block)
-              Promise.all(
-                projectsResult.data.map(project => getProjectChains(project.id))
-              ).then(chainResults => {
+              // ✅ OPTIMIZED: Batch fetch chains for all projects in ONE query
+              try {
+                const { getChainsForProjects } = await import('@/lib/actions/projects.actions');
+                const projectIds = projectsResult.data.map(p => p.id);
+                const chainsResult = await getChainsForProjects(projectIds);
+                
                 if (!mounted) return;
                 
-                const allChains: Array<{ id: string; name: string; projectId: string }> = [];
-                chainResults.forEach((result, index) => {
-                  if (result.success && result.data) {
-                    const projectId = projectsResult.data[index].id;
-                    result.data.forEach(chain => {
+                if (chainsResult.success && chainsResult.data) {
+                  const allChains: Array<{ id: string; name: string; projectId: string }> = [];
+                  Object.entries(chainsResult.data).forEach(([projectId, chains]) => {
+                    chains.forEach(chain => {
                       allChains.push({
                         id: chain.id,
                         name: chain.name,
                         projectId: projectId,
                       });
                     });
-                  }
-                });
-                
-                setChains(allChains);
-              }).catch(err => {
-                logger.error('❌ ProjectChainPage: Error fetching chains:', err);
+                  });
+                  
+                  setChains(allChains);
+                }
+              } catch (err) {
+                logger.error('❌ ProjectChainPage: Error batch fetching chains:', err);
                 // Don't fail the whole page if chains fail to load
-              });
+              }
             }
           }).catch(err => {
             logger.error('❌ ProjectChainPage: Error fetching projects:', err);
@@ -128,7 +135,7 @@ export default function ProjectChainPage() {
     return () => {
       mounted = false;
     };
-  }, [projectSlug, chainId, authLoading]); // ✅ FIXED: Removed user from deps - don't wait for it
+  }, [projectSlug, chainId]); // ✅ FIXED: Fetch immediately - don't wait for client-side auth
 
   // ✅ FIXED: fetchChain only fetches chain data, not all projects/chains
   // This is called by polling, so it should be lightweight
@@ -150,12 +157,10 @@ export default function ProjectChainPage() {
   // AuthProvider already calls initialize(), no need to call it here
   // Components should only read from store, not initialize it
 
-  // Redirect to home if user logs out
-  useEffect(() => {
-    if (!authLoading && !user && initialized) {
-      router.push('/');
-    }
-  }, [user, authLoading, initialized, router]);
+  // ✅ REMOVED: Client-side redirect - middleware already handles auth protection
+  // The middleware protects /project routes and redirects to /login if no user
+  // Client-side redirect causes race conditions and unnecessary redirects
+  // If middleware allowed the request, user exists server-side, so we should wait for client-side auth to sync
 
   // Debug logging
   useEffect(() => {
@@ -200,7 +205,32 @@ export default function ProjectChainPage() {
     );
   }
 
-  if (!project) {
+  // ✅ FIXED: Show error state instead of redirecting
+  if (error && !project && !chain) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="w-96">
+          <CardContent className="p-8 text-center">
+            <h2 className="text-lg font-semibold mb-2">Error Loading Project</h2>
+            <p className="text-muted-foreground mb-4">
+              {error || 'Failed to load project or chain'}
+            </p>
+            <div className="flex gap-2 justify-center">
+              <Button onClick={() => router.push('/render')} variant="outline">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Render
+              </Button>
+              <Button onClick={() => router.push('/dashboard/projects')}>
+                Go to Projects
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!project && !loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="w-96">
@@ -209,9 +239,9 @@ export default function ProjectChainPage() {
             <p className="text-muted-foreground mb-4">
               The project you're looking for doesn't exist.
             </p>
-            <Button onClick={() => router.push('/dashboard/projects')}>
+            <Button onClick={() => router.push('/render')} variant="outline">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Projects
+              Back to Render
             </Button>
           </CardContent>
         </Card>
@@ -236,7 +266,7 @@ export default function ProjectChainPage() {
             onRefreshChain={fetchChain}
             projectName={project.name}
             chainName={chain?.name}
-            onBackToProjects={() => router.push('/render')}
+            onBackToProjects={() => router.push(`/render?project=${projectSlug}`)}
             projects={projects}
             chains={chains}
           />

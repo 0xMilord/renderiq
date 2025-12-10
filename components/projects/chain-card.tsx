@@ -114,6 +114,8 @@ function ChainCardComponent({
     }
   };
 
+  // Always use proper route structure - if no projectSlug, we need to get it from chain
+  // For now, fallback to query param route which will redirect properly
   const chainUrl = projectSlug 
     ? `/project/${projectSlug}/chain/${chain.id}`
     : `/render?chain=${chain.id}`;

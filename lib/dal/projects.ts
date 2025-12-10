@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { projects, renders, users, galleryItems } from '@/lib/db/schema';
+import { projects, renders, users, galleryItems, toolExecutions, canvasFiles, tools } from '@/lib/db/schema';
 import { eq, desc, and, sql, inArray, ne } from 'drizzle-orm';
 import type { NewProject, Project, NewRender, Render } from '@/lib/db/schema';
 import { logger } from '@/lib/utils/logger';
@@ -14,11 +14,31 @@ function generateSlug(name: string): string {
 }
 
 // Helper function to ensure unique slug
+// ✅ OPTIMIZED: Use timestamp-based slug generation to avoid sequential queries
+// Falls back to conflict handling if timestamp collision occurs
 async function ensureUniqueSlug(baseSlug: string, excludeId?: string): Promise<string> {
+  // First try with timestamp to avoid most collisions
+  const timestampSlug = `${baseSlug}-${Date.now().toString(36)}`;
+  
+  const [existingTimestamp] = await db
+    .select()
+    .from(projects)
+    .where(
+      excludeId 
+        ? and(eq(projects.slug, timestampSlug), sql`${projects.id} != ${excludeId}`)
+        : eq(projects.slug, timestampSlug)
+    )
+    .limit(1);
+  
+  if (!existingTimestamp) {
+    return timestampSlug;
+  }
+  
+  // Fallback to counter-based approach if timestamp collision (rare)
   let slug = baseSlug;
   let counter = 1;
   
-  while (true) {
+  while (counter < 100) { // Safety limit
     const [existing] = await db
       .select()
       .from(projects)
@@ -26,7 +46,8 @@ async function ensureUniqueSlug(baseSlug: string, excludeId?: string): Promise<s
         excludeId 
           ? and(eq(projects.slug, slug), sql`${projects.id} != ${excludeId}`)
           : eq(projects.slug, slug)
-      );
+      )
+      .limit(1);
     
     if (!existing) {
       return slug;
@@ -35,6 +56,9 @@ async function ensureUniqueSlug(baseSlug: string, excludeId?: string): Promise<s
     slug = `${baseSlug}-${counter}`;
     counter++;
   }
+  
+  // Last resort: timestamp + counter
+  return `${baseSlug}-${Date.now()}-${counter}`;
 }
 
 export class ProjectsDAL {
@@ -57,16 +81,38 @@ export class ProjectsDAL {
     return project || null;
   }
 
+  /**
+   * ✅ OPTIMIZED: Batch get projects by IDs in ONE query
+   * This replaces sequential calls to getById for each project
+   */
+  static async getByIds(ids: string[]): Promise<Project[]> {
+    if (ids.length === 0) return [];
+    
+    logger.log('🔍 [BATCH] Fetching', ids.length, 'projects by IDs');
+    
+    const projectList = await db
+      .select()
+      .from(projects)
+      .where(inArray(projects.id, ids));
+
+    logger.log(`✅ [BATCH] Found ${projectList.length} projects`);
+    return projectList;
+  }
+
   static async getBySlug(slug: string): Promise<Project | null> {
     const [project] = await db.select().from(projects).where(eq(projects.slug, slug));
     return project || null;
   }
 
-  static async getByUserId(userId: string, limit = 100, offset = 0): Promise<Project[]> {
+  static async getByUserId(userId: string, limit = 100, offset = 0, platform?: 'render' | 'tools' | 'canvas'): Promise<Project[]> {
+    const conditions = platform 
+      ? and(eq(projects.userId, userId), eq(projects.platform, platform))
+      : eq(projects.userId, userId);
+    
     return db
       .select()
       .from(projects)
-      .where(eq(projects.userId, userId))
+      .where(conditions)
       .orderBy(desc(projects.createdAt))
       .limit(limit)
       .offset(offset);
@@ -101,6 +147,108 @@ export class ProjectsDAL {
 
     logger.log(`✅ [ProjectsDAL] Found ${projectsWithCounts.length} projects with render counts`);
     return projectsWithCounts;
+  }
+
+  /**
+   * ✅ NEW: Get projects with platform and tool information for categorization
+   * Returns projects with:
+   * - Render count (by platform)
+   * - Tool execution count
+   * - Canvas file count
+   * - Primary platform (most used)
+   * - Tool categories used
+   */
+  static async getByUserIdWithPlatformInfo(userId: string, limit = 100, offset = 0) {
+    logger.log('📊 [ProjectsDAL] Fetching projects with platform info for user:', userId);
+    
+    const projectsWithPlatformInfo = await db
+      .select({
+        id: projects.id,
+        userId: projects.userId,
+        name: projects.name,
+        slug: projects.slug,
+        description: projects.description,
+        originalImageId: projects.originalImageId,
+        status: projects.status,
+        isPublic: projects.isPublic,
+        tags: projects.tags,
+        metadata: projects.metadata,
+        createdAt: projects.createdAt,
+        updatedAt: projects.updatedAt,
+        // Render counts by platform
+        renderCount: sql<number>`COALESCE(COUNT(DISTINCT CASE WHEN ${renders.id} IS NOT NULL THEN ${renders.id} END), 0)`.as('renderCount'),
+        renderPlatformCount: sql<number>`COALESCE(COUNT(DISTINCT CASE WHEN ${renders.platform} = 'render' THEN ${renders.id} END), 0)`.as('renderPlatformCount'),
+        toolsPlatformCount: sql<number>`COALESCE(COUNT(DISTINCT CASE WHEN ${renders.platform} = 'tools' THEN ${renders.id} END), 0)`.as('toolsPlatformCount'),
+        canvasPlatformCount: sql<number>`COALESCE(COUNT(DISTINCT CASE WHEN ${renders.platform} = 'canvas' THEN ${renders.id} END), 0)`.as('canvasPlatformCount'),
+        // Tool execution count
+        toolExecutionCount: sql<number>`COALESCE(COUNT(DISTINCT ${toolExecutions.id}), 0)`.as('toolExecutionCount'),
+        // Canvas file count
+        canvasFileCount: sql<number>`COALESCE(COUNT(DISTINCT ${canvasFiles.id}), 0)`.as('canvasFileCount'),
+      })
+      .from(projects)
+      .leftJoin(renders, eq(projects.id, renders.projectId))
+      .leftJoin(toolExecutions, eq(projects.id, toolExecutions.projectId))
+      .leftJoin(canvasFiles, eq(projects.id, canvasFiles.projectId))
+      .where(eq(projects.userId, userId))
+      .groupBy(projects.id)
+      .orderBy(desc(projects.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    // Get tool categories for each project
+    const projectIds = projectsWithPlatformInfo.map(p => p.id);
+    const toolCategoriesByProject = projectIds.length > 0 ? await db
+      .select({
+        projectId: toolExecutions.projectId,
+        toolCategory: tools.category,
+      })
+      .from(toolExecutions)
+      .innerJoin(tools, eq(toolExecutions.toolId, tools.id))
+      .where(inArray(toolExecutions.projectId, projectIds))
+      .groupBy(toolExecutions.projectId, tools.category) : [];
+
+    // Group categories by project
+    const categoriesByProject = toolCategoriesByProject.reduce((acc, row) => {
+      if (!acc[row.projectId]) {
+        acc[row.projectId] = [];
+      }
+      if (!acc[row.projectId].includes(row.toolCategory)) {
+        acc[row.projectId].push(row.toolCategory);
+      }
+      return acc;
+    }, {} as Record<string, string[]>);
+
+    // Determine primary platform for each project
+    const projectsWithInfo = projectsWithPlatformInfo.map(project => {
+      const renderCount = Number(project.renderCount || 0);
+      const toolExecutionCount = Number(project.toolExecutionCount || 0);
+      const canvasFileCount = Number(project.canvasFileCount || 0);
+      const renderPlatformCount = Number(project.renderPlatformCount || 0);
+      const toolsPlatformCount = Number(project.toolsPlatformCount || 0);
+      const canvasPlatformCount = Number(project.canvasPlatformCount || 0);
+
+      // Determine primary platform based on activity
+      let primaryPlatform: 'render' | 'tools' | 'canvas' | null = null;
+      if (toolExecutionCount > 0 || toolsPlatformCount > 0) {
+        primaryPlatform = 'tools';
+      } else if (canvasFileCount > 0 || canvasPlatformCount > 0) {
+        primaryPlatform = 'canvas';
+      } else if (renderPlatformCount > 0) {
+        primaryPlatform = 'render';
+      }
+
+      return {
+        ...project,
+        renderCount,
+        toolExecutionCount,
+        canvasFileCount,
+        primaryPlatform,
+        toolCategories: categoriesByProject[project.id] || [],
+      };
+    });
+
+    logger.log(`✅ [ProjectsDAL] Found ${projectsWithInfo.length} projects with platform info`);
+    return projectsWithInfo;
   }
 
   static async updateStatus(id: string, status: 'processing' | 'completed' | 'failed'): Promise<void> {

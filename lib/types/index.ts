@@ -69,7 +69,14 @@ export interface GalleryItemWithDetails {
     id: string;
     name: string | null;
     avatar: string | null;
+    isPro?: boolean | null;
   };
+  tool: {
+    id: string | null;
+    slug: string | null;
+    name: string | null;
+    category: string | null;
+  } | null;
 }
 
 // Google AI API types

@@ -106,6 +106,7 @@ export class ToolsDAL {
   }
 
   static async getAll(includeInactive = false) {
+    // ✅ OPTIMIZED: Use partial index when filtering active tools
     const whereCondition = includeInactive 
       ? undefined 
       : and(eq(tools.isActive, true), eq(tools.status, 'online'));
@@ -115,9 +116,11 @@ export class ToolsDAL {
       .from(tools)
       .where(whereCondition)
       .orderBy(tools.priority, tools.name);
+    // Uses: idx_tools_active_online (partial index)
   }
 
   static async getByCategory(category: 'transformation' | 'floorplan' | 'diagram' | 'material' | 'interior' | '3d' | 'presentation' | 'video', includeInactive = false) {
+    // ✅ OPTIMIZED: Uses composite index idx_tools_category_status_active for active tools
     const whereCondition = includeInactive
       ? eq(tools.category, category)
       : and(
@@ -131,9 +134,11 @@ export class ToolsDAL {
       .from(tools)
       .where(whereCondition)
       .orderBy(tools.priority, tools.name);
+    // Uses: idx_tools_category_status_active (composite partial index) when includeInactive=false
   }
 
   static async getByOutputType(outputType: 'image' | 'video' | '3d' | 'audio' | 'doc', includeInactive = false) {
+    // ✅ OPTIMIZED: Uses composite index idx_tools_output_type_status
     const whereCondition = includeInactive
       ? eq(tools.outputType, outputType)
       : and(
@@ -146,6 +151,18 @@ export class ToolsDAL {
       .select()
       .from(tools)
       .where(whereCondition)
+      .orderBy(tools.priority, tools.name);
+    // Uses: idx_tools_output_type_status (composite index) when includeInactive=false
+  }
+
+  // ✅ OPTIMIZED: Batch operations for better performance
+  static async getToolsByIds(ids: string[]) {
+    if (ids.length === 0) return [];
+    
+    return await db
+      .select()
+      .from(tools)
+      .where(inArray(tools.id, ids))
       .orderBy(tools.priority, tools.name);
   }
 
@@ -209,6 +226,7 @@ export class ToolsDAL {
   }
 
   static async getExecutionsByTool(toolId: string, userId?: string, limit?: number) {
+    // ✅ OPTIMIZED: Uses appropriate composite index based on filters
     const whereCondition = userId
       ? and(eq(toolExecutions.toolId, toolId), eq(toolExecutions.userId, userId))
       : eq(toolExecutions.toolId, toolId);
@@ -218,28 +236,70 @@ export class ToolsDAL {
       .from(toolExecutions)
       .where(whereCondition)
       .orderBy(desc(toolExecutions.createdAt));
+    // Uses: idx_tool_executions_user_tool_created (when userId provided) or idx_tool_executions_tool_status_created
 
     return limit ? await query.limit(limit) : await query;
   }
 
   static async getExecutionsByProject(projectId: string, limit?: number) {
+    // ✅ OPTIMIZED: Uses composite index idx_tool_executions_project_created
     const query = db
       .select()
       .from(toolExecutions)
       .where(eq(toolExecutions.projectId, projectId))
       .orderBy(desc(toolExecutions.createdAt));
+    // Uses: idx_tool_executions_project_created (composite index)
 
     return limit ? await query.limit(limit) : await query;
   }
 
   static async getExecutionsByUser(userId: string, limit?: number) {
+    // ✅ OPTIMIZED: Uses composite index idx_tool_executions_user_created
     const query = db
       .select()
       .from(toolExecutions)
       .where(eq(toolExecutions.userId, userId))
       .orderBy(desc(toolExecutions.createdAt));
+    // Uses: idx_tool_executions_user_created (composite index)
 
     return limit ? await query.limit(limit) : await query;
+  }
+
+  // ✅ OPTIMIZED: Batch operations for better performance
+  static async getExecutionsByIds(ids: string[]) {
+    if (ids.length === 0) return [];
+    
+    return await db
+      .select()
+      .from(toolExecutions)
+      .where(inArray(toolExecutions.id, ids))
+      .orderBy(desc(toolExecutions.createdAt));
+  }
+
+  static async updateExecutionStatusBatch(
+    ids: string[],
+    status: 'pending' | 'processing' | 'completed' | 'failed',
+    errorMessage?: string
+  ) {
+    if (ids.length === 0) return;
+    
+    const updateData: UpdateToolExecutionData = { status };
+    if (errorMessage) {
+      updateData.errorMessage = errorMessage;
+    }
+    if (status === 'processing') {
+      updateData.startedAt = new Date();
+    } else if (status === 'completed' || status === 'failed') {
+      updateData.completedAt = new Date();
+    }
+    
+    await db
+      .update(toolExecutions)
+      .set({
+        ...updateData,
+        updatedAt: new Date(),
+      })
+      .where(inArray(toolExecutions.id, ids));
   }
 
   static async getBatchExecutions(batchGroupId: string) {
@@ -292,33 +352,37 @@ export class ToolsDAL {
     isDefault?: boolean;
     isPublic?: boolean;
   }) {
-    // If setting as default, unset other defaults for this tool/user
-    if (data.isDefault) {
-      await db
-        .update(toolSettingsTemplates)
-        .set({ isDefault: false })
-        .where(
-          and(
-            eq(toolSettingsTemplates.toolId, data.toolId),
-            data.userId ? eq(toolSettingsTemplates.userId, data.userId) : isNull(toolSettingsTemplates.userId)
-          )
-        );
-    }
+    // ✅ OPTIMIZED: Use transaction to ensure atomicity and reduce round trips
+    // This ensures both operations succeed or fail together
+    return await db.transaction(async (tx) => {
+      // If setting as default, unset other defaults for this tool/user
+      if (data.isDefault) {
+        await tx
+          .update(toolSettingsTemplates)
+          .set({ isDefault: false })
+          .where(
+            and(
+              eq(toolSettingsTemplates.toolId, data.toolId),
+              data.userId ? eq(toolSettingsTemplates.userId, data.userId) : isNull(toolSettingsTemplates.userId)
+            )
+          );
+      }
 
-    const [template] = await db
-      .insert(toolSettingsTemplates)
-      .values({
-        toolId: data.toolId,
-        userId: data.userId,
-        name: data.name,
-        description: data.description,
-        settings: data.settings,
-        isDefault: data.isDefault || false,
-        isPublic: data.isPublic || false,
-      })
-      .returning();
+      const [template] = await tx
+        .insert(toolSettingsTemplates)
+        .values({
+          toolId: data.toolId,
+          userId: data.userId,
+          name: data.name,
+          description: data.description,
+          settings: data.settings,
+          isDefault: data.isDefault || false,
+          isPublic: data.isPublic || false,
+        })
+        .returning();
 
-    return template;
+      return template;
+    });
   }
 
   static async getTemplateById(id: string) {
@@ -370,38 +434,42 @@ export class ToolsDAL {
     isDefault: boolean;
     isPublic: boolean;
   }>) {
-    // If setting as default, unset other defaults
-    if (data.isDefault) {
-      const [template] = await db
-        .select()
-        .from(toolSettingsTemplates)
-        .where(eq(toolSettingsTemplates.id, id))
-        .limit(1);
+    // ✅ OPTIMIZED: Use transaction to ensure atomicity and reduce round trips
+    // This ensures all operations succeed or fail together
+    return await db.transaction(async (tx) => {
+      // If setting as default, unset other defaults
+      if (data.isDefault) {
+        const [template] = await tx
+          .select()
+          .from(toolSettingsTemplates)
+          .where(eq(toolSettingsTemplates.id, id))
+          .limit(1);
 
-      if (template) {
-        await db
-          .update(toolSettingsTemplates)
-          .set({ isDefault: false })
-          .where(
-            and(
-              eq(toolSettingsTemplates.toolId, template.toolId),
-              template.userId ? eq(toolSettingsTemplates.userId, template.userId) : isNull(toolSettingsTemplates.userId),
-              ne(toolSettingsTemplates.id, id)
-            )
-          );
+        if (template) {
+          await tx
+            .update(toolSettingsTemplates)
+            .set({ isDefault: false })
+            .where(
+              and(
+                eq(toolSettingsTemplates.toolId, template.toolId),
+                template.userId ? eq(toolSettingsTemplates.userId, template.userId) : isNull(toolSettingsTemplates.userId),
+                ne(toolSettingsTemplates.id, id)
+              )
+            );
+        }
       }
-    }
 
-    const [updated] = await db
-      .update(toolSettingsTemplates)
-      .set({
-        ...data,
-        updatedAt: new Date(),
-      })
-      .where(eq(toolSettingsTemplates.id, id))
-      .returning();
+      const [updated] = await tx
+        .update(toolSettingsTemplates)
+        .set({
+          ...data,
+          updatedAt: new Date(),
+        })
+        .where(eq(toolSettingsTemplates.id, id))
+        .returning();
 
-    return updated || null;
+      return updated || null;
+    });
   }
 
   static async deleteTemplate(id: string) {
@@ -445,6 +513,7 @@ export class ToolsDAL {
   }
 
   static async getAnalyticsByTool(toolId: string, startDate?: Date, endDate?: Date) {
+    // ✅ OPTIMIZED: Uses composite index idx_tool_analytics_tool_event_created
     const conditions = [eq(toolAnalytics.toolId, toolId)];
     
     if (startDate) {
@@ -459,9 +528,11 @@ export class ToolsDAL {
       .from(toolAnalytics)
       .where(and(...conditions))
       .orderBy(desc(toolAnalytics.createdAt));
+    // Uses: idx_tool_analytics_tool_event_created (composite index)
   }
 
   static async getToolUsageStats(toolId: string, startDate?: Date, endDate?: Date) {
+    // ✅ OPTIMIZED: Uses composite index idx_tool_analytics_tool_event_created for efficient grouping
     const conditions = [eq(toolAnalytics.toolId, toolId)];
     
     if (startDate) {
@@ -479,6 +550,7 @@ export class ToolsDAL {
       .from(toolAnalytics)
       .where(and(...conditions))
       .groupBy(toolAnalytics.eventType);
+    // Uses: idx_tool_analytics_tool_event_created (composite index) for efficient filtering and grouping
 
     return stats;
   }

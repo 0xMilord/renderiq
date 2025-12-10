@@ -87,10 +87,17 @@ export function useRenders(projectId: string | null) {
     }
   }, [renders]);
 
+  // Fetch data when projectId changes
   useEffect(() => {
-    fetchRenders();
-    fetchChains();
-  }, [fetchRenders, fetchChains]);
+    if (projectId) {
+      fetchRenders();
+      fetchChains();
+    } else {
+      // Clear data when no projectId
+      setRenders([]);
+      setChains([]);
+    }
+  }, [projectId, fetchRenders, fetchChains]);
 
   return {
     renders,

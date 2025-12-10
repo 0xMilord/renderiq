@@ -39,9 +39,10 @@ interface ChainWithRenders extends RenderChain {
 interface ChatPageClientProps {
   initialProjects: Project[];
   initialChains: ChainWithRenders[];
+  initialProjectSlug?: string;
 }
 
-export function ChatPageClient({ initialProjects, initialChains }: ChatPageClientProps) {
+export function ChatPageClient({ initialProjects, initialChains, initialProjectSlug }: ChatPageClientProps) {
   const router = useRouter();
   const { user, loading: authLoading, initialized } = useAuthStore();
 
@@ -80,6 +81,19 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
     setProjects(initialProjects);
     setChains(initialChains);
   }, [initialProjects, initialChains]);
+
+  // ✅ AUTO-SELECT: If projectSlug is provided in query params, auto-select that project
+  useEffect(() => {
+    if (initialProjectSlug && projects.length > 0) {
+      const project = projects.find(p => p.slug === initialProjectSlug);
+      if (project) {
+        setSelectedProjectId(project.id);
+        setExpandedProjects(prev => new Set(prev).add(project.id));
+        // Clear chain selection when selecting a project
+        setSelectedChainId(null);
+      }
+    }
+  }, [initialProjectSlug, projects]);
 
   // ✅ OPTIMISTIC: Add project immediately when created and auto-select it
   const handleProjectCreated = (newProject: Project) => {
@@ -122,14 +136,14 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
     try {
       const project = projects.find(p => p.id === projectId);
       const projectChains = chains.filter(c => c.projectId === projectId);
-      const chainName = project ? `${project.name} - Render ${projectChains.length + 1}` : 'New Render Chain';
+      const chainName = project ? `${project.name} - Render ${projectChains.length + 1}` : 'New Chat';
       
       // ✅ OPTIMISTIC: Create temporary chain immediately
       const tempChain: ChainWithRenders = {
         id: `temp-${Date.now()}`,
         projectId,
         name: chainName,
-        description: 'Render chain',
+        description: 'Chat',
         createdAt: new Date(),
         updatedAt: new Date(),
         renders: [],
@@ -139,7 +153,7 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
       const result = await createRenderChain(
         projectId,
         chainName,
-        'Render chain'
+        'Chat'
       );
 
       if (result.success && result.data) {
@@ -157,11 +171,11 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
       } else {
         // ✅ ROLLBACK: Remove temp chain on error
         setChains(prev => prev.filter(c => c.id !== tempChain.id));
-        toast.error(result.error || 'Failed to create chain');
+        toast.error(result.error || 'Failed to create chat');
       }
     } catch (error) {
-      console.error('Failed to create chain:', error);
-      toast.error('Failed to create chain');
+      console.error('Failed to create chat:', error);
+      toast.error('Failed to create chat');
     } finally {
       setIsCreatingChain(null);
     }
@@ -403,7 +417,9 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                   {searchQuery ? 'No projects found' : 'No projects yet'}
                 </p>
                 {!searchQuery && (
-                  <CreateProjectModal onProjectCreated={(project) => {
+                  <CreateProjectModal 
+                    platform="render"
+                    onProjectCreated={(project) => {
               handleProjectCreated(project);
               router.refresh();
             }}>
@@ -642,7 +658,7 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                       <h2 className="text-2xl font-bold truncate">{selectedChain?.name || 'Chat'}</h2>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {chainRenders.length} render{chainRenders.length !== 1 ? 's' : ''} in this chain
+                      {chainRenders.length} render{chainRenders.length !== 1 ? 's' : ''} in this chat
                     </p>
                   </div>
                   <Button onClick={handleContinueEditing} size="lg" className="shrink-0">
@@ -683,7 +699,7 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                     <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-semibold mb-2">No renders yet</h3>
                     <p className="text-muted-foreground mb-4">
-                      Start creating renders in this chain
+                      Start creating renders in this chat
                     </p>
                     <Button onClick={handleContinueEditing}>
                       <Plus className="h-4 w-4 mr-2" />
@@ -701,7 +717,7 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search chains..."
+                    placeholder="Search chats..."
                     value={chainSearchQuery}
                     onChange={(e) => setChainSearchQuery(e.target.value)}
                     className="pl-10 text-sm sm:text-base"
@@ -739,12 +755,12 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                 <div className="text-center py-12">
                   <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-foreground mb-2">
-                    {chainSearchQuery ? 'No chains found' : 'No chains yet'}
+                    {chainSearchQuery ? 'No chats found' : 'No chats yet'}
                   </h3>
                   <p className="text-muted-foreground mb-4">
                     {chainSearchQuery 
                       ? 'Try adjusting your search or filters'
-                      : 'Create your first chain in this project'
+                      : 'Create your first chat in this project'
                     }
                   </p>
                   {!chainSearchQuery && (
@@ -829,6 +845,8 @@ export function ChatPageClient({ initialProjects, initialChains }: ChatPageClien
                         onDuplicate={() => {}}
                         onDelete={() => {}}
                         onSelect={(p) => handleProjectClick(p.id)}
+                        // On render page, clicking View should select the project to show chains
+                        viewUrl={undefined} // Let onSelect handle it instead
                       />
                     );
                   })}

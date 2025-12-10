@@ -28,6 +28,16 @@ export function useGallery(
   const fetchingRef = useRef(false);
   const mountedRef = useRef(true);
 
+  // ✅ FIXED: Memoize options to prevent unnecessary callback recreation
+  const memoizedOptions = useMemo(() => options, [
+    options?.sortBy,
+    options?.searchQuery,
+    options?.filters?.style?.join(',') || '',
+    options?.filters?.quality?.join(',') || '',
+    options?.filters?.aspectRatio?.join(',') || '',
+    options?.filters?.contentType || '',
+  ]);
+
   // ✅ OPTIMIZED: Parallelize gallery fetch + liked status check
   const fetchItems = useCallback(async (pageNum = 1, append = false) => {
     // Prevent multiple simultaneous calls
@@ -42,7 +52,7 @@ export function useGallery(
       
       // ✅ OPTIMIZED: Fetch gallery items with server-side filtering/sorting
       // This prevents fetching ALL items and filtering client-side (major performance win)
-      const result = await getPublicGallery(pageNum, limit, options);
+      const result = await getPublicGallery(pageNum, limit, memoizedOptions);
       
       // Only update state if component is still mounted
       if (!mountedRef.current) return;
@@ -50,16 +60,30 @@ export function useGallery(
       if (result.success) {
         const newItems = result.data || [];
         
-        // ✅ OPTIMIZED: Fetch liked status in parallel with gallery items
-        // This prevents sequential waiting (10s -> 15s)
+        // ✅ OPTIMIZED: Batch fetch liked status in parallel (non-blocking)
+        // Only fetch if we have items to avoid unnecessary queries
         const itemIds = newItems.length > 0 ? newItems.map(item => item.id) : [];
-        const [likedResult] = await Promise.all([
-          itemIds.length > 0 ? batchCheckUserLiked(itemIds) : Promise.resolve({ success: true, data: new Set<string>() }),
-        ]);
+        
+        // ✅ OPTIMIZED: Don't await liked check - let it run in background
+        // This prevents blocking the UI update while still updating liked status
+        if (itemIds.length > 0) {
+          batchCheckUserLiked(itemIds).then((likedResult) => {
+            if (!mountedRef.current) return;
+            if (likedResult.success && likedResult.data) {
+              setLikedItems(prev => {
+                const newSet = new Set(prev);
+                likedResult.data.forEach(id => newSet.add(id));
+                return newSet;
+              });
+            }
+          }).catch(() => {
+            // Silently fail - liked status is not critical for page functionality
+          });
+        }
         
         if (!mountedRef.current) return;
         
-        // Update items
+        // Update items immediately (don't wait for liked status)
         if (append) {
           setItems(prev => [...prev, ...newItems]);
         } else {
@@ -67,19 +91,12 @@ export function useGallery(
         }
         setHasMore(newItems.length === limit);
         setCurrentPage(pageNum);
-        
-        // Update liked items set
-        if (likedResult.success && likedResult.data) {
-          setLikedItems(prev => {
-            const newSet = new Set(prev);
-            likedResult.data.forEach(id => newSet.add(id));
-            return newSet;
-          });
-        }
       } else {
+        console.error('❌ [useGallery] Error:', result.error);
         setError(result.error || 'Failed to fetch gallery items');
       }
     } catch (err) {
+      console.error('❌ [useGallery] Exception:', err);
       if (!mountedRef.current) return;
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -88,7 +105,7 @@ export function useGallery(
       }
       fetchingRef.current = false;
     }
-  }, [limit, options]);
+  }, [limit, memoizedOptions]);
 
   const loadMore = useCallback(() => {
     if (!loading && hasMore && !fetchingRef.current) {
@@ -114,14 +131,14 @@ export function useGallery(
     try {
       const result = await likeGalleryItem(itemId);
       if (result.success && result.data) {
-        // Optimistically update like count
+        // ✅ FIXED: Update items array with server response (ensures consistency)
         setItems(prev => prev.map(item => 
           item.id === itemId 
-            ? { ...item, likes: result.data!.likes, liked: result.data!.liked }
+            ? { ...item, likes: result.data!.likes }
             : item
         ));
         
-        // Update liked items set
+        // ✅ FIXED: Update liked items set (single source of truth)
         setLikedItems(prev => {
           const newSet = new Set(prev);
           if (result.data!.liked) {
@@ -132,7 +149,7 @@ export function useGallery(
           return newSet;
         });
         
-        return { success: true };
+        return { success: true, data: result.data };
       } else {
         return { success: false, error: result.error };
       }

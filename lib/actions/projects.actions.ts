@@ -7,6 +7,7 @@ import { ProjectsDAL } from '@/lib/dal/projects';
 import { RendersDAL } from '@/lib/dal/renders';
 import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { RenderChainService } from '@/lib/services/render-chain';
+import { PlanLimitsService } from '@/lib/services/plan-limits.service';
 import { getUserFromAction } from '@/lib/utils/get-user-from-action';
 import { getCachedUser } from '@/lib/services/auth-cache';
 import { uploadSchema, createRenderSchema } from '@/lib/types';
@@ -29,11 +30,40 @@ export async function createProject(formData: FormData) {
 
     logger.log('✅ [createProject] User authenticated:', { userId, email: user.email });
 
+    // ✅ CHECK LIMIT: Verify user can create a new project
+    const projectLimitCheck = await PlanLimitsService.checkProjectLimit(userId);
+    if (!projectLimitCheck.allowed) {
+      logger.warn('❌ [createProject] Project limit reached:', projectLimitCheck);
+      return {
+        success: false,
+        error: projectLimitCheck.error || 'Project limit reached',
+        limitReached: true,
+        limitType: projectLimitCheck.limitType,
+        current: projectLimitCheck.current,
+        limit: projectLimitCheck.limit,
+        planName: projectLimitCheck.planName || 'Free', // ✅ FIXED: Include planName
+      };
+    }
+
     const file = formData.get('file') as File;
     const projectName = formData.get('projectName') as string;
     const description = formData.get('description') as string;
     const dicebearUrl = formData.get('dicebearUrl') as string;
     const isToolsProject = formData.get('isToolsProject') === 'true';
+    const platform = (formData.get('platform') as 'render' | 'tools' | 'canvas') || 'render';
+    const tagsJson = formData.get('tags') as string | null;
+    const isPublic = formData.get('isPublic') === 'true';
+    
+    // Parse tags if provided
+    let tags: string[] | undefined;
+    if (tagsJson) {
+      try {
+        tags = JSON.parse(tagsJson);
+      } catch (e) {
+        // If parsing fails, treat as comma-separated string
+        tags = tagsJson.split(',').map(t => t.trim()).filter(Boolean);
+      }
+    }
 
     logger.log('📝 [createProject] Form data received:', { 
       fileName: file?.name, 
@@ -56,13 +86,13 @@ export async function createProject(formData: FormData) {
       const projectData = {
         userId: userId,
         name: projectName,
-        description: description || 'AI-generated project',
+        description: description || undefined,
         originalImageId: null, // No file upload needed
-        isPublic: false,
-        tags: ['shape-based', 'ai-generated'],
+        isPublic: isPublic || false,
+        tags: tags || (dicebearUrl ? ['shape-based', 'ai-generated'] : undefined),
+        platform: platform,
         metadata: {
-          dicebearUrl,
-          createdBy: 'shape-generator'
+          ...(dicebearUrl ? { dicebearUrl, createdBy: 'shape-generator' } : {})
         }
       };
 
@@ -84,8 +114,9 @@ export async function createProject(formData: FormData) {
         name: projectName,
         description: description || 'Default project for micro-tools and specialized AI tools',
         originalImageId: null, // No file upload needed
-        isPublic: false,
-        tags: ['tools', 'micro-tools'],
+        isPublic: isPublic || false,
+        tags: tags || ['tools', 'micro-tools'],
+        platform: platform === 'render' ? 'tools' : platform, // Override for tools projects
         metadata: {
           createdBy: 'tools-project',
           isToolsProject: true
@@ -101,27 +132,70 @@ export async function createProject(formData: FormData) {
       return { success: true, data: project };
     }
 
-    // Original file upload logic for regular projects
-    if (!file) {
-      logger.error('❌ [createProject] No file provided');
-      return { success: false, error: 'File is required' };
+    // File upload logic for regular projects (file is optional now)
+    if (file) {
+      logger.log('✅ [createProject] Validating form data with file...');
+      const validatedData = uploadSchema.parse({
+        file,
+        projectName,
+        description: description || undefined,
+      });
+      logger.log('✅ [createProject] Form data validated successfully');
+
+      logger.log('🎨 [createProject] Calling render service with file...');
+      const result = await renderService.createProject(
+        userId,
+        validatedData.file,
+        validatedData.projectName,
+        validatedData.description,
+        tags,
+        isPublic,
+        platform
+      );
+
+      if (result.success) {
+        logger.log('✅ [createProject] Project created successfully, revalidating paths...');
+        revalidatePath('/dashboard/projects');
+        revalidatePath('/render');
+        revalidatePath('/canvas');
+        logger.log('🎉 [createProject] Project creation completed successfully');
+        return { success: true, data: result.data };
+      }
+
+      logger.error('❌ [createProject] Project creation failed:', result.error);
+      return { success: false, error: result.error || 'Failed to create project' };
     }
 
-    logger.log('✅ [createProject] Validating form data...');
-    const validatedData = uploadSchema.parse({
-      file,
-      projectName,
-      description: description || undefined,
-    });
-    logger.log('✅ [createProject] Form data validated successfully');
+    // No file provided and no dicebearUrl - generate fallback
+    if (!dicebearUrl) {
+      logger.log('🎨 [createProject] No file or dicebear URL, generating fallback avatar');
+      const shapes = ['square', 'circle', 'triangle', 'hexagon', 'pentagon', 'octagon'];
+      const randomShape = shapes[Math.floor(Math.random() * shapes.length)];
+      const fallbackDicebearUrl = `https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(projectName + randomShape)}&backgroundColor=transparent&shape1Color=4a90e2&shape2Color=7b68ee&shape3Color=ff6b6b`;
+      
+      const projectData = {
+        userId: userId,
+        name: projectName,
+        description: description || undefined,
+        originalImageId: null,
+        isPublic: isPublic || false,
+        tags: tags,
+        platform: platform,
+        metadata: {
+          dicebearUrl: fallbackDicebearUrl,
+          createdBy: 'auto-generator'
+        }
+      };
 
-    logger.log('🎨 [createProject] Calling render service...');
-    const result = await renderService.createProject(
-      userId,
-      validatedData.file,
-      validatedData.projectName,
-      validatedData.description
-    );
+      const project = await ProjectsDAL.create(projectData);
+      logger.log('✅ [createProject] Project created with fallback avatar:', project.id);
+
+      revalidatePath('/dashboard/projects');
+      revalidatePath('/render');
+      revalidatePath('/canvas');
+      
+      return { success: true, data: project };
+    }
 
     if (result.success) {
       logger.log('✅ [createProject] Project created successfully, revalidating paths...');
@@ -254,7 +328,7 @@ export async function getProjectBySlug(slug: string) {
   }
 }
 
-export async function getUserProjects() {
+export async function getUserProjects(platform?: 'render' | 'tools' | 'canvas') {
   try {
     const { user } = await getCachedUser();
     
@@ -264,11 +338,18 @@ export async function getUserProjects() {
     
     const userId = user.id;
 
-    // Get projects with render counts in a single query
-    const projects = await ProjectsDAL.getByUserIdWithRenderCounts(userId);
+    // Get projects with render counts in a single query, filtered by platform if provided
+    const projects = platform 
+      ? await ProjectsDAL.getByUserId(userId, 100, 0, platform)
+      : await ProjectsDAL.getByUserIdWithRenderCounts(userId);
     
     if (projects.length === 0) {
       return { success: true, data: [] };
+    }
+
+    // If platform filter is used, return projects directly (no render counts needed)
+    if (platform) {
+      return { success: true, data: projects };
     }
 
     // Batch fetch: Get all latest renders for all projects in ONE query
@@ -501,6 +582,41 @@ export async function getProjectChains(projectId: string) {
     return { success: true, data: chains };
   } catch (error) {
     logger.error('Error in getProjectChains:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get render chains',
+    };
+  }
+}
+
+/**
+ * ✅ OPTIMIZED: Batch get chains for multiple projects in ONE query
+ * This replaces sequential calls to getProjectChains for each project
+ */
+export async function getChainsForProjects(projectIds: string[]) {
+  try {
+    const { user } = await getCachedUser();
+    
+    if (!user) {
+      return { success: false, error: 'Authentication required' };
+    }
+    
+    const userId = user.id;
+
+    // Verify all projects belong to user (batch check)
+    const projects = await ProjectsDAL.getByIds(projectIds);
+    const userProjectIds = projects
+      .filter(p => p.userId === userId)
+      .map(p => p.id);
+
+    if (userProjectIds.length === 0) {
+      return { success: true, data: {} };
+    }
+
+    const chainsByProject = await RenderChainService.getChainsForProjects(userProjectIds);
+    return { success: true, data: chainsByProject };
+  } catch (error) {
+    logger.error('Error in getChainsForProjects:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get render chains',

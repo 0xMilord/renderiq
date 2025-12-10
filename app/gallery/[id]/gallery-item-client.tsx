@@ -59,9 +59,11 @@ export function GalleryItemPageClient({ item, similarItems }: GalleryItemPageCli
       });
     }
 
-    // Check if user has liked this item (only once per item)
+    // ✅ FIXED: Check if user has liked this item (only once per item)
+    // Also sync likes count from server data to ensure consistency
     if (!likeStatusCheckedRef.current) {
       likeStatusCheckedRef.current = true;
+      setLikesCount(item.likes); // Sync with server data
       const fetchLikeStatus = async () => {
         try {
           const result = await checkUserLiked(item.id);
@@ -125,11 +127,37 @@ export function GalleryItemPageClient({ item, similarItems }: GalleryItemPageCli
     return () => clearTimeout(timeoutId);
   }, [item.id, item.render.outputUrl, item.render.uploadedImageUrl]); // Include image URLs to detect dimensions when they change
 
+  // ✅ FIXED: Prevent rapid clicks with a ref
+  const isLikingRef = useRef(false);
+  
   const handleLike = async () => {
-    const result = await likeGalleryItem(item.id);
-    if (result.success && result.data) {
-      setIsLiked(result.data.liked);
-      setLikesCount(result.data.likes);
+    if (isLikingRef.current) return; // Prevent rapid clicks
+    
+    // ✅ OPTIMISTIC UPDATE: Update UI immediately
+    const previousLiked = isLiked;
+    const previousCount = likesCount;
+    const newLiked = !previousLiked;
+    const newCount = newLiked ? previousCount + 1 : Math.max(0, previousCount - 1);
+    
+    setIsLiked(newLiked);
+    setLikesCount(newCount);
+    isLikingRef.current = true;
+    
+    try {
+      // Then call the server action
+      const result = await likeGalleryItem(item.id);
+      
+      // ✅ FIXED: Always sync with server response to prevent state desync
+      if (result.success && result.data) {
+        setIsLiked(result.data.liked);
+        setLikesCount(result.data.likes);
+      } else {
+        // ✅ ROLLBACK on error
+        setIsLiked(previousLiked);
+        setLikesCount(previousCount);
+      }
+    } finally {
+      isLikingRef.current = false;
     }
   };
 

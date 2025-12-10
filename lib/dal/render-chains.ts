@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { renderChains, renders, projects } from '@/lib/db/schema';
-import { eq, desc, inArray } from 'drizzle-orm';
+import { eq, desc, inArray, sql } from 'drizzle-orm';
 import { CreateChainData, UpdateChainData } from '@/lib/types/render-chain';
 import { logger } from '@/lib/utils/logger';
 
@@ -46,6 +46,25 @@ export class RenderChainsDAL {
     return chains;
   }
 
+  /**
+   * ✅ OPTIMIZED: Batch get chains for multiple projects in ONE query
+   * This replaces sequential calls to getByProjectId for each project
+   */
+  static async getByProjectIds(projectIds: string[]) {
+    if (projectIds.length === 0) return [];
+    
+    logger.log('🔍 [BATCH] Fetching render chains for', projectIds.length, 'projects');
+    
+    const chains = await db
+      .select()
+      .from(renderChains)
+      .where(inArray(renderChains.projectId, projectIds))
+      .orderBy(desc(renderChains.createdAt));
+
+    logger.log(`✅ [BATCH] Found ${chains.length} chains for ${projectIds.length} projects`);
+    return chains;
+  }
+
   static async update(id: string, data: UpdateChainData) {
     logger.log('🔄 Updating render chain:', { id, data });
     
@@ -75,32 +94,36 @@ export class RenderChainsDAL {
   static async addRender(chainId: string, renderId: string, position?: number) {
     logger.log('🔗 Adding render to chain:', { chainId, renderId, position });
     
-    // Get current max position if position not specified
-    let finalPosition = position;
-    if (finalPosition === undefined) {
-      const chainRenders = await db
-        .select()
-        .from(renders)
-        .where(eq(renders.chainId, chainId))
-        .orderBy(desc(renders.chainPosition));
+    // ✅ OPTIMIZED: Use SQL subquery to calculate position in single query
+    // This eliminates the need for a separate query to get max position
+    if (position === undefined) {
+      const [updatedRender] = await db
+        .update(renders)
+        .set({
+          chainId,
+          chainPosition: sql`COALESCE((SELECT MAX(${renders.chainPosition}) FROM ${renders} WHERE ${renders.chainId} = ${chainId}), -1) + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(renders.id, renderId))
+        .returning();
 
-      finalPosition = chainRenders.length > 0 
-        ? (chainRenders[0].chainPosition || 0) + 1 
-        : 0;
+      logger.log('✅ Render added to chain:', updatedRender.id);
+      return updatedRender;
+    } else {
+      // Position specified, use it directly
+      const [updatedRender] = await db
+        .update(renders)
+        .set({
+          chainId,
+          chainPosition: position,
+          updatedAt: new Date(),
+        })
+        .where(eq(renders.id, renderId))
+        .returning();
+
+      logger.log('✅ Render added to chain:', updatedRender.id);
+      return updatedRender;
     }
-
-    const [updatedRender] = await db
-      .update(renders)
-      .set({
-        chainId,
-        chainPosition: finalPosition,
-        updatedAt: new Date(),
-      })
-      .where(eq(renders.id, renderId))
-      .returning();
-
-    logger.log('✅ Render added to chain:', updatedRender.id);
-    return updatedRender;
   }
 
   static async removeRender(chainId: string, renderId: string) {

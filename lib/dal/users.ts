@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
-import { eq, desc, sql } from 'drizzle-orm';
+import { eq, desc, sql, inArray } from 'drizzle-orm';
 import type { NewUser, User } from '@/lib/db/schema';
 
 export class UsersDAL {
@@ -29,16 +29,38 @@ export class UsersDAL {
   }
 
   static async upsert(user: NewUser): Promise<User> {
-    const [existingUser] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, user.email));
-
-    if (existingUser) {
-      return existingUser;
+    // ✅ OPTIMIZED: Use PostgreSQL INSERT ... ON CONFLICT (upsert) instead of check-then-insert
+    // This eliminates the race condition and reduces from 2 queries to 1 query
+    try {
+      const [upsertedUser] = await db
+        .insert(users)
+        .values(user)
+        .onConflictDoUpdate({
+          target: users.email,
+          set: {
+            name: user.name,
+            avatar: user.avatar,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+      
+      return upsertedUser;
+    } catch (error: any) {
+      // If conflict occurs, fetch existing user
+      // This handles edge cases where ON CONFLICT might not work as expected
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, user.email))
+        .limit(1);
+      
+      if (existingUser) {
+        return existingUser;
+      }
+      
+      throw error;
     }
-
-    return this.create(user);
   }
 
   static async getLatestUsers(limit: number = 10): Promise<User[]> {
@@ -57,5 +79,15 @@ export class UsersDAL {
       .from(users)
       .where(eq(users.isActive, true));
     return result[0]?.count || 0;
+  }
+
+  // ✅ OPTIMIZED: Batch operation for getting multiple users by IDs
+  static async getByIds(ids: string[]): Promise<User[]> {
+    if (ids.length === 0) return [];
+    
+    return await db
+      .select()
+      .from(users)
+      .where(inArray(users.id, ids));
   }
 }

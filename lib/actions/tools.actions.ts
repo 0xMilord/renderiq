@@ -7,6 +7,107 @@ import { logger } from '@/lib/utils/logger';
 import { deductCredits } from '@/lib/actions/billing.actions';
 import { createRenderAction } from '@/lib/actions/render.actions';
 
+// ============================================================================
+// GET ACTIONS (Internal app operations)
+// ============================================================================
+
+export async function getToolsAction(options?: {
+  category?: 'transformation' | 'floorplan' | 'diagram' | 'material' | 'interior' | '3d' | 'presentation' | 'video';
+  outputType?: 'image' | 'video' | '3d' | 'audio' | 'doc';
+  includeInactive?: boolean;
+}) {
+  try {
+    let tools;
+    if (options?.category) {
+      tools = await ToolsService.getToolsByCategory(options.category);
+    } else if (options?.outputType) {
+      tools = await ToolsService.getToolsByOutputType(options.outputType);
+    } else {
+      tools = await ToolsService.getActiveTools(options?.includeInactive);
+    }
+
+    return {
+      success: true,
+      tools,
+    };
+  } catch (error) {
+    logger.error('Error fetching tools:', error);
+    return {
+      success: false,
+      error: 'Failed to fetch tools',
+      tools: [],
+    };
+  }
+}
+
+export async function getToolBySlugAction(slug: string) {
+  try {
+    const tool = await ToolsService.getToolBySlug(slug);
+    
+    if (!tool) {
+      return {
+        success: false,
+        error: 'Tool not found',
+        tool: null,
+      };
+    }
+
+    return {
+      success: true,
+      tool,
+    };
+  } catch (error) {
+    logger.error('Error fetching tool:', error);
+    return {
+      success: false,
+      error: 'Failed to fetch tool',
+      tool: null,
+    };
+  }
+}
+
+export async function getToolExecutionsAction(options?: {
+  projectId?: string;
+  toolId?: string;
+  limit?: number;
+}) {
+  try {
+    const { user } = await getCachedUser();
+    if (!user) {
+      return {
+        success: false,
+        error: 'Authentication required',
+        executions: [],
+      };
+    }
+
+    let executions;
+    if (options?.projectId) {
+      executions = await ToolsService.getExecutionsByProject(options.projectId, options.limit);
+    } else if (options?.toolId) {
+      executions = await ToolsService.getExecutionsByTool(options.toolId, user.id, options.limit);
+    } else {
+      executions = await ToolsService.getExecutionsByUser(user.id, options?.limit);
+    }
+
+    return {
+      success: true,
+      executions,
+    };
+  } catch (error) {
+    logger.error('Error fetching tool executions:', error);
+    return {
+      success: false,
+      error: 'Failed to fetch tool executions',
+      executions: [],
+    };
+  }
+}
+
+// ============================================================================
+// CREATE/UPDATE ACTIONS
+// ============================================================================
+
 export async function createToolExecutionAction(formData: FormData) {
   try {
     const { user } = await getCachedUser();

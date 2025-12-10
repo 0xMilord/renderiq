@@ -9,6 +9,7 @@ import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { RenderChainService } from '@/lib/services/render-chain';
 import { ProjectRulesDAL } from '@/lib/dal/project-rules';
 import { StorageService } from '@/lib/services/storage';
+import { PlanLimitsService } from '@/lib/services/plan-limits.service';
 import { logger } from '@/lib/utils/logger';
 import { 
   validatePrompt, 
@@ -275,21 +276,67 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // CRITICAL: Check balance BEFORE attempting deduction to prevent any leakage
-    const userCredits = await BillingDAL.getUserCreditsWithReset(user.id);
-    
-    if (!userCredits || userCredits.balance < creditsCost) {
-      logger.warn('❌ Insufficient credits - balance check failed:', {
-        required: creditsCost,
-        available: userCredits?.balance || 0,
-        userId: user.id.substring(0, 8) + '...' // Redact full user ID
-      });
-      // Return minimal info - don't expose exact balance in error response
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Insufficient credits',
-        required: creditsCost
-        // Don't expose available balance in response
+    // ✅ CHECK LIMIT: Verify user can use this quality level
+    if (quality !== 'standard') {
+      const qualityLimitCheck = await PlanLimitsService.checkQualityLimit(user.id, quality);
+      if (!qualityLimitCheck.allowed) {
+        logger.warn('❌ Quality limit check failed:', qualityLimitCheck);
+        return NextResponse.json({
+          success: false,
+          error: qualityLimitCheck.error || 'Quality level not available',
+          limitReached: true,
+          limitType: qualityLimitCheck.limitType,
+          current: qualityLimitCheck.current,
+          limit: qualityLimitCheck.limit,
+          planName: qualityLimitCheck.planName,
+        }, { status: 403 });
+      }
+    }
+
+    // ✅ CHECK LIMIT: Verify user can generate videos
+    if (type === 'video') {
+      const videoLimitCheck = await PlanLimitsService.checkVideoLimit(user.id);
+      if (!videoLimitCheck.allowed) {
+        logger.warn('❌ Video limit check failed:', videoLimitCheck);
+        return NextResponse.json({
+          success: false,
+          error: videoLimitCheck.error || 'Video generation not available',
+          limitReached: true,
+          limitType: videoLimitCheck.limitType,
+          current: videoLimitCheck.current,
+          limit: videoLimitCheck.limit,
+          planName: videoLimitCheck.planName,
+        }, { status: 403 });
+      }
+    }
+
+    // ✅ CHECK LIMIT: Verify user can create more renders in this project
+    const renderLimitCheck = await PlanLimitsService.checkRenderLimit(user.id, projectId);
+    if (!renderLimitCheck.allowed) {
+      logger.warn('❌ Render limit check failed:', renderLimitCheck);
+      return NextResponse.json({
+        success: false,
+        error: renderLimitCheck.error || 'Render limit reached',
+        limitReached: true,
+        limitType: renderLimitCheck.limitType,
+        current: renderLimitCheck.current,
+        limit: renderLimitCheck.limit,
+        planName: renderLimitCheck.planName,
+      }, { status: 403 });
+    }
+
+    // ✅ CHECK LIMIT: Verify user has enough credits
+    const creditsLimitCheck = await PlanLimitsService.checkCreditsLimit(user.id, creditsCost);
+    if (!creditsLimitCheck.allowed) {
+      logger.warn('❌ Credits limit check failed:', creditsLimitCheck);
+      return NextResponse.json({
+        success: false,
+        error: creditsLimitCheck.error || 'Insufficient credits',
+        limitReached: true,
+        limitType: creditsLimitCheck.limitType,
+        current: creditsLimitCheck.current,
+        limit: creditsLimitCheck.limit,
+        planName: creditsLimitCheck.planName,
       }, { status: 402 });
     }
 

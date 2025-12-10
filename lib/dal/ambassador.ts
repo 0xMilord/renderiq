@@ -290,39 +290,44 @@ export class AmbassadorDAL {
     logger.log('📊 AmbassadorDAL: Tracking referral:', { ambassadorId, referredUserId, referralCode });
 
     try {
-      const [referral] = await db
-        .insert(ambassadorReferrals)
-        .values({
-          ambassadorId,
-          referredUserId,
-          linkId,
-          referralCode: referralCode.toUpperCase(),
-          status: 'pending',
-        })
-        .returning();
-
-      // Update link stats
-      if (linkId) {
-        await db
-          .update(ambassadorLinks)
-          .set({
-            signupCount: sql`${ambassadorLinks.signupCount} + 1`,
-            updatedAt: new Date(),
+      // ✅ OPTIMIZED: Use transaction to ensure atomicity and parallelize independent updates
+      return await db.transaction(async (tx) => {
+        const [referral] = await tx
+          .insert(ambassadorReferrals)
+          .values({
+            ambassadorId,
+            referredUserId,
+            linkId,
+            referralCode: referralCode.toUpperCase(),
+            status: 'pending',
           })
-          .where(eq(ambassadorLinks.id, linkId));
-      }
+          .returning();
 
-      // Update ambassador total referrals
-      await db
-        .update(ambassadors)
-        .set({
-          totalReferrals: sql`${ambassadors.totalReferrals} + 1`,
-          updatedAt: new Date(),
-        })
-        .where(eq(ambassadors.id, ambassadorId));
+        // ✅ OPTIMIZED: Parallelize independent updates
+        await Promise.all([
+          // Update link stats (if linkId provided)
+          linkId
+            ? tx
+                .update(ambassadorLinks)
+                .set({
+                  signupCount: sql`${ambassadorLinks.signupCount} + 1`,
+                  updatedAt: new Date(),
+                })
+                .where(eq(ambassadorLinks.id, linkId))
+            : Promise.resolve(),
+          // Update ambassador total referrals
+          tx
+            .update(ambassadors)
+            .set({
+              totalReferrals: sql`${ambassadors.totalReferrals} + 1`,
+              updatedAt: new Date(),
+            })
+            .where(eq(ambassadors.id, ambassadorId)),
+        ]);
 
-      logger.log('✅ AmbassadorDAL: Referral tracked:', referral.id);
-      return referral;
+        logger.log('✅ AmbassadorDAL: Referral tracked:', referral.id);
+        return referral;
+      });
     } catch (error) {
       logger.error('❌ AmbassadorDAL: Error tracking referral:', error);
       throw error;
@@ -371,35 +376,38 @@ export class AmbassadorDAL {
     logger.log('💳 AmbassadorDAL: Updating referral on subscription:', { referralId, subscriptionId });
 
     try {
-      const updateData: any = {
-        subscriptionId,
-        status: 'active',
-        updatedAt: new Date(),
-      };
+      // ✅ OPTIMIZED: Use transaction to ensure atomicity
+      return await db.transaction(async (tx) => {
+        const updateData: any = {
+          subscriptionId,
+          status: 'active',
+          updatedAt: new Date(),
+        };
 
-      if (firstSubscription) {
-        updateData.firstSubscriptionAt = new Date();
-      }
+        if (firstSubscription) {
+          updateData.firstSubscriptionAt = new Date();
+        }
 
-      const [updated] = await db
-        .update(ambassadorReferrals)
-        .set(updateData)
-        .where(eq(ambassadorReferrals.id, referralId))
-        .returning();
+        const [updated] = await tx
+          .update(ambassadorReferrals)
+          .set(updateData)
+          .where(eq(ambassadorReferrals.id, referralId))
+          .returning();
 
-      // Update link conversion count
-      if (updated.linkId) {
-        await db
-          .update(ambassadorLinks)
-          .set({
-            conversionCount: sql`${ambassadorLinks.conversionCount} + 1`,
-            updatedAt: new Date(),
-          })
-          .where(eq(ambassadorLinks.id, updated.linkId));
-      }
+        // Update link conversion count (if linkId exists)
+        if (updated.linkId) {
+          await tx
+            .update(ambassadorLinks)
+            .set({
+              conversionCount: sql`${ambassadorLinks.conversionCount} + 1`,
+              updatedAt: new Date(),
+            })
+            .where(eq(ambassadorLinks.id, updated.linkId));
+        }
 
-      logger.log('✅ AmbassadorDAL: Referral updated');
-      return updated;
+        logger.log('✅ AmbassadorDAL: Referral updated');
+        return updated;
+      });
     } catch (error) {
       logger.error('❌ AmbassadorDAL: Error updating referral:', error);
       throw error;
@@ -425,45 +433,50 @@ export class AmbassadorDAL {
     logger.log('💰 AmbassadorDAL: Recording commission:', { ambassadorId, referralId, commissionAmount });
 
     try {
-      const [commission] = await db
-        .insert(ambassadorCommissions)
-        .values({
-          ambassadorId,
-          referralId,
-          subscriptionId,
-          paymentOrderId,
-          periodStart,
-          periodEnd,
-          subscriptionAmount: subscriptionAmount.toString(),
-          discountAmount: discountAmount.toString(),
-          commissionPercentage: commissionPercentage.toString(),
-          commissionAmount: commissionAmount.toString(),
-          currency,
-          status: 'pending',
-        })
-        .returning();
+      // ✅ OPTIMIZED: Use transaction to ensure atomicity and parallelize independent updates
+      return await db.transaction(async (tx) => {
+        const [commission] = await tx
+          .insert(ambassadorCommissions)
+          .values({
+            ambassadorId,
+            referralId,
+            subscriptionId,
+            paymentOrderId,
+            periodStart,
+            periodEnd,
+            subscriptionAmount: subscriptionAmount.toString(),
+            discountAmount: discountAmount.toString(),
+            commissionPercentage: commissionPercentage.toString(),
+            commissionAmount: commissionAmount.toString(),
+            currency,
+            status: 'pending',
+          })
+          .returning();
 
-      // Update referral total commission
-      await db
-        .update(ambassadorReferrals)
-        .set({
-          totalCommissionEarned: sql`${ambassadorReferrals.totalCommissionEarned} + ${commissionAmount}`,
-          updatedAt: new Date(),
-        })
-        .where(eq(ambassadorReferrals.id, referralId));
+        // ✅ OPTIMIZED: Parallelize independent updates
+        await Promise.all([
+          // Update referral total commission
+          tx
+            .update(ambassadorReferrals)
+            .set({
+              totalCommissionEarned: sql`${ambassadorReferrals.totalCommissionEarned} + ${commissionAmount}`,
+              updatedAt: new Date(),
+            })
+            .where(eq(ambassadorReferrals.id, referralId)),
+          // Update ambassador earnings
+          tx
+            .update(ambassadors)
+            .set({
+              totalEarnings: sql`${ambassadors.totalEarnings} + ${commissionAmount}`,
+              pendingEarnings: sql`${ambassadors.pendingEarnings} + ${commissionAmount}`,
+              updatedAt: new Date(),
+            })
+            .where(eq(ambassadors.id, ambassadorId)),
+        ]);
 
-      // Update ambassador earnings
-      await db
-        .update(ambassadors)
-        .set({
-          totalEarnings: sql`${ambassadors.totalEarnings} + ${commissionAmount}`,
-          pendingEarnings: sql`${ambassadors.pendingEarnings} + ${commissionAmount}`,
-          updatedAt: new Date(),
-        })
-        .where(eq(ambassadors.id, ambassadorId));
-
-      logger.log('✅ AmbassadorDAL: Commission recorded:', commission.id);
-      return commission;
+        logger.log('✅ AmbassadorDAL: Commission recorded:', commission.id);
+        return commission;
+      });
     } catch (error) {
       logger.error('❌ AmbassadorDAL: Error recording commission:', error);
       throw error;
@@ -589,55 +602,53 @@ export class AmbassadorDAL {
     logger.log('💵 AmbassadorDAL: Updating payout status:', { payoutId, status });
 
     try {
-      const updateData: any = {
-        status,
-        updatedAt: new Date(),
-      };
+      // ✅ OPTIMIZED: Use transaction to ensure atomicity and eliminate redundant query
+      return await db.transaction(async (tx) => {
+        const updateData: any = {
+          status,
+          updatedAt: new Date(),
+        };
 
-      if (status === 'paid') {
-        updateData.paidAt = new Date();
-        updateData.paymentMethod = paymentMethod;
-        updateData.paymentReference = paymentReference;
-        updateData.paidBy = paidBy;
-      }
-
-      const [updated] = await db
-        .update(ambassadorPayouts)
-        .set(updateData)
-        .where(eq(ambassadorPayouts.id, payoutId))
-        .returning();
-
-      // If paid, update commissions and ambassador earnings
-      if (status === 'paid') {
-        await db
-          .update(ambassadorCommissions)
-          .set({
-            status: 'paid',
-            updatedAt: new Date(),
-          })
-          .where(eq(ambassadorCommissions.payoutPeriodId, payoutId));
-
-        // Move from pending to paid earnings
-        const [payout] = await db
-          .select()
-          .from(ambassadorPayouts)
-          .where(eq(ambassadorPayouts.id, payoutId))
-          .limit(1);
-
-        if (payout) {
-          await db
-            .update(ambassadors)
-            .set({
-              pendingEarnings: sql`${ambassadors.pendingEarnings} - ${payout.totalCommissions}`,
-              paidEarnings: sql`${ambassadors.paidEarnings} + ${payout.totalCommissions}`,
-              updatedAt: new Date(),
-            })
-            .where(eq(ambassadors.id, payout.ambassadorId));
+        if (status === 'paid') {
+          updateData.paidAt = new Date();
+          updateData.paymentMethod = paymentMethod;
+          updateData.paymentReference = paymentReference;
+          updateData.paidBy = paidBy;
         }
-      }
 
-      logger.log('✅ AmbassadorDAL: Payout status updated');
-      return updated;
+        const [updated] = await tx
+          .update(ambassadorPayouts)
+          .set(updateData)
+          .where(eq(ambassadorPayouts.id, payoutId))
+          .returning();
+
+        // If paid, update commissions and ambassador earnings
+        if (status === 'paid' && updated) {
+          // ✅ OPTIMIZED: Parallelize independent updates and use updated data instead of re-fetching
+          await Promise.all([
+            // Update commissions status
+            tx
+              .update(ambassadorCommissions)
+              .set({
+                status: 'paid',
+                updatedAt: new Date(),
+              })
+              .where(eq(ambassadorCommissions.payoutPeriodId, payoutId)),
+            // Move from pending to paid earnings (use updated data, no need to re-fetch)
+            tx
+              .update(ambassadors)
+              .set({
+                pendingEarnings: sql`${ambassadors.pendingEarnings} - ${updated.totalCommissions}`,
+                paidEarnings: sql`${ambassadors.paidEarnings} + ${updated.totalCommissions}`,
+                updatedAt: new Date(),
+              })
+              .where(eq(ambassadors.id, updated.ambassadorId)),
+          ]);
+        }
+
+        logger.log('✅ AmbassadorDAL: Payout status updated');
+        return updated;
+      });
     } catch (error) {
       logger.error('❌ AmbassadorDAL: Error updating payout status:', error);
       throw error;

@@ -21,7 +21,7 @@ interface DeleteProjectDialogProps {
   project: Project;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (projectId: string) => Promise<void>;
+  onConfirm: () => Promise<void>;
 }
 
 export function DeleteProjectDialog({ project, open, onOpenChange, onConfirm }: DeleteProjectDialogProps) {
@@ -71,7 +71,7 @@ export function DeleteProjectDialog({ project, open, onOpenChange, onConfirm }: 
         
         <div className="py-4">
           <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground ml-2">
-            <li>All render chains</li>
+            <li>All chats</li>
             <li>All associated renders</li>
             <li>All project data and metadata</li>
           </ul>

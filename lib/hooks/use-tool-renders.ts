@@ -1,22 +1,40 @@
 import { useMemo } from 'react';
-import { useRenders } from './use-renders';
+import { useToolExecutions } from './use-tools';
 import { ToolConfig } from '@/lib/tools/registry';
 
-export function useToolRenders(tool: ToolConfig, projectId: string | null) {
-  const { renders, loading, refetch } = useRenders(projectId);
+/**
+ * ✅ UPDATED: Fetch tool renders from tool_executions instead of filtering renders
+ * This uses the new dedicated infrastructure for tools
+ */
+export function useToolRenders(tool: ToolConfig, projectId: string | null, includeProcessing = false) {
+  const { executions, loading, refetch } = useToolExecutions(
+    projectId || undefined,
+    tool.id,
+    20
+  );
   
+  // Extract renders from tool executions
   const toolRenders = useMemo(() => {
-    return renders
-      .filter(render => {
-        // Check if render was created with this tool via settings.imageType
-        if (render.settings && typeof render.settings === 'object' && 'imageType' in render.settings) {
-          return (render.settings as { imageType?: string }).imageType === tool.id;
+    return executions
+      .filter(execution => {
+        // Show completed executions with output, or processing/pending if includeProcessing is true
+        if (includeProcessing) {
+          return execution.status === 'completed' || execution.status === 'processing' || execution.status === 'pending';
         }
-        return false;
+        return execution.status === 'completed' && (execution.outputUrl || execution.outputRenderId);
       })
-      .filter(render => render.status === 'completed' && render.outputUrl)
+      .map(execution => ({
+        id: execution.outputRenderId || execution.id, // Use render ID if available, otherwise execution ID
+        renderId: execution.outputRenderId || execution.id,
+        outputUrl: execution.outputUrl || undefined,
+        status: execution.status,
+        createdAt: execution.createdAt,
+        // Include execution metadata
+        executionId: execution.id,
+        toolId: execution.toolId,
+      }))
       .slice(0, 20); // Limit to 20 most recent
-  }, [renders, tool.id]);
+  }, [executions, includeProcessing]);
 
   return {
     toolRenders,
