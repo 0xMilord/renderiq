@@ -48,6 +48,19 @@ Sentry.init({
     Sentry.consoleLoggingIntegration({
       levels: ['log', 'warn', 'error'], // Only send log, warn, and error (not debug/info to reduce noise)
     }),
+    // ✅ AI Monitoring: Google Gen AI integration for tracking AI operations
+    // Automatically instruments @google/genai SDK to capture:
+    // - Token usage, costs, and latency for all LLM calls
+    // - Agent conversations, tool usage, and decision-making processes
+    // - Detailed traces for debugging failed requests and optimizing prompts
+    // Note: Requires @sentry/nextjs v8.0.0+ for AI monitoring support
+    // If integration is not available, check Sentry version and update if needed
+    ...(typeof Sentry.googleGenAIIntegration === 'function' ? [
+      Sentry.googleGenAIIntegration({
+        recordInputs: true,  // Record prompt inputs for debugging
+        recordOutputs: true, // Record AI responses for analysis
+      })
+    ] : []),
   ],
   
   // Release Health Configuration

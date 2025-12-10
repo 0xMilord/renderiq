@@ -374,7 +374,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: deductResult.error || 'Failed to deduct credits' }, { status: 402 });
     }
 
-    // Verify project exists and belongs to user
+    // ✅ OPTIMIZED: Verify project exists and belongs to user
     const project = await ProjectsDAL.getById(projectId);
     if (!project || project.userId !== user.id) {
       logger.warn('❌ Project not found or access denied');
@@ -395,8 +395,11 @@ export async function POST(request: NextRequest) {
       logger.log('🔗 Using chain from request:', finalChainId);
     }
 
-    // ✅ CENTRALIZED: Get chain position using centralized method
-    const chainPosition = await RenderChainService.getNextChainPosition(finalChainId);
+    // ✅ OPTIMIZED: Parallelize chain position and project rules fetching (they're independent)
+    const [chainPosition, activeRules] = await Promise.all([
+      RenderChainService.getNextChainPosition(finalChainId),
+      finalChainId ? ProjectRulesDAL.getActiveRulesByChainId(finalChainId).catch(() => []) : Promise.resolve([])
+    ]);
 
     logger.log('📍 Chain position:', chainPosition);
 
@@ -420,49 +423,70 @@ export async function POST(request: NextRequest) {
           if (mostRecentRender) {
             validatedReferenceRenderId = mostRecentRender.id;
             logger.log('✅ Using most recent completed render as reference:', validatedReferenceRenderId);
-            // Fetch the reference render's image
+            // Fetch the reference render's image with timeout
             if (mostRecentRender.outputUrl) {
               try {
                 logger.log('📥 Fetching reference render image:', mostRecentRender.outputUrl);
                 let imageUrl = mostRecentRender.outputUrl;
-                let imageResponse = await fetch(imageUrl);
                 
-                // Check if response is valid (not an error XML)
-                const contentType = imageResponse.headers.get('content-type') || '';
-                const isErrorResponse = !imageResponse.ok || 
-                                       contentType.includes('xml') || 
-                                       contentType.includes('text/html') ||
-                                       (await imageResponse.clone().text()).trim().startsWith('<');
+                // ✅ OPTIMIZED: Add timeout to prevent blocking (5 seconds max)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
                 
-                // If CDN fails, try direct GCS fallback
-                if (isErrorResponse && imageUrl.includes('cdn.renderiq.io')) {
-                  logger.log('⚠️ CDN fetch failed, trying direct GCS fallback...');
-                  // Convert CDN URL to direct GCS URL
-                  imageUrl = imageUrl.replace('cdn.renderiq.io', 'storage.googleapis.com');
-                  imageResponse = await fetch(imageUrl);
-                }
-                
-                if (!imageResponse.ok) {
-                  throw new Error(`HTTP ${imageResponse.status}: ${imageResponse.statusText}`);
-                }
-                
-                const imageBuffer = await imageResponse.arrayBuffer();
-                const imageSize = imageBuffer.byteLength;
-                
-                // Validate it's actually an image (not error XML - should be > 1KB for real images)
-                if (imageSize < 1024) {
-                  const text = new TextDecoder().decode(imageBuffer);
-                  if (text.trim().startsWith('<') || text.includes('<Error>')) {
-                    throw new Error('Received error XML instead of image');
+                try {
+                  let imageResponse = await fetch(imageUrl, { signal: controller.signal });
+                  
+                  // Check if response is valid (not an error XML)
+                  const contentType = imageResponse.headers.get('content-type') || '';
+                  const isErrorResponse = !imageResponse.ok || 
+                                         contentType.includes('xml') || 
+                                         contentType.includes('text/html') ||
+                                         (await imageResponse.clone().text()).trim().startsWith('<');
+                  
+                  // If CDN fails, try direct GCS fallback (with timeout)
+                  if (isErrorResponse && imageUrl.includes('cdn.renderiq.io')) {
+                    logger.log('⚠️ CDN fetch failed, trying direct GCS fallback...');
+                    imageUrl = imageUrl.replace('cdn.renderiq.io', 'storage.googleapis.com');
+                    clearTimeout(timeoutId);
+                    const fallbackController = new AbortController();
+                    const fallbackTimeout = setTimeout(() => fallbackController.abort(), 5000);
+                    try {
+                      imageResponse = await fetch(imageUrl, { signal: fallbackController.signal });
+                    } finally {
+                      clearTimeout(fallbackTimeout);
+                    }
                   }
+                  
+                  if (!imageResponse.ok) {
+                    throw new Error(`HTTP ${imageResponse.status}: ${imageResponse.statusText}`);
+                  }
+                  
+                  const imageBuffer = await imageResponse.arrayBuffer();
+                  const imageSize = imageBuffer.byteLength;
+                  
+                  // Validate it's actually an image (not error XML - should be > 1KB for real images)
+                  if (imageSize < 1024) {
+                    const text = new TextDecoder().decode(imageBuffer);
+                    if (text.trim().startsWith('<') || text.includes('<Error>')) {
+                      throw new Error('Received error XML instead of image');
+                    }
+                  }
+                  
+                  referenceRenderImageData = Buffer.from(imageBuffer).toString('base64');
+                  referenceRenderImageType = mostRecentRender.outputUrl.includes('.png') ? 'image/png' : 
+                                            mostRecentRender.outputUrl.includes('.jpg') || mostRecentRender.outputUrl.includes('.jpeg') ? 'image/jpeg' : 
+                                            'image/png';
+                  referenceRenderPrompt = mostRecentRender.prompt;
+                  logger.log('✅ Reference render image fetched, size:', imageSize, 'bytes, from:', imageUrl.includes('cdn.renderiq.io') ? 'CDN' : 'Direct GCS');
+                } catch (fetchError: any) {
+                  if (fetchError.name === 'AbortError') {
+                    logger.warn('⚠️ Image fetch timeout (5s), continuing without reference image');
+                  } else {
+                    throw fetchError;
+                  }
+                } finally {
+                  clearTimeout(timeoutId);
                 }
-                
-                referenceRenderImageData = Buffer.from(imageBuffer).toString('base64');
-                referenceRenderImageType = mostRecentRender.outputUrl.includes('.png') ? 'image/png' : 
-                                          mostRecentRender.outputUrl.includes('.jpg') || mostRecentRender.outputUrl.includes('.jpeg') ? 'image/jpeg' : 
-                                          'image/png';
-                referenceRenderPrompt = mostRecentRender.prompt;
-                logger.log('✅ Reference render image fetched, size:', imageSize, 'bytes, from:', imageUrl.includes('cdn.renderiq.io') ? 'CDN' : 'Direct GCS');
               } catch (error) {
                 logger.error('❌ Failed to fetch reference render image:', error);
                 logger.log('⚠️ Continuing without reference image - generation may not use reference');
@@ -479,49 +503,70 @@ export async function POST(request: NextRequest) {
           if (referenceRender && referenceRender.status === 'completed') {
             validatedReferenceRenderId = referenceRenderId;
             logger.log('✅ Reference render validated:', referenceRenderId);
-            // Fetch the reference render's image
-            if (referenceRender.outputUrl) {
+                // Fetch the reference render's image with timeout
+                if (referenceRender.outputUrl) {
               try {
                 logger.log('📥 Fetching reference render image:', referenceRender.outputUrl);
                 let imageUrl = referenceRender.outputUrl;
-                let imageResponse = await fetch(imageUrl);
                 
-                // Check if response is valid (not an error XML)
-                const contentType = imageResponse.headers.get('content-type') || '';
-                const isErrorResponse = !imageResponse.ok || 
-                                       contentType.includes('xml') || 
-                                       contentType.includes('text/html') ||
-                                       (await imageResponse.clone().text()).trim().startsWith('<');
+                // ✅ OPTIMIZED: Add timeout to prevent blocking (5 seconds max)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
                 
-                // If CDN fails, try direct GCS fallback
-                if (isErrorResponse && imageUrl.includes('cdn.renderiq.io')) {
-                  logger.log('⚠️ CDN fetch failed, trying direct GCS fallback...');
-                  // Convert CDN URL to direct GCS URL
-                  imageUrl = imageUrl.replace('cdn.renderiq.io', 'storage.googleapis.com');
-                  imageResponse = await fetch(imageUrl);
-                }
-                
-                if (!imageResponse.ok) {
-                  throw new Error(`HTTP ${imageResponse.status}: ${imageResponse.statusText}`);
-                }
-                
-                const imageBuffer = await imageResponse.arrayBuffer();
-                const imageSize = imageBuffer.byteLength;
-                
-                // Validate it's actually an image (not error XML - should be > 1KB for real images)
-                if (imageSize < 1024) {
-                  const text = new TextDecoder().decode(imageBuffer);
-                  if (text.trim().startsWith('<') || text.includes('<Error>')) {
-                    throw new Error('Received error XML instead of image');
+                try {
+                  let imageResponse = await fetch(imageUrl, { signal: controller.signal });
+                  
+                  // Check if response is valid (not an error XML)
+                  const contentType = imageResponse.headers.get('content-type') || '';
+                  const isErrorResponse = !imageResponse.ok || 
+                                         contentType.includes('xml') || 
+                                         contentType.includes('text/html') ||
+                                         (await imageResponse.clone().text()).trim().startsWith('<');
+                  
+                  // If CDN fails, try direct GCS fallback (with timeout)
+                  if (isErrorResponse && imageUrl.includes('cdn.renderiq.io')) {
+                    logger.log('⚠️ CDN fetch failed, trying direct GCS fallback...');
+                    imageUrl = imageUrl.replace('cdn.renderiq.io', 'storage.googleapis.com');
+                    clearTimeout(timeoutId);
+                    const fallbackController = new AbortController();
+                    const fallbackTimeout = setTimeout(() => fallbackController.abort(), 5000);
+                    try {
+                      imageResponse = await fetch(imageUrl, { signal: fallbackController.signal });
+                    } finally {
+                      clearTimeout(fallbackTimeout);
+                    }
                   }
+                  
+                  if (!imageResponse.ok) {
+                    throw new Error(`HTTP ${imageResponse.status}: ${imageResponse.statusText}`);
+                  }
+                  
+                  const imageBuffer = await imageResponse.arrayBuffer();
+                  const imageSize = imageBuffer.byteLength;
+                  
+                  // Validate it's actually an image (not error XML - should be > 1KB for real images)
+                  if (imageSize < 1024) {
+                    const text = new TextDecoder().decode(imageBuffer);
+                    if (text.trim().startsWith('<') || text.includes('<Error>')) {
+                      throw new Error('Received error XML instead of image');
+                    }
+                  }
+                  
+                  referenceRenderImageData = Buffer.from(imageBuffer).toString('base64');
+                  referenceRenderImageType = referenceRender.outputUrl.includes('.png') ? 'image/png' : 
+                                            referenceRender.outputUrl.includes('.jpg') || referenceRender.outputUrl.includes('.jpeg') ? 'image/jpeg' : 
+                                            'image/png';
+                  referenceRenderPrompt = referenceRender.prompt;
+                  logger.log('✅ Reference render image fetched, size:', imageSize, 'bytes, from:', imageUrl.includes('cdn.renderiq.io') ? 'CDN' : 'Direct GCS');
+                } catch (fetchError: any) {
+                  if (fetchError.name === 'AbortError') {
+                    logger.warn('⚠️ Image fetch timeout (5s), continuing without reference image');
+                  } else {
+                    throw fetchError;
+                  }
+                } finally {
+                  clearTimeout(timeoutId);
                 }
-                
-                referenceRenderImageData = Buffer.from(imageBuffer).toString('base64');
-                referenceRenderImageType = referenceRender.outputUrl.includes('.png') ? 'image/png' : 
-                                          referenceRender.outputUrl.includes('.jpg') || referenceRender.outputUrl.includes('.jpeg') ? 'image/jpeg' : 
-                                          'image/png';
-                referenceRenderPrompt = referenceRender.prompt;
-                logger.log('✅ Reference render image fetched, size:', imageSize, 'bytes, from:', imageUrl.includes('cdn.renderiq.io') ? 'CDN' : 'Direct GCS');
               } catch (error) {
                 logger.error('❌ Failed to fetch reference render image:', error);
                 logger.log('⚠️ Continuing without reference image - generation may not use reference');
@@ -536,23 +581,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Fetch and append project rules to prompt if chainId is provided
+    // ✅ OPTIMIZED: Project rules already fetched in parallel above, append to prompt if available
     let finalPrompt = prompt;
-    if (chainId) {
-      try {
-        const activeRules = await ProjectRulesDAL.getActiveRulesByChainId(chainId);
-        if (activeRules.length > 0) {
-          const rulesText = activeRules.map(r => r.rule).join('. ');
-          finalPrompt = `${prompt}. Project rules: ${rulesText}`;
-          logger.log('📋 Project rules appended to prompt:', {
-            rulesCount: activeRules.length,
-            promptLength: finalPrompt.length
-          });
-        }
-      } catch (error) {
-        logger.warn('⚠️ Failed to fetch project rules, continuing without them:', error);
-        // Continue without rules rather than failing the request
-      }
+    if (activeRules.length > 0) {
+      const rulesText = activeRules.map(r => r.rule).join('. ');
+      finalPrompt = `${prompt}. Project rules: ${rulesText}`;
+      logger.log('📋 Project rules appended to prompt:', {
+        rulesCount: activeRules.length,
+        promptLength: finalPrompt.length
+      });
     }
 
     // Upload original image if provided
