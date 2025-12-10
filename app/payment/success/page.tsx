@@ -56,11 +56,10 @@ function PaymentSuccessContent() {
       if (verifyResult.success && (verifyResult.data?.alreadyActive || verifyResult.data?.activated)) {
         // Try to get payment order ID from subscription
         if (razorpaySubscriptionId) {
-          // ✅ OPTIMIZED: Use optimized endpoint instead of fetching entire history
-          const paymentResponse = await fetch(`/api/payments/by-subscription/${razorpaySubscriptionId}`);
-          if (paymentResponse.ok) {
-            const paymentData = await paymentResponse.json();
-            if (paymentData.success && paymentData.data?.id) {
+          // ✅ MIGRATED: Use server action instead of API route
+          const { getPaymentOrderBySubscriptionAction } = await import('@/lib/actions/payment.actions');
+          const paymentData = await getPaymentOrderBySubscriptionAction(razorpaySubscriptionId);
+          if (paymentData.success && paymentData.data?.id) {
               const newUrl = new URL(window.location.href);
               newUrl.searchParams.set('payment_order_id', paymentData.data.id);
               newUrl.searchParams.delete('verification');
@@ -87,14 +86,13 @@ function PaymentSuccessContent() {
     try {
       setLoading(true);
 
-      // ✅ OPTIMIZED: Fetch payment data first (required), receipt can load in background
+      // ✅ MIGRATED: Use server action instead of API route
       if (paymentOrderId) {
         // We have payment order ID - fetch payment first (required), receipt in parallel (optional)
-        const paymentResponse = await fetch(`/api/payments/${paymentOrderId}`);
+        const { getPaymentOrderAction, getReceiptAction } = await import('@/lib/actions/payment.actions');
+        const paymentData = await getPaymentOrderAction(paymentOrderId);
         
-        if (paymentResponse.ok) {
-          const paymentData = await paymentResponse.json();
-          if (paymentData.success && paymentData.data) {
+        if (paymentData.success && paymentData.data) {
             setPaymentData(paymentData.data);
             setLoading(false); // Show page immediately with payment data
           } else {
@@ -108,9 +106,8 @@ function PaymentSuccessContent() {
           setLoading(false);
         }
 
-        // Fetch receipt in background (non-blocking)
-        fetch(`/api/payments/receipt/${paymentOrderId}`)
-          .then(res => res.ok ? res.json() : null)
+        // ✅ MIGRATED: Fetch receipt in background using server action (non-blocking)
+        getReceiptAction(paymentOrderId)
           .then(receiptData => {
             if (receiptData?.success && receiptData.data?.receiptUrl) {
               setReceiptUrl(receiptData.data.receiptUrl);
@@ -118,12 +115,11 @@ function PaymentSuccessContent() {
           })
           .catch(err => console.error('Error fetching receipt:', err));
       } else if (razorpaySubscriptionId) {
-        // We have subscription ID - use optimized endpoint
-        const paymentResponse = await fetch(`/api/payments/by-subscription/${razorpaySubscriptionId}`);
+        // ✅ MIGRATED: Use server action instead of API route
+        const { getPaymentOrderBySubscriptionAction, getReceiptAction } = await import('@/lib/actions/payment.actions');
+        const paymentData = await getPaymentOrderBySubscriptionAction(razorpaySubscriptionId);
 
-        if (paymentResponse.ok) {
-          const paymentData = await paymentResponse.json();
-          if (paymentData.success && paymentData.data) {
+        if (paymentData.success && paymentData.data) {
             const payment = paymentData.data;
             setPaymentData(payment);
             
@@ -136,9 +132,8 @@ function PaymentSuccessContent() {
               
               setLoading(false); // Show page immediately with payment data
               
-              // Fetch receipt in background (non-blocking)
-              fetch(`/api/payments/receipt/${payment.id}`)
-                .then(res => res.ok ? res.json() : null)
+              // ✅ MIGRATED: Fetch receipt in background using server action (non-blocking)
+              getReceiptAction(payment.id)
                 .then(receiptData => {
                   if (receiptData?.success && receiptData.data?.receiptUrl) {
                     setReceiptUrl(receiptData.data.receiptUrl);
@@ -148,11 +143,10 @@ function PaymentSuccessContent() {
             }
           }
         } else {
-          // Fallback: try history endpoint (less efficient but works)
-          const historyResponse = await fetch('/api/payments/history?limit=10');
-          if (historyResponse.ok) {
-            const historyData = await historyResponse.json();
-            if (historyData.success && historyData.data?.payments) {
+          // ✅ MIGRATED: Fallback: try history using server action (less efficient but works)
+          const { getPaymentHistoryAction, getReceiptAction } = await import('@/lib/actions/payment.actions');
+          const historyData = await getPaymentHistoryAction({ limit: 10 });
+          if (historyData.success && historyData.data?.payments) {
               const payment = historyData.data.payments.find((p: any) => 
                 p.razorpaySubscriptionId === razorpaySubscriptionId || 
                 (p.type === 'subscription' && p.status === 'completed')
@@ -167,9 +161,8 @@ function PaymentSuccessContent() {
                   
                   setLoading(false); // Show page immediately with payment data
                   
-                  // Fetch receipt in background (non-blocking)
-                  fetch(`/api/payments/receipt/${payment.id}`)
-                    .then(res => res.ok ? res.json() : null)
+                  // ✅ MIGRATED: Fetch receipt in background using server action (non-blocking)
+                  getReceiptAction(payment.id)
                     .then(receiptData => {
                       if (receiptData?.success && receiptData.data?.receiptUrl) {
                         setReceiptUrl(receiptData.data.receiptUrl);

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { GalleryImageCard } from '@/components/gallery/gallery-image-card';
-import { likeGalleryItem, viewGalleryItem } from '@/lib/actions/gallery.actions';
+import { likeGalleryItem, viewGalleryItem, getUserLikedItems } from '@/lib/actions/gallery.actions';
 import { Heart, Loader2 } from 'lucide-react';
 import type { GalleryItemWithDetails } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -38,13 +38,12 @@ export default function LikesPage() {
         return;
       }
 
-      // Fetch liked items
+      // ✅ MIGRATED: Use server action instead of API route
       const fetchLikedItems = async () => {
         try {
-          const response = await fetch(`/api/gallery/liked?userId=${user.id}`);
-          if (response.ok) {
-            const data = await response.json();
-            setLikedItems(data.items || []);
+          const result = await getUserLikedItems(100, 0);
+          if (result.success && result.data) {
+            setLikedItems(result.data);
           }
         } catch (error) {
           console.error('Error fetching liked items:', error);

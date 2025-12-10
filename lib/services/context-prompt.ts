@@ -1,7 +1,9 @@
 import { RendersDAL } from '@/lib/dal/renders';
-import { Render } from '@/lib/db/schema';
+import { Render, renders } from '@/lib/db/schema';
 import { ChainContext, EnhancedPrompt, PromptFeedback } from '@/lib/types/render-chain';
 import { logger } from '@/lib/utils/logger';
+import { db } from '@/lib/db';
+import { eq, and, sql, asc } from 'drizzle-orm';
 
 export class ContextPromptService {
   /**
@@ -86,13 +88,19 @@ export class ContextPromptService {
 
   /**
    * Extract successful elements from renders in a chain
+   * ✅ OPTIMIZED: Filter at database level instead of client-side
    */
   static async extractSuccessfulElements(chainId: string): Promise<string[]> {
-    const renders = await RendersDAL.getByChainId(chainId);
-    const successfulElements: string[] = [];
+    // ✅ OPTIMIZED: Filter at database level (reduces data transfer)
+    const completedRenders = await db
+      .select()
+      .from(renders)
+      .where(and(
+        eq(renders.chainId, chainId),
+        eq(renders.status, 'completed')
+      ));
 
-    // Get completed renders only
-    const completedRenders = renders.filter(r => r.status === 'completed');
+    const successfulElements: string[] = [];
 
     for (const render of completedRenders) {
       if (render.contextData?.successfulElements) {
@@ -106,18 +114,19 @@ export class ContextPromptService {
 
   /**
    * Build chain evolution context string
+   * ✅ OPTIMIZED: Filter and sort at database level
    */
   static async buildChainContext(chainId: string): Promise<string> {
-    const renders = await RendersDAL.getByChainId(chainId);
+    // ✅ OPTIMIZED: Filter and sort at database level (reduces data transfer and processing)
+    const completedRenders = await db
+      .select()
+      .from(renders)
+      .where(and(
+        eq(renders.chainId, chainId),
+        eq(renders.status, 'completed')
+      ))
+      .orderBy(asc(renders.chainPosition));
     
-    if (renders.length === 0) {
-      return '';
-    }
-
-    const completedRenders = renders
-      .filter(r => r.status === 'completed')
-      .sort((a, b) => (a.chainPosition || 0) - (b.chainPosition || 0));
-
     if (completedRenders.length === 0) {
       return '';
     }
@@ -160,39 +169,55 @@ export class ContextPromptService {
 
   /**
    * Generate contextual suggestions for next iteration
+   * ✅ OPTIMIZED: Use SQL aggregation to reduce data transfer
    */
   static async generateIterationSuggestions(
     chainId: string,
     _currentPrompt: string
   ): Promise<string[]> {
-    const renders = await RendersDAL.getByChainId(chainId);
     const suggestions: string[] = [];
 
-    // Analyze previous renders
-    const completedRenders = renders.filter(r => r.status === 'completed');
-    const failedRenders = renders.filter(r => r.status === 'failed');
+    // ✅ OPTIMIZED: Use SQL aggregation to get counts without fetching all renders
+    const [stats] = await db
+      .select({
+        completed: sql<number>`COUNT(*) FILTER (WHERE ${renders.status} = 'completed')::int`,
+        failed: sql<number>`COUNT(*) FILTER (WHERE ${renders.status} = 'failed')::int`,
+        total: sql<number>`COUNT(*)::int`,
+      })
+      .from(renders)
+      .where(eq(renders.chainId, chainId));
 
     // Suggest based on success rate
-    if (completedRenders.length > 0) {
+    if (stats.completed > 0) {
       suggestions.push('Continue refining successful elements');
     }
 
     // Suggest based on failures
-    if (failedRenders.length > 0) {
+    if (stats.failed > 0) {
       suggestions.push('Consider alternative approaches to avoid previous failures');
     }
 
     // Suggest based on chain length
-    if (renders.length > 5) {
+    if (stats.total > 5) {
       suggestions.push('Consider branching into a new direction');
     }
 
-    // Analyze prompt patterns
-    const prompts = completedRenders.map(r => r.prompt);
-    const commonWords = this.extractCommonWords(prompts);
-    
-    if (commonWords.length > 0) {
-      suggestions.push(`Build upon recurring themes: ${commonWords.slice(0, 3).join(', ')}`);
+    // Only fetch completed renders if needed for prompt analysis
+    if (stats.completed > 0) {
+      const completedRenders = await db
+        .select({ prompt: renders.prompt })
+        .from(renders)
+        .where(and(
+          eq(renders.chainId, chainId),
+          eq(renders.status, 'completed')
+        ));
+
+      const prompts = completedRenders.map(r => r.prompt);
+      const commonWords = this.extractCommonWords(prompts);
+      
+      if (commonWords.length > 0) {
+        suggestions.push(`Build upon recurring themes: ${commonWords.slice(0, 3).join(', ')}`);
+      }
     }
 
     return suggestions;

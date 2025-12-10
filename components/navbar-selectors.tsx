@@ -85,12 +85,14 @@ export function NavbarSelectors() {
     return null;
   }, [params]);
   
-  // Set selected project when current project changes
+  // ✅ FIXED: Set selected project when current project changes
+  // Only update if the project ID actually changed to prevent unnecessary updates
   useEffect(() => {
-    if (currentProject) {
+    if (currentProject && currentProject.id !== selectedProjectId) {
       setSelectedProjectId(currentProject.id);
     }
-  }, [currentProject]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentProject?.id]);
   
   // Handle project selection - navigate to project page
   const handleProjectChange = (projectId: string) => {

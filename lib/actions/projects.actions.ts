@@ -626,6 +626,29 @@ export async function getChainsForProjects(projectIds: string[]) {
   }
 }
 
+/**
+ * ✅ NEW: Get all user chains with renders (equivalent to /api/projects/chains)
+ * This replaces the API route usage in dashboard layout
+ */
+export async function getUserChainsWithRenders() {
+  try {
+    const { user } = await getCachedUser();
+    
+    if (!user) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    const chains = await RenderChainsDAL.getUserChainsWithRenders(user.id);
+    return { success: true, data: chains };
+  } catch (error) {
+    logger.error('Error in getUserChainsWithRenders:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get render chains',
+    };
+  }
+}
+
 export async function addRenderToChain(
   chainId: string,
   renderId: string,
@@ -668,14 +691,14 @@ export async function selectRenderVersion(renderId: string) {
     
     const userId = user.id;
 
-    // Verify render ownership
-    const render = await RendersDAL.getById(renderId);
-    if (!render || render.userId !== userId) {
+    // ✅ OPTIMIZED: Use getWithContext directly (it already fetches the render)
+    // Then verify ownership from the result to avoid duplicate query
+    const renderWithContext = await RendersDAL.getWithContext(renderId);
+    
+    if (!renderWithContext || renderWithContext.userId !== userId) {
       return { success: false, error: 'Access denied' };
     }
 
-    // Return the render with context
-    const renderWithContext = await RendersDAL.getWithContext(renderId);
     return { success: true, data: renderWithContext };
   } catch (error) {
     logger.error('Error in selectRenderVersion:', error);

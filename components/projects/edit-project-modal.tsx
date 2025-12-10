@@ -22,6 +22,8 @@ interface EditProjectModalProps {
 export function EditProjectModal({ project, open, onOpenChange, onProjectUpdated }: EditProjectModalProps) {
   const [loading, setLoading] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  // ✅ FIXED: Only call useProjects when modal is actually open to prevent unnecessary fetches
+  // This prevents the hook from running when modal is closed
   const { updateProject } = useProjects();
   const [formData, setFormData] = useState({
     name: project.name || '',

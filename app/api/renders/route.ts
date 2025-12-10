@@ -33,7 +33,8 @@ const aiService = AISDKService.getInstance();
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes for video generation
 
-export async function POST(request: NextRequest) {
+// ✅ FIXED: Top-level error handler wrapper to ensure we always return a response
+async function handleRenderRequest(request: NextRequest) {
   let creditsCost: number | undefined;
   let user: { id: string } | null = null;
   const startTime = Date.now();
@@ -61,6 +62,8 @@ export async function POST(request: NextRequest) {
 
     logger.log('🚀 Starting render generation API call');
     
+    // ✅ FIXED: Wrap auth and formData parsing in try-catch to handle early errors
+    try {
     const { user: authUser } = await getCachedUser();
     
     if (!authUser) {
@@ -72,8 +75,25 @@ export async function POST(request: NextRequest) {
     
     // Redact user ID in logs
     logger.log('✅ User authenticated');
+    } catch (authError) {
+      logger.error('❌ Auth error:', authError);
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Authentication failed' 
+      }, { status: 401 });
+    }
 
-    const formData = await request.formData();
+    // ✅ FIXED: Wrap formData parsing in try-catch
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+    } catch (formDataError) {
+      logger.error('❌ FormData parsing error:', formDataError);
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Invalid request format' 
+      }, { status: 400 });
+    }
     
     // Validate and sanitize all inputs
     const promptRaw = formData.get('prompt') as string;
@@ -99,6 +119,8 @@ export async function POST(request: NextRequest) {
     
     const uploadedImageData = formData.get('uploadedImageData') as string | null;
     const uploadedImageType = formData.get('uploadedImageType') as string | null;
+    // ✅ FIX CORS: Support uploadedImageUrl for gallery images (fetched server-side to avoid CORS)
+    const uploadedImageUrlParam = formData.get('uploadedImageUrl') as string | null;
     
     // Validate image type if provided
     if (uploadedImageType && !isValidImageType(uploadedImageType)) {
@@ -370,8 +392,9 @@ export async function POST(request: NextRequest) {
     );
 
     if (!deductResult.success) {
-      logger.warn('❌ Credit deduction failed after balance check:', deductResult.error);
-      return NextResponse.json({ success: false, error: deductResult.error || 'Failed to deduct credits' }, { status: 402 });
+      const errorMessage = 'error' in deductResult ? deductResult.error : 'Failed to deduct credits';
+      logger.warn('❌ Credit deduction failed after balance check:', errorMessage);
+      return NextResponse.json({ success: false, error: errorMessage }, { status: 402 });
     }
 
     // ✅ OPTIMIZED: Verify project exists and belongs to user
@@ -597,11 +620,38 @@ export async function POST(request: NextRequest) {
     let uploadedImageKey: string | undefined = undefined;
     let uploadedImageId: string | undefined = undefined;
 
-    if (uploadedImageData && uploadedImageType) {
+    // ✅ FIX CORS: If uploadedImageUrl is provided (from gallery), fetch it server-side and convert to base64
+    let finalUploadedImageData = uploadedImageData;
+    let finalUploadedImageType = uploadedImageType;
+    
+    if (uploadedImageUrlParam && !uploadedImageData) {
+      logger.log('📥 Fetching image from URL (server-side to avoid CORS):', uploadedImageUrlParam);
+      try {
+        const imageResponse = await fetch(uploadedImageUrlParam);
+        if (!imageResponse.ok) {
+          throw new Error(`Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`);
+        }
+        const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+        const contentType = imageResponse.headers.get('content-type') || 'image/png';
+        finalUploadedImageData = imageBuffer.toString('base64');
+        finalUploadedImageType = contentType;
+        logger.log('✅ Image fetched and converted to base64:', {
+          size: imageBuffer.length,
+          type: contentType
+        });
+      } catch (error) {
+        logger.error('❌ Failed to fetch image from URL:', error);
+        // Continue without uploaded image rather than failing the entire request
+        finalUploadedImageData = null;
+        finalUploadedImageType = null;
+      }
+    }
+
+    if (finalUploadedImageData && finalUploadedImageType) {
       logger.log('📤 Uploading original image to storage');
       try {
-        const buffer = Buffer.from(uploadedImageData, 'base64');
-        const uploadedImageFile = new File([buffer], `upload_${Date.now()}.${uploadedImageType.split('/')[1] || 'png'}`, { type: uploadedImageType });
+        const buffer = Buffer.from(finalUploadedImageData, 'base64');
+        const uploadedImageFile = new File([buffer], `upload_${Date.now()}.${finalUploadedImageType.split('/')[1] || 'png'}`, { type: finalUploadedImageType });
         
         const uploadResult = await StorageService.uploadFile(
           uploadedImageFile,
@@ -620,6 +670,11 @@ export async function POST(request: NextRequest) {
         logger.error('❌ Failed to upload original image:', error);
         // Continue without uploaded image rather than failing the entire request
       }
+    } else if (uploadedImageUrlParam) {
+      // If URL was provided but we couldn't fetch it, use the URL directly
+      // This handles cases where the image is already in our storage
+      logger.log('📎 Using provided image URL directly:', uploadedImageUrlParam);
+      uploadedImageUrl = uploadedImageUrlParam;
     }
 
     // Handle batch requests - process multiple renders
@@ -867,7 +922,15 @@ export async function POST(request: NextRequest) {
 
     try {
       // Generate image/video
-      logger.log('🎨 Starting AI generation');
+      logger.log('🎨 Starting AI generation', {
+        type,
+        renderId: render.id,
+        prompt: prompt.substring(0, 50) + '...',
+        aspectRatio,
+        quality,
+        hasUploadedImage: !!uploadedImageData,
+        model: model || 'default'
+      });
       
       let result;
       
@@ -945,7 +1008,16 @@ export async function POST(request: NextRequest) {
         
       } else {
         // Image generation
-        logger.log('🎨 Using AISDKService for image generation');
+        logger.log('🎨 Using AISDKService for image generation', {
+          prompt: finalPrompt.substring(0, 100) + '...',
+          aspectRatio,
+          quality,
+          hasUploadedImage: !!uploadedImageData,
+          hasReferenceImage: !!referenceRenderImageData,
+          hasStyleTransfer: !!styleTransferImageData,
+          model: model || 'default',
+          imageSize: quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K'
+        });
         
         // Parse version context if provided
         let versionContext = undefined;
@@ -982,6 +1054,15 @@ export async function POST(request: NextRequest) {
           logger.log('🎨 Generating from scratch (no image input)');
         }
         
+        logger.log('🎨 Calling aiService.generateImage with parameters:', {
+          promptLength: contextualPrompt.length,
+          aspectRatio,
+          hasUploadedImage: !!imageDataToUse,
+          hasStyleTransfer: !!styleTransferImageData,
+          model: model || 'default',
+          imageSize: quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K'
+        });
+        
         result = await aiService.generateImage({
           prompt: contextualPrompt,
           aspectRatio,
@@ -996,6 +1077,13 @@ export async function POST(request: NextRequest) {
           temperature,
           model: model || undefined,
           imageSize: quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K',
+        });
+        
+        logger.log('🎨 aiService.generateImage completed', {
+          success: result.success,
+          hasData: !!result.data,
+          hasError: !!result.error,
+          error: result.error?.substring(0, 100)
         });
       }
 
@@ -1219,15 +1307,51 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     securityLog('render_api_error', { error: getSafeErrorMessage(error) }, 'error');
-    logger.error('❌ API error:', error);
+    logger.error('❌ API error:', {
+      error: errorMessage,
+      stack: errorStack,
+      userId: user?.id,
+      creditsCost,
+      renderType,
+      renderStyle,
+      renderQuality,
+    });
     
     // Add Sentry context for top-level API errors
+    try {
     Sentry.setContext('render_api', {
       userId: user?.id,
       creditsCost,
       hasUser: !!user,
-    });
+        renderType,
+        renderStyle,
+        renderQuality,
+        errorMessage,
+      });
+      
+      // Capture exception to Sentry with full context
+      Sentry.captureException(error, {
+        tags: {
+          api_route: '/api/renders',
+          method: 'POST',
+          render_type: renderType,
+        },
+        extra: {
+          userId: user?.id,
+          creditsCost,
+          renderType,
+          renderStyle,
+          renderQuality,
+        },
+      });
+    } catch (sentryError) {
+      // Don't let Sentry errors break the error response
+      logger.error('❌ Failed to send error to Sentry:', sentryError);
+    }
     
     // For top-level errors, try to refund if we have the necessary data
     try {
@@ -1237,28 +1361,101 @@ export async function POST(request: NextRequest) {
       }
     } catch (refundError) {
       logger.error('❌ CRITICAL: Failed to refund credits after API error:', refundError);
+      try {
       Sentry.captureException(refundError, {
         tags: {
           critical: true,
           refund_failure: true,
         },
       });
+      } catch {
+        // Ignore Sentry errors in error handling
+      }
     }
     
     const duration = Date.now() - startTime;
-    trackApiError('/api/renders', 'POST', 500, error instanceof Error ? error.message : 'Unknown error');
+    try {
+      trackApiError('/api/renders', 'POST', 500, errorMessage);
     trackApiResponseTime('/api/renders', 'POST', 500, duration);
+    } catch (trackingError) {
+      // Don't let tracking errors break the error response
+      logger.error('❌ Failed to track API error:', trackingError);
+    }
+    
+    // ✅ FIXED: Always return a proper JSON response, even if error occurs during response creation
+    // This prevents empty 500 responses
+    try {
+      const isDevelopment = process.env.NODE_ENV === 'development';
+      const userFacingError = isDevelopment 
+        ? `Internal server error: ${errorMessage}` 
+        : 'Internal server error. Please try again or contact support if the issue persists.';
     
     return NextResponse.json({ 
+        success: false, 
+        error: userFacingError,
+        refunded: typeof creditsCost !== 'undefined' && user?.id,
+        // Only include detailed error in development
+        ...(isDevelopment && { details: errorMessage, stack: errorStack })
+      }, { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+    } catch (responseError) {
+      // ✅ FIXED: If even creating the response fails, return a minimal safe response
+      logger.error('❌ CRITICAL: Failed to create error response:', responseError);
+      return new NextResponse(
+        JSON.stringify({ 
       success: false, 
       error: 'Internal server error',
-      refunded: typeof creditsCost !== 'undefined' && user?.id
-    }, { status: 500 });
+          refunded: false
+        }),
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+    }
   } finally {
     // Track API response time for successful requests
     const duration = Date.now() - startTime;
     // Only track if we haven't already tracked an error
     // This will be handled by the success path or error path above
+  }
+}
+
+// ✅ FIXED: Export wrapper that ensures we always return a response, even if handler crashes
+export async function POST(request: NextRequest) {
+  try {
+    return await handleRenderRequest(request);
+  } catch (error) {
+    // ✅ FIXED: Ultimate fallback - if even the error handler fails, return a safe response
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error('❌ CRITICAL: Top-level POST handler caught exception:', errorMessage);
+    
+    try {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Internal server error. Please try again.',
+        refunded: false
+      }, { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+    } catch {
+      // If even creating a JSON response fails, return a minimal text response
+      return new NextResponse('Internal Server Error', { 
+        status: 500,
+        headers: {
+          'Content-Type': 'text/plain',
+        }
+      });
+    }
   }
 }
 

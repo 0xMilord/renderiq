@@ -73,6 +73,7 @@ export class PlanLimitsService {
 
   /**
    * Check if user can create a new project
+   * ✅ OPTIMIZED: Use SQL COUNT instead of fetching all projects
    */
   static async checkProjectLimit(userId: string): Promise<LimitCheckResult> {
     const limits = await this.getUserPlanLimits(userId);
@@ -88,9 +89,12 @@ export class PlanLimitsService {
       };
     }
 
-    // Count user's projects
-    const userProjects = await ProjectsDAL.getByUserId(userId, 1000, 0);
-    const currentCount = userProjects.length;
+    // ✅ OPTIMIZED: Use SQL COUNT instead of fetching all projects (much faster)
+    const [result] = await db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(projects)
+      .where(eq(projects.userId, userId));
+    const currentCount = result.count;
 
     const allowed = currentCount < limits.maxProjects;
 
@@ -106,6 +110,7 @@ export class PlanLimitsService {
 
   /**
    * Check if user can create a render in a project
+   * ✅ OPTIMIZED: Use SQL COUNT instead of fetching all renders
    */
   static async checkRenderLimit(userId: string, projectId: string): Promise<LimitCheckResult> {
     const limits = await this.getUserPlanLimits(userId);
@@ -121,9 +126,12 @@ export class PlanLimitsService {
       };
     }
 
-    // Count renders in this project
-    const projectRenders = await RendersDAL.getByProjectId(projectId);
-    const currentCount = projectRenders.length;
+    // ✅ OPTIMIZED: Use SQL COUNT instead of fetching all renders (much faster)
+    const [result] = await db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(renders)
+      .where(eq(renders.projectId, projectId));
+    const currentCount = result.count;
 
     const allowed = currentCount < limits.maxRendersPerProject;
 

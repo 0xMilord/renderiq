@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { getInvoicesAction } from '@/lib/actions/payment.actions';
 
 interface Invoice {
   id: string;
@@ -24,13 +25,12 @@ export function useInvoices(options?: { limit?: number; offset?: number; status?
       setLoading(true);
       setError(null);
 
-      const params = new URLSearchParams();
-      if (options?.limit) params.append('limit', options.limit.toString());
-      if (options?.offset) params.append('offset', options.offset.toString());
-      if (options?.status) params.append('status', options.status);
-
-      const response = await fetch(`/api/payments/invoices?${params.toString()}`);
-      const data = await response.json();
+      // ✅ MIGRATED: Use server action instead of API route
+      const data = await getInvoicesAction({
+        limit: options?.limit,
+        offset: options?.offset,
+        status: options?.status,
+      });
 
       if (data.success && data.data) {
         setInvoices(data.data);

@@ -138,6 +138,44 @@ export async function getSubscriptionPlansAction() {
   }
 }
 
+export async function getCreditTransactionsAction(limit = 50, offset = 0) {
+  logger.log('💰 BillingAction: Getting credit transactions');
+  
+  try {
+    const { user } = await getCachedUser();
+    
+    if (!user) {
+      return {
+        success: false,
+        error: 'Authentication required',
+      };
+    }
+
+    const { db } = await import('@/lib/db');
+    const { creditTransactions } = await import('@/lib/db/schema');
+    const { eq, desc } = await import('drizzle-orm');
+
+    const transactions = await db
+      .select()
+      .from(creditTransactions)
+      .where(eq(creditTransactions.userId, user.id))
+      .orderBy(desc(creditTransactions.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return {
+      success: true,
+      data: transactions,
+    };
+  } catch (error) {
+    logger.error('❌ BillingAction: Error getting credit transactions:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get credit transactions',
+    };
+  }
+}
+
 export async function addCredits(
   amount: number,
   type: 'earned' | 'spent' | 'refund' | 'bonus',

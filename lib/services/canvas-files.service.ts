@@ -87,21 +87,22 @@ export class CanvasFilesService {
 
   /**
    * Save canvas graph state
+   * ✅ OPTIMIZED: Parallelize increment and create version operations
    */
   static async saveGraph(fileId: string, userId: string, state: CanvasState) {
     const result = await CanvasDAL.saveGraph(fileId, userId, state);
 
     if (result.success && result.data) {
-      // Increment file version
-      await CanvasFilesDAL.incrementVersion(fileId);
-
-      // Create version snapshot
-      await CanvasFilesDAL.createVersion({
-        fileId,
-        version: result.data.version,
-        graphId: result.data.id,
-        createdBy: userId,
-      });
+      // ✅ OPTIMIZED: Parallelize increment and create version (3 queries → 2)
+      await Promise.all([
+        CanvasFilesDAL.incrementVersion(fileId),
+        CanvasFilesDAL.createVersion({
+          fileId,
+          version: result.data.version,
+          graphId: result.data.id,
+          createdBy: userId,
+        })
+      ]);
     }
 
     return result;

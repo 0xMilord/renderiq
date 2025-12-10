@@ -1,27 +1,90 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getUserProjects, createProject, deleteProject, duplicateProject, getProject, getProjectBySlug, updateProject } from '@/lib/actions/projects.actions';
 import type { Project } from '@/lib/db/schema';
 import { logger } from '@/lib/utils/logger';
+
+// ✅ FIXED: Global cache to prevent multiple simultaneous calls to getUserProjects
+// This prevents duplicate API calls when multiple components use useProjects() hook
+const fetchCache: {
+  [key: string]: {
+    promise: Promise<Project[]>;
+    timestamp: number;
+    data: Project[] | null;
+  };
+} = {};
+
+const CACHE_DURATION = 5000; // 5 seconds cache
+const DEBOUNCE_MS = 1000; // 1 second debounce between calls
 
 export function useProjects(platform?: 'render' | 'tools' | 'canvas') {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const lastFetchRef = useRef<number>(0);
+  const cacheKey = `projects-${platform || 'all'}`;
 
   const fetchProjects = async () => {
     try {
+      // ✅ FIXED: Debounce to prevent rapid successive calls
+      const now = Date.now();
+      const timeSinceLastFetch = now - lastFetchRef.current;
+      
+      if (timeSinceLastFetch < DEBOUNCE_MS) {
+        // If we recently fetched, check cache first
+        const cached = fetchCache[cacheKey];
+        if (cached && cached.data && (now - cached.timestamp < CACHE_DURATION)) {
+          setProjects(cached.data);
+          setLoading(false);
+          return;
+        }
+        // Otherwise wait a bit before fetching
+        await new Promise(resolve => setTimeout(resolve, DEBOUNCE_MS - timeSinceLastFetch));
+      }
+
+      // ✅ FIXED: Check if there's already a fetch in progress for this platform
+      const cached = fetchCache[cacheKey];
+      if (cached && (now - cached.timestamp < CACHE_DURATION)) {
+        // Use cached promise if still valid
+        const data = await cached.promise;
+        setProjects(data);
+        setLoading(false);
+        return;
+      }
+
+      lastFetchRef.current = Date.now();
       setLoading(true);
       setError(null);
-      const result = await getUserProjects(platform);
-      
-      if (result.success) {
-        setProjects(result.data || []);
-      } else {
-        setError(result.error || 'Failed to fetch projects');
-      }
+
+      // Create a new fetch promise and cache it
+      const fetchPromise = getUserProjects(platform).then(result => {
+        if (result.success) {
+          const data = result.data || [];
+          // Update cache with data
+          fetchCache[cacheKey] = {
+            promise: Promise.resolve(data),
+            timestamp: Date.now(),
+            data,
+          };
+          return data;
+        } else {
+          throw new Error(result.error || 'Failed to fetch projects');
+        }
+      });
+
+      // Cache the promise immediately to prevent duplicate calls
+      fetchCache[cacheKey] = {
+        promise: fetchPromise,
+        timestamp: Date.now(),
+        data: null,
+      };
+
+      const data = await fetchPromise;
+      setProjects(data);
     } catch (err) {
+      // Clear cache on error
+      delete fetchCache[cacheKey];
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
@@ -136,8 +199,11 @@ export function useProjects(platform?: 'render' | 'tools' | 'canvas') {
   };
 
 
+  // ✅ FIXED: Only fetch on mount and when platform changes
+  // fetchProjects is stable (doesn't change), so we don't need it in deps
   useEffect(() => {
     fetchProjects();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [platform]);
 
   return {

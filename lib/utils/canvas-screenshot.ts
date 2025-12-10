@@ -65,6 +65,7 @@ export async function captureCanvasScreenshot(
 
 /**
  * Upload screenshot to storage and update canvas file
+ * ✅ MIGRATED: Now uses server action instead of API route
  * @param fileId - The canvas file ID
  * @param screenshotDataUrl - Base64 data URL of the screenshot
  * @returns Promise<{ thumbnailUrl: string; thumbnailKey: string } | null>
@@ -78,23 +79,13 @@ export async function uploadCanvasScreenshot(
     const response = await fetch(screenshotDataUrl);
     const blob = await response.blob();
 
-    // Create FormData
-    const formData = new FormData();
-    formData.append('file', blob, `canvas-${fileId}-${Date.now()}.png`);
-    formData.append('fileId', fileId);
+    // Create File from blob
+    const file = new File([blob], `canvas-${fileId}-${Date.now()}.png`, { type: 'image/png' });
 
-    // Upload to storage via API
-    const uploadResponse = await fetch('/api/canvas/upload-thumbnail', {
-      method: 'POST',
-      body: formData,
-    });
+    // ✅ MIGRATED: Use server action instead of API route
+    const { uploadCanvasThumbnailAction } = await import('@/lib/actions/canvas-files.actions');
+    const result = await uploadCanvasThumbnailAction(fileId, file);
 
-    if (!uploadResponse.ok) {
-      const errorData = await uploadResponse.json().catch(() => ({}));
-      throw new Error(errorData.error || 'Failed to upload screenshot');
-    }
-
-    const result = await uploadResponse.json();
     if (!result.success) {
       throw new Error(result.error || 'Failed to upload screenshot');
     }

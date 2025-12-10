@@ -72,12 +72,9 @@ export function useUpscaling() {
       formData.append('isPublic', 'true');
       formData.append('temperature', '0.5'); // Lower temperature for upscaling (more deterministic)
 
-      const apiResponse = await fetch('/api/renders', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const apiResult = await apiResponse.json();
+      // ✅ OPTIMIZED: Use server action instead of API route
+      const { createRenderAction } = await import('@/lib/actions/render.actions');
+      const apiResult = await createRenderAction(formData);
 
       if (apiResult.success && apiResult.data) {
         const upscalingResult: UpscalingResult = {

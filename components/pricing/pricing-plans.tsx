@@ -267,17 +267,9 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
         isPlanChange,
       });
       
-      // Create subscription via API (pass upgrade flag for any plan change)
-      const response = await fetch('/api/payments/create-subscription', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          planId,
-          upgrade: isPlanChange, // Pass upgrade flag for any plan change (upgrade or downgrade)
-        }),
-      });
-
-      const result = await response.json();
+      // ✅ MIGRATED: Use server action instead of API route
+      const { createPaymentSubscriptionAction } = await import('@/lib/actions/payment.actions');
+      const result = await createPaymentSubscriptionAction(planId, isPlanChange);
 
       if (!result.success) {
         // Handle duplicate subscription error

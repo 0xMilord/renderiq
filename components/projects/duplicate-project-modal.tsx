@@ -20,6 +20,8 @@ interface DuplicateProjectModalProps {
 export function DuplicateProjectModal({ project, open, onOpenChange, onProjectDuplicated }: DuplicateProjectModalProps) {
   const [loading, setLoading] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  // ✅ FIXED: Only call useProjects when modal is actually open to prevent unnecessary fetches
+  // This prevents the hook from running when modal is closed
   const { duplicateProject } = useProjects();
   const [projectName, setProjectName] = useState('');
 

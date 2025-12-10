@@ -108,10 +108,13 @@ export function CanvasToolbar({
     }
   }, [projectId]);
 
+  // ✅ FIXED: Only fetch on mount and when projectId changes
+  // fetchProjects and fetchFiles are stable (memoized with useCallback), so we don't need them in deps
   useEffect(() => {
     fetchProjects();
     fetchFiles();
-  }, [fetchProjects, fetchFiles]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]); [fetchProjects, fetchFiles]);
 
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return;

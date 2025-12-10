@@ -230,20 +230,33 @@ export class UserOnboardingService {
     logger.log('💰 UserOnboarding: Initializing credits for user:', userId, 'Credits:', credits);
     
     try {
-      // Check if user already has credits
-      const existingCredits = await AuthDAL.getUserCredits(userId);
-
-      if (existingCredits) {
+      // ✅ OPTIMIZED: Use billing service which already has upsert pattern (2 queries → 1)
+      const { BillingService } = await import('./billing');
+      const creditsResult = await BillingService.getUserCredits(userId);
+      
+      if (creditsResult.success && creditsResult.credits) {
         logger.log('✅ UserOnboarding: User already has credits, skipping initialization');
         return { success: true };
       }
 
-      // Create user credits record with sybil-adjusted credits
-      const userCredit = await AuthDAL.createUserCredits(userId, credits);
+      // If credits don't exist, add them using billing service (uses upsert internally)
+      if (credits > 0) {
+        const addCreditsResult = await BillingService.addCredits(
+          userId,
+          credits,
+          'bonus',
+          'Initial signup credits'
+        );
+        
+        if (addCreditsResult.success) {
+          logger.log('✅ UserOnboarding: User credits initialized:', addCreditsResult.newBalance);
+          return { success: true, data: { balance: addCreditsResult.newBalance || credits } };
+        } else {
+          throw new Error(addCreditsResult.error || 'Failed to add credits');
+        }
+      }
 
-      logger.log('✅ UserOnboarding: User credits initialized:', userCredit.balance);
-
-      return { success: true, data: userCredit };
+      return { success: true };
     } catch (error) {
       logger.error('❌ UserOnboarding: Failed to initialize credits:', error);
       return { 

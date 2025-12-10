@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { createUserProfileAction } from '@/lib/actions/user-onboarding.actions';
 import { logger } from '@/lib/utils/logger';
@@ -21,6 +21,17 @@ export function useUserOnboarding() {
   const [onboardingLoading, setOnboardingLoading] = useState(false);
   const [onboardingError, setOnboardingError] = useState<string | null>(null);
 
+  // ✅ FIXED: Use useRef to store stable references to store setters
+  // This prevents dependency array from changing size
+  const setOnboardingCompleteRef = useRef(setOnboardingComplete);
+  const setUserProfileRef = useRef(setUserProfile);
+  
+  // Update refs when setters change (they should be stable from Zustand)
+  useEffect(() => {
+    setOnboardingCompleteRef.current = setOnboardingComplete;
+    setUserProfileRef.current = setUserProfile;
+  }, [setOnboardingComplete, setUserProfile]);
+
   useEffect(() => {
     const handleUserOnboarding = async () => {
       // ✅ FIXED: Don't duplicate profile fetching - let store handle it
@@ -28,7 +39,7 @@ export function useUserOnboarding() {
 
       // If we have a profile, onboarding is complete
       if (userProfile) {
-        setOnboardingComplete(true);
+        setOnboardingCompleteRef.current(true);
         setOnboardingError(null); // Clear any previous errors
         return;
       }
@@ -48,7 +59,7 @@ export function useUserOnboarding() {
         // Re-check profile after waiting (store might have fetched it)
         const currentState = useAuthStore.getState();
         if (currentState.userProfile) {
-          setOnboardingComplete(true);
+          setOnboardingCompleteRef.current(true);
           return;
         }
         
@@ -59,8 +70,8 @@ export function useUserOnboarding() {
         
         if (existingProfile.success && existingProfile.data) {
           // Profile exists, just update state
-          setUserProfile(existingProfile.data);
-          setOnboardingComplete(true);
+          setUserProfileRef.current(existingProfile.data);
+          setOnboardingCompleteRef.current(true);
           setOnboardingError(null); // Clear any previous errors
           return;
         }
@@ -100,8 +111,8 @@ export function useUserOnboarding() {
 
           if (onboardingResult.success && onboardingResult.data) {
             logger.log('✅ UserOnboarding Hook: User onboarding completed successfully');
-            setUserProfile(onboardingResult.data);
-            setOnboardingComplete(true);
+            setUserProfileRef.current(onboardingResult.data);
+            setOnboardingCompleteRef.current(true);
             setOnboardingError(null); // Clear any previous errors
           } else {
             const errorMessage = onboardingResult.error || 'Failed to create user profile';
@@ -119,7 +130,16 @@ export function useUserOnboarding() {
     };
 
     handleUserOnboarding();
-  }, [user, userProfile, authLoading, profileLoading, setOnboardingComplete, setUserProfile]);
+    // ✅ FIXED: Keep dependency array consistent - only primitive values
+    // Store setters are accessed via refs to prevent array size changes
+    // Use !! to convert to boolean to ensure consistent array size
+  }, [
+    user?.id ?? null,
+    userProfile?.id ?? null,
+    authLoading,
+    profileLoading,
+    !!user?.email_confirmed_at
+  ]);
   
   // Clear error when user changes (new user, different session)
   useEffect(() => {

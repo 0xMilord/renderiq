@@ -21,14 +21,18 @@ Sentry.init({
   
   // Performance Monitoring: Set tracesSampleRate to 1.0 to capture 100% of transactions
   // Adjust this value in production (recommended: 0.1 for 10% sampling)
-  tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+  // Disabled in development to reduce console noise - set SENTRY_TRACING=true to enable
+  tracesSampleRate: process.env.SENTRY_TRACING === 'true' 
+    ? (process.env.NODE_ENV === 'production' ? 0.1 : 1.0)
+    : (process.env.NODE_ENV === 'production' ? 0.1 : 0),
   
   // Enable Structured Logs to send logs to Sentry
   // This allows you to view and query logs in Sentry alongside errors
   enableLogs: true,
   
   // Setting this option to true will print useful information to the console while you're setting up Sentry.
-  debug: process.env.NODE_ENV === 'development' ? true : false,
+  // Disabled in development to reduce console noise - set SENTRY_DEBUG=true to enable
+  debug: process.env.SENTRY_DEBUG === 'true' ? true : false,
   
   // Enable Session Replay for better error context
   replaysOnErrorSampleRate: 1.0,

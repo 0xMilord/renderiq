@@ -265,18 +265,28 @@ export async function createRenderAction(formData: FormData) {
 
     // ✅ CENTRALIZED: Get or create chain for this project using centralized service
     let finalChainId = chainId;
+    let chainPosition: number;
+    let chainRenders: any[] = [];
     
     if (!finalChainId) {
       logger.log('🔗 No chain specified, getting or creating default chain');
       const defaultChain = await RenderChainService.getOrCreateDefaultChain(
         projectId,
-        project?.name
+        project.name
       );
       finalChainId = defaultChain.id;
+      // ✅ OPTIMIZED: Parallelize chain position and renders fetch
+      [chainPosition, chainRenders] = await Promise.all([
+        RenderChainService.getNextChainPosition(finalChainId),
+        RendersDAL.getByChainId(finalChainId)
+      ]);
+    } else {
+      // ✅ OPTIMIZED: Parallelize chain position and renders fetch when chainId is provided
+      [chainPosition, chainRenders] = await Promise.all([
+        RenderChainService.getNextChainPosition(finalChainId),
+        RendersDAL.getByChainId(finalChainId)
+      ]);
     }
-
-    // ✅ CENTRALIZED: Get chain position using centralized method
-    const chainPosition = await RenderChainService.getNextChainPosition(finalChainId!);
 
     logger.log('📍 Chain position:', chainPosition);
 
@@ -289,6 +299,7 @@ export async function createRenderAction(formData: FormData) {
     if (referenceRenderId) {
       if (referenceRenderId.startsWith('temp-')) {
         logger.log('⚠️ Temporary reference render ID detected, using most recent render in chain');
+        // ✅ FIXED: chainRenders is now defined above
         if (chainRenders.length > 0) {
           const mostRecentRender = chainRenders
             .filter(r => r.status === 'completed')
@@ -786,14 +797,15 @@ async function processRenderAsync(
 
     logger.log('✅ Generation successful, uploading to storage');
 
-    // Get project to get slug
-    const project = await ProjectsDAL.getById(renderData.projectId);
+    // ✅ OPTIMIZED: Parallelize project fetch and pro status check
+    const [project, isPro] = await Promise.all([
+      ProjectsDAL.getById(renderData.projectId),
+      BillingDAL.isUserPro(renderData.userId)
+    ]);
+
     if (!project) {
       throw new Error('Project not found');
     }
-
-    // Check if user has pro subscription for watermarking
-    const isPro = await BillingDAL.isUserPro(renderData.userId);
 
     // Process image with watermark for free users, no watermark for paid users
     let processedImageData: string | undefined = undefined;

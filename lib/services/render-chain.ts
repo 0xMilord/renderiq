@@ -2,6 +2,9 @@ import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { RendersDAL } from '@/lib/dal/renders';
 import { RenderChain } from '@/lib/db/schema';
 import { ChainContext, CreateChainData, RenderChainWithRenders } from '@/lib/types/render-chain';
+import { db } from '@/lib/db';
+import { renders } from '@/lib/db/schema';
+import { eq, sql } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
 
 export class RenderChainService {
@@ -202,21 +205,27 @@ export class RenderChainService {
 
   /**
    * Get chain statistics
+   * ✅ OPTIMIZED: Use SQL aggregation instead of fetching all renders and filtering in JavaScript
    */
   static async getChainStats(chainId: string) {
-    const renders = await RendersDAL.getByChainId(chainId);
-    
-    const completed = renders.filter(r => r.status === 'completed').length;
-    const failed = renders.filter(r => r.status === 'failed').length;
-    const processing = renders.filter(r => r.status === 'processing').length;
-    const pending = renders.filter(r => r.status === 'pending').length;
+    // ✅ OPTIMIZED: Use SQL aggregation with FILTER clauses (much faster than fetching all records)
+    const [stats] = await db
+      .select({
+        total: sql<number>`COUNT(*)::int`,
+        completed: sql<number>`COUNT(*) FILTER (WHERE ${renders.status} = 'completed')::int`,
+        failed: sql<number>`COUNT(*) FILTER (WHERE ${renders.status} = 'failed')::int`,
+        processing: sql<number>`COUNT(*) FILTER (WHERE ${renders.status} = 'processing')::int`,
+        pending: sql<number>`COUNT(*) FILTER (WHERE ${renders.status} = 'pending')::int`,
+      })
+      .from(renders)
+      .where(eq(renders.chainId, chainId));
 
     return {
-      total: renders.length,
-      completed,
-      failed,
-      processing,
-      pending,
+      total: stats.total,
+      completed: stats.completed,
+      failed: stats.failed,
+      processing: stats.processing,
+      pending: stats.pending,
     };
   }
 

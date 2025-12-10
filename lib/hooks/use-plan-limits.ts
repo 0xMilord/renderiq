@@ -1,21 +1,20 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { PlanLimitsService, type LimitCheckResult, type PlanLimits } from '@/lib/services/plan-limits.service';
+import { getUserPlanLimits, checkProjectLimit, checkRenderLimit, checkQualityLimit, checkVideoLimit } from '@/lib/actions/plan-limits.actions';
+import type { LimitCheckResult, PlanLimits } from '@/lib/services/plan-limits.service';
 
 export function usePlanLimits() {
   const [limits, setLimits] = useState<PlanLimits | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // ✅ OPTIMIZED: Use server action instead of API route
   const fetchLimits = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/billing/plan-limits');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setLimits(data.limits);
-        }
+      const result = await getUserPlanLimits();
+      if (result.success && result.limits) {
+        setLimits(result.limits);
       }
     } catch (error) {
       console.error('Failed to fetch plan limits:', error);
@@ -28,50 +27,70 @@ export function usePlanLimits() {
     fetchLimits();
   }, [fetchLimits]);
 
-  const checkProjectLimit = useCallback(async (): Promise<LimitCheckResult> => {
-    const response = await fetch('/api/billing/check-limit?type=projects');
-    if (response.ok) {
-      const data = await response.json();
-      return data.result;
+  // ✅ OPTIMIZED: Use server action instead of API route
+  const checkProjectLimitAction = useCallback(async (): Promise<LimitCheckResult> => {
+    try {
+      const result = await checkProjectLimit();
+      if (result.success && result.result) {
+        return result.result;
+      }
+      return { allowed: false, limitType: 'projects', current: 0, limit: 0, planName: 'Free', error: 'Failed to check limit' };
+    } catch (error) {
+      console.error('Failed to check project limit:', error);
+      return { allowed: false, limitType: 'projects', current: 0, limit: 0, planName: 'Free', error: 'Failed to check limit' };
     }
-    return { allowed: false, limitType: 'projects', current: 0, limit: 0, planName: 'Free', error: 'Failed to check limit' };
   }, []);
 
-  const checkRenderLimit = useCallback(async (projectId: string): Promise<LimitCheckResult> => {
-    const response = await fetch(`/api/billing/check-limit?type=renders_per_project&projectId=${projectId}`);
-    if (response.ok) {
-      const data = await response.json();
-      return data.result;
+  // ✅ OPTIMIZED: Use server action instead of API route
+  const checkRenderLimitAction = useCallback(async (projectId: string): Promise<LimitCheckResult> => {
+    try {
+      const result = await checkRenderLimit(projectId);
+      if (result.success && result.result) {
+        return result.result;
+      }
+      return { allowed: false, limitType: 'renders_per_project', current: 0, limit: 0, planName: 'Free', error: 'Failed to check limit' };
+    } catch (error) {
+      console.error('Failed to check render limit:', error);
+      return { allowed: false, limitType: 'renders_per_project', current: 0, limit: 0, planName: 'Free', error: 'Failed to check limit' };
     }
-    return { allowed: false, limitType: 'renders_per_project', current: 0, limit: 0, planName: 'Free', error: 'Failed to check limit' };
   }, []);
 
-  const checkQualityLimit = useCallback(async (quality: 'standard' | 'high' | 'ultra'): Promise<LimitCheckResult> => {
-    const response = await fetch(`/api/billing/check-limit?type=quality&quality=${quality}`);
-    if (response.ok) {
-      const data = await response.json();
-      return data.result;
+  // ✅ OPTIMIZED: Use server action instead of API route
+  const checkQualityLimitAction = useCallback(async (quality: 'standard' | 'high' | 'ultra'): Promise<LimitCheckResult> => {
+    try {
+      const result = await checkQualityLimit(quality);
+      if (result.success && result.result) {
+        return result.result;
+      }
+      return { allowed: false, limitType: 'quality', current: 0, limit: 0, planName: 'Free', error: 'Failed to check limit' };
+    } catch (error) {
+      console.error('Failed to check quality limit:', error);
+      return { allowed: false, limitType: 'quality', current: 0, limit: 0, planName: 'Free', error: 'Failed to check limit' };
     }
-    return { allowed: false, limitType: 'quality', current: 0, limit: 0, planName: 'Free', error: 'Failed to check limit' };
   }, []);
 
-  const checkVideoLimit = useCallback(async (): Promise<LimitCheckResult> => {
-    const response = await fetch('/api/billing/check-limit?type=video');
-    if (response.ok) {
-      const data = await response.json();
-      return data.result;
+  // ✅ OPTIMIZED: Use server action instead of API route
+  const checkVideoLimitAction = useCallback(async (): Promise<LimitCheckResult> => {
+    try {
+      const result = await checkVideoLimit();
+      if (result.success && result.result) {
+        return result.result;
+      }
+      return { allowed: false, limitType: 'video', current: 0, limit: 0, planName: 'Free', error: 'Failed to check limit' };
+    } catch (error) {
+      console.error('Failed to check video limit:', error);
+      return { allowed: false, limitType: 'video', current: 0, limit: 0, planName: 'Free', error: 'Failed to check limit' };
     }
-    return { allowed: false, limitType: 'video', current: 0, limit: 0, planName: 'Free', error: 'Failed to check limit' };
   }, []);
 
   return {
     limits,
     loading,
     refetch: fetchLimits,
-    checkProjectLimit,
-    checkRenderLimit,
-    checkQualityLimit,
-    checkVideoLimit,
+    checkProjectLimit: checkProjectLimitAction,
+    checkRenderLimit: checkRenderLimitAction,
+    checkQualityLimit: checkQualityLimitAction,
+    checkVideoLimit: checkVideoLimitAction,
   };
 }
 

@@ -119,12 +119,9 @@ export function useNodeExecution() {
             promptLength: params.prompt.length,
           });
 
-          const renderResponse = await fetch('/api/renders', {
-            method: 'POST',
-            body: formData,
-          });
-
-          const renderResult = await renderResponse.json();
+          // ✅ OPTIMIZED: Use server action instead of API route
+          const { createRenderAction } = await import('@/lib/actions/render.actions');
+          const renderResult = await createRenderAction(formData);
           
           if (renderResult.success) {
             console.log('✅ [Canvas] Render record created successfully', {
@@ -198,13 +195,15 @@ export function useNodeExecution() {
   const generateVariants = useCallback(async (params: GenerateVariantsParams) => {
     setLoading(true);
     try {
-      const response = await fetch('/api/canvas/generate-variants', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params),
+      // ✅ MIGRATED: Use server action instead of API route
+      const { generateCanvasVariantsAction } = await import('@/lib/actions/canvas-files.actions');
+      const result = await generateCanvasVariantsAction({
+        sourceImageUrl: params.sourceImageUrl,
+        prompt: params.prompt || '',
+        count: params.count,
+        settings: params.settings,
+        nodeId: params.nodeId,
       });
-
-      const result = await response.json();
       return result;
     } catch (error) {
       return {

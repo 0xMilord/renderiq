@@ -35,25 +35,46 @@ export async function retryFetch(
       
       // Check response status before returning
       if (!response.ok) {
-        let errorText: string;
-        try {
-          errorText = await response.text();
-        } catch {
-          errorText = `HTTP ${response.status} ${response.statusText}`;
-        }
-        logger.error(`❌ retryFetch: API returned error status ${response.status}:`, errorText);
+        let errorText: string = '';
+        let errorJson: any = null;
         
-        // Try to parse error JSON if available
         try {
-          const errorJson = JSON.parse(errorText);
-          if (errorJson.refunded) {
-            logger.log('✅ Credits were refunded by server');
+          // ✅ FIXED: Clone response before reading to avoid consuming the body
+          const clonedResponse = response.clone();
+          errorText = await clonedResponse.text();
+          
+          // ✅ FIXED: Handle empty response body
+          if (!errorText || errorText.trim() === '') {
+            errorText = `HTTP ${response.status} ${response.statusText} - Empty response body`;
+            logger.error(`❌ retryFetch: API returned error status ${response.status} with empty body`);
+          } else {
+            logger.error(`❌ retryFetch: API returned error status ${response.status}:`, errorText.substring(0, 200));
+            
+            // Try to parse error JSON if available
+            try {
+              errorJson = JSON.parse(errorText);
+              if (errorJson.refunded) {
+                logger.log('✅ Credits were refunded by server');
+              }
+            } catch {
+              // Not JSON, use text error
+            }
           }
-        } catch {
-          // Not JSON, use text error
+        } catch (readError) {
+          // If reading response fails, create a descriptive error
+          errorText = `HTTP ${response.status} ${response.statusText} - Failed to read response body`;
+          logger.error(`❌ retryFetch: Failed to read error response:`, readError);
         }
         
-        const error = new Error(`API request failed: ${response.status} ${response.statusText}`);
+        // ✅ FIXED: Create error with more context
+        const errorMessage = errorJson?.error || errorText || `API request failed: ${response.status} ${response.statusText}`;
+        const error = new Error(errorMessage);
+        
+        // Attach response details to error for better debugging
+        (error as any).status = response.status;
+        (error as any).statusText = response.statusText;
+        (error as any).responseBody = errorText;
+        (error as any).errorJson = errorJson;
         
         // Check if we should retry
         if (shouldRetry) {

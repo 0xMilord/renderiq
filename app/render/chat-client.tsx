@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppShortcuts } from '@/lib/hooks/use-app-shortcuts';
 import { captureErrorWithContext } from '@/lib/hooks/use-sentry';
@@ -99,10 +99,26 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
   const [duplicateProjectModalOpen, setDuplicateProjectModalOpen] = useState(false);
   const [deleteProjectDialogOpen, setDeleteProjectDialogOpen] = useState(false);
 
+  // ✅ FIXED: Use refs to track previous values and only update when data actually changes
+  // This prevents infinite loops from reference equality checks
+  const prevProjectsRef = useRef<string>('');
+  const prevChainsRef = useRef<string>('');
+
   // ✅ SYNC: Update local state when SSR props change (e.g., after router.refresh())
+  // Only update if the serialized data actually changed, not just the reference
   useEffect(() => {
-    setProjects(initialProjects);
-    setChains(initialChains);
+    const projectsKey = JSON.stringify(initialProjects.map(p => ({ id: p.id, updatedAt: p.updatedAt })));
+    const chainsKey = JSON.stringify(initialChains.map(c => ({ id: c.id, updatedAt: c.updatedAt })));
+    
+    if (projectsKey !== prevProjectsRef.current) {
+      prevProjectsRef.current = projectsKey;
+      setProjects(initialProjects);
+    }
+    
+    if (chainsKey !== prevChainsRef.current) {
+      prevChainsRef.current = chainsKey;
+      setChains(initialChains);
+    }
   }, [initialProjects, initialChains]);
 
   // ✅ AUTO-SELECT: If projectSlug is provided in query params, auto-select that project
@@ -155,12 +171,19 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
       
       if (result.success) {
         toast.success('Project deleted successfully');
+        // ✅ FIXED: Close dialog before refresh to prevent state issues
+        setDeleteProjectDialogOpen(false);
         router.refresh();
       } else {
         // Revert optimistic update on error
         setProjects(prev => [...prev, project].sort((a, b) => 
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         ));
+        // ✅ FIXED: Also restore chains if they were removed
+        setChains(prev => {
+          const restoredChains = chains.filter(c => c.projectId === project.id);
+          return [...prev, ...restoredChains];
+        });
         toast.error(result.error || 'Failed to delete project');
       }
     } catch (error) {
@@ -168,7 +191,13 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
       setProjects(prev => [...prev, project].sort((a, b) => 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       ));
-      toast.error('An error occurred while deleting the project');
+      // ✅ FIXED: Also restore chains if they were removed
+      setChains(prev => {
+        const restoredChains = chains.filter(c => c.projectId === project.id);
+        return [...prev, ...restoredChains];
+      });
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred while deleting the project';
+      toast.error(errorMessage);
       captureErrorWithContext(error, {
         component: 'ChatClient',
         feature: 'deleteProject',
@@ -1119,36 +1148,56 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
         item={selectedRender}
       />
 
-      {/* Project Action Modals */}
-      {selectedProject && (
-        <>
-          <EditProjectModal
-            project={selectedProject}
-            open={editProjectModalOpen}
-            onOpenChange={setEditProjectModalOpen}
-            onProjectUpdated={(updatedProject) => {
-              setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
-              router.refresh();
-            }}
-          />
-          <DuplicateProjectModal
-            project={selectedProject}
-            open={duplicateProjectModalOpen}
-            onOpenChange={setDuplicateProjectModalOpen}
-            onProjectDuplicated={(duplicatedProject) => {
-              setProjects(prev => [duplicatedProject, ...prev]);
-              router.refresh();
-            }}
-          />
-          <DeleteProjectDialog
-            project={selectedProject}
-            open={deleteProjectDialogOpen}
-            onOpenChange={setDeleteProjectDialogOpen}
-            onConfirm={async () => {
+      {/* Project Action Modals - Only render when open to prevent hook calls */}
+      {selectedProject && editProjectModalOpen && (
+        <EditProjectModal
+          project={selectedProject}
+          open={editProjectModalOpen}
+          onOpenChange={setEditProjectModalOpen}
+          onProjectUpdated={(updatedProject) => {
+            setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
+            router.refresh();
+          }}
+        />
+      )}
+      {selectedProject && duplicateProjectModalOpen && (
+        <DuplicateProjectModal
+          project={selectedProject}
+          open={duplicateProjectModalOpen}
+          onOpenChange={setDuplicateProjectModalOpen}
+          onProjectDuplicated={(duplicatedProject) => {
+            setProjects(prev => [duplicatedProject, ...prev]);
+            router.refresh();
+          }}
+        />
+      )}
+      {selectedProject && deleteProjectDialogOpen && (
+        <DeleteProjectDialog
+          project={selectedProject}
+          open={deleteProjectDialogOpen}
+          onOpenChange={(open) => {
+            setDeleteProjectDialogOpen(open);
+            // ✅ FIXED: Clear selection when dialog closes to prevent stale state
+            if (!open) {
+              // Small delay to allow dialog close animation
+              setTimeout(() => {
+                if (selectedProjectId === selectedProject.id) {
+                  setSelectedProjectId(null);
+                  setSelectedChainId(null);
+                }
+              }, 100);
+            }
+          }}
+          onConfirm={async () => {
+            try {
               await handleProjectDelete(selectedProject);
-            }}
-          />
-        </>
+            } catch (error) {
+              // Error is already handled in handleProjectDelete
+              // Just ensure dialog stays open on error so user can retry
+              console.error('Delete project error:', error);
+            }
+          }}
+        />
       )}
 
     </div>

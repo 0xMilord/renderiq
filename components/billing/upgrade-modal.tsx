@@ -64,20 +64,19 @@ export function UpgradeModal({
   const fetchPlans = async () => {
     try {
       setLoading(true);
-      // Fetch subscription plans and credit packages
-      const [plansRes, creditsRes] = await Promise.all([
-        fetch('/api/billing/plans'),
-        fetch('/api/billing/credit-packages'),
+      // ✅ OPTIMIZED: Use server actions instead of API routes
+      const { getSubscriptionPlansAction, getCreditPackagesAction } = await import('@/lib/actions/pricing.actions');
+      const [plansResult, packagesResult] = await Promise.all([
+        getSubscriptionPlansAction(),
+        getCreditPackagesAction(),
       ]);
 
-      if (plansRes.ok) {
-        const plansData = await plansRes.json();
-        setSubscriptionPlans(plansData.plans || []);
+      if (plansResult.success && plansResult.data) {
+        setSubscriptionPlans(plansResult.data);
       }
 
-      if (creditsRes.ok) {
-        const creditsData = await creditsRes.json();
-        setCreditPackages(creditsData.packages || []);
+      if (packagesResult.success && packagesResult.data) {
+        setCreditPackages(packagesResult.data);
       }
     } catch (error) {
       console.error('Failed to fetch plans:', error);

@@ -401,6 +401,8 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   // Fixed aspect ratio for better quality
   const aspectRatio = DEFAULT_ASPECT_RATIO;
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  // ✅ FIX CORS: Store gallery image URL separately (fetched server-side to avoid CORS)
+  const [galleryImageUrl, setGalleryImageUrl] = useState<string | null>(null);
   // Use custom hook for object URL management
   const previewUrl = useObjectURL(uploadedFile);
   
@@ -903,6 +905,25 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     
     // Update currentRender
     setCurrentRender(prevRender => {
+      // ✅ FIX: Preserve recently created render even if it hasn't appeared in chain.renders yet
+      // This prevents renders from disappearing immediately after creation
+      if (recentGenerationRef.current && prevRender) {
+        const timeSinceGeneration = Date.now() - recentGenerationRef.current.timestamp;
+        const isRecentGeneration = timeSinceGeneration < 10000; // 10 seconds grace period
+        
+        if (isRecentGeneration && prevRender.id === recentGenerationRef.current.renderId) {
+          // Check if render has appeared in chain.renders yet
+          const renderInChain = getRenderById(chain.renders, prevRender.id);
+          if (renderInChain) {
+            // Render has appeared in chain, update with latest data
+            recentGenerationRef.current = null; // Clear ref since render is now in chain
+            return renderInChain;
+          }
+          // Render hasn't appeared in chain yet, keep the local render
+          return prevRender;
+        }
+      }
+      
       // If user manually selected a render, keep it (but update with latest data)
       if (userSelectedRenderIdRef.current) {
         const selectedRender = getRenderById(chain.renders, userSelectedRenderIdRef.current);
@@ -1082,6 +1103,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
 
   const removeFile = () => {
     setUploadedFile(null);
+    setGalleryImageUrl(null); // ✅ FIX CORS: Clear gallery URL when removing file
     // previewUrl cleanup is automatically handled by useObjectURL hook
   };
 
@@ -1130,6 +1152,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
 
   const handleFileSelect = (file: File) => {
     setUploadedFile(file);
+    setGalleryImageUrl(null); // ✅ FIX CORS: Clear gallery URL when selecting a new file
     // previewUrl is automatically managed by useObjectURL hook
   };
 
@@ -1144,17 +1167,20 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   };
 
   const handleGalleryImageSelect = (image: { url: string; file?: File; render?: Render }) => {
-    // Convert URL to File if needed
+    // ✅ FIX CORS: Store gallery image URL to pass to API (fetched server-side to avoid CORS)
     if (image.file) {
+      // If file is provided, use it directly
       setUploadedFile(image.file);
+      setGalleryImageUrl(null); // Clear gallery URL when using file
       // previewUrl is automatically managed by useObjectURL hook
     } else if (image.url) {
-      // For gallery images, we'll use the URL directly
-      // Create a placeholder file object
+      // For gallery images, store the URL and create a placeholder for preview
+      setGalleryImageUrl(image.url);
+      // Create a placeholder file object for preview (useObjectURL needs a File)
+      // The actual image will be fetched server-side using the URL
       const file = new File([''], 'gallery-image.png', { type: 'image/png' });
       setUploadedFile(file);
-      // Note: For external URLs, we might need to handle differently
-      // But useObjectURL will handle File objects automatically
+      // Note: Preview won't work with placeholder, but that's okay - the image will load from URL
     }
   };
 
@@ -1224,6 +1250,10 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       setIsLowBalanceModalOpen(true);
       return;
     }
+
+    // ✅ FIXED: Define renderStyle early so it's accessible throughout the function
+    // Use effect as style, or 'realistic' as default (matches createRenderFormData)
+    const renderStyle = effect && effect !== 'none' ? effect : 'realistic';
 
     logger.log('🔍 Processing message with potential mentions:', inputValue);
 
@@ -1340,6 +1370,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     // Clear uploaded file after adding to message
     if (uploadedFile) {
       setUploadedFile(null);
+      setGalleryImageUrl(null); // ✅ FIX CORS: Clear gallery URL when clearing file
       // previewUrl is automatically cleared by useObjectURL hook when file is null
     }
     
@@ -1361,9 +1392,11 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     // Define generationType outside try block so it's accessible in catch
     const generationType = isVideoMode ? 'video' : 'image';
     
+    // renderStyle is already defined above (before early returns)
+    
     // Track render started
     const startTime = Date.now();
-    trackRenderStarted(generationType, style || 'default', quality);
+    trackRenderStarted(generationType, renderStyle, quality);
     trackRenderCreditsCost(generationType, quality, requiredCredits);
     
     // Store API error for catch block
@@ -1436,6 +1469,8 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
            videoLastFrame: isVideoMode ? videoLastFrame : undefined,
            uploadedImageBase64,
            uploadedImageType: userMessage.uploadedImage?.file?.type,
+           // ✅ FIX CORS: Pass gallery image URL (fetched server-side to avoid CORS)
+           uploadedImageUrl: galleryImageUrl || undefined,
            styleTransferBase64,
            styleTransferImageType: styleTransferImage?.type,
          });
@@ -1619,7 +1654,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         
         // Track render completed
         const duration = Date.now() - startTime;
-        trackRenderCompleted(generationType, style || 'default', quality, duration);
+        trackRenderCompleted(generationType, renderStyle, quality, duration);
         
         // ✅ FIXED: Track recent generation to continue polling after local completion
         // This ensures we catch the render when it appears in the database
@@ -1655,6 +1690,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         // Clear uploaded file after successful generation (but keep video mode)
         if (uploadedFile && !isVideoMode) {
           setUploadedFile(null);
+          setGalleryImageUrl(null); // ✅ FIX CORS: Clear gallery URL when clearing file
           // previewUrl is automatically cleared by useObjectURL hook when file is null
         }
         // Clear keyframes after successful generation
@@ -1671,7 +1707,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       
       // Track render failed
       const errorMessage = error instanceof Error ? error.message : String(error);
-      trackRenderFailed(generationType, style || 'default', quality, errorMessage);
+      trackRenderFailed(generationType, renderStyle, quality, errorMessage);
       
       // Add Sentry context for generation errors
       captureErrorWithContext(error, {

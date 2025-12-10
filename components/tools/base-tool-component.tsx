@@ -105,6 +105,8 @@ export function BaseToolComponent({
   
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
+  // ✅ FIX CORS: Store gallery image URL (fetched server-side to avoid CORS)
+  const [galleryImageUrl, setGalleryImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -319,6 +321,7 @@ export function BaseToolComponent({
 
   // Handle file selection from UploadModal
   const handleUploadModalFileSelect = useCallback((file: File) => {
+    setGalleryImageUrl(null); // ✅ FIX CORS: Clear gallery URL when selecting a new file
     if (multipleImages) {
       const newFiles = [...images, file].slice(0, maxImages);
       handleFilesChange(newFiles);
@@ -331,24 +334,26 @@ export function BaseToolComponent({
   // Handle image selection from GalleryModal
   const handleGalleryImageSelect = useCallback(async (image: { url: string; file?: File; render?: any }) => {
     try {
-      let file: File;
-      
       if (image.file) {
         // If file is provided, use it directly
-        file = image.file;
-      } else {
-        // Otherwise, fetch the image from URL and convert to File
-        const response = await fetch(image.url);
-        const blob = await response.blob();
-        const fileName = image.url.split('/').pop() || 'gallery-image.png';
-        file = new File([blob], fileName, { type: blob.type });
-      }
-      
-      if (multipleImages) {
-        const newFiles = [...images, file].slice(0, maxImages);
-        handleFilesChange(newFiles);
-      } else {
-        handleFilesChange([file]);
+        setGalleryImageUrl(null); // Clear gallery URL when using file
+        if (multipleImages) {
+          const newFiles = [...images, image.file].slice(0, maxImages);
+          handleFilesChange(newFiles);
+        } else {
+          handleFilesChange([image.file]);
+        }
+      } else if (image.url) {
+        // ✅ FIX CORS: Store URL to pass to API (fetched server-side to avoid CORS)
+        setGalleryImageUrl(image.url);
+        // Create a placeholder file for preview (useObjectURL needs a File)
+        const placeholderFile = new File([''], 'gallery-image.png', { type: 'image/png' });
+        if (multipleImages) {
+          const newFiles = [...images, placeholderFile].slice(0, maxImages);
+          handleFilesChange(newFiles);
+        } else {
+          handleFilesChange([placeholderFile]);
+        }
       }
       setIsGalleryModalOpen(false);
     } catch (error) {
@@ -490,26 +495,33 @@ export function BaseToolComponent({
           }
         }
       } else {
-        // Image generation - convert first image to base64
-        const imageFile = images[0];
-        const imageBase64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const base64 = reader.result as string;
-            // Remove data:image/...;base64, prefix
-            const base64Data = base64.split(',')[1];
-            resolve(base64Data);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(imageFile);
-        });
+        // Image generation
+        // ✅ FIX CORS: If gallery URL is available, pass it to API (fetched server-side to avoid CORS)
+        if (galleryImageUrl && images.length > 0) {
+          // Use gallery URL instead of converting to base64
+          formData.append('uploadedImageUrl', galleryImageUrl);
+        } else if (images.length > 0) {
+          // Convert first image to base64
+          const imageFile = images[0];
+          const imageBase64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const base64 = reader.result as string;
+              // Remove data:image/...;base64, prefix
+              const base64Data = base64.split(',')[1];
+              resolve(base64Data);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(imageFile);
+          });
+          formData.append('uploadedImageData', imageBase64);
+          formData.append('uploadedImageType', imageFile.type);
+        }
         // Image generation parameters
         formData.append('style', style);
         formData.append('quality', quality);
         formData.append('aspectRatio', aspectRatio);
         formData.append('type', 'image');
-        formData.append('uploadedImageData', imageBase64);
-        formData.append('uploadedImageType', imageFile.type);
         if (selectedModel) {
           formData.append('model', selectedModel);
         }

@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { userSettings } from '@/lib/db/schema';
 import { logger } from '@/lib/utils/logger';
@@ -31,19 +31,36 @@ export class UserSettingsService {
     logger.log('⚙️ UserSettingsService: Getting user settings for:', userId);
     
     try {
-      const settings = await db
-        .select()
-        .from(userSettings)
-        .where(eq(userSettings.userId, userId))
-        .limit(1);
+      // ✅ OPTIMIZED: Use upsert pattern to get or create settings (2 queries → 1)
+      const defaultPreferences: UserPreferences = {
+        theme: 'system',
+        notifications: {
+          email: true,
+          push: false,
+          renderComplete: true,
+          creditsLow: true,
+        },
+        defaultRenderSettings: {
+          style: 'modern',
+          quality: 'high',
+          aspectRatio: '16:9',
+        },
+      };
 
-      if (settings.length === 0) {
-        logger.log('📝 UserSettingsService: No settings found, creating default settings');
-        return await this.createDefaultSettings(userId);
-      }
+      const [settings] = await db
+        .insert(userSettings)
+        .values({
+          userId,
+          preferences: defaultPreferences,
+        })
+        .onConflictDoUpdate({
+          target: userSettings.userId,
+          set: { updatedAt: new Date() }, // Update timestamp if conflict occurs
+        })
+        .returning();
 
-      logger.log('✅ UserSettingsService: Settings found');
-      return settings[0];
+      logger.log('✅ UserSettingsService: Settings retrieved/created');
+      return settings;
     } catch (error) {
       logger.error('❌ UserSettingsService: Failed to get user settings:', error);
       throw error;
@@ -92,7 +109,8 @@ export class UserSettingsService {
     logger.log('🔄 UserSettingsService: Updating user settings for:', userId);
     
     try {
-      // Get existing settings
+      // ✅ OPTIMIZED: Get existing settings first to merge properly, then use upsert
+      // We still need to get existing settings to merge partial updates correctly
       const existingSettings = await this.getUserSettings(userId);
       
       // Merge with new preferences
@@ -111,17 +129,24 @@ export class UserSettingsService {
         },
       };
 
-      const updatedSettings = await db
-        .update(userSettings)
-        .set({
+      // ✅ OPTIMIZED: Use upsert instead of update (handles case where settings don't exist)
+      const [updatedSettings] = await db
+        .insert(userSettings)
+        .values({
+          userId,
           preferences: updatedPreferences,
-          updatedAt: new Date(),
         })
-        .where(eq(userSettings.userId, userId))
+        .onConflictDoUpdate({
+          target: userSettings.userId,
+          set: {
+            preferences: updatedPreferences,
+            updatedAt: new Date(),
+          },
+        })
         .returning();
 
       logger.log('✅ UserSettingsService: Settings updated');
-      return updatedSettings[0];
+      return updatedSettings;
     } catch (error) {
       logger.error('❌ UserSettingsService: Failed to update user settings:', error);
       throw error;

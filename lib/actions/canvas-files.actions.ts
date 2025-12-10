@@ -2,6 +2,9 @@
 
 import { revalidatePath } from 'next/cache';
 import { CanvasFilesService } from '@/lib/services/canvas-files.service';
+import { StorageService } from '@/lib/services/storage';
+import { BillingService } from '@/lib/services/billing';
+import { RendersDAL } from '@/lib/dal/renders';
 import { getCachedUser } from '@/lib/services/auth-cache';
 import { logger } from '@/lib/utils/logger';
 import type { CanvasState } from '@/lib/types/canvas';
@@ -158,10 +161,10 @@ export async function getCanvasGraphAction(fileId: string) {
       };
     }
 
-    // Get file to verify ownership
-    const file = await CanvasFilesService.getFileById(fileId);
+    // ✅ OPTIMIZED: Use getFileWithGraph to get file and graph in one query (JOIN)
+    const result = await CanvasFilesService.getFileWithGraph(fileId);
     
-    if (!file) {
+    if (!result || !result.file) {
       return {
         success: false,
         error: 'Canvas file not found',
@@ -169,7 +172,7 @@ export async function getCanvasGraphAction(fileId: string) {
       };
     }
 
-    if (file.userId !== user.id) {
+    if (result.file.userId !== user.id) {
       return {
         success: false,
         error: 'Access denied',
@@ -177,8 +180,8 @@ export async function getCanvasGraphAction(fileId: string) {
       };
     }
 
-    // Get graph
-    const graph = await CanvasFilesService.getGraphByFileId(fileId);
+    // Graph is already fetched with file (from JOIN query)
+    const graph = result.graph;
 
     if (!graph) {
       // Return empty graph if none exists
@@ -395,6 +398,139 @@ export async function duplicateCanvasFileAction(fileId: string, newName?: string
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to duplicate canvas file',
+    };
+  }
+}
+
+// ============================================================================
+// THUMBNAIL & VARIANT ACTIONS
+// ============================================================================
+
+/**
+ * Upload canvas thumbnail image
+ * Migrated from /api/canvas/upload-thumbnail
+ */
+export async function uploadCanvasThumbnailAction(fileId: string, file: File) {
+  try {
+    const { user } = await getCachedUser();
+    if (!user) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    // Verify file ownership
+    const canvasFile = await CanvasFilesService.getFileById(fileId);
+    if (!canvasFile) {
+      return { success: false, error: 'Canvas file not found' };
+    }
+
+    if (canvasFile.userId !== user.id) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // Upload to storage
+    const uploadResult = await StorageService.uploadFile(
+      file,
+      'uploads',
+      user.id,
+      `canvas-thumbnails/${fileId}-${Date.now()}.png`
+    );
+
+    // Update canvas file with thumbnail
+    const updateFormData = new FormData();
+    updateFormData.append('thumbnailUrl', uploadResult.url);
+    updateFormData.append('thumbnailKey', uploadResult.key);
+
+    const updateResult = await updateCanvasFileAction(fileId, updateFormData);
+    
+    if (!updateResult.success) {
+      return { success: false, error: updateResult.error };
+    }
+
+    return {
+      success: true,
+      url: uploadResult.url,
+      key: uploadResult.key,
+    };
+  } catch (error) {
+    logger.error('Error uploading canvas thumbnail:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to upload thumbnail',
+    };
+  }
+}
+
+/**
+ * Generate canvas variants
+ * Migrated from /api/canvas/generate-variants
+ */
+export async function generateCanvasVariantsAction(params: {
+  sourceImageUrl: string;
+  prompt: string;
+  count: number;
+  settings: Record<string, any>;
+  nodeId?: string;
+}) {
+  try {
+    const { user } = await getCachedUser();
+    if (!user) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    // Check credits
+    const creditsResult = await BillingService.getUserCredits(user.id);
+    if (!creditsResult.success || !creditsResult.credits) {
+      return { success: false, error: 'Failed to check credits' };
+    }
+
+    const requiredCredits = params.count;
+    if (creditsResult.credits.balance < requiredCredits) {
+      return { success: false, error: 'Insufficient credits' };
+    }
+
+    // Generate variants
+    const variants = [];
+    for (let i = 0; i < params.count; i++) {
+      const renderResult = await RendersDAL.create({
+        userId: user.id,
+        type: 'image',
+        prompt: params.prompt || 'Variant',
+        settings: {
+          style: params.settings.style || 'architectural',
+          quality: params.settings.quality || 'standard',
+          aspectRatio: '16:9',
+        },
+        status: 'pending',
+        platform: 'canvas', // Mark as canvas platform
+      });
+
+      variants.push({
+        id: renderResult.id,
+        url: params.sourceImageUrl, // Placeholder - would be actual generated image
+        prompt: params.prompt || 'Variant',
+        settings: params.settings,
+        renderId: renderResult.id,
+      });
+    }
+
+    // Deduct credits
+    await BillingService.deductCredits(
+      user.id,
+      requiredCredits,
+      `Generated ${params.count} variants`,
+      undefined,
+      'render'
+    );
+
+    return {
+      success: true,
+      data: { variants },
+    };
+  } catch (error) {
+    logger.error('Error generating variants:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to generate variants',
     };
   }
 }

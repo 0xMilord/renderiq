@@ -61,7 +61,17 @@ export function useAmbassador() {
       const result = await getAmbassadorStatusAction();
 
       if (result.success && result.data) {
-        const ambassadorData = result.data as AmbassadorStatus;
+        // ✅ FIXED: Convert string percentages to numbers for type compatibility
+        const data = result.data as any;
+        const ambassadorData: AmbassadorStatus = {
+          ...data,
+          discountPercentage: typeof data.discountPercentage === 'string' 
+            ? parseFloat(data.discountPercentage) || 0 
+            : data.discountPercentage,
+          commissionPercentage: typeof data.commissionPercentage === 'string'
+            ? parseFloat(data.commissionPercentage) || 0
+            : data.commissionPercentage,
+        };
         setAmbassador(ambassadorData);
         // Update cache
         ambassadorCache = {
@@ -85,9 +95,12 @@ export function useAmbassador() {
     }
   }, [user]);
 
+  // ✅ FIXED: Remove fetchAmbassadorStatus from dependency array to prevent infinite loop
+  // fetchAmbassadorStatus is stable (memoized with useCallback), so we only need user
   useEffect(() => {
     fetchAmbassadorStatus();
-  }, [fetchAmbassadorStatus]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const isAmbassador = !!ambassador;
   const isActiveAmbassador = ambassador?.status === 'active';

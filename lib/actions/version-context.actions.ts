@@ -21,8 +21,12 @@ export async function parsePromptWithMentions(
       };
     }
 
-    // Get user renders
-    const userRendersResult = await getUserRenders(projectId, 50);
+    // ✅ OPTIMIZED: Parallelize user renders and chain renders fetch when chainId is provided
+    const [userRendersResult, chainResult] = await Promise.all([
+      getUserRenders(projectId, 50),
+      chainId ? getRenderChain(chainId) : Promise.resolve({ success: false, data: null })
+    ]);
+
     if (!userRendersResult.success) {
       return {
         success: false,
@@ -30,13 +34,10 @@ export async function parsePromptWithMentions(
       };
     }
 
-    // Get chain renders if chainId is provided
+    // Get chain renders if chainId was provided and fetch was successful
     let chainRenders = undefined;
-    if (chainId) {
-      const chainResult = await getRenderChain(chainId);
-      if (chainResult.success && chainResult.data) {
-        chainRenders = chainResult.data.renders;
-      }
+    if (chainId && chainResult.success && chainResult.data) {
+      chainRenders = chainResult.data.renders;
     }
 
     const versionContextService = VersionContextService.getInstance();

@@ -21,11 +21,11 @@ export class UserActivityService {
     logger.log('📋 UserActivityService: Getting user activity for:', userId);
     
     try {
-      // Get recent renders
-      const renders = await RendersDAL.getByUser(userId, null, limit);
-      
-      // Get recent projects
-      const projects = await ProjectsDAL.getByUserId(userId, limit, 0);
+      // ✅ OPTIMIZED: Parallelize independent queries (2 queries → 1 parallel batch)
+      const [renders, projects] = await Promise.all([
+        RendersDAL.getByUser(userId, null, limit),
+        ProjectsDAL.getByUserId(userId, limit, 0),
+      ]);
       
       // Convert renders to activity items
       const renderActivities: ActivityItem[] = renders.map(render => ({

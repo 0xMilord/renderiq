@@ -7,6 +7,9 @@ import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { ProjectsDAL } from '@/lib/dal/projects';
 import { getCachedUser } from '@/lib/services/auth-cache';
 import { logger } from '@/lib/utils/logger';
+import { db } from '@/lib/db';
+import { renderChains, projects } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 
 const createProjectRuleSchema = z.object({
   chainId: z.string().uuid(),
@@ -34,15 +37,22 @@ export async function getProjectRules(chainId: string) {
     
     const userId = user.id;
 
-    // Verify chain belongs to user's project
-    const chain = await RenderChainsDAL.getById(chainId);
-    if (!chain) {
-      return { success: false, error: 'Chain not found' };
-    }
+    // ✅ OPTIMIZED: Use JOIN query to verify chain belongs to user's project in one query
+    const [chainWithProject] = await db
+      .select({
+        chain: renderChains,
+        project: projects,
+      })
+      .from(renderChains)
+      .innerJoin(projects, eq(renderChains.projectId, projects.id))
+      .where(and(
+        eq(renderChains.id, chainId),
+        eq(projects.userId, userId)
+      ))
+      .limit(1);
 
-    const project = await ProjectsDAL.getById(chain.projectId);
-    if (!project || project.userId !== userId) {
-      return { success: false, error: 'Access denied' };
+    if (!chainWithProject || !chainWithProject.chain) {
+      return { success: false, error: 'Chain not found or access denied' };
     }
 
     const rules = await ProjectRulesDAL.getAllRulesByChainId(chainId);
@@ -65,15 +75,22 @@ export async function getActiveProjectRules(chainId: string) {
     
     const userId = user.id;
 
-    // Verify chain belongs to user's project
-    const chain = await RenderChainsDAL.getById(chainId);
-    if (!chain) {
-      return { success: false, error: 'Chain not found' };
-    }
+    // ✅ OPTIMIZED: Use JOIN query to verify chain belongs to user's project in one query
+    const [chainWithProject] = await db
+      .select({
+        chain: renderChains,
+        project: projects,
+      })
+      .from(renderChains)
+      .innerJoin(projects, eq(renderChains.projectId, projects.id))
+      .where(and(
+        eq(renderChains.id, chainId),
+        eq(projects.userId, userId)
+      ))
+      .limit(1);
 
-    const project = await ProjectsDAL.getById(chain.projectId);
-    if (!project || project.userId !== userId) {
-      return { success: false, error: 'Access denied' };
+    if (!chainWithProject || !chainWithProject.chain) {
+      return { success: false, error: 'Chain not found or access denied' };
     }
 
     const rules = await ProjectRulesDAL.getActiveRulesByChainId(chainId);
@@ -105,15 +122,22 @@ export async function createProjectRule(formData: FormData) {
 
     const validated = createProjectRuleSchema.parse(data);
 
-    // Verify chain belongs to user's project
-    const chain = await RenderChainsDAL.getById(validated.chainId);
-    if (!chain) {
-      return { success: false, error: 'Chain not found' };
-    }
+    // ✅ OPTIMIZED: Use JOIN query to verify chain belongs to user's project in one query
+    const [chainWithProject] = await db
+      .select({
+        chain: renderChains,
+        project: projects,
+      })
+      .from(renderChains)
+      .innerJoin(projects, eq(renderChains.projectId, projects.id))
+      .where(and(
+        eq(renderChains.id, validated.chainId),
+        eq(projects.userId, userId)
+      ))
+      .limit(1);
 
-    const project = await ProjectsDAL.getById(chain.projectId);
-    if (!project || project.userId !== userId) {
-      return { success: false, error: 'Access denied' };
+    if (!chainWithProject || !chainWithProject.chain) {
+      return { success: false, error: 'Chain not found or access denied' };
     }
 
     const rule = await ProjectRulesDAL.create(validated);
@@ -150,20 +174,28 @@ export async function updateProjectRule(formData: FormData) {
 
     const validated = updateProjectRuleSchema.parse(data);
 
-    // Verify rule belongs to user's project
+    // Verify rule exists first
     const existingRule = await ProjectRulesDAL.getById(validated.id);
     if (!existingRule) {
       return { success: false, error: 'Rule not found' };
     }
 
-    const chain = await RenderChainsDAL.getById(existingRule.chainId);
-    if (!chain) {
-      return { success: false, error: 'Chain not found' };
-    }
+    // ✅ OPTIMIZED: Use JOIN query to verify chain belongs to user's project in one query
+    const [chainWithProject] = await db
+      .select({
+        chain: renderChains,
+        project: projects,
+      })
+      .from(renderChains)
+      .innerJoin(projects, eq(renderChains.projectId, projects.id))
+      .where(and(
+        eq(renderChains.id, existingRule.chainId),
+        eq(projects.userId, userId)
+      ))
+      .limit(1);
 
-    const project = await ProjectsDAL.getById(chain.projectId);
-    if (!project || project.userId !== userId) {
-      return { success: false, error: 'Access denied' };
+    if (!chainWithProject || !chainWithProject.chain) {
+      return { success: false, error: 'Chain not found or access denied' };
     }
 
     const updates: any = {};
@@ -196,20 +228,28 @@ export async function deleteProjectRule(id: string) {
     
     const userId = user.id;
 
-    // Verify rule belongs to user's project
+    // Verify rule exists first
     const existingRule = await ProjectRulesDAL.getById(id);
     if (!existingRule) {
       return { success: false, error: 'Rule not found' };
     }
 
-    const chain = await RenderChainsDAL.getById(existingRule.chainId);
-    if (!chain) {
-      return { success: false, error: 'Chain not found' };
-    }
+    // ✅ OPTIMIZED: Use JOIN query to verify chain belongs to user's project in one query
+    const [chainWithProject] = await db
+      .select({
+        chain: renderChains,
+        project: projects,
+      })
+      .from(renderChains)
+      .innerJoin(projects, eq(renderChains.projectId, projects.id))
+      .where(and(
+        eq(renderChains.id, existingRule.chainId),
+        eq(projects.userId, userId)
+      ))
+      .limit(1);
 
-    const project = await ProjectsDAL.getById(chain.projectId);
-    if (!project || project.userId !== userId) {
-      return { success: false, error: 'Access denied' };
+    if (!chainWithProject || !chainWithProject.chain) {
+      return { success: false, error: 'Chain not found or access denied' };
     }
 
     await ProjectRulesDAL.delete(id);

@@ -338,3 +338,31 @@ export async function getSimilarGalleryItems(itemId: string, limit = 12, current
     };
   }
 }
+
+export async function getUserLikedItems(limit = 100, offset = 0) {
+  try {
+    const { user } = await getCachedUser();
+    
+    if (!user) {
+      return {
+        success: false,
+        error: 'Authentication required',
+        data: [],
+      };
+    }
+
+    const likedItems = await RendersDAL.getUserLikedItems(user.id, limit, offset);
+    
+    return {
+      success: true,
+      data: likedItems,
+      count: likedItems.length,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get liked items',
+      data: [],
+    };
+  }
+}

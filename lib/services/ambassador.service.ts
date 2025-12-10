@@ -1,4 +1,7 @@
 import { AmbassadorDAL } from '@/lib/dal/ambassador';
+import { db } from '@/lib/db';
+import { ambassadors } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
 
 export interface AmbassadorApplicationData {
@@ -62,29 +65,40 @@ export class AmbassadorService {
 
   /**
    * Approve ambassador application
+   * ✅ OPTIMIZED: Use transaction and combine updates (4 queries → 2 queries)
    */
   static async approveAmbassador(ambassadorId: string, adminId: string) {
     logger.log('✅ AmbassadorService: Approving ambassador:', ambassadorId);
 
     try {
-      // Generate unique code
+      // Generate unique code first (needed for update)
       const code = await this.generateAmbassadorCode();
 
-      // Update status to approved
-      await AmbassadorDAL.updateAmbassadorStatus(ambassadorId, 'approved', adminId);
+      // ✅ OPTIMIZED: Use transaction and combine all updates into one
+      return await db.transaction(async (tx) => {
+        const [ambassador] = await tx
+          .update(ambassadors)
+          .set({
+            status: 'active',
+            code,
+            approvedBy: adminId,
+            approvedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(ambassadors.id, ambassadorId))
+          .returning();
 
-      // Set the code
-      await AmbassadorDAL.setAmbassadorCode(ambassadorId, code);
+        if (!ambassador) {
+          throw new Error('Ambassador not found');
+        }
 
-      // Update status to active
-      const ambassador = await AmbassadorDAL.updateAmbassadorStatus(ambassadorId, 'active', adminId);
-
-      logger.log('✅ AmbassadorService: Ambassador approved with code:', code);
-      return {
-        success: true,
-        ambassador,
-        code,
-      };
+        logger.log('✅ AmbassadorService: Ambassador approved with code:', code);
+        return {
+          success: true,
+          ambassador,
+          code,
+        };
+      });
     } catch (error) {
       logger.error('❌ AmbassadorService: Error approving ambassador:', error);
       throw error;
@@ -386,18 +400,22 @@ export class AmbassadorService {
 
   /**
    * Get ambassador stats
+   * ✅ OPTIMIZED: Parallelize independent queries (3 queries → 1 parallel batch)
    */
   static async getAmbassadorStats(ambassadorId: string): Promise<AmbassadorStats> {
     logger.log('📊 AmbassadorService: Getting ambassador stats:', ambassadorId);
 
     try {
-      const ambassadorData = await AmbassadorDAL.getAmbassadorById(ambassadorId);
+      // ✅ OPTIMIZED: Parallelize independent queries
+      const [ambassadorData, referrals, commissions] = await Promise.all([
+        AmbassadorDAL.getAmbassadorById(ambassadorId),
+        AmbassadorDAL.getReferrals(ambassadorId),
+        AmbassadorDAL.getCommissions(ambassadorId),
+      ]);
+
       if (!ambassadorData) {
         throw new Error('Ambassador not found');
       }
-
-      const referrals = await AmbassadorDAL.getReferrals(ambassadorId);
-      const commissions = await AmbassadorDAL.getCommissions(ambassadorId);
 
       const activeSubscribers = referrals.filter(
         (r) => r.referral.status === 'active' && r.referral.subscriptionId

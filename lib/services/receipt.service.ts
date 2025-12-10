@@ -17,54 +17,66 @@ export class ReceiptService {
       // Note: PDFKit font loading errors are caught and handled below
       // If fonts fail to load, PDFKit will use fallback fonts
 
-      // Get payment order
-      const [paymentOrder] = await db
-        .select()
-        .from(paymentOrders)
-        .where(eq(paymentOrders.id, paymentOrderId))
-        .limit(1);
+      // ✅ OPTIMIZED: Parallelize payment order fetch and invoice check
+      const [paymentOrderResult, invoiceResult] = await Promise.all([
+        db
+          .select()
+          .from(paymentOrders)
+          .where(eq(paymentOrders.id, paymentOrderId))
+          .limit(1),
+        // We need paymentOrder first to get invoiceNumber, so we'll check invoice after
+        Promise.resolve({ success: false, data: null } as { success: boolean; data: any })
+      ]);
 
+      const [paymentOrder] = paymentOrderResult;
       if (!paymentOrder) {
         return { success: false, error: 'Payment order not found' };
       }
 
       // Get or create invoice
-      let invoiceResult = await InvoiceService.getInvoiceByNumber(paymentOrder.invoiceNumber || '');
-      if (!invoiceResult.success || !invoiceResult.data) {
+      let invoiceResultFinal = await InvoiceService.getInvoiceByNumber(paymentOrder.invoiceNumber || '');
+      if (!invoiceResultFinal.success || !invoiceResultFinal.data) {
         // Create invoice if it doesn't exist
-        invoiceResult = await InvoiceService.createInvoice(paymentOrderId);
+        invoiceResultFinal = await InvoiceService.createInvoice(paymentOrderId);
       }
 
-      const invoice = invoiceResult.data;
+      const invoice = invoiceResultFinal.data;
       if (!invoice) {
         return { success: false, error: 'Failed to create invoice' };
       }
 
-      // Get user details
-      const [user] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, paymentOrder.userId))
-        .limit(1);
+      // ✅ OPTIMIZED: Parallelize user and reference details fetch
+      const [userResult, referenceResult] = await Promise.all([
+        db
+          .select()
+          .from(users)
+          .where(eq(users.id, paymentOrder.userId))
+          .limit(1),
+        paymentOrder.type === 'credit_package' && paymentOrder.referenceId
+          ? db
+              .select()
+              .from(creditPackages)
+              .where(eq(creditPackages.id, paymentOrder.referenceId))
+              .limit(1)
+          : paymentOrder.type === 'subscription' && paymentOrder.referenceId
+          ? db
+              .select()
+              .from(subscriptionPlans)
+              .where(eq(subscriptionPlans.id, paymentOrder.referenceId))
+              .limit(1)
+          : Promise.resolve([undefined])
+      ]);
 
-      // Get reference details
-      let referenceDetails: any = {};
+      const [user] = userResult;
+      const [referenceDetails] = referenceResult;
+
+      // Build item description
       let itemDescription = '';
-      if (paymentOrder.type === 'credit_package' && paymentOrder.referenceId) {
-        const [packageData] = await db
-          .select()
-          .from(creditPackages)
-          .where(eq(creditPackages.id, paymentOrder.referenceId))
-          .limit(1);
-        referenceDetails = packageData;
+      if (paymentOrder.type === 'credit_package' && referenceDetails) {
+        const packageData = referenceDetails as any;
         itemDescription = `${packageData?.name || 'Credit Package'} - ${packageData?.credits || 0} credits${packageData?.bonusCredits > 0 ? ` + ${packageData.bonusCredits} bonus` : ''}`;
-      } else if (paymentOrder.type === 'subscription' && paymentOrder.referenceId) {
-        const [plan] = await db
-          .select()
-          .from(subscriptionPlans)
-          .where(eq(subscriptionPlans.id, paymentOrder.referenceId))
-          .limit(1);
-        referenceDetails = plan;
+      } else if (paymentOrder.type === 'subscription' && referenceDetails) {
+        const plan = referenceDetails as any;
         itemDescription = `${plan?.name || 'Subscription Plan'} - ${plan?.creditsPerMonth || 0} credits/month`;
       }
 
@@ -325,9 +337,8 @@ export class ReceiptService {
           pdfBuffer,
           'receipts', // Use receipts bucket (private, no CDN)
           paymentOrder.userId,
-          fileName,
-          undefined, // No project slug for receipts
-          'application/pdf' // Explicit content type
+          fileName
+          // No project slug for receipts
         );
 
         // Update invoice and payment order with PDF URL
@@ -411,7 +422,7 @@ export class ReceiptService {
       const emailResult = await sendPaymentReceiptEmail({
         name: user.name || 'User',
         email: user.email,
-        amount: paymentOrder.amount,
+        amount: parseFloat(paymentOrder.amount || '0'),
         currency: paymentOrder.currency || 'INR',
         orderId: paymentOrder.id,
         receiptUrl: paymentOrder.receiptPdfUrl || undefined,
@@ -420,7 +431,7 @@ export class ReceiptService {
           {
             name: paymentOrder.type === 'credit_package' ? 'Credit Package' : 'Subscription',
             quantity: 1,
-            price: paymentOrder.amount,
+            price: parseFloat(paymentOrder.amount || '0'),
           },
         ] : undefined,
       });

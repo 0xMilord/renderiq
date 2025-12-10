@@ -29,7 +29,12 @@ export default function ProjectChainPage() {
   // ✅ FIXED: Fetch immediately - middleware already verified auth server-side
   // Actions use getCachedUser() which works with server-side auth
   useEffect(() => {
-    if (!projectSlug || !chainId) return;
+    if (!projectSlug || !chainId) {
+      logger.error('❌ ProjectChainPage: Missing projectSlug or chainId', { projectSlug, chainId });
+      setError('Invalid URL parameters');
+      setLoading(false);
+      return;
+    }
     // ✅ OPTIMIZED: Don't wait for client-side auth - middleware already verified user exists
     // If middleware allowed the request, user exists server-side
     // Actions will handle auth errors if needed
@@ -43,6 +48,8 @@ export default function ProjectChainPage() {
       
       setLoading(true);
       setError(null);
+      
+      logger.log('🔍 ProjectChainPage: Starting data fetch', { projectSlug, chainId });
 
       try {
         // ✅ CRITICAL: Fetch only project and chain first (required for page to render)
@@ -51,26 +58,36 @@ export default function ProjectChainPage() {
           getRenderChain(chainId),
         ]);
 
-        if (!mounted) return;
+        if (!mounted) {
+          logger.log('🔍 ProjectChainPage: Component unmounted, aborting');
+          return;
+        }
 
         if (projectResult.success && projectResult.data) {
           setProject(projectResult.data);
+          logger.log('✅ ProjectChainPage: Project loaded', { projectId: projectResult.data.id });
         } else {
-          setError(projectResult.error || 'Failed to load project');
+          const errorMsg = projectResult.error || 'Failed to load project';
+          logger.error('❌ ProjectChainPage: Failed to load project', { error: errorMsg, projectSlug });
+          setError(errorMsg);
           setLoading(false);
           return; // Don't continue if project fails
         }
 
         if (chainResult.success && chainResult.data) {
           setChain(chainResult.data);
+          logger.log('✅ ProjectChainPage: Chain loaded', { chainId: chainResult.data.id });
         } else {
-          setError(chainResult.error || 'Failed to load chain');
+          const errorMsg = chainResult.error || 'Failed to load chain';
+          logger.error('❌ ProjectChainPage: Failed to load chain', { error: errorMsg, chainId });
+          setError(errorMsg);
           setLoading(false);
           return; // Don't continue if chain fails
         }
         
         // ✅ CRITICAL: Set loading to false after critical data loads
         setLoading(false);
+        logger.log('✅ ProjectChainPage: Data fetch complete');
         
         // ✅ OPTIMIZED: Load dropdown data lazily (non-blocking)
         if (projectResult.success && chainResult.success) {
@@ -121,10 +138,16 @@ export default function ProjectChainPage() {
           });
         }
       } catch (err) {
-        if (!mounted) return;
-        setError(err instanceof Error ? err.message : 'An error occurred');
+        if (!mounted) {
+          logger.log('🔍 ProjectChainPage: Component unmounted during error handling');
+          return;
+        }
+        const errorMsg = err instanceof Error ? err.message : 'An error occurred';
         logger.error('❌ ProjectChainPage: Error fetching data:', err);
+        setError(errorMsg);
         setLoading(false);
+        // ✅ FIXED: Don't redirect on error - show error state instead
+        // This prevents unwanted redirects that cause navigation issues
       }
     };
     
@@ -132,6 +155,7 @@ export default function ProjectChainPage() {
     
     return () => {
       mounted = false;
+      logger.log('🔍 ProjectChainPage: Cleanup - component unmounting');
     };
   }, [projectSlug, chainId]); // ✅ FIXED: Fetch immediately - don't wait for client-side auth
 

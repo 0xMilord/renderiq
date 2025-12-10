@@ -21,6 +21,7 @@ export interface RenderFormDataOptions {
   // Image data
   uploadedImageBase64?: string | null;
   uploadedImageType?: string;
+  uploadedImageUrl?: string | null; // ✅ FIX CORS: URL for gallery images (fetched server-side)
   styleTransferBase64?: string | null;
   styleTransferImageType?: string;
   model?: string; // Model ID (e.g., 'gemini-3-pro-image-preview', 'veo-3.1-generate-preview')
@@ -32,7 +33,8 @@ export interface RenderFormDataOptions {
 export function createRenderFormData(options: RenderFormDataOptions): FormData {
   const fd = new FormData();
   fd.append('prompt', options.prompt);
-  fd.append('style', 'realistic');
+  // Use effect as style, or 'realistic' as default (matches unified-chat-interface logic)
+  fd.append('style', options.effect && options.effect !== 'none' ? options.effect : 'realistic');
   fd.append('quality', options.quality);
   fd.append('aspectRatio', options.aspectRatio);
   fd.append('type', options.type);
@@ -69,6 +71,10 @@ export function createRenderFormData(options: RenderFormDataOptions): FormData {
     if (options.uploadedImageType) {
       fd.append('uploadedImageType', options.uploadedImageType);
     }
+  }
+  // ✅ FIX CORS: Support uploadedImageUrl for gallery images (fetched server-side to avoid CORS)
+  if (options.uploadedImageUrl && !options.uploadedImageBase64) {
+    fd.append('uploadedImageUrl', options.uploadedImageUrl);
   }
   if (options.styleTransferBase64) {
     fd.append('styleTransferImageData', options.styleTransferBase64);

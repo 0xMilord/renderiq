@@ -522,6 +522,7 @@ export class SybilDetectionService {
 
   /**
    * Store detection result
+   * ✅ OPTIMIZED: Parallelize device and IP lookups
    */
   private static async storeDetectionResult(
     userId: string,
@@ -533,31 +534,31 @@ export class SybilDetectionService {
     ipAddress: string
   ): Promise<void> {
     try {
-      // Get device fingerprint ID (should exist since we stored it first)
-      const device = await db
-        .select({ id: deviceFingerprints.id })
-        .from(deviceFingerprints)
-        .where(
-          and(
-            eq(deviceFingerprints.fingerprintHash, fingerprintHash),
-            eq(deviceFingerprints.userId, userId)
+      // ✅ OPTIMIZED: Parallelize device and IP lookups (2 queries → 1 parallel batch)
+      const [device, ip] = await Promise.all([
+        db
+          .select({ id: deviceFingerprints.id })
+          .from(deviceFingerprints)
+          .where(
+            and(
+              eq(deviceFingerprints.fingerprintHash, fingerprintHash),
+              eq(deviceFingerprints.userId, userId)
+            )
           )
-        )
-        .orderBy(desc(deviceFingerprints.createdAt))
-        .limit(1);
-
-      // Get IP address ID (should exist since we stored it first)
-      const ip = await db
-        .select({ id: ipAddresses.id })
-        .from(ipAddresses)
-        .where(
-          and(
-            eq(ipAddresses.ipAddress, ipAddress),
-            eq(ipAddresses.userId, userId)
+          .orderBy(desc(deviceFingerprints.createdAt))
+          .limit(1),
+        db
+          .select({ id: ipAddresses.id })
+          .from(ipAddresses)
+          .where(
+            and(
+              eq(ipAddresses.ipAddress, ipAddress),
+              eq(ipAddresses.userId, userId)
+            )
           )
-        )
-        .orderBy(desc(ipAddresses.createdAt))
-        .limit(1);
+          .orderBy(desc(ipAddresses.createdAt))
+          .limit(1)
+      ]);
 
       const creditsAwarded = this.getRecommendedCredits(riskLevel);
       
@@ -596,6 +597,7 @@ export class SybilDetectionService {
 
   /**
    * Record account activity for behavioral analysis
+   * ✅ OPTIMIZED: Make device lookup non-blocking if it fails
    */
   static async recordActivity(
     userId: string,
@@ -605,15 +607,21 @@ export class SybilDetectionService {
     fingerprintHash?: string
   ): Promise<void> {
     try {
-      const deviceId = fingerprintHash
-        ? (
-            await db
-              .select({ id: deviceFingerprints.id })
-              .from(deviceFingerprints)
-              .where(eq(deviceFingerprints.fingerprintHash, fingerprintHash))
-              .limit(1)
-          )[0]?.id
-        : undefined;
+      // ✅ OPTIMIZED: Make device lookup fire-and-forget if it fails (non-critical)
+      let deviceId: string | undefined;
+      if (fingerprintHash) {
+        try {
+          const deviceResult = await db
+            .select({ id: deviceFingerprints.id })
+            .from(deviceFingerprints)
+            .where(eq(deviceFingerprints.fingerprintHash, fingerprintHash))
+            .limit(1);
+          deviceId = deviceResult[0]?.id;
+        } catch (error) {
+          // Device lookup is optional, don't fail activity recording
+          logger.warn('⚠️ SybilDetection: Failed to lookup device fingerprint (non-critical):', error);
+        }
+      }
 
       await db.insert(accountActivity).values({
         userId,

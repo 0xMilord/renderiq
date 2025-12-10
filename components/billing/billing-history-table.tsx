@@ -32,15 +32,16 @@ export function BillingHistoryTable() {
       const limit = 100;
       let hasMore = true;
 
-      while (hasMore) {
-        const params = new URLSearchParams();
-        if (filters.type !== 'all') params.append('type', filters.type);
-        if (filters.status !== 'all') params.append('status', filters.status);
-        params.append('limit', limit.toString());
-        params.append('offset', offset.toString());
+      // ✅ MIGRATED: Use server action instead of API route
+      const { getPaymentHistoryAction } = await import('@/lib/actions/payment.actions');
 
-        const response = await fetch(`/api/payments/history?${params.toString()}`);
-        const data = await response.json();
+      while (hasMore) {
+        const data = await getPaymentHistoryAction({
+          type: filters.type !== 'all' ? filters.type : undefined,
+          status: filters.status !== 'all' ? filters.status : undefined,
+          limit,
+          offset,
+        });
 
         if (data.success && data.data?.payments) {
           allPaymentsData = [...allPaymentsData, ...data.data.payments];

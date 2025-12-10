@@ -257,25 +257,25 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [pathname]);
 
-  // Fetch projects and chains - memoized with useCallback
+  // ✅ OPTIMIZED: Fetch projects and chains using server actions
   const fetchData = useCallback(async () => {
     if (!user?.id) return;
     
     try {
       setLoading(true);
-      const [projectsRes, chainsRes] = await Promise.all([
-        fetch('/api/projects'),
-        fetch('/api/projects/chains')
+      // ✅ OPTIMIZED: Use server actions instead of API routes
+      const { getUserProjects, getUserChainsWithRenders } = await import('@/lib/actions/projects.actions');
+      const [projectsResult, chainsResult] = await Promise.all([
+        getUserProjects(),
+        getUserChainsWithRenders()
       ]);
 
-      if (projectsRes.ok) {
-        const projectsData = await projectsRes.json();
-        setProjects(projectsData.data || []);
+      if (projectsResult.success && projectsResult.data) {
+        setProjects(projectsResult.data);
       }
 
-      if (chainsRes.ok) {
-        const chainsData = await chainsRes.json();
-        setChains(chainsData.data || []);
+      if (chainsResult.success && chainsResult.data) {
+        setChains(chainsResult.data);
       }
     } catch (error) {
       console.error('Failed to fetch projects/chains:', error);
@@ -284,11 +284,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [user?.id]);
 
+  // ✅ FIXED: Remove fetchData from dependency array to prevent infinite loop
+  // fetchData is stable (memoized with useCallback), so we only need user?.id
   useEffect(() => {
     if (user?.id) {
       fetchData();
     }
-  }, [user?.id, fetchData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   // Group chains by project
   const chainsByProject = useMemo(() => 

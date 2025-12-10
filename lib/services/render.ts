@@ -176,14 +176,15 @@ export class RenderService {
 
       const startTime = Date.now();
 
-      // Get project details to get userId
-      const project = await ProjectsDAL.getById(renderData.projectId);
+      // ✅ OPTIMIZED: Parallelize independent operations (project fetch and storage fetch)
+      const [project, originalImageUrl] = await Promise.all([
+        ProjectsDAL.getById(renderData.projectId),
+        StorageService.getFileUrl(originalImageId),
+      ]);
+
       if (!project) {
         throw new Error('Project not found during render processing');
       }
-
-      // Get the original image URL from storage
-      const originalImageUrl = await StorageService.getFileUrl(originalImageId);
       
       // Convert image URL to base64
       const imageBase64 = await this.convertImageToBase64(originalImageUrl);

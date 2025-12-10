@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { getPaymentHistoryAction } from '@/lib/actions/payment.actions';
 
 interface PaymentHistoryFilters {
   type?: 'subscription' | 'credit_package' | 'all';
@@ -32,16 +33,15 @@ export function usePaymentHistory(filters: PaymentHistoryFilters = {}) {
       setLoading(true);
       const currentOffset = reset ? 0 : offset;
 
-      const params = new URLSearchParams();
-      if (filters.type && filters.type !== 'all') params.append('type', filters.type);
-      if (filters.status && filters.status !== 'all') params.append('status', filters.status);
-      if (filters.startDate) params.append('startDate', filters.startDate);
-      if (filters.endDate) params.append('endDate', filters.endDate);
-      params.append('limit', limit.toString());
-      params.append('offset', currentOffset.toString());
-
-      const response = await fetch(`/api/payments/history?${params.toString()}`);
-      const data = await response.json();
+      // ✅ MIGRATED: Use server action instead of API route
+      const data = await getPaymentHistoryAction({
+        type: filters.type && filters.type !== 'all' ? filters.type : undefined,
+        status: filters.status && filters.status !== 'all' ? filters.status : undefined,
+        startDate: filters.startDate ? new Date(filters.startDate) : undefined,
+        endDate: filters.endDate ? new Date(filters.endDate) : undefined,
+        limit,
+        offset: currentOffset,
+      });
 
       if (data.success && data.data) {
         if (reset) {

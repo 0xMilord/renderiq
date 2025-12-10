@@ -189,8 +189,17 @@ export async function withSpan<T>(
  * Call this at the start of API route handlers for better organization
  */
 export function setTransactionName(name: string): void {
-  // In Sentry v10, use setTransactionName directly
-  Sentry.setTransactionName(name);
+  try {
+    // In Sentry Next.js, use getCurrentScope to set transaction name
+    // The transaction is automatically created by Next.js integration
+    const scope = Sentry.getCurrentScope();
+    if (scope) {
+      scope.setTransactionName(name);
+    }
+  } catch (error) {
+    // Silently fail if Sentry is not available or method doesn't exist
+    // This prevents breaking the API route if Sentry has issues
+  }
 }
 
 /**

@@ -54,30 +54,31 @@ export class ThumbnailService {
 
   /**
    * Generate thumbnails for all renders in a chain
+   * ✅ OPTIMIZED: Parallelize thumbnail generation
    */
   static async generateChainThumbnails(chainId: string): Promise<ThumbnailGrid> {
     logger.log('🖼️ Generating thumbnails for chain:', chainId);
     
     const renders = await RendersDAL.getByChainId(chainId);
-    const thumbnails = [];
-
-    for (const render of renders) {
-      if (render.status === 'completed' && render.outputUrl) {
-        try {
-          const url = await this.generateThumbnail(render.id, 'small');
-          thumbnails.push({
-            renderId: render.id,
-            url,
-            position: render.chainPosition || 0,
-          });
-        } catch (error) {
+    
+    // ✅ OPTIMIZED: Parallelize thumbnail generation (N sequential → 1 parallel batch)
+    const completedRenders = renders.filter(r => r.status === 'completed' && r.outputUrl);
+    const thumbnailPromises = completedRenders.map(render =>
+      this.generateThumbnail(render.id, 'small')
+        .then(url => ({
+          renderId: render.id,
+          url,
+          position: render.chainPosition || 0,
+        }))
+        .catch(error => {
           logger.error(`Failed to generate thumbnail for render ${render.id}:`, error);
-        }
-      }
-    }
+          return null;
+        })
+    );
 
-    // Sort by position
-    thumbnails.sort((a, b) => a.position - b.position);
+    const thumbnails = (await Promise.all(thumbnailPromises))
+      .filter((t): t is NonNullable<typeof t> => t !== null)
+      .sort((a, b) => a.position - b.position);
 
     logger.log(`✅ Generated ${thumbnails.length} thumbnails for chain`);
 
@@ -173,6 +174,7 @@ export class ThumbnailService {
 
   /**
    * Bulk generate thumbnails for multiple renders
+   * ✅ OPTIMIZED: Parallelize thumbnail generation
    */
   static async bulkGenerateThumbnails(
     renderIds: string[],
@@ -180,16 +182,22 @@ export class ThumbnailService {
   ): Promise<Map<string, string>> {
     logger.log(`🖼️ Bulk generating ${renderIds.length} thumbnails`);
     
-    const results = new Map<string, string>();
+    // ✅ OPTIMIZED: Parallelize thumbnail generation (N sequential → 1 parallel batch)
+    const thumbnailPromises = renderIds.map(renderId =>
+      this.generateThumbnail(renderId, size)
+        .then(url => ({ renderId, url }))
+        .catch(error => {
+          logger.error(`Failed to generate thumbnail for ${renderId}:`, error);
+          return null;
+        })
+    );
 
-    for (const renderId of renderIds) {
-      try {
-        const url = await this.generateThumbnail(renderId, size);
-        results.set(renderId, url);
-      } catch (error) {
-        logger.error(`Failed to generate thumbnail for ${renderId}:`, error);
+    const results = new Map<string, string>();
+    (await Promise.all(thumbnailPromises)).forEach(result => {
+      if (result) {
+        results.set(result.renderId, result.url);
       }
-    }
+    });
 
     logger.log(`✅ Generated ${results.size} thumbnails`);
     

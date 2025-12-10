@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from './use-auth';
+import { getCreditTransactionsAction } from '@/lib/actions/billing.actions';
 
 export function useCreditTransactions() {
   const { user } = useAuth();
@@ -20,13 +21,13 @@ export function useCreditTransactions() {
         setLoading(true);
         setError(null);
 
-        const response = await fetch('/api/credits/transactions?limit=50');
-        const data = await response.json();
+        // ✅ OPTIMIZED: Use server action instead of API route
+        const result = await getCreditTransactionsAction(50, 0);
 
-        if (data.success && data.data) {
-          setTransactions(data.data);
+        if (result.success && result.data) {
+          setTransactions(result.data);
         } else {
-          setError(data.error || 'Failed to fetch transactions');
+          setError(result.error || 'Failed to fetch transactions');
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch transactions');
@@ -43,11 +44,13 @@ export function useCreditTransactions() {
     
     try {
       setLoading(true);
-      const response = await fetch('/api/credits/transactions?limit=50');
-      const data = await response.json();
+      // ✅ OPTIMIZED: Use server action instead of API route
+      const result = await getCreditTransactionsAction(50, 0);
 
-      if (data.success && data.data) {
-        setTransactions(data.data);
+      if (result.success && result.data) {
+        setTransactions(result.data);
+      } else {
+        setError(result.error || 'Failed to refresh transactions');
       }
     } catch (err) {
       console.error('Failed to refresh transactions:', err);

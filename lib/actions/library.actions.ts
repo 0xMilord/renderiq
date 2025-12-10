@@ -17,15 +17,14 @@ export async function getUserRendersByProject() {
     const { user } = await getCachedUser();
     
     if (!user) {
-      logger.error('Auth error in getUserRendersByProject:', authError);
       return { success: false, error: 'Authentication failed' };
     }
 
-    // Fetch all user projects
-    const projects = await ProjectsDAL.getByUserId(user.id);
-    
-    // Fetch all renders for the user
-    const allRenders = await RendersDAL.getByUser(user.id);
+    // ✅ OPTIMIZED: Parallelize independent queries
+    const [projects, allRenders] = await Promise.all([
+      ProjectsDAL.getByUserId(user.id),
+      RendersDAL.getByUser(user.id)
+    ]);
     
     // Group renders by project
     const rendersByProject: RendersByProject[] = projects.map(project => {

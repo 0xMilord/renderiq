@@ -40,6 +40,7 @@ export class ToolsService {
 
   /**
    * Create tool execution
+   * ✅ OPTIMIZED: Parallelize analytics (fire-and-forget) to reduce blocking
    */
   static async createExecution(data: {
     toolId: string;
@@ -54,8 +55,11 @@ export class ToolsService {
     batchGroupId?: string;
     batchIndex?: number;
   }) {
-    // Track analytics
-    await ToolsDAL.createAnalyticsEvent({
+    // ✅ OPTIMIZED: Parallelize analytics (fire-and-forget) - doesn't block execution creation
+    const execution = await ToolsDAL.createExecution(data);
+    
+    // Fire-and-forget analytics (non-blocking)
+    ToolsDAL.createAnalyticsEvent({
       toolId: data.toolId,
       userId: data.userId,
       eventType: 'execution_started',
@@ -64,13 +68,14 @@ export class ToolsService {
         hasInputImages: !!data.inputImages?.length,
         hasInputText: !!data.inputText,
       },
-    });
+    }).catch(err => logger.warn('Analytics event creation failed (non-critical):', err));
 
-    return await ToolsDAL.createExecution(data);
+    return execution;
   }
 
   /**
    * Update tool execution status
+   * ✅ OPTIMIZED: Combine updates and parallelize analytics
    */
   static async updateExecutionStatus(
     executionId: string,
@@ -84,12 +89,25 @@ export class ToolsService {
       processingTime?: number;
     }
   ) {
-    const execution = await ToolsDAL.updateExecutionStatus(executionId, status, data?.errorMessage);
+    // ✅ OPTIMIZED: Combine all updates into a single call if additional data is provided
+    // Otherwise, use the simpler status update
+    let execution;
+    if (data && (data.outputRenderId || data.outputUrl || data.outputKey || data.outputFileId || data.processingTime)) {
+      // Update with all data in one call
+      execution = await ToolsDAL.updateExecution(executionId, {
+        status,
+        ...data,
+        errorMessage: data?.errorMessage,
+      });
+    } else {
+      // Simple status update
+      execution = await ToolsDAL.updateExecutionStatus(executionId, status, data?.errorMessage);
+    }
 
     if (execution) {
-      // Track analytics
+      // ✅ OPTIMIZED: Fire-and-forget analytics (non-blocking)
       if (status === 'completed') {
-        await ToolsDAL.createAnalyticsEvent({
+        ToolsDAL.createAnalyticsEvent({
           toolId: execution.toolId,
           userId: execution.userId,
           executionId: execution.id,
@@ -98,9 +116,9 @@ export class ToolsService {
             processingTime: data?.processingTime,
             creditsCost: execution.creditsCost,
           },
-        });
+        }).catch(err => logger.warn('Analytics event creation failed (non-critical):', err));
       } else if (status === 'failed') {
-        await ToolsDAL.createAnalyticsEvent({
+        ToolsDAL.createAnalyticsEvent({
           toolId: execution.toolId,
           userId: execution.userId,
           executionId: execution.id,
@@ -108,15 +126,7 @@ export class ToolsService {
           metadata: {
             errorMessage: data?.errorMessage,
           },
-        });
-      }
-
-      // Update with additional data if provided
-      if (data && (data.outputRenderId || data.outputUrl || data.outputKey || data.outputFileId || data.processingTime)) {
-        await ToolsDAL.updateExecution(executionId, {
-          ...data,
-          status,
-        });
+        }).catch(err => logger.warn('Analytics event creation failed (non-critical):', err));
       }
     }
 
@@ -153,6 +163,7 @@ export class ToolsService {
 
   /**
    * Create or update tool settings template
+   * ✅ OPTIMIZED: Parallelize analytics (fire-and-forget)
    */
   static async saveTemplate(data: {
     toolId: string;
@@ -165,8 +176,8 @@ export class ToolsService {
   }) {
     const template = await ToolsDAL.createTemplate(data);
 
-    // Track analytics
-    await ToolsDAL.createAnalyticsEvent({
+    // ✅ OPTIMIZED: Fire-and-forget analytics (non-blocking)
+    ToolsDAL.createAnalyticsEvent({
       toolId: data.toolId,
       userId: data.userId,
       eventType: 'settings_saved',
@@ -174,7 +185,7 @@ export class ToolsService {
         templateId: template.id,
         templateName: data.name,
       },
-    });
+    }).catch(err => logger.warn('Analytics event creation failed (non-critical):', err));
 
     return template;
   }
@@ -188,20 +199,25 @@ export class ToolsService {
 
   /**
    * Use a template (increment usage count)
+   * ✅ OPTIMIZED: Parallelize increment and get, then fire-and-forget analytics
    */
   static async useTemplate(templateId: string) {
-    await ToolsDAL.incrementTemplateUsage(templateId);
+    // ✅ OPTIMIZED: Parallelize increment and get template
+    const [template] = await Promise.all([
+      ToolsDAL.getTemplateById(templateId),
+      ToolsDAL.incrementTemplateUsage(templateId),
+    ]);
 
-    const template = await ToolsDAL.getTemplateById(templateId);
+    // ✅ OPTIMIZED: Fire-and-forget analytics (non-blocking)
     if (template) {
-      await ToolsDAL.createAnalyticsEvent({
+      ToolsDAL.createAnalyticsEvent({
         toolId: template.toolId,
         userId: template.userId || undefined,
         eventType: 'template_used',
         metadata: {
           templateId: template.id,
         },
-      });
+      }).catch(err => logger.warn('Analytics event creation failed (non-critical):', err));
     }
   }
 

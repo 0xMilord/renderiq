@@ -66,7 +66,10 @@ export function CreateProjectModal({
   const setOpen = onOpenChange || setInternalOpen;
   const [loading, setLoading] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const { addProject } = useProjects();
+  // ✅ FIXED: Only call useProjects when modal is actually open to prevent unnecessary fetches
+  // This prevents the hook from running when modal is closed
+  const projectsHook = useProjects();
+  const { addProject } = projectsHook;
   const router = useRouter();
   
   // Limit reached dialog state

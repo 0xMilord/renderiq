@@ -170,17 +170,9 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
       // Show processing dialog
       setProcessingDialog({ open: true, message: 'Please wait while process is being started...' });
 
-      // Create order with currency
-      const orderResponse = await fetch('/api/payments/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          creditPackageId: packageId,
-          currency: currency, // Send selected currency
-        }),
-      });
-
-      const orderResult = await orderResponse.json();
+      // ✅ MIGRATED: Use server action instead of API route
+      const { createPaymentOrderAction } = await import('@/lib/actions/payment.actions');
+      const orderResult = await createPaymentOrderAction(packageId, currency);
 
       if (!orderResult.success || !orderResult.data) {
         throw new Error(orderResult.error || 'Failed to create order');
