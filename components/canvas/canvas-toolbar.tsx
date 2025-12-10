@@ -114,7 +114,7 @@ export function CanvasToolbar({
     fetchProjects();
     fetchFiles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]); [fetchProjects, fetchFiles]);
+  }, [projectId]);
 
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return;

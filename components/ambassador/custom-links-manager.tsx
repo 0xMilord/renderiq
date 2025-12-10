@@ -90,31 +90,44 @@ export function CustomLinksManager({ links: initialLinks, ambassadorCode, onLink
           <CardDescription>Share this link to start earning commissions</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 bg-muted px-3 py-2 rounded text-sm break-all">
-              {defaultLink}
-            </code>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => copyToClipboard(defaultLink, 'default')}
-            >
-              {copiedId === 'default' ? (
-                <CheckCircle className="h-4 w-4" />
-              ) : (
-                <Copy className="h-4 w-4" />
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              asChild
-            >
-              <a href={defaultLink} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="h-4 w-4" />
-              </a>
-            </Button>
-          </div>
+          {!ambassadorCode ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Your ambassador code is not set. Please contact support to activate your referral code.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <code className="flex-1 bg-muted px-3 py-2 rounded text-xs sm:text-sm break-all min-w-0">
+                {defaultLink}
+              </code>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => copyToClipboard(defaultLink, 'default')}
+                  className="flex-shrink-0"
+                >
+                  {copiedId === 'default' ? (
+                    <CheckCircle className="h-4 w-4" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  className="flex-shrink-0"
+                >
+                  <a href={defaultLink} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -196,20 +209,20 @@ export function CustomLinksManager({ links: initialLinks, ambassadorCode, onLink
           <CardContent>
             <div className="space-y-4">
               {links.map((link) => (
-                <div key={link.id} className="border rounded-lg p-4 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
+                <div key={link.id} className="border rounded-lg p-3 sm:p-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <div className="flex-1 min-w-0">
                       {link.campaignName && (
-                        <h4 className="font-semibold mb-1">{link.campaignName}</h4>
+                        <h4 className="font-semibold mb-1 text-sm sm:text-base break-words">{link.campaignName}</h4>
                       )}
                       {link.description && (
-                        <p className="text-sm text-muted-foreground mb-2">{link.description}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground mb-2 break-words">{link.description}</p>
                       )}
                       <code className="text-xs bg-muted px-2 py-1 rounded break-all block">
                         {link.url}
                       </code>
                     </div>
-                    <div className="flex items-center gap-2 ml-4">
+                    <div className="flex items-center gap-2 sm:ml-4 flex-shrink-0">
                       <Button
                         variant="outline"
                         size="sm"
@@ -223,12 +236,12 @@ export function CustomLinksManager({ links: initialLinks, ambassadorCode, onLink
                       </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
                     <span>👆 {link.clickCount} clicks</span>
                     <span>👤 {link.signupCount} signups</span>
                     <span>💳 {link.conversionCount} conversions</span>
                     {!link.isActive && (
-                      <Badge variant="secondary">Inactive</Badge>
+                      <Badge variant="secondary" className="text-xs">Inactive</Badge>
                     )}
                   </div>
                 </div>

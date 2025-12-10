@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ToolConfig } from '@/lib/tools/registry';
 import { ToolOrchestrator } from '@/components/tools/tool-orchestrator';
 import { ToolLayout } from '@/components/tools/tool-layout';
+import { useProjectChainStore } from '@/lib/stores/project-chain-store';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Wrench } from 'lucide-react';
@@ -15,7 +16,8 @@ interface ToolPageClientProps {
 }
 
 export function ToolPageClient({ tool }: ToolPageClientProps) {
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  // ✅ MIGRATED: Using Zustand store for project selection
+  const { selectedProjectId, setSelectedProject } = useProjectChainStore();
   const [hintMessage, setHintMessage] = useState<string | null>(null);
 
   // Check if tool is accessible (respects feature flags)
@@ -24,7 +26,7 @@ export function ToolPageClient({ tool }: ToolPageClientProps) {
   // Show offline message if tool is not accessible
   if (!isAccessible || tool.status === 'offline') {
     return (
-      <ToolLayout tool={tool} onProjectChange={setSelectedProjectId} hintMessage={hintMessage}>
+      <ToolLayout tool={tool} onProjectChange={setSelectedProject} hintMessage={hintMessage}>
         <div className="w-full max-w-[1920px] mx-auto py-12 px-4">
           <Card className="max-w-2xl mx-auto">
             <CardHeader>
@@ -55,7 +57,7 @@ export function ToolPageClient({ tool }: ToolPageClientProps) {
   }
 
   return (
-    <ToolLayout tool={tool} onProjectChange={setSelectedProjectId} hintMessage={hintMessage}>
+    <ToolLayout tool={tool} onProjectChange={setSelectedProject} hintMessage={hintMessage}>
       <ToolOrchestrator tool={tool} projectId={selectedProjectId} onHintChange={setHintMessage} hintMessage={hintMessage} />
     </ToolLayout>
   );

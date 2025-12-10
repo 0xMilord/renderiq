@@ -35,9 +35,11 @@ import { createRenderAction } from '@/lib/actions/render.actions';
 import { useCredits } from '@/lib/hooks/use-credits';
 import { useToolRenders } from '@/lib/hooks/use-tool-renders';
 import { useAuthStore } from '@/lib/stores/auth-store';
+import { useToolSettingsStore } from '@/lib/stores/tool-settings-store';
+import { useUIPreferencesStore } from '@/lib/stores/ui-preferences-store';
+import { useModalStore } from '@/lib/stores/modal-store';
 import { toast } from 'sonner';
 import { LimitReachedDialog } from '@/components/billing/limit-reached-dialog';
-import type { LimitType } from '@/lib/services/plan-limits.service';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -103,40 +105,63 @@ export function BaseToolComponent({
   // Include processing renders when we're actively polling
   const { toolRenders, loading: rendersLoading, refetch: refetchRenders } = useToolRenders(tool, projectId, pollingRenderIds.size > 0);
   
-  const [images, setImages] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
-  // ✅ FIX CORS: Store gallery image URL (fetched server-side to avoid CORS)
-  const [galleryImageUrl, setGalleryImageUrl] = useState<string | null>(null);
+  // ✅ MIGRATED: Using Zustand stores for state management
+  // Tool Settings Store
+  const {
+    quality,
+    aspectRatio,
+    style,
+    selectedModel,
+    videoDuration,
+    videoModel,
+    enableAudio,
+    images,
+    previews,
+    galleryImageUrl,
+    setQuality,
+    setAspectRatio,
+    setStyle,
+    setSelectedModel,
+    setVideoDuration,
+    setVideoModel,
+    setEnableAudio,
+    setImages,
+    setPreviews,
+    setGalleryImageUrl,
+    addImage,
+    removeImage,
+    clearImages,
+  } = useToolSettingsStore();
+  
+  // UI Preferences Store
+  const {
+    activeTab,
+    setActiveTab,
+  } = useUIPreferencesStore();
+  
+  // Modal Store
+  const {
+    isUploadModalOpen,
+    isGalleryModalOpen,
+    limitDialogOpen,
+    limitDialogData,
+    openUploadModal,
+    closeUploadModal,
+    openGalleryModal,
+    closeGalleryModal,
+    openLimitDialog,
+    closeLimitDialog,
+  } = useModalStore();
+  
+  // Local state (ephemeral, not persisted)
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ renderId: string; outputUrl: string; label?: string } | null>(null);
   const [results, setResults] = useState<Array<{ renderId: string; outputUrl: string; label?: string }>>([]);
-  const [activeTab, setActiveTab] = useState<'tool' | 'output'>('tool');
   const [selectedRenderIndex, setSelectedRenderIndex] = useState<number | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [fullscreenImage, setFullscreenImage] = useState<{ url: string; label?: string } | null>(null);
-  // ✅ Limit dialog state
-  const [limitDialogOpen, setLimitDialogOpen] = useState(false);
-  const [limitDialogData, setLimitDialogData] = useState<{
-    limitType: LimitType;
-    current: number;
-    limit: number | null;
-    planName: string;
-    message?: string;
-  } | null>(null);
-  
-  const [quality, setQuality] = useState<'standard' | 'high' | 'ultra'>('standard');
-  const [aspectRatio, setAspectRatio] = useState<string>('16:9');
-  const [style, setStyle] = useState<string>('realistic'); // ✅ FIXED: Add style state with default value
-  const [selectedModel, setSelectedModel] = useState<string | undefined>(undefined); // Model ID for image/video generation
-  
-  // Video-specific state
-  const [videoDuration, setVideoDuration] = useState<4 | 6 | 8>(8);
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false);
-  const [videoModel, setVideoModel] = useState<string>('veo-3.1-generate-preview'); // Default to Veo 3.1 Standard
-  const [enableAudio, setEnableAudio] = useState<boolean>(true); // Audio for Veo 3.1 models
   
   // Screen Wake Lock - Keep screen on during render generation
   useWakeLock(loading || pollingRenderIds.size > 0);
@@ -328,7 +353,7 @@ export function BaseToolComponent({
     } else {
       handleFilesChange([file]);
     }
-    setIsUploadModalOpen(false);
+    closeUploadModal();
   }, [images, multipleImages, maxImages, handleFilesChange]);
 
   // Handle image selection from GalleryModal
@@ -355,7 +380,7 @@ export function BaseToolComponent({
           handleFilesChange([placeholderFile]);
         }
       }
-      setIsGalleryModalOpen(false);
+      closeGalleryModal();
     } catch (error) {
       console.error('Error loading gallery image:', error);
       toast.error('Failed to load image from gallery');
@@ -641,14 +666,13 @@ export function BaseToolComponent({
         // ✅ CHECK: Handle limit errors
         if ((result as any).limitReached) {
           const limitData = result as any;
-          setLimitDialogData({
+          openLimitDialog({
             limitType: limitData.limitType || 'credits',
             current: limitData.current || 0,
             limit: limitData.limit ?? null,
             planName: limitData.planName || 'Free',
             message: result.error,
           });
-          setLimitDialogOpen(true);
           return; // Exit early - don't show error toast
         }
         throw new Error(result.error || 'Failed to generate render');
@@ -749,7 +773,7 @@ export function BaseToolComponent({
                   type="button"
                   variant="outline"
                   className="w-full"
-                  onClick={() => setIsUploadModalOpen(true)}
+                  onClick={() => openUploadModal()}
                 >
                   <Upload className="h-4 w-4 mr-2" />
                   Upload, Capture, or Reuse Image
@@ -1289,7 +1313,7 @@ export function BaseToolComponent({
       </div>
 
       {/* Mobile/Tablet: Tabs layout - Hidden below header */}
-      <div className={cn("block lg:hidden min-h-[90vh]", hintMessage ? "pt-20" : "pt-12")}>
+      <div className={cn("block lg:hidden min-h-[90vh] pt-4")}>
         <Tabs 
           value={activeTab} 
           onValueChange={(v) => setActiveTab(v as 'tool' | 'output')} 
@@ -1820,8 +1844,7 @@ export function BaseToolComponent({
         <LimitReachedDialog
           isOpen={limitDialogOpen}
           onClose={() => {
-            setLimitDialogOpen(false);
-            setLimitDialogData(null);
+            closeLimitDialog();
           }}
           limitType={limitDialogData.limitType}
           current={limitDialogData.current}
@@ -1832,16 +1855,16 @@ export function BaseToolComponent({
       )}
       <UploadModal
         isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
+        onClose={() => closeUploadModal()}
         onFileSelect={handleUploadModalFileSelect}
         onGalleryOpen={() => {
-          setIsUploadModalOpen(false);
-          setIsGalleryModalOpen(true);
+          closeUploadModal();
+          openGalleryModal();
         }}
       />
       <GalleryModal
         isOpen={isGalleryModalOpen}
-        onClose={() => setIsGalleryModalOpen(false)}
+        onClose={() => closeGalleryModal()}
         onImageSelect={handleGalleryImageSelect}
       />
     </div>

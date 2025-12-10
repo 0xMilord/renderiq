@@ -38,6 +38,9 @@ import type { Render } from '@/lib/db/schema';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createRenderChain } from '@/lib/actions/projects.actions';
 import { logger } from '@/lib/utils/logger';
+import { useUIPreferencesStore } from '@/lib/stores/ui-preferences-store';
+import { useSearchFilterStore } from '@/lib/stores/search-filter-store';
+import { useModalStore } from '@/lib/stores/modal-store';
 
 type ViewMode = 'default' | 'compact' | 'list';
 
@@ -49,12 +52,21 @@ export default function ProjectPage() {
   const { project, loading: projectLoading, error: projectError } = useProjectBySlug(projectSlug);
   const { renders, chains, loading: rendersLoading, error: rendersError, fetchChains } = useRenders(project?.id || null);
   
-  const [viewMode, setViewMode] = useState<ViewMode>('default');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('newest');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [selectedRender, setSelectedRender] = useState<Render | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // ✅ MIGRATED: Using Zustand stores for state management
+  const { viewMode, setViewMode } = useUIPreferencesStore();
+  const { renderSearchQuery, renderSortBy, renderFilterStatus, setRenderFilters } = useSearchFilterStore();
+  const { isImageModalOpen, selectedRender, openImageModal, closeImageModal } = useModalStore();
+  
+  // Use store values with local aliases for backward compatibility
+  const searchQuery = renderSearchQuery;
+  const sortBy = renderSortBy;
+  const filterStatus = renderFilterStatus;
+  const setSearchQuery = (query: string) => setRenderFilters(query, sortBy, filterStatus);
+  const setSortBy = (newSortBy: string) => setRenderFilters(searchQuery, newSortBy, filterStatus);
+  const setFilterStatus = (newStatus: string) => setRenderFilters(searchQuery, sortBy, newStatus);
+  const isModalOpen = isImageModalOpen; // Alias for backward compatibility
+  const setSelectedRender = (render: Render | null) => render ? openImageModal(render) : closeImageModal();
+  const setIsModalOpen = (open: boolean) => open ? openImageModal(selectedRender!) : closeImageModal();
 
   // Fetch chains when project is loaded
   useEffect(() => {
@@ -94,8 +106,7 @@ export default function ProjectPage() {
   };
 
   const handleView = (render: Render) => {
-    setSelectedRender(render);
-    setIsModalOpen(true);
+    openImageModal(render);
   };
 
   const handleDownload = (render: Render) => {
@@ -351,8 +362,7 @@ export default function ProjectPage() {
         <ImageModal
           isOpen={isModalOpen}
           onClose={() => {
-            setIsModalOpen(false);
-            setSelectedRender(null);
+            closeImageModal();
           }}
           item={selectedRender}
           onLike={handleLike}

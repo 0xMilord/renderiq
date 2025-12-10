@@ -60,13 +60,12 @@ function PaymentSuccessContent() {
           const { getPaymentOrderBySubscriptionAction } = await import('@/lib/actions/payment.actions');
           const paymentData = await getPaymentOrderBySubscriptionAction(razorpaySubscriptionId);
           if (paymentData.success && paymentData.data?.id) {
-              const newUrl = new URL(window.location.href);
-              newUrl.searchParams.set('payment_order_id', paymentData.data.id);
-              newUrl.searchParams.delete('verification');
-              window.history.replaceState({}, '', newUrl.toString());
-              fetchPaymentDetails();
-              return;
-            }
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.set('payment_order_id', paymentData.data.id);
+            newUrl.searchParams.delete('verification');
+            window.history.replaceState({}, '', newUrl.toString());
+            fetchPaymentDetails();
+            return;
           }
         }
         // If we can't get payment order, just show success without receipt
@@ -93,16 +92,11 @@ function PaymentSuccessContent() {
         const paymentData = await getPaymentOrderAction(paymentOrderId);
         
         if (paymentData.success && paymentData.data) {
-            setPaymentData(paymentData.data);
-            setLoading(false); // Show page immediately with payment data
-          } else {
-            // Payment data not found or invalid - still show success page
-            console.warn('Payment data not found or invalid:', paymentData);
-            setLoading(false);
-          }
+          setPaymentData(paymentData.data);
+          setLoading(false); // Show page immediately with payment data
         } else {
-          // API call failed - still show success page (payment was verified)
-          console.warn('Failed to fetch payment details, but payment was successful');
+          // Payment data not found or invalid - still show success page
+          console.warn('Payment data not found or invalid:', paymentData);
           setLoading(false);
         }
 
@@ -120,58 +114,64 @@ function PaymentSuccessContent() {
         const paymentData = await getPaymentOrderBySubscriptionAction(razorpaySubscriptionId);
 
         if (paymentData.success && paymentData.data) {
-            const payment = paymentData.data;
-            setPaymentData(payment);
+          const payment = paymentData.data;
+          setPaymentData(payment);
+          
+          // Update URL with payment order ID if found
+          if (payment.id) {
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.set('payment_order_id', payment.id);
+            newUrl.searchParams.delete('verification');
+            window.history.replaceState({}, '', newUrl.toString());
             
-            // Update URL with payment order ID if found
-            if (payment.id) {
-              const newUrl = new URL(window.location.href);
-              newUrl.searchParams.set('payment_order_id', payment.id);
-              newUrl.searchParams.delete('verification');
-              window.history.replaceState({}, '', newUrl.toString());
-              
-              setLoading(false); // Show page immediately with payment data
-              
-              // ✅ MIGRATED: Fetch receipt in background using server action (non-blocking)
-              getReceiptAction(payment.id)
-                .then(receiptData => {
-                  if (receiptData?.success && receiptData.data?.receiptUrl) {
-                    setReceiptUrl(receiptData.data.receiptUrl);
-                  }
-                })
-                .catch(err => console.error('Error fetching receipt:', err));
-            }
+            setLoading(false); // Show page immediately with payment data
+            
+            // ✅ MIGRATED: Fetch receipt in background using server action (non-blocking)
+            getReceiptAction(payment.id)
+              .then(receiptData => {
+                if (receiptData?.success && receiptData.data?.receiptUrl) {
+                  setReceiptUrl(receiptData.data.receiptUrl);
+                }
+              })
+              .catch(err => console.error('Error fetching receipt:', err));
+          } else {
+            setLoading(false);
           }
         } else {
           // ✅ MIGRATED: Fallback: try history using server action (less efficient but works)
           const { getPaymentHistoryAction, getReceiptAction } = await import('@/lib/actions/payment.actions');
           const historyData = await getPaymentHistoryAction({ limit: 10 });
           if (historyData.success && historyData.data?.payments) {
-              const payment = historyData.data.payments.find((p: any) => 
-                p.razorpaySubscriptionId === razorpaySubscriptionId || 
-                (p.type === 'subscription' && p.status === 'completed')
-              );
-              if (payment) {
-                setPaymentData(payment);
-                if (payment.id) {
-                  const newUrl = new URL(window.location.href);
-                  newUrl.searchParams.set('payment_order_id', payment.id);
-                  newUrl.searchParams.delete('verification');
-                  window.history.replaceState({}, '', newUrl.toString());
-                  
-                  setLoading(false); // Show page immediately with payment data
-                  
-                  // ✅ MIGRATED: Fetch receipt in background using server action (non-blocking)
-                  getReceiptAction(payment.id)
-                    .then(receiptData => {
-                      if (receiptData?.success && receiptData.data?.receiptUrl) {
-                        setReceiptUrl(receiptData.data.receiptUrl);
-                      }
-                    })
-                    .catch(err => console.error('Error fetching receipt:', err));
-                }
+            const payment = historyData.data.payments.find((p: any) => 
+              p.razorpaySubscriptionId === razorpaySubscriptionId || 
+              (p.type === 'subscription' && p.status === 'completed')
+            );
+            if (payment) {
+              setPaymentData(payment);
+              if (payment.id) {
+                const newUrl = new URL(window.location.href);
+                newUrl.searchParams.set('payment_order_id', payment.id);
+                newUrl.searchParams.delete('verification');
+                window.history.replaceState({}, '', newUrl.toString());
+                
+                setLoading(false); // Show page immediately with payment data
+                
+                // ✅ MIGRATED: Fetch receipt in background using server action (non-blocking)
+                getReceiptAction(payment.id)
+                  .then(receiptData => {
+                    if (receiptData?.success && receiptData.data?.receiptUrl) {
+                      setReceiptUrl(receiptData.data.receiptUrl);
+                    }
+                  })
+                  .catch(err => console.error('Error fetching receipt:', err));
+              } else {
+                setLoading(false);
               }
+            } else {
+              setLoading(false);
             }
+          } else {
+            setLoading(false);
           }
         }
       } else if (razorpayOrderId || razorpayPaymentId) {

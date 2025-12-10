@@ -1,7 +1,7 @@
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import { db } from '@/lib/db';
-import { paymentOrders, creditPackages, subscriptionPlans, userSubscriptions, userCredits, creditTransactions, invoices, ambassadorCommissions } from '@/lib/db/schema';
+import { paymentOrders, creditPackages, subscriptionPlans, userSubscriptions, userCredits, creditTransactions, invoices, ambassadorCommissions, users } from '@/lib/db/schema';
 import { eq, desc, and, gte } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
 import { InvoiceService } from './invoice.service';

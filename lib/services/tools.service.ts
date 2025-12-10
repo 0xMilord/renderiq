@@ -149,8 +149,26 @@ export class ToolsService {
 
   /**
    * Get tool executions for a specific tool
+   * ✅ FIX: Accepts either tool UUID or slug, resolves to UUID if needed
    */
-  static async getExecutionsByTool(toolId: string, userId?: string, limit?: number) {
+  static async getExecutionsByTool(toolIdOrSlug: string, userId?: string, limit?: number) {
+    // Check if toolIdOrSlug is a UUID (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(toolIdOrSlug);
+    
+    let toolId: string;
+    if (isUUID) {
+      // Already a UUID, use directly
+      toolId = toolIdOrSlug;
+    } else {
+      // It's a slug, look up the tool UUID
+      const tool = await ToolsDAL.getBySlug(toolIdOrSlug);
+      if (!tool) {
+        logger.warn(`Tool not found for slug: ${toolIdOrSlug}`);
+        return []; // Return empty array if tool not found
+      }
+      toolId = tool.id;
+    }
+    
     return await ToolsDAL.getExecutionsByTool(toolId, userId, limit);
   }
 

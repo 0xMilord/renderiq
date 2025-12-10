@@ -20,6 +20,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { RendersByProject } from '@/lib/actions/library.actions';
 import type { Render } from '@/lib/types/render';
+import { useProjectChainStore } from '@/lib/stores/project-chain-store';
 
 interface LibraryClientProps {
   rendersByProject: RendersByProject[];
@@ -27,7 +28,8 @@ interface LibraryClientProps {
 
 export function LibraryClient({ rendersByProject }: LibraryClientProps) {
   const router = useRouter();
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  // ✅ MIGRATED: Using Zustand store for project selection
+  const { selectedProjectId, setSelectedProject } = useProjectChainStore();
   
   // Memoize project IDs set creation
   const projectIds = useMemo(() => 

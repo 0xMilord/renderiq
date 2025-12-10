@@ -9,6 +9,7 @@ import { ToolConfig } from '@/lib/tools/registry';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { createProject } from '@/lib/actions/projects.actions';
 import { logger } from '@/lib/utils/logger';
+import { useProjectChainStore } from '@/lib/stores/project-chain-store';
 
 interface ToolLayoutProps {
   tool: ToolConfig;
@@ -19,11 +20,12 @@ interface ToolLayoutProps {
 
 export function ToolLayout({ tool, children, onProjectChange, hintMessage }: ToolLayoutProps) {
   const { projects, loading: projectsLoading, refetch } = useProjects();
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  // ✅ MIGRATED: Using Zustand store for project selection
+  const { selectedProjectId, setSelectedProject } = useProjectChainStore();
   const [creatingProject, setCreatingProject] = useState(false);
 
   const handleProjectChange = (value: string) => {
-    setSelectedProjectId(value);
+    setSelectedProject(value);
     onProjectChange?.(value);
   };
 
@@ -44,7 +46,7 @@ export function ToolLayout({ tool, children, onProjectChange, hintMessage }: Too
       
       if (result.success && result.data) {
         await refetch(); // Refresh projects list
-        setSelectedProjectId(result.data.id);
+        setSelectedProject(result.data.id);
         onProjectChange?.(result.data.id);
         logger.log('✅ Created project:', projectName);
       } else {

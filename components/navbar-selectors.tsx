@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useRouter, usePathname, useParams } from 'next/navigation';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useProjectChains } from '@/lib/hooks/use-render-chain';
+import { useProjectChainStore } from '@/lib/stores/project-chain-store';
 import {
   Select,
   SelectContent,
@@ -20,7 +21,7 @@ export function NavbarSelectors() {
   const params = useParams();
   
   const { projects, loading: projectsLoading } = useProjects();
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const { selectedProjectId, setSelectedProject, setSelectedChain } = useProjectChainStore();
   
   // Detect current project from URL first to load chains
   const currentProjectSlug = useMemo(() => {
@@ -89,16 +90,15 @@ export function NavbarSelectors() {
   // Only update if the project ID actually changed to prevent unnecessary updates
   useEffect(() => {
     if (currentProject && currentProject.id !== selectedProjectId) {
-      setSelectedProjectId(currentProject.id);
+      setSelectedProject(currentProject.id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentProject?.id]);
+  }, [currentProject?.id, selectedProjectId, setSelectedProject]);
   
   // Handle project selection - navigate to project page
   const handleProjectChange = (projectId: string) => {
     const project = projects.find(p => p.id === projectId);
     if (project) {
-      setSelectedProjectId(projectId);
+      setSelectedProject(projectId);
       // Navigate to unified project page
       router.push(`/project/${project.slug}`);
     }
@@ -110,6 +110,9 @@ export function NavbarSelectors() {
     const selectedChain = chains.find(c => c.id === chainId);
     
     if (selectedChain) {
+      // Set chain in store (which also sets the project)
+      setSelectedChain(chainId);
+      
       // Find the project by the chain's projectId
       const project = projects.find(p => p.id === selectedChain.projectId);
       

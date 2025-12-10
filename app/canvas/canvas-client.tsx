@@ -32,6 +32,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/lib/stores/auth-store';
+import { useProjectChainStore } from '@/lib/stores/project-chain-store';
+import { useUIPreferencesStore } from '@/lib/stores/ui-preferences-store';
+import { useModalStore } from '@/lib/stores/modal-store';
 import { CreateProjectModal } from '@/components/projects/create-project-modal';
 import { EditProjectModal } from '@/components/projects/edit-project-modal';
 import { DeleteProjectDialog } from '@/components/projects/delete-project-dialog';
@@ -62,17 +65,25 @@ export function CanvasPageClient({ initialProjects }: CanvasPageClientProps) {
     }
   }, [user, authLoading, initialized, router]);
 
+  // ✅ MIGRATED: Using Zustand stores for state management
+  const { selectedProjectId, setSelectedProject: setSelectedProjectId } = useProjectChainStore();
+  const { isSidebarOpen, setSidebarOpen } = useUIPreferencesStore();
+  const { 
+    isProjectEditModalOpen,
+    isProjectDeleteDialogOpen,
+    isProjectDuplicateModalOpen,
+    openProjectEditModal,
+    closeProjectEditModal,
+    openProjectDeleteDialog,
+    closeProjectDeleteDialog,
+    openProjectDuplicateModal,
+    closeProjectDuplicateModal,
+  } = useModalStore();
+  
+  // Local state (ephemeral, canvas-specific)
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCreatingFile, setIsCreatingFile] = useState(false);
-  
-  // Modal states
-  const [editProjectModalOpen, setEditProjectModalOpen] = useState(false);
-  const [deleteProjectDialogOpen, setDeleteProjectDialogOpen] = useState(false);
-  const [duplicateProjectModalOpen, setDuplicateProjectModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  
   const [editFileModalOpen, setEditFileModalOpen] = useState(false);
   const [deleteFileDialogOpen, setDeleteFileDialogOpen] = useState(false);
   const [duplicateFileModalOpen, setDuplicateFileModalOpen] = useState(false);
@@ -169,23 +180,23 @@ export function CanvasPageClient({ initialProjects }: CanvasPageClientProps) {
 
   const handleEditProject = (project: Project) => {
     setSelectedProject(project);
-    setEditProjectModalOpen(true);
+    openProjectEditModal();
   };
 
   const handleDeleteProject = (project: Project) => {
     setSelectedProject(project);
-    setDeleteProjectDialogOpen(true);
+    openProjectDeleteDialog();
   };
 
   const handleDuplicateProject = (project: Project) => {
     setSelectedProject(project);
-    setDuplicateProjectModalOpen(true);
+    openProjectDuplicateModal();
   };
 
   const handleProjectUpdated = (updatedProject: Project) => {
     setLocalProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
     refetchProjects();
-    setEditProjectModalOpen(false);
+    closeProjectEditModal();
     setSelectedProject(null);
   };
 
@@ -201,14 +212,14 @@ export function CanvasPageClient({ initialProjects }: CanvasPageClientProps) {
         refetchProjects(); // Refresh from server
       }
     }
-    setDeleteProjectDialogOpen(false);
+    closeProjectDeleteDialog();
     setSelectedProject(null);
   };
 
   const handleProjectDuplicated = (duplicatedProject: Project) => {
     setLocalProjects(prev => [duplicatedProject, ...prev]);
-    setSelectedProjectId(duplicatedProject.id);
-    setDuplicateProjectModalOpen(false);
+      setSelectedProjectId(duplicatedProject.id);
+      closeProjectDuplicateModal();
     setSelectedProject(null);
     refetchProjects();
   };
@@ -288,9 +299,9 @@ export function CanvasPageClient({ initialProjects }: CanvasPageClientProps) {
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 640) {
-        setIsSidebarOpen(true);
+        setSidebarOpen(true);
       } else {
-        setIsSidebarOpen(false);
+        setSidebarOpen(false);
       }
     };
     handleResize();
@@ -335,7 +346,7 @@ export function CanvasPageClient({ initialProjects }: CanvasPageClientProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setIsSidebarOpen(false)}
+                onClick={() => setSidebarOpen(false)}
                 className="h-8 w-8 shrink-0"
                 title="Collapse sidebar"
               >
@@ -346,7 +357,7 @@ export function CanvasPageClient({ initialProjects }: CanvasPageClientProps) {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setIsSidebarOpen(true)}
+              onClick={() => setSidebarOpen(true)}
               className="h-8 w-8"
               title="Expand sidebar"
             >
@@ -436,7 +447,7 @@ export function CanvasPageClient({ initialProjects }: CanvasPageClientProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setIsSidebarOpen(true)}
+                onClick={() => setSidebarOpen(true)}
                 className="h-8 w-8 shrink-0"
               >
                 <PanelLeftOpen className="h-4 w-4" />
@@ -635,20 +646,20 @@ export function CanvasPageClient({ initialProjects }: CanvasPageClientProps) {
         <>
           <EditProjectModal
             project={selectedProject}
-            open={editProjectModalOpen}
-            onOpenChange={setEditProjectModalOpen}
+            open={isProjectEditModalOpen}
+            onOpenChange={(open) => open ? openProjectEditModal() : closeProjectEditModal()}
             onProjectUpdated={handleProjectUpdated}
           />
           <DeleteProjectDialog
             project={selectedProject}
-            open={deleteProjectDialogOpen}
-            onOpenChange={setDeleteProjectDialogOpen}
+            open={isProjectDeleteDialogOpen}
+            onOpenChange={(open) => open ? openProjectDeleteDialog() : closeProjectDeleteDialog()}
             onConfirm={async () => handleProjectDeleted()}
           />
           <DuplicateProjectModal
             project={selectedProject}
-            open={duplicateProjectModalOpen}
-            onOpenChange={setDuplicateProjectModalOpen}
+            open={isProjectDuplicateModalOpen}
+            onOpenChange={(open) => open ? openProjectDuplicateModal() : closeProjectDuplicateModal()}
             onProjectDuplicated={handleProjectDuplicated}
           />
         </>

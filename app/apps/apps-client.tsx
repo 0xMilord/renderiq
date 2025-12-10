@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { ToolConfig, ToolCategory, CATEGORIES, getToolBySlug } from '@/lib/tools/registry';
 import { isToolAccessible } from '@/lib/tools/feature-flags';
 import { cn } from '@/lib/utils';
+import { useSearchFilterStore } from '@/lib/stores/search-filter-store';
 
 const categoryIcons: Record<ToolCategory, typeof Sparkles> = {
   transformation: Sparkles,
@@ -97,8 +98,17 @@ interface AppsPageClientProps {
 
 export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
   const router = useRouter();
-  const [selectedCategory, setSelectedCategory] = useState<ToolCategory | 'all'>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  
+  // ✅ MIGRATED: Using Zustand stores for state management
+  const { toolSearchQuery, toolCategory, setToolFilters } = useSearchFilterStore();
+  
+  // Use store values with local aliases for backward compatibility
+  const selectedCategory = toolCategory;
+  const searchQuery = toolSearchQuery;
+  const setSelectedCategory = (category: ToolCategory | 'all') => setToolFilters(searchQuery, category);
+  const setSearchQuery = (query: string) => setToolFilters(query, selectedCategory);
+  
+  // Local state (ephemeral, not persisted)
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -218,7 +228,7 @@ export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <section className="relative pb-8 bg-primary w-full pt-[calc(var(--navbar-height)+1.5rem)]">
+      <section className="relative pb-8 bg-primary w-full mt-[var(--navbar-height)] pt-6">
         <div className="w-full">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center w-full">
             {/* Left Column: Title & Description */}
@@ -324,7 +334,7 @@ export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
       </section>
 
       {/* Category Tabs */}
-      <section className="sticky top-[calc(1rem+2.75rem)] z-10 bg-background/80 dark:bg-background/80 backdrop-blur-xl border-b w-full">
+      <section className="sticky top-[var(--navbar-height)] z-10 bg-background/80 dark:bg-background/80 backdrop-blur-xl border-b w-full">
         <div className="w-full px-4">
           <div className="flex gap-2 overflow-x-auto py-4 scrollbar-hide">
             <Button

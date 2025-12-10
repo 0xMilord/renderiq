@@ -51,10 +51,10 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { Project, RenderChain, Render } from '@/lib/db/schema';
 import { useAuthStore } from '@/lib/stores/auth-store';
-
-interface ChainWithRenders extends RenderChain {
-  renders: Render[];
-}
+import { useProjectChainStore, type ChainWithRenders } from '@/lib/stores/project-chain-store';
+import { useUIPreferencesStore } from '@/lib/stores/ui-preferences-store';
+import { useModalStore } from '@/lib/stores/modal-store';
+import { useSearchFilterStore } from '@/lib/stores/search-filter-store';
 
 interface ChatPageClientProps {
   initialProjects: Project[];
@@ -77,34 +77,77 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
     }
   }, [user, authLoading, initialized, router]);
 
-  // ✅ OPTIMISTIC UPDATES: Stateful projects and chains that sync with SSR props
-  const [projects, setProjects] = useState<Project[]>(initialProjects);
-  const [chains, setChains] = useState<ChainWithRenders[]>(initialChains);
+  // ✅ MIGRATED: Using Zustand stores for state management
+  // Project/Chain Store
+  const {
+    projects,
+    chains,
+    selectedProjectId,
+    selectedChainId,
+    setProjects,
+    setChains,
+    setSelectedProject,
+    setSelectedChain,
+    addProject,
+    updateProject,
+    removeProject,
+    addChain,
+    updateChain,
+    removeChain,
+    clearSelection,
+    syncFromUrl,
+  } = useProjectChainStore();
+  
+  // UI Preferences Store
+  const {
+    viewMode,
+    sidebarView,
+    isSidebarOpen,
+    currentPage,
+    rendersPerPage,
+    setViewMode,
+    setSidebarView,
+    setSidebarOpen,
+    setCurrentPage,
+  } = useUIPreferencesStore();
+  
+  // Search & Filter Store
+  const {
+    projectSearchQuery,
+    projectSortBy,
+    chainSearchQuery,
+    chainSortBy,
+    setProjectFilters,
+    setChainFilters,
+  } = useSearchFilterStore();
+  
+  // Modal Store
+  const {
+    isImageModalOpen,
+    selectedRender,
+    isProjectEditModalOpen,
+    isProjectDuplicateModalOpen,
+    isProjectDeleteDialogOpen,
+    openImageModal,
+    closeImageModal,
+    openProjectEditModal,
+    closeProjectEditModal,
+    openProjectDuplicateModal,
+    closeProjectDuplicateModal,
+    openProjectDeleteDialog,
+    closeProjectDeleteDialog,
+  } = useModalStore();
+  
+  // Local state (ephemeral, not persisted)
   const [isCreatingChain, setIsCreatingChain] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Start closed on mobile
-  const [selectedChainId, setSelectedChainId] = useState<string | null>(null);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [selectedRender, setSelectedRender] = useState<Render | null>(null);
-  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
-  const rendersPerPage = 20;
-  const [viewMode, setViewMode] = useState<'default' | 'compact' | 'list'>('default');
-  const [chainSearchQuery, setChainSearchQuery] = useState('');
-  const [chainSortBy, setChainSortBy] = useState('newest');
-  const [projectSearchQuery, setProjectSearchQuery] = useState('');
-  const [projectSortBy, setProjectSortBy] = useState('newest');
-  const [sidebarView, setSidebarView] = useState<'tree' | 'all'>('all');
-  const [editProjectModalOpen, setEditProjectModalOpen] = useState(false);
-  const [duplicateProjectModalOpen, setDuplicateProjectModalOpen] = useState(false);
-  const [deleteProjectDialogOpen, setDeleteProjectDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState(''); // Sidebar search (ephemeral)
 
   // ✅ FIXED: Use refs to track previous values and only update when data actually changes
   // This prevents infinite loops from reference equality checks
   const prevProjectsRef = useRef<string>('');
   const prevChainsRef = useRef<string>('');
 
-  // ✅ SYNC: Update local state when SSR props change (e.g., after router.refresh())
+  // ✅ SYNC: Update store when SSR props change (e.g., after router.refresh())
   // Only update if the serialized data actually changed, not just the reference
   useEffect(() => {
     const projectsKey = JSON.stringify(initialProjects.map(p => ({ id: p.id, updatedAt: p.updatedAt })));
@@ -119,83 +162,61 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
       prevChainsRef.current = chainsKey;
       setChains(initialChains);
     }
-  }, [initialProjects, initialChains]);
+  }, [initialProjects, initialChains, setProjects, setChains]);
 
   // ✅ AUTO-SELECT: If projectSlug is provided in query params, auto-select that project
   useEffect(() => {
     if (initialProjectSlug && projects.length > 0) {
-      const project = projects.find(p => p.slug === initialProjectSlug);
-      if (project) {
-        setSelectedProjectId(project.id);
-        // Clear chain selection when selecting a project
-        setSelectedChainId(null);
-      }
+      syncFromUrl(initialProjectSlug);
     }
-  }, [initialProjectSlug, projects]);
+  }, [initialProjectSlug, projects, syncFromUrl]);
 
   // ✅ OPTIMISTIC: Add project immediately when created and auto-select it
   const handleProjectCreated = (newProject: Project) => {
-    setProjects(prev => [newProject, ...prev]);
+    addProject(newProject);
     // ✅ AUTO-SELECT: Automatically select the newly created project
-    setSelectedProjectId(newProject.id);
-    setSelectedChainId(null); // Clear any chain selection
+    setSelectedProject(newProject.id);
     // Update URL with new project slug
     router.replace(`/render?project=${newProject.slug}`, { scroll: false });
     // ✅ AUTO-OPEN: Open sidebar on mobile when project is created (so user can see it)
     if (window.innerWidth < 640) {
-      setIsSidebarOpen(true);
+      setSidebarOpen(true);
     }
   };
 
   // ✅ OPTIMISTIC: Add chain immediately when created
   const handleChainCreated = (newChain: ChainWithRenders) => {
-    setChains(prev => [newChain, ...prev]);
+    addChain(newChain);
   };
 
   // ✅ DELETE: Handle project deletion
   const handleProjectDelete = async (project: Project) => {
     try {
-      // Optimistically remove from UI
-      setProjects(prev => prev.filter(p => p.id !== project.id));
-      // Also remove associated chains
-      setChains(prev => prev.filter(c => c.projectId !== project.id));
+      // Store chains to restore on error
+      const chainsToRestore = chains.filter(c => c.projectId === project.id);
       
-      // Clear selection if deleted project was selected
-      if (selectedProjectId === project.id) {
-        setSelectedProjectId(null);
-        setSelectedChainId(null);
-      }
-
+      // Optimistically remove from UI
+      removeProject(project.id);
+      
       // Call delete action
       const result = await deleteProject(project.id);
       
       if (result.success) {
         toast.success('Project deleted successfully');
         // ✅ FIXED: Close dialog before refresh to prevent state issues
-        setDeleteProjectDialogOpen(false);
+        closeProjectDeleteDialog();
         router.refresh();
       } else {
         // Revert optimistic update on error
-        setProjects(prev => [...prev, project].sort((a, b) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        ));
-        // ✅ FIXED: Also restore chains if they were removed
-        setChains(prev => {
-          const restoredChains = chains.filter(c => c.projectId === project.id);
-          return [...prev, ...restoredChains];
-        });
+        addProject(project);
+        chainsToRestore.forEach(chain => addChain(chain));
         toast.error(result.error || 'Failed to delete project');
       }
     } catch (error) {
       // Revert optimistic update on error
-      setProjects(prev => [...prev, project].sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      ));
-      // ✅ FIXED: Also restore chains if they were removed
-      setChains(prev => {
-        const restoredChains = chains.filter(c => c.projectId === project.id);
-        return [...prev, ...restoredChains];
-      });
+      const chainsToRestore = chains.filter(c => c.projectId === project.id);
+      addProject(project);
+      chainsToRestore.forEach(chain => addChain(chain));
       const errorMessage = error instanceof Error ? error.message : 'An error occurred while deleting the project';
       toast.error(errorMessage);
       captureErrorWithContext(error, {
@@ -210,12 +231,7 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
   const handleChainDelete = async (chain: RenderChain) => {
     try {
       // Optimistically remove from UI
-      setChains(prev => prev.filter(c => c.id !== chain.id));
-      
-      // Clear selection if deleted chain was selected
-      if (selectedChainId === chain.id) {
-        setSelectedChainId(null);
-      }
+      removeChain(chain.id);
 
       // Call delete action
       const result = await deleteRenderChain(chain.id);
@@ -225,16 +241,12 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
         router.refresh();
       } else {
         // Revert optimistic update on error
-        setChains(prev => [...prev, chain as ChainWithRenders].sort((a, b) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        ));
+        addChain(chain as ChainWithRenders);
         toast.error(result.error || 'Failed to delete chain');
       }
     } catch (error) {
       // Revert optimistic update on error
-      setChains(prev => [...prev, chain as ChainWithRenders].sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      ));
+      addChain(chain as ChainWithRenders);
       toast.error('An error occurred while deleting the chain');
       captureErrorWithContext(error, {
         component: 'ChatClient',
@@ -246,14 +258,12 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
   };
 
   const handleViewAll = () => {
-    setSelectedProjectId(null);
-    setSelectedChainId(null);
+    clearSelection();
     router.replace('/render', { scroll: false });
   };
 
   const handleProjectClick = (projectId: string) => {
-    setSelectedProjectId(projectId);
-    setSelectedChainId(null); // Clear chain selection when selecting project
+    setSelectedProject(projectId);
     
     // Update URL with project slug
     const project = projects.find(p => p.id === projectId);
@@ -289,11 +299,9 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
 
       if (result.success && result.data) {
         // ✅ OPTIMISTIC: Replace temp chain with real chain
-        setChains(prev => prev.map(c => 
-          c.id === tempChain.id 
-            ? { ...result.data!, renders: [] } as ChainWithRenders
-            : c
-        ));
+        const newChain = { ...result.data, renders: [] } as ChainWithRenders;
+        removeChain(tempChain.id);
+        addChain(newChain);
         
         // ✅ SYNC: Refresh SSR data to ensure consistency
         router.refresh();
@@ -301,7 +309,7 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
         router.push(`/project/${project?.slug || 'project'}/chain/${result.data.id}`);
       } else {
         // ✅ ROLLBACK: Remove temp chain on error
-        setChains(prev => prev.filter(c => c.id !== tempChain.id));
+        removeChain(tempChain.id);
         toast.error(result.error || 'Failed to create chat');
       }
     } catch (error) {
@@ -317,11 +325,10 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
   };
 
   const handleSelectChain = (chainId: string) => {
-    setSelectedChainId(chainId);
+    setSelectedChain(chainId);
+    // Update URL with project slug when chain is selected (handled by store)
     const chain = chains.find(c => c.id === chainId);
     if (chain) {
-      setSelectedProjectId(chain.projectId);
-      // Update URL with project slug when chain is selected
       const project = projects.find(p => p.id === chain.projectId);
       if (project) {
         router.replace(`/render?project=${project.slug}`, { scroll: false });
@@ -329,7 +336,7 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
     }
     // Close sidebar on mobile after selecting a chain
     if (window.innerWidth < 640) { // sm breakpoint
-      setIsSidebarOpen(false);
+      setSidebarOpen(false);
     }
   };
 
@@ -344,13 +351,11 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
   };
 
   const handleViewRender = (render: Render) => {
-    setSelectedRender(render);
-    setIsImageModalOpen(true);
+    openImageModal(render);
   };
 
   const handleCloseModal = () => {
-    setIsImageModalOpen(false);
-    setSelectedRender(null);
+    closeImageModal();
   };
 
   // Filter projects for sidebar (uses sidebar search)
@@ -463,7 +468,7 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
   // Reset page when chain changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedChainId]);
+  }, [selectedChainId, setCurrentPage]);
 
 
   // Build tree structure for file-tree component
@@ -500,15 +505,15 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 640) { // sm breakpoint
-        setIsSidebarOpen(true);
+        setSidebarOpen(true);
       } else {
-        setIsSidebarOpen(false);
+        setSidebarOpen(false);
       }
     };
     handleResize(); // Set initial state
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [setSidebarOpen]);
 
   return (
     <div className="flex fixed inset-0 bg-background pt-[var(--navbar-height)]">
@@ -787,7 +792,7 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
             <Button
               variant="outline"
               size="icon"
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              onClick={() => setSidebarOpen(!isSidebarOpen)}
               className="h-10 w-10 shrink-0"
             >
               {isSidebarOpen ? (
@@ -873,19 +878,19 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem
-                        onClick={() => setEditProjectModalOpen(true)}
+                        onClick={() => openProjectEditModal()}
                       >
                         <Edit className="h-4 w-4 mr-2" />
                         Edit
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => setDuplicateProjectModalOpen(true)}
+                        onClick={() => openProjectDuplicateModal()}
                       >
                         <Copy className="h-4 w-4 mr-2" />
                         Duplicate
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => setDeleteProjectDialogOpen(true)}
+                        onClick={() => openProjectDeleteDialog()}
                         className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
@@ -974,12 +979,12 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
                   <Input
                     placeholder="Search..."
                     value={chainSearchQuery}
-                    onChange={(e) => setChainSearchQuery(e.target.value)}
+                    onChange={(e) => setChainFilters(e.target.value, chainSortBy)}
                     className="pl-8 h-8 text-xs"
                   />
                 </div>
                 <div className="shrink-0">
-                  <Select value={chainSortBy} onValueChange={setChainSortBy}>
+                  <Select value={chainSortBy} onValueChange={(value) => setChainFilters(chainSearchQuery, value)}>
                     <SelectTrigger size="sm" className="w-auto min-w-[140px] h-8 text-xs">
                       <SelectValue />
                     </SelectTrigger>
@@ -1054,12 +1059,12 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
                   <Input
                     placeholder="Search..."
                     value={projectSearchQuery}
-                    onChange={(e) => setProjectSearchQuery(e.target.value)}
+                    onChange={(e) => setProjectFilters(e.target.value, projectSortBy)}
                     className="pl-8 h-8 text-xs"
                   />
                 </div>
                 <div className="shrink-0">
-                  <Select value={projectSortBy} onValueChange={setProjectSortBy}>
+                  <Select value={projectSortBy} onValueChange={(value) => setProjectFilters(projectSearchQuery, value)}>
                     <SelectTrigger size="sm" className="w-auto min-w-[140px] h-8 text-xs">
                       <SelectValue />
                     </SelectTrigger>
@@ -1149,41 +1154,41 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
       />
 
       {/* Project Action Modals - Only render when open to prevent hook calls */}
-      {selectedProject && editProjectModalOpen && (
+      {selectedProject && isProjectEditModalOpen && (
         <EditProjectModal
           project={selectedProject}
-          open={editProjectModalOpen}
-          onOpenChange={setEditProjectModalOpen}
+          open={isProjectEditModalOpen}
+          onOpenChange={(open) => open ? openProjectEditModal() : closeProjectEditModal()}
           onProjectUpdated={(updatedProject) => {
-            setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
+            updateProject(updatedProject.id, updatedProject);
             router.refresh();
           }}
         />
       )}
-      {selectedProject && duplicateProjectModalOpen && (
+      {selectedProject && isProjectDuplicateModalOpen && (
         <DuplicateProjectModal
           project={selectedProject}
-          open={duplicateProjectModalOpen}
-          onOpenChange={setDuplicateProjectModalOpen}
+          open={isProjectDuplicateModalOpen}
+          onOpenChange={(open) => open ? openProjectDuplicateModal() : closeProjectDuplicateModal()}
           onProjectDuplicated={(duplicatedProject) => {
-            setProjects(prev => [duplicatedProject, ...prev]);
+            addProject(duplicatedProject);
             router.refresh();
           }}
         />
       )}
-      {selectedProject && deleteProjectDialogOpen && (
+      {selectedProject && isProjectDeleteDialogOpen && (
         <DeleteProjectDialog
           project={selectedProject}
-          open={deleteProjectDialogOpen}
+          open={isProjectDeleteDialogOpen}
           onOpenChange={(open) => {
-            setDeleteProjectDialogOpen(open);
-            // ✅ FIXED: Clear selection when dialog closes to prevent stale state
-            if (!open) {
-              // Small delay to allow dialog close animation
+            if (open) {
+              openProjectDeleteDialog();
+            } else {
+              closeProjectDeleteDialog();
+              // ✅ FIXED: Clear selection when dialog closes to prevent stale state
               setTimeout(() => {
                 if (selectedProjectId === selectedProject.id) {
-                  setSelectedProjectId(null);
-                  setSelectedChainId(null);
+                  clearSelection();
                 }
               }, 100);
             }

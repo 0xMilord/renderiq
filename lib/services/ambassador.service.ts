@@ -27,6 +27,7 @@ export interface AmbassadorStats {
 export class AmbassadorService {
   /**
    * Apply for ambassador program
+   * ✅ AUTO-GENERATES CODE: Code is automatically generated upon application creation
    */
   static async applyForAmbassador(userId: string, applicationData: AmbassadorApplicationData) {
     logger.log('📝 AmbassadorService: Processing application for user:', userId);
@@ -42,13 +43,18 @@ export class AmbassadorService {
         };
       }
 
-      // Create application
-      const application = await AmbassadorDAL.createApplication(userId, applicationData);
+      // ✅ AUTO-GENERATE CODE: Generate unique code immediately upon application
+      const code = await this.generateAmbassadorCode();
+      logger.log('🔑 AmbassadorService: Auto-generated code for new application:', code);
 
-      logger.log('✅ AmbassadorService: Application created successfully');
+      // Create application with code
+      const application = await AmbassadorDAL.createApplication(userId, applicationData, code);
+
+      logger.log('✅ AmbassadorService: Application created successfully with code:', code);
       return {
         success: true,
         ambassador: application,
+        code, // Return code so it can be displayed if needed
       };
     } catch (error) {
       logger.error('❌ AmbassadorService: Error processing application:', error);
@@ -66,13 +72,26 @@ export class AmbassadorService {
   /**
    * Approve ambassador application
    * ✅ OPTIMIZED: Use transaction and combine updates (4 queries → 2 queries)
+   * ✅ CODE PRESERVED: Code is already generated on application, just activate status
    */
   static async approveAmbassador(ambassadorId: string, adminId: string) {
     logger.log('✅ AmbassadorService: Approving ambassador:', ambassadorId);
 
     try {
-      // Generate unique code first (needed for update)
-      const code = await this.generateAmbassadorCode();
+      // ✅ FIXED: Get existing ambassador to check if code exists
+      const existing = await AmbassadorDAL.getAmbassadorById(ambassadorId);
+      if (!existing) {
+        throw new Error('Ambassador not found');
+      }
+
+      // ✅ AUTO-GENERATE CODE: If code doesn't exist, generate one (backward compatibility)
+      let code = existing.ambassador.code;
+      if (!code) {
+        logger.log('🔑 AmbassadorService: Code missing, generating new code for approval');
+        code = await this.generateAmbassadorCode();
+      } else {
+        logger.log('✅ AmbassadorService: Using existing code:', code);
+      }
 
       // ✅ OPTIMIZED: Use transaction and combine all updates into one
       return await db.transaction(async (tx) => {
@@ -80,7 +99,7 @@ export class AmbassadorService {
           .update(ambassadors)
           .set({
             status: 'active',
-            code,
+            code, // Ensure code is set (should already exist, but set it anyway)
             approvedBy: adminId,
             approvedAt: new Date(),
             updatedAt: new Date(),
@@ -151,6 +170,16 @@ export class AmbassadorService {
       }
 
       const baseCode = ambassadorData.ambassador.code;
+      
+      // ✅ FIXED: Validate that ambassador code exists before creating link
+      if (!baseCode) {
+        logger.error('❌ AmbassadorService: Ambassador code is not set. Ambassador must be approved first.');
+        return {
+          success: false,
+          error: 'Ambassador code is not set. Please contact support to activate your ambassador account.',
+        };
+      }
+
       const linkCode = campaignName
         ? `${baseCode}_${campaignName.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 10)}`
         : `${baseCode}_${Date.now().toString(36).toUpperCase()}`;
@@ -184,10 +213,16 @@ export class AmbassadorService {
     logger.log('📊 AmbassadorService: Tracking signup:', { referralCode, userId });
 
     try {
-      // Get ambassador by code
-      const ambassadorData = await AmbassadorDAL.getAmbassadorByCode(referralCode);
+      // ✅ FIXED: Handle custom link codes (e.g., "ABC123_CAMPAIGN")
+      // Extract base code (before underscore) for ambassador lookup
+      const baseCode = referralCode.includes('_') 
+        ? referralCode.split('_')[0].toUpperCase()
+        : referralCode.toUpperCase();
+
+      // Get ambassador by base code
+      const ambassadorData = await AmbassadorDAL.getAmbassadorByCode(baseCode);
       if (!ambassadorData) {
-        logger.warn('⚠️ AmbassadorService: Ambassador not found for code:', referralCode);
+        logger.warn('⚠️ AmbassadorService: Ambassador not found for code:', baseCode);
         return {
           success: false,
           error: 'Invalid referral code',
@@ -215,11 +250,26 @@ export class AmbassadorService {
         };
       }
 
+      // ✅ FIXED: Find custom link if this is a custom link code
+      let linkId: string | undefined;
+      if (referralCode.includes('_')) {
+        // This is a custom link, find the link by code
+        const links = await AmbassadorDAL.getAmbassadorLinks(ambassador.id, true);
+        const matchingLink = links.find(link => link.code.toUpperCase() === referralCode.toUpperCase());
+        if (matchingLink) {
+          linkId = matchingLink.id;
+          logger.log('🔗 AmbassadorService: Found custom link:', linkId);
+        } else {
+          logger.warn('⚠️ AmbassadorService: Custom link not found for code:', referralCode);
+        }
+      }
+
       // Track referral
       const referral = await AmbassadorDAL.trackReferral(
         ambassador.id,
         userId,
-        referralCode
+        referralCode.toUpperCase(),
+        linkId
       );
 
       logger.log('✅ AmbassadorService: Signup tracked successfully');

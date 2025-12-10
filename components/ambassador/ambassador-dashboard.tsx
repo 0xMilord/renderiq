@@ -150,33 +150,42 @@ export function AmbassadorDashboard({ initialAmbassador, initialDashboardData }:
   };
 
   return (
-    <div className="grid lg:grid-cols-4 gap-6 lg:gap-8">
-      {/* Main Content - 3/4 width */}
-      <div className="lg:col-span-3 space-y-6">
-        {/* Status Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <h2 className="text-2xl font-bold">Ambassador Dashboard</h2>
-              <Badge variant={ambassador.status === 'active' ? 'default' : 'secondary'}>
-                {ambassador.status.charAt(0).toUpperCase() + ambassador.status.slice(1)}
-              </Badge>
-            </div>
-            <div className="space-y-1">
-              {ambassador.code && (
-                <p className="text-muted-foreground">
-                  Your referral code: <code className="bg-muted px-2 py-1 rounded">{ambassador.code}</code>
-                </p>
-              )}
-              {dashboardData?.volumeTier && (
-                <p className="text-sm text-muted-foreground">
-                  Current tier: <span className="font-medium">{dashboardData.volumeTier.tierName}</span> 
-                  {' '}({dashboardData.volumeTier.discountPercentage}% discount for referrals)
-                </p>
-              )}
+    <div className="w-full max-w-full overflow-x-hidden">
+      <div className="grid lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+        {/* Main Content - 3/4 width */}
+        <div className="lg:col-span-3 space-y-4 sm:space-y-6">
+          {/* Status Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+                <h2 className="text-xl sm:text-2xl font-bold">Ambassador Dashboard</h2>
+                <Badge variant={ambassador.status === 'active' ? 'default' : 'secondary'}>
+                  {ambassador.status.charAt(0).toUpperCase() + ambassador.status.slice(1)}
+                </Badge>
+              </div>
+              <div className="space-y-1">
+                {ambassador.code && (
+                  <p className="text-sm sm:text-base text-muted-foreground break-words">
+                    Your referral code: <code className="bg-muted px-2 py-1 rounded break-all">{ambassador.code}</code>
+                  </p>
+                )}
+                {!ambassador.code && ambassador.status === 'active' && (
+                  <Alert variant="destructive" className="mt-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Your ambassador code is not set. Please contact support to activate your referral code.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {dashboardData?.volumeTier && (
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    Current tier: <span className="font-medium">{dashboardData.volumeTier.tierName}</span> 
+                    {' '}({dashboardData.volumeTier.discountPercentage}% discount for referrals)
+                  </p>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
         {/* Show pending review screen if pending */}
         {ambassador.status === 'pending' ? (
@@ -191,11 +200,11 @@ export function AmbassadorDashboard({ initialAmbassador, initialDashboardData }:
                 <AmbassadorStatsCards stats={stats} />
 
                 <Tabs defaultValue="links" className="space-y-4">
-                  <TabsList>
-                    <TabsTrigger value="links">Custom Links</TabsTrigger>
-                    <TabsTrigger value="referrals">Referrals</TabsTrigger>
-                    <TabsTrigger value="commissions">Commissions</TabsTrigger>
-                    <TabsTrigger value="payouts">Payouts</TabsTrigger>
+                  <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
+                    <TabsTrigger value="links" className="text-xs sm:text-sm">Custom Links</TabsTrigger>
+                    <TabsTrigger value="referrals" className="text-xs sm:text-sm">Referrals</TabsTrigger>
+                    <TabsTrigger value="commissions" className="text-xs sm:text-sm">Commissions</TabsTrigger>
+                    <TabsTrigger value="payouts" className="text-xs sm:text-sm">Payouts</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="links" className="space-y-4">
@@ -240,7 +249,10 @@ export function AmbassadorDashboard({ initialAmbassador, initialDashboardData }:
 
       {/* Features Sidebar - 1/4 width */}
       <div className="lg:col-span-1">
-        <AmbassadorFeatures />
+        <div className="sticky top-4">
+          <AmbassadorFeatures />
+        </div>
+      </div>
       </div>
     </div>
   );

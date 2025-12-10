@@ -99,22 +99,14 @@ import {
   getVersionNumber,
   getRenderById,
 } from '@/lib/utils/chain-helpers';
-import React, { useReducer } from 'react';
+import React from 'react';
+import { useChatStore, type Message as ChatMessage } from '@/lib/stores/chat-store';
+import { useChatSettingsStore } from '@/lib/stores/chat-settings-store';
+import { useUIPreferencesStore } from '@/lib/stores/ui-preferences-store';
+import { useModalStore } from '@/lib/stores/modal-store';
 
-interface Message {
-  id: string;
-  type: 'user' | 'assistant' | 'video';
-  content: string;
-  timestamp: Date;
-  render?: Render;
-  isGenerating?: boolean;
-  uploadedImage?: {
-    file?: File; // Optional for persisted images
-    previewUrl: string;
-    persistedUrl?: string; // URL from database/storage
-  };
-  referenceRenderId?: string; // Which render this message is referring to
-}
+// Message type is now imported from chat-store
+type Message = ChatMessage;
 
 interface UnifiedChatInterfaceProps {
   projectId: string;
@@ -227,21 +219,25 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   // ✅ FIXED: Network recovery state (declared early to avoid hoisting issues)
   const [isRecovering, setIsRecovering] = useState(false);
   const [recoveryRenderId, setRecoveryRenderId] = useState<string | null>(null);
-  // ✅ Limit dialog state
-  const [limitDialogOpen, setLimitDialogOpen] = useState(false);
-  const [limitDialogData, setLimitDialogData] = useState<{
-    limitType: LimitType;
-    current: number;
-    limit: number | null;
-    planName: string;
-    message?: string;
-  } | null>(null);
+  // ✅ MIGRATED: Using Modal Store for limit dialog and prompt modals
+  const { 
+    limitDialogOpen, 
+    limitDialogData, 
+    openLimitDialog, 
+    closeLimitDialog,
+    isPromptGalleryOpen,
+    isPromptBuilderOpen,
+    openPromptGallery,
+    closePromptGallery,
+    openPromptBuilder,
+    closePromptBuilder
+  } = useModalStore();
   const isVisibleRef = useRef(true);
   const lastRefreshTimeRef = useRef<number>(0);
   const hasProcessingRendersRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const userSelectedRenderIdRef = useRef<string | null>(null);
-  const recentGenerationRef = useRef<{ timestamp: number; renderId?: string } | null>(null);
+  const recentGenerationRef = useRef<{ timestamp: number; renderId?: string; render?: Render } | null>(null);
   
   // ✅ FIXED: Window visibility handling - prevent re-initialization on tab switch
   useEffect(() => {
@@ -309,88 +305,40 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     }
   }, [recoveryRenderId, chain?.renders]);
   
-  // ✅ FIXED: Consolidated state using useReducer for better performance
-  type ChatState = {
-    messages: Message[];
-    inputValue: string;
-    currentRender: Render | null;
-    isGenerating: boolean;
-    progress: number;
-  };
+  // ✅ MIGRATED: Using Zustand store for chat state management
+  // Use selective subscriptions for better performance
+  const messages = useChatStore((state) => state.messages);
+  const inputValue = useChatStore((state) => state.inputValue);
+  const currentRender = useChatStore((state) => state.currentRender);
+  const isGenerating = useChatStore((state) => state.isGenerating);
+  const progress = useChatStore((state) => state.progress);
   
-  type ChatAction =
-    | { type: 'SET_MESSAGES'; payload: Message[] }
-    | { type: 'ADD_MESSAGE'; payload: Message }
-    | { type: 'UPDATE_MESSAGE'; payload: { id: string; updates: Partial<Message> } }
-    | { type: 'SET_INPUT_VALUE'; payload: string }
-    | { type: 'SET_CURRENT_RENDER'; payload: Render | null }
-    | { type: 'SET_IS_GENERATING'; payload: boolean }
-    | { type: 'SET_PROGRESS'; payload: number };
+  // Get actions from store
+  const setMessages = useChatStore((state) => state.setMessages);
+  const addMessage = useChatStore((state) => state.addMessage);
+  const updateMessage = useChatStore((state) => state.updateMessage);
+  const removeMessage = useChatStore((state) => state.removeMessage);
+  const setInputValue = useChatStore((state) => state.setInputValue);
+  const setCurrentRender = useChatStore((state) => state.setCurrentRender);
+  const setIsGenerating = useChatStore((state) => state.setIsGenerating);
+  const setProgress = useChatStore((state) => state.setProgress);
+  const clearMessages = useChatStore((state) => state.clearMessages);
+  const resetChat = useChatStore((state) => state.resetChat);
   
-  const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
-    switch (action.type) {
-      case 'SET_MESSAGES':
-        return { ...state, messages: action.payload };
-      case 'ADD_MESSAGE':
-        return { ...state, messages: [...state.messages, action.payload] };
-      case 'UPDATE_MESSAGE':
-        return {
-          ...state,
-          messages: state.messages.map(msg =>
-            msg.id === action.payload.id ? { ...msg, ...action.payload.updates } : msg
-          )
-        };
-      case 'SET_INPUT_VALUE':
-        return { ...state, inputValue: action.payload };
-      case 'SET_CURRENT_RENDER':
-        return { ...state, currentRender: action.payload };
-      case 'SET_IS_GENERATING':
-        return { ...state, isGenerating: action.payload };
-      case 'SET_PROGRESS':
-        return { ...state, progress: action.payload };
-      default:
-        return state;
-    }
-  };
-  
-  const [chatState, dispatchChat] = useReducer(chatReducer, {
-    messages: [],
-    inputValue: '',
-    currentRender: null,
-    isGenerating: false,
-    progress: 0,
-  });
-  
-  // Extract for easier access (backward compatibility)
-  const messages = chatState.messages;
-  const inputValue = chatState.inputValue;
-  const currentRender = chatState.currentRender;
-  const isGenerating = chatState.isGenerating;
-  const progress = chatState.progress;
-  
-  // Wrapper functions for backward compatibility
-  const setMessages = useCallback((updater: Message[] | ((prev: Message[]) => Message[])) => {
-    const newMessages = typeof updater === 'function' ? updater(chatState.messages) : updater;
-    dispatchChat({ type: 'SET_MESSAGES', payload: newMessages });
+  // Wrapper for setMessages to maintain ref sync (backward compatibility)
+  const setMessagesWithRef = useCallback((updater: Message[] | ((prev: Message[]) => Message[])) => {
+    const currentMessages = useChatStore.getState().messages;
+    const newMessages = typeof updater === 'function' ? updater(currentMessages) : updater;
+    setMessages(newMessages);
     messagesRef.current = newMessages; // Keep ref in sync
-  }, [chatState.messages]);
+  }, [setMessages]);
   
-  const setInputValue = useCallback((value: string) => {
-    dispatchChat({ type: 'SET_INPUT_VALUE', payload: value });
-  }, []);
-  
-  const setCurrentRender = useCallback((updater: Render | null | ((prev: Render | null) => Render | null)) => {
-    const newRender = typeof updater === 'function' ? updater(chatState.currentRender) : updater;
-    dispatchChat({ type: 'SET_CURRENT_RENDER', payload: newRender });
-  }, [chatState.currentRender]);
-  
-  const setIsGenerating = useCallback((value: boolean) => {
-    dispatchChat({ type: 'SET_IS_GENERATING', payload: value });
-  }, []);
-  
-  const setProgress = useCallback((value: number) => {
-    dispatchChat({ type: 'SET_PROGRESS', payload: value });
-  }, []);
+  // Wrapper for setCurrentRender to support function updater (backward compatibility)
+  const setCurrentRenderWithUpdater = useCallback((updater: Render | null | ((prev: Render | null) => Render | null)) => {
+    const currentRenderValue = useChatStore.getState().currentRender;
+    const newRender = typeof updater === 'function' ? updater(currentRenderValue) : updater;
+    setCurrentRender(newRender);
+  }, [setCurrentRender]);
 
   // Dynamic title updates based on project/chain - using new hook
   const chainName = chain?.name;
@@ -407,119 +355,46 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   const previewUrl = useObjectURL(uploadedFile);
   
   
-  // ✅ FIXED: Consolidated settings state
-  type SettingsState = {
-    environment: string;
-    effect: string;
-    styleTransferImage: File | null;
-    styleTransferPreview: string | null;
-    temperature: string;
-    quality: string;
-    selectedImageModel: ModelId | undefined;
-    selectedVideoModel: ModelId | undefined;
-    videoDuration: number;
-    isVideoMode: boolean;
-    videoKeyframes: Array<{ id: string; imageData: string; imageType: string; timestamp?: number }>;
-    videoLastFrame: { imageData: string; imageType: string } | null;
-    isPublic: boolean;
-  };
+  // ✅ MIGRATED: Using Zustand store for settings state management
+  // Use selective subscriptions for better performance
+  const environment = useChatSettingsStore((state) => state.environment);
+  const effect = useChatSettingsStore((state) => state.effect);
+  const styleTransferImage = useChatSettingsStore((state) => state.styleTransferImage);
+  const styleTransferPreview = useChatSettingsStore((state) => state.styleTransferPreview);
+  const temperature = useChatSettingsStore((state) => state.temperature);
+  const quality = useChatSettingsStore((state) => state.quality);
+  const selectedImageModel = useChatSettingsStore((state) => state.selectedImageModel);
+  const selectedVideoModel = useChatSettingsStore((state) => state.selectedVideoModel);
+  const videoDuration = useChatSettingsStore((state) => state.videoDuration);
+  const isVideoMode = useChatSettingsStore((state) => state.isVideoMode);
+  const videoKeyframes = useChatSettingsStore((state) => state.videoKeyframes);
+  const videoLastFrame = useChatSettingsStore((state) => state.videoLastFrame);
+  const isPublic = useChatSettingsStore((state) => state.isPublic);
   
-  type SettingsAction =
-    | { type: 'SET_ENVIRONMENT'; payload: string }
-    | { type: 'SET_EFFECT'; payload: string }
-    | { type: 'SET_STYLE_TRANSFER_IMAGE'; payload: File | null }
-    | { type: 'SET_STYLE_TRANSFER_PREVIEW'; payload: string | null }
-    | { type: 'SET_TEMPERATURE'; payload: string }
-    | { type: 'SET_QUALITY'; payload: string }
-    | { type: 'SET_SELECTED_IMAGE_MODEL'; payload: ModelId | undefined }
-    | { type: 'SET_SELECTED_VIDEO_MODEL'; payload: ModelId | undefined }
-    | { type: 'SET_VIDEO_DURATION'; payload: number }
-    | { type: 'SET_IS_VIDEO_MODE'; payload: boolean }
-    | { type: 'SET_VIDEO_KEYFRAMES'; payload: Array<{ id: string; imageData: string; imageType: string; timestamp?: number }> }
-    | { type: 'SET_VIDEO_LAST_FRAME'; payload: { imageData: string; imageType: string } | null }
-    | { type: 'SET_IS_PUBLIC'; payload: boolean };
+  // Get actions from store
+  const setEnvironment = useChatSettingsStore((state) => state.setEnvironment);
+  const setEffect = useChatSettingsStore((state) => state.setEffect);
+  const setStyleTransferImage = useChatSettingsStore((state) => state.setStyleTransferImage);
+  const setStyleTransferPreview = useChatSettingsStore((state) => state.setStyleTransferPreview);
+  const setTemperature = useChatSettingsStore((state) => state.setTemperature);
+  const setQuality = useChatSettingsStore((state) => state.setQuality);
+  const setSelectedImageModel = useChatSettingsStore((state) => state.setSelectedImageModel);
+  const setSelectedVideoModel = useChatSettingsStore((state) => state.setSelectedVideoModel);
+  const setVideoDuration = useChatSettingsStore((state) => state.setVideoDuration);
+  const setIsVideoMode = useChatSettingsStore((state) => state.setIsVideoMode);
+  const setVideoLastFrame = useChatSettingsStore((state) => state.setVideoLastFrame);
+  const setIsPublic = useChatSettingsStore((state) => state.setIsPublic);
+  const resetSettings = useChatSettingsStore((state) => state.resetSettings);
   
-  const settingsReducer = (state: SettingsState, action: SettingsAction): SettingsState => {
-    switch (action.type) {
-      case 'SET_ENVIRONMENT':
-        return { ...state, environment: action.payload };
-      case 'SET_EFFECT':
-        return { ...state, effect: action.payload };
-      case 'SET_STYLE_TRANSFER_IMAGE':
-        return { ...state, styleTransferImage: action.payload };
-      case 'SET_STYLE_TRANSFER_PREVIEW':
-        return { ...state, styleTransferPreview: action.payload };
-      case 'SET_TEMPERATURE':
-        return { ...state, temperature: action.payload };
-      case 'SET_QUALITY':
-        return { ...state, quality: action.payload };
-      case 'SET_SELECTED_IMAGE_MODEL':
-        return { ...state, selectedImageModel: action.payload };
-      case 'SET_SELECTED_VIDEO_MODEL':
-        return { ...state, selectedVideoModel: action.payload };
-      case 'SET_VIDEO_DURATION':
-        return { ...state, videoDuration: action.payload };
-      case 'SET_IS_VIDEO_MODE':
-        return { ...state, isVideoMode: action.payload };
-      case 'SET_VIDEO_KEYFRAMES':
-        return { ...state, videoKeyframes: action.payload };
-      case 'SET_VIDEO_LAST_FRAME':
-        return { ...state, videoLastFrame: action.payload };
-      case 'SET_IS_PUBLIC':
-        return { ...state, isPublic: action.payload };
-      default:
-        return state;
-    }
-  };
+  // Get original setVideoKeyframes from store
+  const setVideoKeyframesStore = useChatSettingsStore((state) => state.setVideoKeyframes);
   
-  const [settingsState, dispatchSettings] = useReducer(settingsReducer, {
-    environment: 'none',
-    effect: 'none',
-    styleTransferImage: null,
-    styleTransferPreview: null,
-    temperature: '0.5',
-    quality: 'standard',
-    selectedImageModel: undefined,
-    selectedVideoModel: undefined,
-    videoDuration: 8,
-    isVideoMode: false,
-    videoKeyframes: [],
-    videoLastFrame: null,
-    isPublic: true,
-  });
-  
-  // Extract for easier access
-  const environment = settingsState.environment;
-  const effect = settingsState.effect;
-  const styleTransferImage = settingsState.styleTransferImage;
-  const styleTransferPreview = settingsState.styleTransferPreview;
-  const temperature = settingsState.temperature;
-  const quality = settingsState.quality;
-  const selectedImageModel = settingsState.selectedImageModel;
-  const selectedVideoModel = settingsState.selectedVideoModel;
-  const videoDuration = settingsState.videoDuration;
-  const isVideoMode = settingsState.isVideoMode;
-  const videoKeyframes = settingsState.videoKeyframes;
-  const videoLastFrame = settingsState.videoLastFrame;
-  const isPublic = settingsState.isPublic;
-  
-  // Wrapper functions
-  const setEnvironment = useCallback((value: string) => dispatchSettings({ type: 'SET_ENVIRONMENT', payload: value }), []);
-  const setEffect = useCallback((value: string) => dispatchSettings({ type: 'SET_EFFECT', payload: value }), []);
-  const setStyleTransferImage = useCallback((value: File | null) => dispatchSettings({ type: 'SET_STYLE_TRANSFER_IMAGE', payload: value }), []);
-  const setStyleTransferPreview = useCallback((value: string | null) => dispatchSettings({ type: 'SET_STYLE_TRANSFER_PREVIEW', payload: value }), []);
-  const setTemperature = useCallback((value: string) => dispatchSettings({ type: 'SET_TEMPERATURE', payload: value }), []);
-  const setQuality = useCallback((value: string) => dispatchSettings({ type: 'SET_QUALITY', payload: value }), []);
-  const setSelectedImageModel = useCallback((value: ModelId | undefined) => dispatchSettings({ type: 'SET_SELECTED_IMAGE_MODEL', payload: value }), []);
-  const setSelectedVideoModel = useCallback((value: ModelId | undefined) => dispatchSettings({ type: 'SET_SELECTED_VIDEO_MODEL', payload: value }), []);
-  const setVideoDuration = useCallback((value: number) => dispatchSettings({ type: 'SET_VIDEO_DURATION', payload: value }), []);
-  const setIsVideoMode = useCallback((value: boolean) => dispatchSettings({ type: 'SET_IS_VIDEO_MODE', payload: value }), []);
+  // Wrapper for setVideoKeyframes to support function updater (backward compatibility)
   const setVideoKeyframes = useCallback((value: Array<{ id: string; imageData: string; imageType: string; timestamp?: number }> | ((prev: Array<{ id: string; imageData: string; imageType: string; timestamp?: number }>) => Array<{ id: string; imageData: string; imageType: string; timestamp?: number }>)) => {
-    const newValue = typeof value === 'function' ? value(videoKeyframes) : value;
-    dispatchSettings({ type: 'SET_VIDEO_KEYFRAMES', payload: newValue });
-  }, [videoKeyframes]);
-  const setVideoLastFrame = useCallback((value: { imageData: string; imageType: string } | null) => dispatchSettings({ type: 'SET_VIDEO_LAST_FRAME', payload: value }), []);
-  const setIsPublic = useCallback((value: boolean) => dispatchSettings({ type: 'SET_IS_PUBLIC', payload: value }), []);
+    const currentKeyframes = useChatSettingsStore.getState().videoKeyframes;
+    const newValue = typeof value === 'function' ? value(currentKeyframes) : value;
+    setVideoKeyframesStore(newValue);
+  }, [setVideoKeyframesStore]);
   
   // Modal state management (extracted to custom hook)
   const {
@@ -537,8 +412,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     setIsUpgradeDialogOpen,
   } = useModal();
   const [mentionSearchTerm, setMentionSearchTerm] = useState('');
-  const [isPromptGalleryOpen, setIsPromptGalleryOpen] = useState(false);
-  const [isPromptBuilderOpen, setIsPromptBuilderOpen] = useState(false);
+  // ✅ MIGRATED: Using Modal Store for prompt modals (declared above with limitDialog)
   
   // Mention state
   const [currentMentionPosition, setCurrentMentionPosition] = useState(-1);
@@ -549,7 +423,8 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   // Version carousel state
   const [carouselScrollPosition, setCarouselScrollPosition] = useState(0);
   const [mobileCarouselScrollPosition, setMobileCarouselScrollPosition] = useState(0);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  // ✅ MIGRATED: Using UI Preferences Store for sidebar state
+  const { isSidebarCollapsed, setSidebarCollapsed } = useUIPreferencesStore();
   const carouselRef = useRef<HTMLDivElement>(null);
   const mobileCarouselRef = useRef<HTMLDivElement>(null);
   
@@ -574,7 +449,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   // ✅ FIXED: Update isPublic based on pro status (consolidated with settings)
   useEffect(() => {
     if (!proLoading) {
-      dispatchSettings({ type: 'SET_IS_PUBLIC', payload: !isPro }); // Free users are public, Pro users are private by default
+      setIsPublic(!isPro); // Free users are public, Pro users are private by default
     }
   }, [isPro, proLoading]);
 
@@ -584,7 +459,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       const modelId = selectedImageModel as ModelId;
       if (!modelSupportsQuality(modelId, quality as 'standard' | 'high' | 'ultra')) {
         const maxQuality = getMaxQuality(modelId);
-        dispatchSettings({ type: 'SET_QUALITY', payload: maxQuality });
+        setQuality(maxQuality);
         toast.info(`Quality adjusted to ${maxQuality} (maximum supported by selected model)`);
       }
     }
@@ -742,7 +617,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     const storedMessages = restoreMessages();
     
     if (chainMessages) {
-      dispatchChat({ type: 'SET_MESSAGES', payload: chainMessages });
+      setMessagesWithRef(chainMessages);
       messagesRef.current = chainMessages;
       saveMessages(chainMessages);
       
@@ -753,16 +628,16 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
           chainPosition: latestRender.chainPosition,
           versionNumber: getVersionNumber(latestRender, chain?.renders)
         });
-        dispatchChat({ type: 'SET_CURRENT_RENDER', payload: latestRender });
+        setCurrentRender(latestRender);
         userSelectedRenderIdRef.current = null;
       } else {
         logger.log('⚠️ UnifiedChatInterface: No latest render found on initialization');
       }
     } else if (storedMessages) {
-      dispatchChat({ type: 'SET_MESSAGES', payload: storedMessages });
+      setMessagesWithRef(storedMessages);
     } else {
-      dispatchChat({ type: 'SET_MESSAGES', payload: [] });
-      dispatchChat({ type: 'SET_CURRENT_RENDER', payload: null });
+      setMessagesWithRef([]);
+      setCurrentRender(null);
     }
     
     initializedChainIdRef.current = currentChainId;
@@ -791,8 +666,8 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       if (chain?.renders?.length === 0) {
         // Only clear if we're not generating
         if (!isGenerating && !isImageGenerating && !isVideoGenerating) {
-          dispatchChat({ type: 'SET_CURRENT_RENDER', payload: null });
-          dispatchChat({ type: 'SET_MESSAGES', payload: [] });
+          setCurrentRender(null);
+          setMessagesWithRef([]);
           messagesRef.current = [];
         }
       }
@@ -838,13 +713,14 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         }
       }
       
-      dispatchChat({ type: 'SET_MESSAGES', payload: mergedMessages });
+      setMessagesWithRef(mergedMessages);
       messagesRef.current = mergedMessages;
       saveMessages(mergedMessages);
     } else {
       // Not generating - check if we have a recent generation that might not be in DB yet
       const recentGen = recentGenerationRef.current;
-      const hasRecentGeneration = recentGen && (Date.now() - recentGen.timestamp < 30000); // 30 seconds
+      // ✅ FIXED: Increased grace period to 60 seconds for production (network delays, DB replication)
+      const hasRecentGeneration = recentGen && (Date.now() - recentGen.timestamp < 60000); // 60 seconds
       
       if (hasRecentGeneration && recentGen.renderId) {
         // Check if the recent generation render is now in the database
@@ -852,6 +728,13 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         
         if (!renderInDB || renderInDB.status !== 'completed') {
           // Recent generation not in DB yet or not completed - merge to preserve local render
+          logger.log('🔄 Chat: Preserving local render until DB sync', {
+            renderId: recentGen.renderId,
+            inDB: !!renderInDB,
+            status: renderInDB?.status,
+            timeSinceGeneration: Date.now() - recentGen.timestamp
+          });
+          
           const newMessagesFromChain = convertRendersToMessages(chain.renders);
           const prevMessages = messages;
           const mergedMessages: Message[] = [];
@@ -860,8 +743,12 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
           // Keep local messages with the recent generation render
           for (const prevMsg of prevMessages) {
             if (prevMsg.render?.id === recentGen.renderId) {
-              // Keep the local render until it appears in DB
-              mergedMessages.push(prevMsg);
+              // ✅ FIXED: Use stored render from ref if available, otherwise use message render
+              const renderToUse = recentGen.render || prevMsg.render;
+              mergedMessages.push({
+                ...prevMsg,
+                render: renderToUse
+              });
             } else if (prevMsg.render?.id) {
               // Update with latest render data from chain
               const chainMsg = chainMessageMap.get(prevMsg.render.id);
@@ -883,43 +770,67 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
             }
           }
           
-          dispatchChat({ type: 'SET_MESSAGES', payload: mergedMessages });
+          setMessagesWithRef(mergedMessages);
           messagesRef.current = mergedMessages;
           saveMessages(mergedMessages);
         } else {
           // Render is now in DB - safe to replace with chain.renders (single source of truth)
+          logger.log('✅ Chat: Render now in DB, switching to DB source', {
+            renderId: recentGen.renderId,
+            status: renderInDB.status
+          });
           recentGenerationRef.current = null; // Clear tracking since it's now in DB
           const newMessages = convertRendersToMessages(chain.renders);
-          dispatchChat({ type: 'SET_MESSAGES', payload: newMessages });
+          setMessagesWithRef(newMessages);
           messagesRef.current = newMessages;
           saveMessages(newMessages);
         }
       } else {
         // No recent generation - safe to replace with chain.renders (single source of truth)
+        if (recentGen && !hasRecentGeneration) {
+          logger.log('⏰ Chat: Recent generation grace period expired, clearing ref', {
+            renderId: recentGen.renderId,
+            timeSinceGeneration: Date.now() - recentGen.timestamp
+          });
+          recentGenerationRef.current = null;
+        }
         const newMessages = convertRendersToMessages(chain.renders);
-        dispatchChat({ type: 'SET_MESSAGES', payload: newMessages });
+        setMessagesWithRef(newMessages);
         messagesRef.current = newMessages;
         saveMessages(newMessages);
       }
     }
     
     // Update currentRender
-    setCurrentRender(prevRender => {
+    setCurrentRenderWithUpdater((prevRender) => {
       // ✅ FIX: Preserve recently created render even if it hasn't appeared in chain.renders yet
       // This prevents renders from disappearing immediately after creation
       if (recentGenerationRef.current && prevRender) {
         const timeSinceGeneration = Date.now() - recentGenerationRef.current.timestamp;
-        const isRecentGeneration = timeSinceGeneration < 10000; // 10 seconds grace period
+        // ✅ FIXED: Increased grace period to 60 seconds for production
+        const isRecentGeneration = timeSinceGeneration < 60000; // 60 seconds grace period
         
         if (isRecentGeneration && prevRender.id === recentGenerationRef.current.renderId) {
           // Check if render has appeared in chain.renders yet
           const renderInChain = getRenderById(chain.renders, prevRender.id);
-          if (renderInChain) {
-            // Render has appeared in chain, update with latest data
+          if (renderInChain && renderInChain.status === 'completed') {
+            // Render has appeared in chain with completed status, update with latest data
+            logger.log('✅ CurrentRender: Render confirmed in chain, updating', {
+              renderId: prevRender.id
+            });
             recentGenerationRef.current = null; // Clear ref since render is now in chain
             return renderInChain;
           }
-          // Render hasn't appeared in chain yet, keep the local render
+          // Render hasn't appeared in chain yet or not completed, use stored render from ref if available
+          const storedRender = recentGenerationRef.current.render;
+          if (storedRender) {
+            logger.log('🔄 CurrentRender: Using stored render from ref', {
+              renderId: prevRender.id,
+              timeSinceGeneration
+            });
+            return storedRender;
+          }
+          // Fallback to prevRender
           return prevRender;
         }
       }
@@ -1000,14 +911,25 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         ) || false;
         
         const recentGen = recentGenerationRef.current;
+        // ✅ FIXED: Increased grace period to 60 seconds for production
         const shouldContinue = recentGen && 
-          (Date.now() - recentGen.timestamp < 30000);
+          (Date.now() - recentGen.timestamp < 60000);
         
         // Check if the recent generation render is now in the database
         if (recentGen?.renderId && currentChain?.renders) {
           const renderInDB = currentChain.renders.find(r => r.id === recentGen.renderId);
           if (renderInDB && renderInDB.status === 'completed') {
             // Render is now in DB, clear recent generation tracking
+            logger.log('✅ Polling: Render confirmed in DB, stopping tracking', {
+              renderId: recentGen.renderId
+            });
+            recentGenerationRef.current = null;
+          } else if (recentGen && Date.now() - recentGen.timestamp > 60000) {
+            // Grace period expired, clear tracking
+            logger.log('⏰ Polling: Grace period expired, clearing tracking', {
+              renderId: recentGen.renderId,
+              timeSinceGeneration: Date.now() - recentGen.timestamp
+            });
             recentGenerationRef.current = null;
           }
         }
@@ -1034,8 +956,9 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     
     const hasLocalGeneration = isGenerating || isImageGenerating || isVideoGenerating || isRecovering;
     const recentGeneration = recentGenerationRef.current;
+    // ✅ FIXED: Increased grace period to 60 seconds for production
     const shouldContinuePolling = recentGeneration && 
-      (Date.now() - recentGeneration.timestamp < 30000);
+      (Date.now() - recentGeneration.timestamp < 60000);
     
     const hasProcessing = hasProcessingInDB || hasLocalGeneration || shouldContinuePolling;
     hasProcessingRendersRef.current = hasProcessing;
@@ -1244,16 +1167,17 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isGenerating || isImageGenerating || isVideoGenerating) return;
 
+    // ✅ FIXED: Define renderStyle and generationType early so they're accessible throughout the function
+    // Use effect as style, or 'realistic' as default (matches createRenderFormData)
+    const renderStyle = effect && effect !== 'none' ? effect : 'realistic';
+    const generationType = isVideoMode ? 'video' : 'image';
+
     // Check credits BEFORE proceeding
     const requiredCredits = getCreditsCost();
     if (credits && credits.balance < requiredCredits) {
       setIsLowBalanceModalOpen(true);
       return;
     }
-
-    // ✅ FIXED: Define renderStyle early so it's accessible throughout the function
-    // Use effect as style, or 'realistic' as default (matches createRenderFormData)
-    const renderStyle = effect && effect !== 'none' ? effect : 'realistic';
 
     logger.log('🔍 Processing message with potential mentions:', inputValue);
 
@@ -1360,9 +1284,9 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       referenceRenderId: referenceRenderId
     };
 
-    dispatchChat({ type: 'ADD_MESSAGE', payload: userMessage });
+    addMessage(userMessage);
     const currentPrompt = inputValue;
-    dispatchChat({ type: 'SET_INPUT_VALUE', payload: '' });
+    setInputValue('');
     
     // ✅ PRESERVE: Store uploaded image URL before clearing file (needed for before/after tab)
     const preservedUploadedImageUrl = uploadedFile && previewUrl ? previewUrl : null;
@@ -1374,8 +1298,8 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       // previewUrl is automatically cleared by useObjectURL hook when file is null
     }
     
-    dispatchChat({ type: 'SET_IS_GENERATING', payload: true });
-    dispatchChat({ type: 'SET_PROGRESS', payload: 0 });
+    setIsGenerating(true);
+    setProgress(0);
     onRenderStart?.();
 
     // Add assistant message with generating state
@@ -1387,12 +1311,9 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       isGenerating: true
     };
 
-    dispatchChat({ type: 'ADD_MESSAGE', payload: assistantMessage });
+    addMessage(assistantMessage);
 
-    // Define generationType outside try block so it's accessible in catch
-    const generationType = isVideoMode ? 'video' : 'image';
-    
-    // renderStyle is already defined above (before early returns)
+    // renderStyle and generationType are already defined above (before early returns)
     
     // Track render started
     const startTime = Date.now();
@@ -1578,14 +1499,13 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
           
           // ✅ CHECK: Handle limit errors - show limit dialog instead of generic error
           if (apiResult.limitReached) {
-            setLimitDialogData({
+            openLimitDialog({
               limitType: apiResult.limitType || 'credits',
               current: apiResult.current || 0,
               limit: apiResult.limit ?? null,
               planName: apiResult.planName || 'Free',
               message: apiError,
             });
-            setLimitDialogOpen(true);
             // Don't show error toast for limit errors - dialog handles it
             return; // Exit early - don't proceed with error handling
           }
@@ -1621,35 +1541,63 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
          // Create a new render version for this chat message
          // Use the actual render ID from the API response if available
          const renderId = apiResult.data?.id || apiResult.data?.renderId || `temp-${Date.now()}`;
+         
+         // ✅ FIX: Validate render ID is not a temp ID (should be real UUID from API)
+         if (renderId.startsWith('temp-')) {
+           logger.warn('⚠️ Chat: Received temp render ID from API, this may cause sync issues', {
+             renderId,
+             apiResult: apiResult.data
+           });
+         }
+         
          // ✅ FIX: Preserve uploadedImageUrl from API response or use preserved URL
          // API response has the persisted URL, but if not available, use the preserved previewUrl
          const uploadedImageUrl = apiResult.data?.uploadedImageUrl || preservedUploadedImageUrl || null;
+         const outputUrl = result.imageUrl || result.videoUrl || result.data?.outputUrl || '';
+         
+         // ✅ FIX: Validate outputUrl exists
+         if (!outputUrl) {
+           logger.error('❌ Chat: No outputUrl in result, render may not display', {
+             renderId,
+             result,
+             apiResult: apiResult.data
+           });
+         }
+         
          const newRender: Render = {
            id: renderId, // Use actual render ID from API
-           projectId,
+           projectId: projectId || '',
            userId: '',
            type: result.videoUrl ? 'video' : 'image',
           prompt: currentPrompt,
           settings: {
             aspectRatio,
           },
-          outputUrl: result.imageUrl || result.videoUrl || result.data?.outputUrl || '',
-          outputKey: '',
+          outputUrl: outputUrl,
+          outputKey: apiResult.data?.outputKey || '',
           uploadedImageUrl: uploadedImageUrl,
           uploadedImageKey: apiResult.data?.uploadedImageKey || null,
           uploadedImageId: apiResult.data?.uploadedImageId || null,
           status: 'completed',
           errorMessage: null,
-          processingTime: result.processingTime,
+          processingTime: result.processingTime || 0,
           chainId: chainId || null,
           chainPosition: apiResult.data?.chainPosition ?? Math.floor(messages.length / 2), // Use chainPosition from API if available
-          referenceRenderId: currentRender?.id || null, // Reference to previous version
+          referenceRenderId: referenceRenderId || currentRender?.id || null, // Reference to previous version
           creditsCost: getCreditsCost(),
           createdAt: new Date(),
           updatedAt: new Date()
         };
+         
+         logger.log('✅ Chat: Created render object', {
+           renderId: newRender.id,
+           outputUrl: newRender.outputUrl ? 'present' : 'missing',
+           status: newRender.status,
+           chainId: newRender.chainId,
+           chainPosition: newRender.chainPosition
+         });
 
-        dispatchChat({ type: 'SET_CURRENT_RENDER', payload: newRender });
+        setCurrentRender(newRender);
         onRenderComplete?.(newRender);
         
         // Track render completed
@@ -1658,22 +1606,24 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         
         // ✅ FIXED: Track recent generation to continue polling after local completion
         // This ensures we catch the render when it appears in the database
+        // Store the full render object for better persistence
         recentGenerationRef.current = {
           timestamp: Date.now(),
-          renderId: renderId
+          renderId: renderId,
+          render: newRender // Store render object for persistence
         };
         
+        logger.log('✅ Chat: Render created locally, tracking for DB sync', {
+          renderId,
+          outputUrl: newRender.outputUrl,
+          status: newRender.status
+        });
+        
         // Update the assistant message with the result and render
-        dispatchChat({
-          type: 'UPDATE_MESSAGE',
-          payload: {
-            id: assistantMessage.id,
-            updates: {
-              content: '',
-              isGenerating: false,
-              render: newRender
-            }
-          }
+        updateMessage(assistantMessage.id, {
+          content: '',
+          isGenerating: false,
+          render: newRender
         });
         messagesRef.current = messages.map(msg =>
           msg.id === assistantMessage.id
@@ -1682,10 +1632,18 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         );
         
         // ✅ FIXED: Trigger immediate refresh to sync with database
-        // Use setTimeout to avoid blocking the UI update
-        setTimeout(() => {
-          throttledRefresh();
-        }, 1000); // Wait 1 second for render to be saved to DB
+        // Use multiple staggered refreshes to ensure we catch the render in production
+        // Production may have network delays, DB replication lag, or caching issues
+        const refreshDelays = [500, 2000, 5000, 10000]; // Progressive delays
+        refreshDelays.forEach((delay, index) => {
+          setTimeout(() => {
+            logger.log(`🔄 Chat: Refresh attempt ${index + 1}/${refreshDelays.length} for render sync`, {
+              renderId,
+              delay
+            });
+            throttledRefresh();
+          }, delay);
+        });
 
         // Clear uploaded file after successful generation (but keep video mode)
         if (uploadedFile && !isVideoMode) {
@@ -1730,19 +1688,13 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                             errorMessage.includes('quota');
       
       // Update assistant message with error state
-      dispatchChat({
-        type: 'UPDATE_MESSAGE',
-        payload: {
-          id: assistantMessage.id,
-          updates: {
-            content: isNetworkError
-              ? 'Network error. Please check your connection and try again.'
-              : isGoogleError
-              ? 'Google AI service temporarily unavailable. Please try again in a moment.'
-              : getRenderiqMessage(0, isVideoMode, true),
-            isGenerating: false
-          }
-        }
+      updateMessage(assistantMessage.id, {
+        content: isNetworkError
+          ? 'Network error. Please check your connection and try again.'
+          : isGoogleError
+          ? 'Google AI service temporarily unavailable. Please try again in a moment.'
+          : getRenderiqMessage(0, isVideoMode, true),
+        isGenerating: false
       });
       
       // Show user-friendly error toast
@@ -1756,8 +1708,8 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       
       // Don't reset video mode on error - let user try again
     } finally {
-      dispatchChat({ type: 'SET_IS_GENERATING', payload: false });
-      dispatchChat({ type: 'SET_PROGRESS', payload: 0 });
+      setIsGenerating(false);
+      setProgress(0);
     }
   };
 
@@ -1884,12 +1836,12 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         msg.render?.outputUrl === upscalingResult.outputUrl
       );
       if (!alreadyExists) {
-        dispatchChat({ type: 'ADD_MESSAGE', payload: userMessage });
-        dispatchChat({ type: 'ADD_MESSAGE', payload: assistantMessage });
+        addMessage(userMessage);
+        addMessage(assistantMessage);
       }
       
       // Update current render to the upscaled version
-      dispatchChat({ type: 'SET_CURRENT_RENDER', payload: upscaledRender });
+      setCurrentRender(upscaledRender);
       onRenderComplete?.(upscaledRender);
       
       // Scroll to bottom to show new upscaled version
@@ -2518,9 +2470,14 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                 // Removed verbose per-message logging for performance
                 // Logger is production-safe, but too many logs slow down rendering
               
+                // ✅ FIX: Ensure timestamp is a Date object (may be string from localStorage/Zustand)
+                const messageTimestamp = message.timestamp instanceof Date 
+                  ? message.timestamp 
+                  : new Date(message.timestamp);
+                
                 return (
                 <div
-                  key={`${message.id}-${message.timestamp.getTime()}`}
+                  key={`${message.id}-${messageTimestamp.getTime()}`}
                   className={cn(
                     'flex flex-col',
                     message.type === 'user' ? 'items-end' : 'items-start'
@@ -2586,7 +2543,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                           variant="ghost"
                           size="sm"
                           onClick={() => {
-                            dispatchChat({ type: 'SET_INPUT_VALUE', payload: message.content });
+                            setInputValue(message.content);
                             toast.info('Message loaded into input. Modify and send.');
                           }}
                           className="h-6 w-6 p-0"
@@ -2859,7 +2816,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setIsPromptGalleryOpen(true)}
+                      onClick={() => openPromptGallery()}
                       className="h-7 sm:h-8 px-2 text-[10px] sm:text-xs border border-muted-foreground/20 hover:border-transparent active:border-transparent focus-visible:border-transparent"
                       disabled={isGenerating}
                     >
@@ -2869,7 +2826,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setIsPromptBuilderOpen(true)}
+                      onClick={() => openPromptBuilder()}
                       className="h-7 sm:h-8 px-2 text-[10px] sm:text-xs border border-muted-foreground/20 hover:border-transparent active:border-transparent focus-visible:border-transparent"
                       disabled={isGenerating}
                     >
@@ -3243,12 +3200,12 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                               if (selectedImageModel) {
                                 const modelId = selectedImageModel as ModelId;
                                 if (modelSupportsQuality(modelId, v as 'standard' | 'high' | 'ultra')) {
-                                  setQuality(v);
+                                  setQuality(v as 'standard' | 'high' | 'ultra');
                                 } else {
                                   toast.error(`This quality is not supported by the selected model. Maximum quality: ${getMaxQuality(modelId)}`);
                                 }
                               } else {
-                                setQuality(v);
+                                setQuality(v as 'standard' | 'high' | 'ultra');
                               }
                             }}
                           >
@@ -3454,7 +3411,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                                    reader.onload = async (e) => {
                                      const result = e.target?.result as string;
                                      const base64 = result.split(',')[1];
-                                     setVideoKeyframes(prev => [...prev, {
+                                     setVideoKeyframes((prev) => [...prev, {
                                        id: `keyframe-${Date.now()}-${index}`,
                                        imageData: base64,
                                        imageType: file.type,
@@ -3670,7 +3627,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                        onClick={() => setSidebarCollapsed(!isSidebarCollapsed)}
                         className="h-7 w-7 p-0 shrink-0 hidden lg:flex"
                         title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
                       >
@@ -3787,7 +3744,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                           
                           // Set a default prompt if input is empty
                           if (!inputValue.trim()) {
-                            dispatchChat({ type: 'SET_INPUT_VALUE', payload: 'Animate this image with smooth, cinematic motion' });
+                            setInputValue('Animate this image with smooth, cinematic motion');
                           }
                           
                           // Focus the input
@@ -4225,19 +4182,19 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       />
       <PromptGalleryModal
         isOpen={isPromptGalleryOpen}
-        onClose={() => setIsPromptGalleryOpen(false)}
+        onClose={() => closePromptGallery()}
         onSelectPrompt={(prompt) => {
-          dispatchChat({ type: 'SET_INPUT_VALUE', payload: prompt });
-          setIsPromptGalleryOpen(false);
+          setInputValue(prompt);
+          closePromptGallery();
         }}
         type={isVideoMode ? 'video' : 'image'}
       />
       <PromptBuilderModal
         isOpen={isPromptBuilderOpen}
-        onClose={() => setIsPromptBuilderOpen(false)}
+        onClose={() => closePromptBuilder()}
         onSelectPrompt={(prompt) => {
-          dispatchChat({ type: 'SET_INPUT_VALUE', payload: prompt });
-          setIsPromptBuilderOpen(false);
+          setInputValue(prompt);
+          closePromptBuilder();
         }}
         type={isVideoMode ? 'video' : 'image'}
       />
@@ -4420,8 +4377,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         <LimitReachedDialog
           isOpen={limitDialogOpen}
           onClose={() => {
-            setLimitDialogOpen(false);
-            setLimitDialogData(null);
+            closeLimitDialog();
           }}
           limitType={limitDialogData.limitType}
           current={limitDialogData.current}

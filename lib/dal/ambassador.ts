@@ -15,8 +15,9 @@ import { logger } from '@/lib/utils/logger';
 export class AmbassadorDAL {
   /**
    * Create ambassador application
+   * ✅ AUTO-GENERATES CODE: Code is automatically generated and assigned
    */
-  static async createApplication(userId: string, applicationData: Record<string, any>) {
+  static async createApplication(userId: string, applicationData: Record<string, any>, code: string) {
     logger.log('👤 AmbassadorDAL: Creating application for user:', userId);
 
     try {
@@ -25,11 +26,12 @@ export class AmbassadorDAL {
         .values({
           userId,
           status: 'pending',
+          code, // ✅ AUTO-GENERATED: Code is set immediately upon application
           applicationData,
         })
         .returning();
 
-      logger.log('✅ AmbassadorDAL: Application created:', application.id);
+      logger.log('✅ AmbassadorDAL: Application created with code:', code);
       return application;
     } catch (error) {
       logger.error('❌ AmbassadorDAL: Error creating application:', error);

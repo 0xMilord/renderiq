@@ -57,18 +57,18 @@ export function AmbassadorStatsCards({ stats }: StatsCardsProps) {
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
       {cards.map((card) => {
         const Icon = card.icon;
         return (
-          <Card key={card.title}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
-              <Icon className="h-4 w-4 text-muted-foreground" />
+          <Card key={card.title} className="p-2 sm:p-4">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-0">
+              <CardTitle className="text-[10px] sm:text-xs md:text-sm font-medium leading-tight pr-1">{card.title}</CardTitle>
+              <Icon className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{card.value}</div>
-              <p className="text-xs text-muted-foreground mt-1">{card.description}</p>
+            <CardContent className="p-0 pt-1 sm:pt-2">
+              <div className="text-base sm:text-xl md:text-2xl font-bold leading-tight">{card.value}</div>
+              <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground mt-0.5 sm:mt-1 leading-tight line-clamp-2">{card.description}</p>
             </CardContent>
           </Card>
         );

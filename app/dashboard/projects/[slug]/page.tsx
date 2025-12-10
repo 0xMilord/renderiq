@@ -36,14 +36,22 @@ export default function ProjectSlugPage() {
   const slug = params.slug as string;
   const { projects } = useProjects();
   
+  // ✅ MIGRATED: Using Zustand stores for state management
+  const { viewMode, setViewMode } = useUIPreferencesStore();
+  const { renderSearchQuery, renderSortBy, renderFilterStatus, setRenderFilters } = useSearchFilterStore();
+  const { isImageModalOpen, selectedRender, openImageModal, closeImageModal } = useModalStore();
+  
   const [project, setProject] = useState<Project | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('default');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('newest');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [selectedRender, setSelectedRender] = useState<Render | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'chains' | 'renders'>('chains');
+  
+  // Use store values with local aliases for backward compatibility
+  const searchQuery = renderSearchQuery;
+  const sortBy = renderSortBy;
+  const filterStatus = renderFilterStatus;
+  const setSearchQuery = (query: string) => setRenderFilters(query, sortBy, filterStatus);
+  const setSortBy = (newSortBy: string) => setRenderFilters(searchQuery, newSortBy, filterStatus);
+  const setFilterStatus = (newStatus: string) => setRenderFilters(searchQuery, sortBy, newStatus);
+  const isModalOpen = isImageModalOpen; // Alias for backward compatibility
 
   // Use the renders hook with proper architecture
   // The hook automatically fetches chains when projectId changes
@@ -348,8 +356,7 @@ export default function ProjectSlugPage() {
         <ImageModal
           isOpen={isModalOpen}
           onClose={() => {
-            setIsModalOpen(false);
-            setSelectedRender(null);
+            closeImageModal();
           }}
           item={selectedRender}
           onLike={handleLike}

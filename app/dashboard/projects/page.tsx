@@ -13,16 +13,24 @@ import { ProjectCard } from '@/components/projects/project-card';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { cn } from '@/lib/utils';
 import type { Project } from '@/lib/db/schema';
-
-type ViewMode = 'default' | 'compact' | 'list';
+import { useUIPreferencesStore } from '@/lib/stores/ui-preferences-store';
+import { useSearchFilterStore } from '@/lib/stores/search-filter-store';
 
 export default function ProjectsPage() {
   // Fetch ALL projects (no platform filter for dashboard)
   const { projects, loading, error, removeProject, duplicateProject, refetch } = useProjects();
-  const [viewMode, setViewMode] = useState<ViewMode>('default');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('newest');
-  const [filterStatus, setFilterStatus] = useState('all');
+  
+  // ✅ MIGRATED: Using Zustand stores for state management
+  const { viewMode, setViewMode } = useUIPreferencesStore();
+  const { renderSearchQuery, renderSortBy, renderFilterStatus, setRenderFilters } = useSearchFilterStore();
+  
+  // Use store values with local aliases for backward compatibility
+  const searchQuery = renderSearchQuery;
+  const sortBy = renderSortBy;
+  const filterStatus = renderFilterStatus;
+  const setSearchQuery = (query: string) => setRenderFilters(query, sortBy, filterStatus);
+  const setSortBy = (newSortBy: string) => setRenderFilters(searchQuery, newSortBy, filterStatus);
+  const setFilterStatus = (newStatus: string) => setRenderFilters(searchQuery, sortBy, newStatus);
 
   // Memoize filtered projects to avoid recalculating on every render
   const filteredProjects = useMemo(() => {
