@@ -11,6 +11,7 @@ import { ProjectRulesDAL } from '@/lib/dal/project-rules';
 import { StorageService } from '@/lib/services/storage';
 import { PlanLimitsService } from '@/lib/services/plan-limits.service';
 import { logger } from '@/lib/utils/logger';
+import * as Sentry from '@sentry/nextjs';
 import { 
   validatePrompt, 
   sanitizeInput, 
@@ -1096,6 +1097,16 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       logger.error('❌ Generation error:', error);
       
+      // Add Sentry context for render generation errors
+      Sentry.setContext('render_generation', {
+        renderId: render?.id,
+        projectId: render?.projectId,
+        chainId: render?.chainId,
+        generationType: render?.type,
+        userId: user?.id,
+        creditsCost,
+      });
+      
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       const errorString = errorMessage.toLowerCase();
       
@@ -1149,6 +1160,13 @@ export async function POST(request: NextRequest) {
     securityLog('render_api_error', { error: getSafeErrorMessage(error) }, 'error');
     logger.error('❌ API error:', error);
     
+    // Add Sentry context for top-level API errors
+    Sentry.setContext('render_api', {
+      userId: user?.id,
+      creditsCost,
+      hasUser: !!user,
+    });
+    
     // For top-level errors, try to refund if we have the necessary data
     try {
       if (typeof creditsCost !== 'undefined' && user?.id) {
@@ -1157,6 +1175,12 @@ export async function POST(request: NextRequest) {
       }
     } catch (refundError) {
       logger.error('❌ CRITICAL: Failed to refund credits after API error:', refundError);
+      Sentry.captureException(refundError, {
+        tags: {
+          critical: true,
+          refund_failure: true,
+        },
+      });
     }
     
     return NextResponse.json({ 

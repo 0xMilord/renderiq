@@ -16,6 +16,7 @@ import { UpdateNotification } from "@/components/pwa/update-notification";
 import { InstallSuccessToast } from "@/components/pwa/install-success-toast";
 import { ConsoleSecurityWarning } from "@/components/security/console-warning";
 import { PostInstallSetup } from "@/components/pwa/post-install-setup";
+import ErrorBoundary from "@/components/error-boundary";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -224,16 +225,18 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>
-            <UserOnboardingProvider>
-              <ConditionalNavbar />
-              <main>
-                {children}
-              </main>
-              <ConditionalFooter />
-              <BottomNav />
-            </UserOnboardingProvider>
-          </AuthProvider>
+          <ErrorBoundary>
+            <AuthProvider>
+              <UserOnboardingProvider>
+                <ConditionalNavbar />
+                <main>
+                  {children}
+                </main>
+                <ConditionalFooter />
+                <BottomNav />
+              </UserOnboardingProvider>
+            </AuthProvider>
+          </ErrorBoundary>
         </ThemeProvider>
       </body>
     </html>

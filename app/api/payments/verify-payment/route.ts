@@ -3,6 +3,7 @@ import { getCachedUser } from '@/lib/services/auth-cache';
 import { RazorpayService } from '@/lib/services/razorpay.service';
 import { logger } from '@/lib/utils/logger';
 import { checkDuplicatePayment, validatePaymentAmount } from '@/lib/utils/payment-security';
+import * as Sentry from '@sentry/nextjs';
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,6 +36,20 @@ export async function POST(request: NextRequest) {
         razorpayPaymentId: razorpay_payment_id,
         existingOrderId: duplicateCheck.existingOrderId,
       });
+      
+      // Track duplicate payment attempts in Sentry
+      Sentry.captureMessage('Duplicate payment attempt detected', {
+        level: 'warning',
+        tags: {
+          payment_security: true,
+          duplicate_payment: true,
+        },
+        extra: {
+          razorpayOrderId: razorpay_order_id,
+          existingOrderId: duplicateCheck.existingOrderId,
+        },
+      });
+      
       return NextResponse.json(
         { success: false, error: 'This payment has already been processed' },
         { status: 400 }
@@ -77,6 +92,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     logger.error('❌ API: Error verifying payment:', error);
+    
+    // Add Sentry context for payment verification errors
+    Sentry.setContext('payment_verification', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

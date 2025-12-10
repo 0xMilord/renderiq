@@ -290,16 +290,21 @@ export function BaseToolComponent({
     setImages(files);
     // Generate previews
     if (files.length > 0) {
-      const newPreviews: string[] = [];
-      files.forEach((file) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          newPreviews.push(reader.result as string);
-          if (newPreviews.length === files.length) {
-            setPreviews(newPreviews);
-          }
-        };
-        reader.readAsDataURL(file);
+      const previewPromises = files.map((file) => {
+        return new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            resolve(reader.result as string);
+          };
+          reader.onerror = () => {
+            resolve(''); // Resolve with empty string on error
+          };
+          reader.readAsDataURL(file);
+        });
+      });
+      
+      Promise.all(previewPromises).then((newPreviews) => {
+        setPreviews(newPreviews.filter(p => p !== ''));
       });
     } else {
       setPreviews([]);

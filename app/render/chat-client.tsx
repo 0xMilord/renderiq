@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppShortcuts } from '@/lib/hooks/use-app-shortcuts';
+import { captureErrorWithContext } from '@/lib/hooks/use-sentry';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -168,7 +169,11 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       ));
       toast.error('An error occurred while deleting the project');
-      console.error('Error deleting project:', error);
+      captureErrorWithContext(error, {
+        component: 'ChatClient',
+        feature: 'deleteProject',
+        projectId: project.id,
+      });
     }
   };
 
@@ -202,7 +207,12 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       ));
       toast.error('An error occurred while deleting the chain');
-      console.error('Error deleting chain:', error);
+      captureErrorWithContext(error, {
+        component: 'ChatClient',
+        feature: 'deleteChain',
+        chainId: chain.id,
+        projectId: chain.projectId,
+      });
     }
   };
 
@@ -266,8 +276,12 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
         toast.error(result.error || 'Failed to create chat');
       }
     } catch (error) {
-      console.error('Failed to create chat:', error);
       toast.error('Failed to create chat');
+      captureErrorWithContext(error, {
+        component: 'ChatClient',
+        feature: 'createChain',
+        projectId,
+      });
     } finally {
       setIsCreatingChain(null);
     }

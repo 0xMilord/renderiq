@@ -69,6 +69,7 @@ import { Lock, Globe } from 'lucide-react';
 import { LimitReachedDialog } from '@/components/billing/limit-reached-dialog';
 import type { LimitType } from '@/lib/services/plan-limits.service';
 import { logger } from '@/lib/utils/logger';
+import { captureErrorWithContext } from '@/lib/hooks/use-sentry';
 import { MentionTagger } from './mention-tagger';
 import { PromptGalleryModal } from './prompt-gallery-modal';
 import { PromptBuilderModal } from './prompt-builder-modal';
@@ -1603,6 +1604,16 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
 
     } catch (error) {
       logger.error(`Failed to generate ${generationType}:`, error);
+      
+      // Add Sentry context for generation errors
+      captureErrorWithContext(error, {
+        component: 'UnifiedChatInterface',
+        feature: 'generateRender',
+        generationType,
+        projectId,
+        chainId,
+        isVideoMode,
+      });
       
       // Determine error type for better user messaging
       const errorMessage = error instanceof Error ? error.message : String(error);

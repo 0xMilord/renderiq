@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import * as Sentry from '@sentry/nextjs';
 
 /**
  * Unified Middleware
@@ -84,6 +85,16 @@ export async function middleware(request: NextRequest) {
         });
       } catch (error) {
         console.error('❌ Middleware: Error proxying auth request:', error);
+        Sentry.captureException(error, {
+          tags: {
+            middleware: true,
+            auth_proxy: true,
+          },
+          extra: {
+            hostname,
+            pathname,
+          },
+        });
         return NextResponse.json(
           { error: 'Failed to proxy auth request' },
           { status: 500 }

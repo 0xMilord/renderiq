@@ -4,6 +4,7 @@ import { RazorpayService } from '@/lib/services/razorpay.service';
 import { logger } from '@/lib/utils/logger';
 import { checkRateLimit } from '@/lib/utils/payment-security';
 import { convertCurrency, getRazorpayCurrencyCode, SUPPORTED_CURRENCIES } from '@/lib/utils/currency';
+import * as Sentry from '@sentry/nextjs';
 
 export async function POST(request: NextRequest) {
   try {
@@ -111,6 +112,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     logger.error('❌ API: Error creating order:', error);
+    
+    // Add Sentry context for payment errors
+    Sentry.setContext('payment_create_order', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

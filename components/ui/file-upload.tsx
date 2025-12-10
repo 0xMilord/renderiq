@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useMemo } from 'react';
+import { useCallback, useState, useMemo, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
 import { X, FileImage, Upload, Image as ImageIcon } from 'lucide-react';
@@ -30,20 +30,36 @@ export function FileUpload({
 
   // Use external previews if provided, otherwise use internal
   const previews = externalPreviews || internalPreviews;
+  
+  // Sync internal files state when external previews are cleared
+  useEffect(() => {
+    if (externalPreviews && externalPreviews.length === 0 && files.length > 0) {
+      setFiles([]);
+      setInternalPreviews([]);
+    }
+  }, [externalPreviews?.length, files.length]);
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
+      if (acceptedFiles.length === 0) return;
+
+      // Calculate current file count based on external previews or internal files
+      const currentCount = externalPreviews ? externalPreviews.length : files.length;
+      
       const newFiles = multiple
-        ? acceptedFiles.slice(0, maxFiles - files.length)
+        ? acceptedFiles.slice(0, maxFiles - currentCount)
         : acceptedFiles.slice(0, 1);
 
       if (newFiles.length === 0) return;
 
+      // Always update internal files state for remove functionality
       const updatedFiles = multiple ? [...files, ...newFiles] : newFiles;
       setFiles(updatedFiles);
+      
+      // Always call onFilesChange - parent component will handle previews if external
       onFilesChange(updatedFiles);
 
-      // Generate previews if not provided externally
+      // Generate previews only if not provided externally
       if (!externalPreviews) {
         const previewPromises = newFiles.map((file) => {
           return new Promise<string>((resolve) => {
@@ -51,13 +67,17 @@ export function FileUpload({
             reader.onloadend = () => {
               resolve(reader.result as string);
             };
+            reader.onerror = () => {
+              resolve(''); // Resolve with empty string on error
+            };
             reader.readAsDataURL(file);
           });
         });
 
         Promise.all(previewPromises).then((newPreviews) => {
+          const validPreviews = newPreviews.filter(p => p !== '');
           setInternalPreviews((prev) => {
-            return multiple ? [...prev, ...newPreviews] : newPreviews;
+            return multiple ? [...prev, ...validPreviews] : validPreviews;
           });
         });
       }
