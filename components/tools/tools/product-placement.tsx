@@ -133,55 +133,59 @@ Place the specified product into this interior scene. ${placementConfig.approach
       maxImages={2}
       customSettings={
         <>
-          <div className="space-y-3">
-            <div>
-              <div className="flex items-center gap-1.5 mb-2">
-                <Label htmlFor="placement-style" className="text-sm">Placement Style</Label>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="max-w-xs">Choose how the product is placed. Natural: seamless integration. Prominent: focal point. Subtle: background presence.</p>
-                  </TooltipContent>
-                </Tooltip>
+          <div className="space-y-4">
+            {/* Row 1: Placement Style | Scale Adjustment */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Label htmlFor="placement-style" className="text-sm">Placement Style</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Choose how the product is placed. Natural: seamless integration. Prominent: focal point. Subtle: background presence.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <Select value={placementStyle} onValueChange={(v: any) => setPlacementStyle(v)}>
+                  <SelectTrigger id="placement-style" className="h-10 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="natural">Natural</SelectItem>
+                    <SelectItem value="prominent">Prominent</SelectItem>
+                    <SelectItem value="subtle">Subtle</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <Select value={placementStyle} onValueChange={(v: any) => setPlacementStyle(v)}>
-                <SelectTrigger id="placement-style" className="h-10">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="natural">Natural</SelectItem>
-                  <SelectItem value="prominent">Prominent</SelectItem>
-                  <SelectItem value="subtle">Subtle</SelectItem>
-                </SelectContent>
-              </Select>
+
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Label htmlFor="scale-adjustment" className="text-sm">Scale Adjustment</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Control product scale. Auto: match scene context. Preserve: keep original size. Fit: match similar items.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <Select value={scaleAdjustment} onValueChange={(v: any) => setScaleAdjustment(v)}>
+                  <SelectTrigger id="scale-adjustment" className="h-10 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Auto (Match Context)</SelectItem>
+                    <SelectItem value="preserve">Preserve Original</SelectItem>
+                    <SelectItem value="fit">Fit to Scene</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <div>
-              <div className="flex items-center gap-1.5 mb-2">
-                <Label htmlFor="scale-adjustment" className="text-sm">Scale Adjustment</Label>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="max-w-xs">Control product scale. Auto: match scene context. Preserve: keep original size. Fit: match similar items.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-              <Select value={scaleAdjustment} onValueChange={(v: any) => setScaleAdjustment(v)}>
-                <SelectTrigger id="scale-adjustment" className="h-10">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="auto">Auto (Match Context)</SelectItem>
-                  <SelectItem value="preserve">Preserve Original</SelectItem>
-                  <SelectItem value="fit">Fit to Scene</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
+            {/* Row 2: Match Scene Lighting (full width) */}
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="lighting-match" className="text-sm">Match Scene Lighting</Label>
@@ -195,7 +199,7 @@ Place the specified product into this interior scene. ${placementConfig.approach
                 </Tooltip>
               </div>
               <Select value={lightingMatch ? 'yes' : 'no'} onValueChange={(v) => setLightingMatch(v === 'yes')}>
-                <SelectTrigger id="lighting-match" className="h-10">
+                <SelectTrigger id="lighting-match" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

@@ -181,7 +181,9 @@ Environment setting: ${envConfig.atmosphere}. Lighting: ${envConfig.lighting}. I
       hintMessage={hintMessage}
       customSettings={
         <>
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* Row 1: Style Preservation | Environment */}
+            <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="detail-level" className="text-sm">Style Preservation</Label>
@@ -195,7 +197,7 @@ Environment setting: ${envConfig.atmosphere}. Lighting: ${envConfig.lighting}. I
                 </Tooltip>
               </div>
               <Select value={detailLevel} onValueChange={(v: 'preserve' | 'enhance' | 'transform') => setDetailLevel(v)}>
-                <SelectTrigger id="detail-level" className="h-10">
+                  <SelectTrigger id="detail-level" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -219,7 +221,7 @@ Environment setting: ${envConfig.atmosphere}. Lighting: ${envConfig.lighting}. I
                 </Tooltip>
               </div>
               <Select value={environment} onValueChange={setEnvironment}>
-                <SelectTrigger id="environment" className="h-10">
+                  <SelectTrigger id="environment" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -230,6 +232,7 @@ Environment setting: ${envConfig.atmosphere}. Lighting: ${envConfig.lighting}. I
                   <SelectItem value="night">Night</SelectItem>
                 </SelectContent>
               </Select>
+              </div>
             </div>
 
             {/* Style Reference */}

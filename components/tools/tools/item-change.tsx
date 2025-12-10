@@ -133,7 +133,9 @@ Replace the specified ${replacementType} items in this interior space. ${replace
       hintMessage={hintMessage}
       customSettings={
         <>
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* Row 1: Replacement Type | Style Matching */}
+            <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="replacement-type" className="text-sm">Replacement Type</Label>
@@ -147,7 +149,7 @@ Replace the specified ${replacementType} items in this interior space. ${replace
                 </Tooltip>
               </div>
               <Select value={replacementType} onValueChange={(v: any) => setReplacementType(v)}>
-                <SelectTrigger id="replacement-type" className="h-10">
+                  <SelectTrigger id="replacement-type" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -172,7 +174,7 @@ Replace the specified ${replacementType} items in this interior space. ${replace
                 </Tooltip>
               </div>
               <Select value={styleMatch} onValueChange={(v: any) => setStyleMatch(v)}>
-                <SelectTrigger id="style-match" className="h-10">
+                  <SelectTrigger id="style-match" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -181,8 +183,10 @@ Replace the specified ${replacementType} items in this interior space. ${replace
                   <SelectItem value="neutral">Neutral</SelectItem>
                 </SelectContent>
               </Select>
+              </div>
             </div>
 
+            {/* Row 2: Preserve Scale (full width) */}
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="preserve-scale" className="text-sm">Preserve Scale</Label>
@@ -196,7 +200,7 @@ Replace the specified ${replacementType} items in this interior space. ${replace
                 </Tooltip>
               </div>
               <Select value={preserveScale ? 'yes' : 'no'} onValueChange={(v) => setPreserveScale(v === 'yes')}>
-                <SelectTrigger id="preserve-scale" className="h-10">
+                <SelectTrigger id="preserve-scale" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

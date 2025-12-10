@@ -10,6 +10,8 @@ import { ToolConfig } from '@/lib/tools/registry';
 import { BaseToolComponent } from '../base-tool-component';
 import { createRenderAction } from '@/lib/actions/render.actions';
 import { StyleReferenceDialog } from '@/components/ui/style-reference-dialog';
+import { FivePointModifier } from '../ui/five-point-modifier';
+import { LabeledSlider } from '../ui/labeled-slider';
 
 interface RenderEffectsProps {
   tool: ToolConfig;
@@ -20,7 +22,8 @@ interface RenderEffectsProps {
 
 export function RenderEffects({ tool, projectId, onHintChange, hintMessage }: RenderEffectsProps) {
   const [effectType, setEffectType] = useState<'sketch' | 'illustration' | 'wireframe' | 'watercolor' | 'pencil'>('sketch');
-  const [intensity, setIntensity] = useState<'subtle' | 'medium' | 'strong'>('medium');
+  const [intensity, setIntensity] = useState<number>(3); // 1-5 scale
+  const [maintainDetail, setMaintainDetail] = useState<number>(50); // 0-100 slider
   const [styleReferenceImage, setStyleReferenceImage] = useState<File | null>(null);
   const [styleReferencePreview, setStyleReferencePreview] = useState<string | null>(null);
   const [styleReferenceName, setStyleReferenceName] = useState<string | null>(null);
@@ -57,22 +60,43 @@ export function RenderEffects({ tool, projectId, onHintChange, hintMessage }: Re
     };
 
     const intensityConfigs = {
-      'subtle': {
+      1: {
+        description: 'very subtle application maintaining photorealistic quality with minimal artistic overlay',
+        application: 'apply the effect very lightly, barely perceptible, maintaining photorealistic architectural quality and detail',
+        level: 'very low'
+      },
+      2: {
         description: 'subtle application maintaining photorealistic quality with light artistic overlay',
-        application: 'lightly apply the effect while maintaining photorealistic architectural quality and detail'
+        application: 'lightly apply the effect while maintaining photorealistic architectural quality and detail',
+        level: 'low'
       },
-      'medium': {
+      3: {
         description: 'balanced application with clear artistic style while preserving architectural elements',
-        application: 'apply the effect with balanced intensity, clearly showing the artistic style while preserving architectural elements and proportions'
+        application: 'apply the effect with balanced intensity, clearly showing the artistic style while preserving architectural elements and proportions',
+        level: 'medium'
       },
-      'strong': {
-        description: 'strong application with full artistic transformation while maintaining architectural accuracy',
-        application: 'apply the effect with strong intensity, fully transforming to the artistic style while maintaining architectural accuracy and proportions'
+      4: {
+        description: 'strong application with prominent artistic transformation while maintaining architectural accuracy',
+        application: 'apply the effect with strong intensity, prominently transforming to the artistic style while maintaining architectural accuracy and proportions',
+        level: 'high'
+      },
+      5: {
+        description: 'very strong application with full artistic transformation while maintaining architectural accuracy',
+        application: 'apply the effect with very strong intensity, fully transforming to the artistic style while maintaining architectural accuracy and proportions',
+        level: 'very high'
       }
     };
 
+    const maintainDetailConfigs = {
+      low: { description: 'low detail preservation', application: 'allow more artistic interpretation with reduced detail preservation' },
+      medium: { description: 'medium detail preservation', application: 'balance artistic effect with detail preservation' },
+      high: { description: 'high detail preservation', application: 'preserve maximum architectural detail while applying artistic effect' }
+    };
+
     const effectConfig = effectConfigs[effectType];
-    const intensityConfig = intensityConfigs[intensity];
+    const intensityConfig = intensityConfigs[intensity as keyof typeof intensityConfigs];
+    const maintainDetailLevel = maintainDetail < 33 ? 'low' : maintainDetail < 67 ? 'medium' : 'high';
+    const maintainDetailConfig = maintainDetailConfigs[maintainDetailLevel];
 
     // Style reference instruction
     const styleReferenceInstruction = styleReferenceImage || styleReferenceName
@@ -85,34 +109,38 @@ You are an expert architectural visualizer specializing in applying creative art
 </role>
 
 <task>
-Apply ${effectConfig.description} to this architectural render with ${intensityConfig.description}. ${intensityConfig.application} while maintaining architectural accuracy and design intent.
+Apply ${effectConfig.description} to this architectural render with ${intensityConfig.description} (intensity level ${intensity}/5). ${intensityConfig.application} while maintaining ${maintainDetailConfig.description} (${maintainDetail}% detail preservation). Preserve architectural accuracy and design intent according to the detail preservation setting.
 </task>
 
 <constraints>
 1. Output format: Generate a single stylized architectural render image
 2. Effect type: ${effectType} - ${effectConfig.description}
 3. Effect characteristics: ${effectConfig.characteristics}
-4. Intensity: ${intensity} - ${intensityConfig.description}
+4. Intensity: Level ${intensity}/5 - ${intensityConfig.description} (${intensityConfig.level})
 5. Application: ${intensityConfig.application}
-6. Architectural accuracy: Maintain all architectural proportions, spatial relationships, and design elements
-7. Style application: Apply ${effectConfig.style} with ${intensity} intensity${styleReferenceInstruction}
-8. Quality: Achieve professional artistic quality suitable for presentations and design communication
-9. Design preservation: Preserve the original architectural design intent and key elements
-10. Do not: Distort proportions, alter the architectural design, or create unrealistic elements
+6. Detail preservation: ${maintainDetail}% - ${maintainDetailConfig.description}
+7. Detail preservation application: ${maintainDetailConfig.application}
+8. Architectural accuracy: Maintain all architectural proportions, spatial relationships, and design elements according to detail preservation level
+9. Style application: Apply ${effectConfig.style} with intensity level ${intensity}/5${styleReferenceInstruction}
+10. Quality: Achieve professional artistic quality suitable for presentations and design communication
+11. Design preservation: Preserve the original architectural design intent and key elements according to detail preservation setting
+12. Do not: Distort proportions, alter the architectural design, or create unrealistic elements
 </constraints>
 
 <output_requirements>
 - Render type: Stylized architectural render with ${effectType} effect
 - Effect style: ${effectConfig.style}
-- Intensity: ${intensity} - ${intensityConfig.description}
+- Intensity: Level ${intensity}/5 - ${intensityConfig.description} (${intensityConfig.level})
+- Detail preservation: ${maintainDetail}% - ${maintainDetailConfig.description}
 - Characteristics: ${effectConfig.characteristics}
-- Architectural accuracy: Maintain all original architectural elements and proportions
+- Architectural accuracy: Maintain all original architectural elements and proportions according to detail preservation level
 - Professional quality: Suitable for presentations, design communication, and artistic visualization
 - Style quality: Achieve authentic ${effectType} aesthetic with proper technique application
+- Detail balance: Balance artistic effect with detail preservation at ${maintainDetail}% level
 </output_requirements>
 
 <context>
-Apply ${effectConfig.description} to this architectural render with ${intensityConfig.description}. ${intensityConfig.application}. The result should show ${effectConfig.characteristics} while maintaining all architectural accuracy, proportions, and design elements. Create a professional ${effectType} style architectural visualization that preserves the design intent while achieving the artistic effect.
+Apply ${effectConfig.description} to this architectural render with ${intensityConfig.description} (intensity level ${intensity}/5). ${intensityConfig.application}. Maintain ${maintainDetailConfig.description} (${maintainDetail}% detail preservation) - ${maintainDetailConfig.application}. The result should show ${effectConfig.characteristics} while maintaining architectural accuracy, proportions, and design elements according to the detail preservation setting. Create a professional ${effectType} style architectural visualization that preserves the design intent while achieving the artistic effect with the specified intensity and detail preservation balance.
 </context>`;
   };
 
@@ -122,7 +150,8 @@ Apply ${effectConfig.description} to this architectural render with ${intensityC
     
     // Add custom settings to formData for reference
     formData.append('effectType', effectType);
-    formData.append('intensity', intensity);
+    formData.append('intensity', intensity.toString());
+    formData.append('maintainDetail', maintainDetail.toString());
     
     // Add style reference if provided
     if (styleReferenceImage) {
@@ -151,11 +180,12 @@ Apply ${effectConfig.description} to this architectural render with ${intensityC
     }
     
     // Return result for base component to handle
+    const data = Array.isArray(result.data) ? result.data[0] : result.data;
     return {
       success: true,
       data: {
-        renderId: ('renderId' in result.data ? result.data.renderId : ('id' in result.data ? String(result.data.id) : '')) as string,
-        outputUrl: (result.data.outputUrl || '') as string,
+        renderId: ('renderId' in data ? data.renderId : ('id' in data ? String(data.id) : '')) as string,
+        outputUrl: (data.outputUrl || '') as string,
       },
     };
   };
@@ -169,9 +199,10 @@ Apply ${effectConfig.description} to this architectural render with ${intensityC
       hintMessage={hintMessage}
       customSettings={
         <>
+          <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            {/* Left Column: Effect Type and Intensity (stacked vertically) */}
-            <div className="space-y-3">
+              {/* Left Column: Effect Type and Maintain Detail */}
+              <div className="space-y-4">
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
                   <Label htmlFor="effect-type" className="text-sm">Effect Type</Label>
@@ -198,29 +229,16 @@ Apply ${effectConfig.description} to this architectural render with ${intensityC
                 </Select>
               </div>
 
-              <div>
-                <div className="flex items-center gap-1.5 mb-2">
-                  <Label htmlFor="intensity" className="text-sm">Effect Intensity</Label>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="max-w-xs">Control how strongly the effect is applied. Subtle: light overlay. Medium: balanced. Strong: full transformation.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-                <Select value={intensity} onValueChange={(v: any) => setIntensity(v)}>
-                  <SelectTrigger id="intensity" className="h-10 w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="subtle">Subtle</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="strong">Strong</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                <LabeledSlider
+                  label="Maintain Detail"
+                  value={maintainDetail}
+                  onValueChange={(values) => setMaintainDetail(values[0])}
+                  min={0}
+                  max={100}
+                  step={1}
+                  tooltip="Control how much architectural detail is preserved. Lower values allow more artistic interpretation. Higher values preserve more detail."
+                  valueFormatter={(v) => `${v}%`}
+                />
             </div>
 
             {/* Right Column: Style Reference */}
@@ -264,6 +282,22 @@ Apply ${effectConfig.description} to this architectural render with ${intensityC
                 </div>
               )}
             </div>
+            </div>
+
+            {/* Full Width: Effect Intensity */}
+            <FivePointModifier
+              label="Effect Intensity"
+              value={intensity}
+              onValueChange={(values) => setIntensity(values[0])}
+              tooltip="Control how strongly the effect is applied. 1: Very subtle overlay. 3: Balanced transformation. 5: Full artistic transformation."
+              labels={{
+                1: 'Very Subtle',
+                2: 'Subtle',
+                3: 'Medium',
+                4: 'Strong',
+                5: 'Very Strong',
+              }}
+            />
           </div>
         </>
       }

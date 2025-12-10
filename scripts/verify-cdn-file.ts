@@ -69,13 +69,12 @@ async function listFilesInPath(bucketName: string, prefix: string) {
 async function testCDNAccess(cdnUrl: string) {
   return new Promise((resolve) => {
     const https = require('https');
-    const url = require('url');
-    const parsedUrl = url.parse(cdnUrl);
+    const parsedUrl = new URL(cdnUrl);
     
     const options = {
       hostname: parsedUrl.hostname,
       port: parsedUrl.port || 443,
-      path: parsedUrl.pathname,
+      path: parsedUrl.pathname + parsedUrl.search,
       method: 'HEAD',
       timeout: 10000,
     };

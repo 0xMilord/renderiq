@@ -192,7 +192,9 @@ Transform this moodboard into a photorealistic ${roomConfig.description} render.
       hintMessage={hintMessage}
       customSettings={
         <>
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* Row 1: Style Approach | Room Type */}
+            <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="style" className="text-sm">Style Approach</Label>
@@ -206,7 +208,7 @@ Transform this moodboard into a photorealistic ${roomConfig.description} render.
                 </Tooltip>
               </div>
               <Select value={style} onValueChange={(v: any) => setStyle(v)}>
-                <SelectTrigger id="style" className="h-10">
+                  <SelectTrigger id="style" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -231,7 +233,7 @@ Transform this moodboard into a photorealistic ${roomConfig.description} render.
                 </Tooltip>
               </div>
               <Select value={roomType} onValueChange={(v: any) => setRoomType(v)}>
-                <SelectTrigger id="room-type" className="h-10">
+                  <SelectTrigger id="room-type" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -243,8 +245,10 @@ Transform this moodboard into a photorealistic ${roomConfig.description} render.
                   <SelectItem value="bathroom">Bathroom</SelectItem>
                 </SelectContent>
               </Select>
+              </div>
             </div>
 
+            {/* Row 2: Detail Level (full width) */}
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="detail-level" className="text-sm">Detail Level</Label>
@@ -258,7 +262,7 @@ Transform this moodboard into a photorealistic ${roomConfig.description} render.
                 </Tooltip>
               </div>
               <Select value={detailLevel} onValueChange={(v: any) => setDetailLevel(v)}>
-                <SelectTrigger id="detail-level" className="h-10">
+                <SelectTrigger id="detail-level" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

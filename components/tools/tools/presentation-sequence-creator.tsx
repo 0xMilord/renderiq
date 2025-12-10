@@ -173,7 +173,9 @@ Create a sequential presentation layout that tells a visual story with these arc
       maxImages={8}
       customSettings={
         <>
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* Row 1: Sequence Type | Flow Direction */}
+            <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="sequence-type" className="text-sm">Sequence Type</Label>
@@ -187,7 +189,7 @@ Create a sequential presentation layout that tells a visual story with these arc
                 </Tooltip>
               </div>
               <Select value={sequenceType} onValueChange={(v: any) => setSequenceType(v)}>
-                <SelectTrigger id="sequence-type" className="h-10">
+                  <SelectTrigger id="sequence-type" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -212,7 +214,7 @@ Create a sequential presentation layout that tells a visual story with these arc
                 </Tooltip>
               </div>
               <Select value={flowDirection} onValueChange={(v: any) => setFlowDirection(v)}>
-                <SelectTrigger id="flow-direction" className="h-10">
+                  <SelectTrigger id="flow-direction" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -221,8 +223,11 @@ Create a sequential presentation layout that tells a visual story with these arc
                   <SelectItem value="diagonal">Diagonal</SelectItem>
                 </SelectContent>
               </Select>
+              </div>
             </div>
 
+            {/* Row 2: Transition Style | Annotation Style */}
+            <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="transition-style" className="text-sm">Transition Style</Label>
@@ -236,7 +241,7 @@ Create a sequential presentation layout that tells a visual story with these arc
                 </Tooltip>
               </div>
               <Select value={transitionStyle} onValueChange={(v: any) => setTransitionStyle(v)}>
-                <SelectTrigger id="transition-style" className="h-10">
+                  <SelectTrigger id="transition-style" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -260,7 +265,7 @@ Create a sequential presentation layout that tells a visual story with these arc
                 </Tooltip>
               </div>
               <Select value={annotationStyle} onValueChange={(v: any) => setAnnotationStyle(v)}>
-                <SelectTrigger id="annotation-style" className="h-10">
+                  <SelectTrigger id="annotation-style" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -269,6 +274,7 @@ Create a sequential presentation layout that tells a visual story with these arc
                   <SelectItem value="none">None (Visual Only)</SelectItem>
                 </SelectContent>
               </Select>
+              </div>
             </div>
           </div>
         </>

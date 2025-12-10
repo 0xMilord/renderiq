@@ -34,7 +34,7 @@ export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes for video generation
 
 // ✅ FIXED: Top-level error handler wrapper to ensure we always return a response
-async function handleRenderRequest(request: NextRequest) {
+export async function handleRenderRequest(request: NextRequest) {
   let creditsCost: number | undefined;
   let user: { id: string } | null = null;
   const startTime = Date.now();

@@ -186,7 +186,9 @@ Generate a professional architectural portfolio layout showcasing these project 
       maxImages={10}
       customSettings={
         <>
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* Row 1: Layout Style | Color Scheme */}
+            <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="layout-style" className="text-sm">Layout Style</Label>
@@ -200,7 +202,7 @@ Generate a professional architectural portfolio layout showcasing these project 
                 </Tooltip>
               </div>
               <Select value={layoutStyle} onValueChange={(v: any) => setLayoutStyle(v)}>
-                <SelectTrigger id="layout-style" className="h-10">
+                  <SelectTrigger id="layout-style" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -226,7 +228,7 @@ Generate a professional architectural portfolio layout showcasing these project 
                 </Tooltip>
               </div>
               <Select value={colorScheme} onValueChange={(v: any) => setColorScheme(v)}>
-                <SelectTrigger id="color-scheme" className="h-10">
+                  <SelectTrigger id="color-scheme" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -236,8 +238,11 @@ Generate a professional architectural portfolio layout showcasing these project 
                   <SelectItem value="minimal">Minimal</SelectItem>
                 </SelectContent>
               </Select>
+              </div>
             </div>
 
+            {/* Row 2: Typography Style | Image Emphasis */}
+            <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="typography-style" className="text-sm">Typography Style</Label>
@@ -251,7 +256,7 @@ Generate a professional architectural portfolio layout showcasing these project 
                 </Tooltip>
               </div>
               <Select value={typographyStyle} onValueChange={(v: any) => setTypographyStyle(v)}>
-                <SelectTrigger id="typography-style" className="h-10">
+                  <SelectTrigger id="typography-style" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -276,7 +281,7 @@ Generate a professional architectural portfolio layout showcasing these project 
                 </Tooltip>
               </div>
               <Select value={imageEmphasis} onValueChange={(v: any) => setImageEmphasis(v)}>
-                <SelectTrigger id="image-emphasis" className="h-10">
+                  <SelectTrigger id="image-emphasis" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -285,6 +290,7 @@ Generate a professional architectural portfolio layout showcasing these project 
                   <SelectItem value="small">Small (More Images)</SelectItem>
                 </SelectContent>
               </Select>
+              </div>
             </div>
           </div>
         </>

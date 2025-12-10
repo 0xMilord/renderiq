@@ -184,7 +184,9 @@ Alter the building materials and facade finishes in this architectural render. R
       hintMessage={hintMessage}
       customSettings={
         <>
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* Row 1: Facade Material | Surface Finish */}
+            <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="facade-material" className="text-sm">Facade Material</Label>
@@ -198,7 +200,7 @@ Alter the building materials and facade finishes in this architectural render. R
                 </Tooltip>
               </div>
               <Select value={facadeMaterial} onValueChange={(v: any) => setFacadeMaterial(v)}>
-                <SelectTrigger id="facade-material" className="h-10">
+                  <SelectTrigger id="facade-material" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -226,7 +228,7 @@ Alter the building materials and facade finishes in this architectural render. R
                 </Tooltip>
               </div>
               <Select value={finish} onValueChange={(v: any) => setFinish(v)}>
-                <SelectTrigger id="finish" className="h-10">
+                  <SelectTrigger id="finish" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -236,6 +238,7 @@ Alter the building materials and facade finishes in this architectural render. R
                   <SelectItem value="satin">Satin</SelectItem>
                 </SelectContent>
               </Select>
+              </div>
             </div>
 
             {/* Style Reference */}

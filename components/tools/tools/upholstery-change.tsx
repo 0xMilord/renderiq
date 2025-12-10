@@ -180,7 +180,9 @@ Change the upholstery patterns and materials on furniture in this interior rende
       hintMessage={hintMessage}
       customSettings={
         <>
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* Row 1: Fabric Type | Pattern */}
+            <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="fabric-type" className="text-sm">Fabric Type</Label>
@@ -194,7 +196,7 @@ Change the upholstery patterns and materials on furniture in this interior rende
                 </Tooltip>
               </div>
               <Select value={fabricType} onValueChange={(v: any) => setFabricType(v)}>
-                <SelectTrigger id="fabric-type" className="h-10">
+                  <SelectTrigger id="fabric-type" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -221,7 +223,7 @@ Change the upholstery patterns and materials on furniture in this interior rende
                 </Tooltip>
               </div>
               <Select value={pattern} onValueChange={(v: any) => setPattern(v)}>
-                <SelectTrigger id="pattern" className="h-10">
+                  <SelectTrigger id="pattern" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -232,6 +234,7 @@ Change the upholstery patterns and materials on furniture in this interior rende
                   <SelectItem value="abstract">Abstract</SelectItem>
                 </SelectContent>
               </Select>
+              </div>
             </div>
 
             {/* Style Reference */}

@@ -199,7 +199,9 @@ Transform this 3D model screenshot into a photorealistic architectural render. A
       hintMessage={hintMessage}
       customSettings={
         <>
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* Row 1: Lighting Style | Environment */}
+            <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="lighting-style" className="text-sm">Lighting Style</Label>
@@ -213,7 +215,7 @@ Transform this 3D model screenshot into a photorealistic architectural render. A
                 </Tooltip>
               </div>
               <Select value={lightingStyle} onValueChange={setLightingStyle}>
-                <SelectTrigger id="lighting-style" className="h-10">
+                  <SelectTrigger id="lighting-style" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -238,7 +240,7 @@ Transform this 3D model screenshot into a photorealistic architectural render. A
                 </Tooltip>
               </div>
               <Select value={environment} onValueChange={setEnvironment}>
-                <SelectTrigger id="environment" className="h-10">
+                  <SelectTrigger id="environment" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -248,8 +250,10 @@ Transform this 3D model screenshot into a photorealistic architectural render. A
                   <SelectItem value="minimal">Minimal</SelectItem>
                 </SelectContent>
               </Select>
+              </div>
             </div>
 
+            {/* Row 2: Camera Angle (full width) */}
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="camera-angle" className="text-sm">Camera Angle</Label>
@@ -263,7 +267,7 @@ Transform this 3D model screenshot into a photorealistic architectural render. A
                 </Tooltip>
               </div>
               <Select value={cameraAngle} onValueChange={setCameraAngle}>
-                <SelectTrigger id="camera-angle" className="h-10">
+                <SelectTrigger id="camera-angle" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

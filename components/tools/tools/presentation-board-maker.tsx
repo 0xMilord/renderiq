@@ -172,7 +172,9 @@ Create a professional architectural presentation board with these images. Use ${
       maxImages={10}
       customSettings={
         <>
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* Row 1: Board Size | Layout Style */}
+            <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="board-size" className="text-sm">Board Size</Label>
@@ -186,7 +188,7 @@ Create a professional architectural presentation board with these images. Use ${
                 </Tooltip>
               </div>
               <Select value={boardSize} onValueChange={(v: any) => setBoardSize(v)}>
-                <SelectTrigger id="board-size" className="h-10">
+                  <SelectTrigger id="board-size" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -211,7 +213,7 @@ Create a professional architectural presentation board with these images. Use ${
                 </Tooltip>
               </div>
               <Select value={layoutStyle} onValueChange={(v: any) => setLayoutStyle(v)}>
-                <SelectTrigger id="layout-style" className="h-10">
+                  <SelectTrigger id="layout-style" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -222,8 +224,11 @@ Create a professional architectural presentation board with these images. Use ${
                   <SelectItem value="magazine">Magazine Style</SelectItem>
                 </SelectContent>
               </Select>
+              </div>
             </div>
 
+            {/* Row 2: Color Scheme | Include Annotations */}
+            <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="color-scheme" className="text-sm">Color Scheme</Label>
@@ -237,7 +242,7 @@ Create a professional architectural presentation board with these images. Use ${
                 </Tooltip>
               </div>
               <Select value={colorScheme} onValueChange={(v: any) => setColorScheme(v)}>
-                <SelectTrigger id="color-scheme" className="h-10">
+                  <SelectTrigger id="color-scheme" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -262,7 +267,7 @@ Create a professional architectural presentation board with these images. Use ${
                 </Tooltip>
               </div>
               <Select value={includeAnnotations ? 'yes' : 'no'} onValueChange={(v) => setIncludeAnnotations(v === 'yes')}>
-                <SelectTrigger id="include-annotations" className="h-10">
+                  <SelectTrigger id="include-annotations" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -270,6 +275,7 @@ Create a professional architectural presentation board with these images. Use ${
                   <SelectItem value="no">No (Visual Only)</SelectItem>
                 </SelectContent>
               </Select>
+              </div>
             </div>
           </div>
         </>

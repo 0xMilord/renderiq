@@ -10,6 +10,8 @@ import { ToolConfig } from '@/lib/tools/registry';
 import { BaseToolComponent } from '../base-tool-component';
 import { createRenderAction } from '@/lib/actions/render.actions';
 import { StyleReferenceDialog } from '@/components/ui/style-reference-dialog';
+import { LabeledSlider } from '../ui/labeled-slider';
+import { Input } from '@/components/ui/input';
 
 interface ChangeTextureProps {
   tool: ToolConfig;
@@ -22,6 +24,10 @@ export function ChangeTexture({ tool, projectId, onHintChange, hintMessage }: Ch
   const [materialType, setMaterialType] = useState<'wood' | 'stone' | 'metal' | 'fabric' | 'concrete' | 'marble' | 'tile' | 'plaster'>('wood');
   const [preserveLighting, setPreserveLighting] = useState<boolean>(true);
   const [textureIntensity, setTextureIntensity] = useState<'subtle' | 'medium' | 'strong'>('medium');
+  const [textureScale, setTextureScale] = useState<number>(50); // 0-100 slider
+  const [finishSpecification, setFinishSpecification] = useState<string>('');
+  const [surface, setSurface] = useState<'floor' | 'wall' | 'ceiling' | 'countertop' | 'furniture'>('wall');
+  const [glossLevel, setGlossLevel] = useState<'matte' | 'semi' | 'glossy'>('semi');
   const [styleReferenceImage, setStyleReferenceImage] = useState<File | null>(null);
   const [styleReferencePreview, setStyleReferencePreview] = useState<string | null>(null);
   const [styleReferenceName, setStyleReferenceName] = useState<string | null>(null);
@@ -87,9 +93,37 @@ export function ChangeTexture({ tool, projectId, onHintChange, hintMessage }: Ch
       }
     };
 
+    const surfaceConfigs = {
+      'floor': { description: 'floor surfaces', target: 'floor surfaces, flooring materials' },
+      'wall': { description: 'wall surfaces', target: 'wall surfaces, wall materials' },
+      'ceiling': { description: 'ceiling surfaces', target: 'ceiling surfaces, ceiling materials' },
+      'countertop': { description: 'countertop surfaces', target: 'countertop surfaces, counter materials' },
+      'furniture': { description: 'furniture surfaces', target: 'furniture surfaces, furniture materials' }
+    };
+
+    const glossLevelConfigs = {
+      'matte': { description: 'matte finish with no shine', characteristics: 'no reflection, matte surface, non-reflective finish' },
+      'semi': { description: 'semi-gloss finish with moderate shine', characteristics: 'moderate reflection, semi-gloss surface, subtle shine' },
+      'glossy': { description: 'glossy finish with high shine', characteristics: 'high reflection, glossy surface, reflective finish' }
+    };
+
+    const textureScaleConfigs = {
+      low: { description: 'small texture scale with fine detail', scale: 'fine texture detail, small pattern scale' },
+      medium: { description: 'medium texture scale with balanced detail', scale: 'balanced texture detail, medium pattern scale' },
+      high: { description: 'large texture scale with prominent detail', scale: 'prominent texture detail, large pattern scale' }
+    };
+
     const materialConfig = materialConfigs[materialType];
     const intensityConfig = intensityConfigs[textureIntensity];
     const preserveLight = preserveLighting;
+    const surfaceConfig = surfaceConfigs[surface];
+    const glossLevelConfig = glossLevelConfigs[glossLevel];
+    const textureScaleLevel = textureScale < 33 ? 'low' : textureScale < 67 ? 'medium' : 'high';
+    const textureScaleConfig = textureScaleConfigs[textureScaleLevel];
+
+    const finishSpecText = finishSpecification.trim()
+      ? ` Focus specifically on: ${finishSpecification.trim()}.`
+      : '';
 
     // Style reference instruction
     const styleReferenceInstruction = styleReferenceImage || styleReferenceName
@@ -102,35 +136,43 @@ You are an expert architectural visualizer specializing in material and texture 
 </role>
 
 <task>
-Modify the textures and materials in this interior space, replacing existing materials with ${materialType} (${materialConfig.description}) while ${preserveLight ? 'maintaining' : 'adjusting'} lighting, proportions, and spatial relationships. ${intensityConfig.application} with photorealistic accuracy.
+Modify the textures and materials in this interior space, replacing existing ${surfaceConfig.target} with ${materialType} (${materialConfig.description}) while ${preserveLight ? 'maintaining' : 'adjusting'} lighting, proportions, and spatial relationships. Apply ${textureScaleConfig.description} (${textureScaleConfig.scale}) with ${glossLevelConfig.description} (${glossLevelConfig.characteristics}). ${intensityConfig.application} with photorealistic accuracy.${finishSpecText}
 </task>
 
 <constraints>
 1. Output format: Generate a single photorealistic interior render image with modified textures
-2. Material replacement: Replace existing materials with ${materialType} - ${materialConfig.description}
-3. Material properties: Apply ${materialConfig.properties}
-4. Material types: Use ${materialConfig.types} as appropriate
-5. Texture intensity: ${textureIntensity} - ${intensityConfig.description}
-6. Application: ${intensityConfig.application}
-7. Lighting preservation: ${preserveLight ? 'Maintain the original lighting conditions, shadows, highlights, and light interactions exactly as in the original render' : 'Adjust lighting to properly interact with the new material properties, ensuring realistic light-material interactions'}
-8. Spatial relationships: Maintain all spatial relationships, proportions, and architectural elements exactly as in the original
-9. Material accuracy: Apply photorealistic ${materialType} texture with proper surface properties, reflections, and material characteristics${styleReferenceInstruction}
-10. Professional quality: Suitable for design visualization, material testing, and client presentations
-11. Do not: Distort proportions, alter spatial relationships, or create unrealistic material applications
+2. Surface target: ${surface} - ${surfaceConfig.description}
+3. Material replacement: Replace existing ${surfaceConfig.target} with ${materialType} - ${materialConfig.description}
+4. Material properties: Apply ${materialConfig.properties}
+5. Material types: Use ${materialConfig.types} as appropriate
+6. Texture scale: ${textureScale}% - ${textureScaleConfig.description} (${textureScaleConfig.scale})
+7. Gloss level: ${glossLevel} - ${glossLevelConfig.description} (${glossLevelConfig.characteristics})
+8. Texture intensity: ${textureIntensity} - ${intensityConfig.description}
+9. Application: ${intensityConfig.application}
+10. Finish specification: ${finishSpecification.trim() || 'Apply to all appropriate surfaces'}
+11. Lighting preservation: ${preserveLight ? 'Maintain the original lighting conditions, shadows, highlights, and light interactions exactly as in the original render' : 'Adjust lighting to properly interact with the new material properties, ensuring realistic light-material interactions'}
+12. Spatial relationships: Maintain all spatial relationships, proportions, and architectural elements exactly as in the original
+13. Material accuracy: Apply photorealistic ${materialType} texture with ${glossLevelConfig.description} and proper surface properties, reflections, and material characteristics${styleReferenceInstruction}
+14. Professional quality: Suitable for design visualization, material testing, and client presentations
+15. Do not: Distort proportions, alter spatial relationships, or create unrealistic material applications
 </constraints>
 
 <output_requirements>
+- Surface target: ${surface} - ${surfaceConfig.description}
 - Material type: ${materialType} - ${materialConfig.description}
 - Material properties: ${materialConfig.properties}
+- Texture scale: ${textureScale}% - ${textureScaleConfig.description}
+- Gloss level: ${glossLevel} - ${glossLevelConfig.description}
 - Texture intensity: ${textureIntensity} - ${intensityConfig.description}
+- Finish specification: ${finishSpecification.trim() || 'All appropriate surfaces'}
 - Lighting: ${preserveLight ? 'Preserve original lighting conditions' : 'Adjust lighting for realistic material interaction'}
 - Spatial accuracy: Maintain all original spatial relationships and proportions
 - Professional quality: Suitable for design visualization and material testing
-- Material realism: Photorealistic ${materialType} texture with proper surface properties
+- Material realism: Photorealistic ${materialType} texture with ${glossLevelConfig.description} and proper surface properties
 </output_requirements>
 
 <context>
-Modify the textures and materials in this interior space, replacing existing materials with ${materialType} (${materialConfig.description}). ${intensityConfig.application} to show ${materialConfig.properties}. Use ${materialConfig.types} as appropriate. ${preserveLight ? 'Maintain the original lighting conditions, shadows, and highlights exactly as shown in the original render' : 'Adjust lighting to properly interact with the new material, ensuring realistic light-material interactions and proper reflections'}. Maintain all spatial relationships, proportions, and architectural elements exactly as in the original. Create a photorealistic interior render with the new ${materialType} material applied with ${textureIntensity} intensity, suitable for design visualization and material testing.
+Modify the textures and materials in this interior space, replacing existing ${surfaceConfig.target} with ${materialType} (${materialConfig.description}). Apply ${textureScaleConfig.description} (${textureScaleConfig.scale}) with ${glossLevelConfig.description} (${glossLevelConfig.characteristics}). ${intensityConfig.application} to show ${materialConfig.properties}. Use ${materialConfig.types} as appropriate.${finishSpecText} ${preserveLight ? 'Maintain the original lighting conditions, shadows, and highlights exactly as shown in the original render' : 'Adjust lighting to properly interact with the new material, ensuring realistic light-material interactions and proper reflections'}. Maintain all spatial relationships, proportions, and architectural elements exactly as in the original. Create a photorealistic interior render with the new ${materialType} material applied to ${surfaceConfig.description} with ${textureScaleConfig.description}, ${glossLevelConfig.description}, and ${textureIntensity} intensity, suitable for design visualization and material testing.
 </context>`;
   };
 
@@ -142,6 +184,10 @@ Modify the textures and materials in this interior space, replacing existing mat
     formData.append('materialType', materialType);
     formData.append('preserveLighting', preserveLighting.toString());
     formData.append('textureIntensity', textureIntensity);
+    formData.append('textureScale', textureScale.toString());
+    formData.append('finishSpecification', finishSpecification);
+    formData.append('surface', surface);
+    formData.append('glossLevel', glossLevel);
     
     // Add style reference if provided
     if (styleReferenceImage) {
@@ -188,7 +234,9 @@ Modify the textures and materials in this interior space, replacing existing mat
       hintMessage={hintMessage}
       customSettings={
         <>
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* Row 1: Material Type | Surface */}
+            <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="material-type" className="text-sm">Material Type</Label>
@@ -202,7 +250,7 @@ Modify the textures and materials in this interior space, replacing existing mat
                 </Tooltip>
               </div>
               <Select value={materialType} onValueChange={(v: any) => setMaterialType(v)}>
-                <SelectTrigger id="material-type" className="h-10">
+                  <SelectTrigger id="material-type" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -218,6 +266,59 @@ Modify the textures and materials in this interior space, replacing existing mat
               </Select>
             </div>
 
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Label htmlFor="surface" className="text-sm">Surface</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Select which surface type to modify. The texture will be applied to the selected surface type.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <Select value={surface} onValueChange={(v: any) => setSurface(v)}>
+                  <SelectTrigger id="surface" className="h-10 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="floor">Floor</SelectItem>
+                    <SelectItem value="wall">Wall</SelectItem>
+                    <SelectItem value="ceiling">Ceiling</SelectItem>
+                    <SelectItem value="countertop">Countertop</SelectItem>
+                    <SelectItem value="furniture">Furniture</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Row 2: Gloss Level | Texture Intensity */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Label htmlFor="gloss-level" className="text-sm">Gloss Level</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Control the surface finish shine. Matte: no shine. Semi: moderate shine. Glossy: high shine.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <Select value={glossLevel} onValueChange={(v: any) => setGlossLevel(v)}>
+                  <SelectTrigger id="gloss-level" className="h-10 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="matte">Matte</SelectItem>
+                    <SelectItem value="semi">Semi</SelectItem>
+                    <SelectItem value="glossy">Glossy</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="texture-intensity" className="text-sm">Texture Intensity</Label>
@@ -231,7 +332,7 @@ Modify the textures and materials in this interior space, replacing existing mat
                 </Tooltip>
               </div>
               <Select value={textureIntensity} onValueChange={(v: any) => setTextureIntensity(v)}>
-                <SelectTrigger id="texture-intensity" className="h-10">
+                  <SelectTrigger id="texture-intensity" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -241,7 +342,43 @@ Modify the textures and materials in this interior space, replacing existing mat
                 </SelectContent>
               </Select>
             </div>
+            </div>
 
+            {/* Row 3: Finish Specification (full width) */}
+            <div>
+              <div className="flex items-center gap-1.5 mb-2">
+                <Label htmlFor="finish-specification" className="text-sm">Finish Specification (Optional)</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">Specify which particular finish or area should be changed. Leave empty to apply to all appropriate surfaces.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <Input
+                id="finish-specification"
+                placeholder="e.g., kitchen backsplash, bathroom tiles"
+                value={finishSpecification}
+                onChange={(e) => setFinishSpecification(e.target.value)}
+                className="h-10 w-full"
+              />
+            </div>
+
+            {/* Row 4: Texture Scale slider (full width) */}
+            <LabeledSlider
+              label="Texture Scale"
+              value={textureScale}
+              onValueChange={(values) => setTextureScale(values[0])}
+              min={0}
+              max={100}
+              step={1}
+              tooltip="Control the scale of the texture pattern. Lower values create finer detail. Higher values create larger patterns."
+              valueFormatter={(v) => `${v}%`}
+            />
+
+            {/* Row 5: Preserve Original Lighting (full width) */}
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="preserve-lighting" className="text-sm">Preserve Original Lighting</Label>
@@ -255,7 +392,7 @@ Modify the textures and materials in this interior space, replacing existing mat
                 </Tooltip>
               </div>
               <Select value={preserveLighting ? 'yes' : 'no'} onValueChange={(v) => setPreserveLighting(v === 'yes')}>
-                <SelectTrigger id="preserve-lighting" className="h-10">
+                <SelectTrigger id="preserve-lighting" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

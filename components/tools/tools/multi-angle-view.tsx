@@ -9,6 +9,8 @@ import { HelpCircle } from 'lucide-react';
 import { ToolConfig } from '@/lib/tools/registry';
 import { BaseToolComponent } from '../base-tool-component';
 import { createRenderAction } from '@/lib/actions/render.actions';
+import { LabeledSlider } from '../ui/labeled-slider';
+import { LabeledToggle } from '../ui/labeled-toggle';
 
 interface MultiAngleViewProps {
   tool: ToolConfig;
@@ -20,6 +22,10 @@ interface MultiAngleViewProps {
 export function MultiAngleView({ tool, projectId, onHintChange, hintMessage }: MultiAngleViewProps) {
   const [viewCount, setViewCount] = useState<'2' | '4' | '6'>('4');
   const [viewType, setViewType] = useState<'aerial' | 'eye-level' | 'mixed'>('mixed');
+  const [shotDistance, setShotDistance] = useState<'close' | 'mid' | 'wide' | 'multi'>('mid');
+  const [rotationCoverage, setRotationCoverage] = useState<number>(180); // 0-360 degrees
+  const [rotationType, setRotationType] = useState<'hor-turn' | 'vert-tilt' | 'turn-tilt'>('hor-turn');
+  const [lightingVariation, setLightingVariation] = useState<boolean>(false);
 
   // Build system prompt for a specific view angle
   const buildSystemPrompt = (viewIndex: number, totalViews: number): string => {
@@ -42,8 +48,27 @@ export function MultiAngleView({ tool, projectId, onHintChange, hintMessage }: M
       }
     };
 
+    const shotDistanceConfigs = {
+      'close': { description: 'close shot distance with intimate framing', characteristics: 'close framing, detailed view, intimate perspective, focused composition' },
+      'mid': { description: 'mid shot distance with balanced framing', characteristics: 'balanced framing, standard view, comfortable perspective, standard composition' },
+      'wide': { description: 'wide shot distance with comprehensive framing', characteristics: 'wide framing, comprehensive view, expansive perspective, full composition' },
+      'multi': { description: 'multi shot distances with varied framing', characteristics: 'varied framing, diverse views, mixed perspectives, varied composition' }
+    };
+
+    const rotationTypeConfigs = {
+      'hor-turn': { description: 'horizontal turn rotation', characteristics: 'horizontal camera rotation, left-right movement, azimuth variation' },
+      'vert-tilt': { description: 'vertical tilt rotation', characteristics: 'vertical camera tilt, up-down movement, elevation variation' },
+      'turn-tilt': { description: 'combined turn and tilt rotation', characteristics: 'combined horizontal and vertical rotation, multi-axis movement, comprehensive angle variation' }
+    };
+
     const viewTypeConfig = viewTypeConfigs[viewType];
     const viewAngle = viewTypeConfig.angles[viewIndex % viewTypeConfig.angles.length];
+    const shotDistanceConfig = shotDistanceConfigs[shotDistance];
+    const rotationTypeConfig = rotationTypeConfigs[rotationType];
+
+    const lightingText = lightingVariation
+      ? 'Apply lighting variation across views to show different lighting conditions and times of day'
+      : 'Maintain consistent lighting conditions across all views';
 
     // Following Gemini 3 best practices: structured, precise, with clear constraints
     return `<role>
@@ -51,7 +76,7 @@ You are an expert architectural visualizer specializing in generating multiple c
 </role>
 
 <task>
-Generate ${viewAngle} (view ${viewIndex + 1} of ${totalViews}) of this architectural design, showing ${viewTypeConfig.description} with consistent lighting and materials. This is part of a set of ${viewCountNum} views showing different perspectives of the same design.
+Generate ${viewAngle} (view ${viewIndex + 1} of ${totalViews}) of this architectural design, showing ${viewTypeConfig.description} with ${shotDistanceConfig.description} (${shotDistanceConfig.characteristics}). Use ${rotationTypeConfig.description} (${rotationTypeConfig.characteristics}) with ${rotationCoverage}° coverage angle. ${lightingText}. This is part of a set of ${viewCountNum} views showing different perspectives of the same design.
 </task>
 
 <constraints>
@@ -59,26 +84,33 @@ Generate ${viewAngle} (view ${viewIndex + 1} of ${totalViews}) of this architect
 2. View type: ${viewType} - ${viewTypeConfig.description}
 3. View angle: ${viewAngle} (view ${viewIndex + 1} of ${totalViews})
 4. View characteristics: ${viewTypeConfig.characteristics}
-5. Consistency: Maintain consistent lighting, materials, and architectural design across all ${viewCountNum} views
-6. Camera perspective: Use ${viewAngle} perspective with proper camera positioning and composition
-7. Lighting consistency: Use consistent lighting conditions across all views to show the same design from different angles
-8. Material consistency: Maintain identical materials, textures, and finishes across all views
-9. Architectural accuracy: Maintain accurate architectural proportions and design elements from all viewing angles
-10. Professional quality: Suitable for design presentations, client reviews, and architectural visualization
-11. Do not: Distort proportions, alter the design, or create inconsistent lighting/materials across views
+5. Shot distance: ${shotDistance} - ${shotDistanceConfig.description} (${shotDistanceConfig.characteristics})
+6. Rotation coverage: ${rotationCoverage}° coverage angle
+7. Rotation type: ${rotationType} - ${rotationTypeConfig.description} (${rotationTypeConfig.characteristics})
+8. Lighting: ${lightingVariation ? 'Varied lighting conditions across views' : 'Consistent lighting conditions across all views'}
+9. Consistency: Maintain consistent materials and architectural design across all ${viewCountNum} views
+10. Camera perspective: Use ${viewAngle} perspective with ${shotDistanceConfig.description} and proper camera positioning
+11. Material consistency: Maintain identical materials, textures, and finishes across all views
+12. Architectural accuracy: Maintain accurate architectural proportions and design elements from all viewing angles
+13. Professional quality: Suitable for design presentations, client reviews, and architectural visualization
+14. Do not: Distort proportions, alter the design, or create inconsistent materials across views
 </constraints>
 
 <output_requirements>
 - View type: ${viewType} - ${viewAngle} (view ${viewIndex + 1} of ${totalViews})
+- Shot distance: ${shotDistance} - ${shotDistanceConfig.description}
+- Rotation coverage: ${rotationCoverage}° coverage angle
+- Rotation type: ${rotationType} - ${rotationTypeConfig.description}
+- Lighting: ${lightingVariation ? 'Varied' : 'Consistent'} across views
 - View characteristics: ${viewTypeConfig.characteristics}
-- Consistency: Maintain consistent lighting, materials, and design with other views
-- Camera perspective: ${viewAngle} with proper composition
+- Consistency: Maintain consistent materials and design with other views
+- Camera perspective: ${viewAngle} with ${shotDistanceConfig.description} and proper composition
 - Professional quality: Suitable for design presentations and architectural visualization
 - Design accuracy: Maintain accurate architectural proportions from this viewing angle
 </output_requirements>
 
 <context>
-Generate ${viewAngle} (view ${viewIndex + 1} of ${totalViews}) of this architectural design. This is part of a set of ${viewCountNum} ${viewType} views showing the same design from different perspectives. Use ${viewTypeConfig.description} with ${viewTypeConfig.characteristics}. Maintain consistent lighting, materials, and architectural design elements across all views. Show the design from ${viewAngle} perspective with proper camera positioning and composition. Ensure this view is consistent with the other views in the set while showing a unique and valuable perspective of the architectural design.
+Generate ${viewAngle} (view ${viewIndex + 1} of ${totalViews}) of this architectural design. This is part of a set of ${viewCountNum} ${viewType} views showing the same design from different perspectives. Use ${viewTypeConfig.description} with ${viewTypeConfig.characteristics}. Apply ${shotDistanceConfig.description} (${shotDistanceConfig.characteristics}) for shot distance. Use ${rotationTypeConfig.description} (${rotationTypeConfig.characteristics}) with ${rotationCoverage}° coverage angle. ${lightingText}. Maintain consistent materials and architectural design elements across all views. Show the design from ${viewAngle} perspective with ${shotDistanceConfig.description} and proper camera positioning. Ensure this view is consistent with the other views in the set while showing a unique and valuable perspective of the architectural design.
 </context>`;
   };
 
@@ -108,6 +140,10 @@ Generate ${viewAngle} (view ${viewIndex + 1} of ${totalViews}) of this architect
       formData.append('batchRequests', JSON.stringify(buildBatchRequests(formData)));
       formData.append('viewCount', viewCount);
       formData.append('viewType', viewType);
+      formData.append('shotDistance', shotDistance);
+      formData.append('rotationCoverage', rotationCoverage.toString());
+      formData.append('rotationType', rotationType);
+      formData.append('lightingVariation', lightingVariation.toString());
       // Set a default prompt for batch processing (will be overridden by batch requests)
       formData.set('prompt', `Multi-angle view generation: ${viewCountNum} ${viewType} views`);
     } else {
@@ -153,7 +189,9 @@ Generate ${viewAngle} (view ${viewIndex + 1} of ${totalViews}) of this architect
       hintMessage={hintMessage}
       customSettings={
         <>
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* Row 1: Number of Views | Shot Distance */}
+            <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="view-count" className="text-sm">Number of Views</Label>
@@ -162,12 +200,12 @@ Generate ${viewAngle} (view ${viewIndex + 1} of ${totalViews}) of this architect
                     <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="max-w-xs">Select how many different camera angles to generate. Multiple views will be generated with consistent lighting and materials.</p>
+                      <p className="max-w-xs">Select how many different camera angles to generate. Multiple views will be generated with consistent materials.</p>
                   </TooltipContent>
                 </Tooltip>
               </div>
               <Select value={viewCount} onValueChange={(v: any) => setViewCount(v)}>
-                <SelectTrigger id="view-count" className="h-10">
+                  <SelectTrigger id="view-count" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -178,6 +216,34 @@ Generate ${viewAngle} (view ${viewIndex + 1} of ${totalViews}) of this architect
               </Select>
             </div>
 
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Label htmlFor="shot-distance" className="text-sm">Shot Distance</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Choose the camera distance. Close: intimate framing. Mid: balanced. Wide: comprehensive. Multi: varied distances.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <Select value={shotDistance} onValueChange={(v: any) => setShotDistance(v)}>
+                  <SelectTrigger id="shot-distance" className="h-10 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="close">Close</SelectItem>
+                    <SelectItem value="mid">Mid</SelectItem>
+                    <SelectItem value="wide">Wide Shot</SelectItem>
+                    <SelectItem value="multi">Multi</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Row 2: View Type | Rotation Type */}
+            <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="view-type" className="text-sm">View Type</Label>
@@ -191,7 +257,7 @@ Generate ${viewAngle} (view ${viewIndex + 1} of ${totalViews}) of this architect
                 </Tooltip>
               </div>
               <Select value={viewType} onValueChange={(v: any) => setViewType(v)}>
-                <SelectTrigger id="view-type" className="h-10">
+                  <SelectTrigger id="view-type" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -201,6 +267,52 @@ Generate ${viewAngle} (view ${viewIndex + 1} of ${totalViews}) of this architect
                 </SelectContent>
               </Select>
             </div>
+
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Label htmlFor="rotation-type" className="text-sm">Rotation Type</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Choose the rotation type. Hor. Turn: horizontal rotation. Vert. Tilt: vertical tilt. Turn + Tilt: combined rotation.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <Select value={rotationType} onValueChange={(v: any) => setRotationType(v)}>
+                  <SelectTrigger id="rotation-type" className="h-10 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="hor-turn">Hor. Turn</SelectItem>
+                    <SelectItem value="vert-tilt">Vert. Tilt</SelectItem>
+                    <SelectItem value="turn-tilt">Turn + Tilt</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Row 3: Rotation (Coverage Angle) slider (full width) */}
+            <LabeledSlider
+              label="Rotation (Coverage Angle)"
+              value={rotationCoverage}
+              onValueChange={(values) => setRotationCoverage(values[0])}
+              min={0}
+              max={360}
+              step={5}
+              tooltip="Control the rotation coverage angle in degrees. 0°: no rotation. 180°: half circle. 360°: full rotation."
+              valueFormatter={(v) => `${v}°`}
+            />
+
+            {/* Row 4: Lighting Variation toggle (full width) */}
+            <LabeledToggle
+              id="lighting-variation"
+              label="Lighting Variation"
+              checked={lightingVariation}
+              onCheckedChange={setLightingVariation}
+              tooltip="Apply different lighting conditions across views to show various times of day and lighting scenarios"
+            />
           </div>
         </>
       }
