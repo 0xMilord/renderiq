@@ -12,6 +12,7 @@ interface FileUploadProps {
   accept?: Record<string, string[]>;
   onFilesChange: (files: File[]) => void;
   previews?: string[];
+  currentFiles?: File[]; // Current files from parent (for proper appending in multiple mode)
   className?: string;
   aspectRatio?: string;
 }
@@ -22,29 +23,37 @@ export function FileUpload({
   accept = { 'image/*': ['.png', '.jpg', '.jpeg', '.webp'] },
   onFilesChange,
   previews: externalPreviews,
+  currentFiles,
   className,
   aspectRatio = '16/9',
 }: FileUploadProps) {
   const [internalPreviews, setInternalPreviews] = useState<string[]>([]);
   const [files, setFiles] = useState<File[]>([]);
+  
+  // Use currentFiles from parent if provided, otherwise use internal files state
+  const actualCurrentFiles = currentFiles ?? files;
 
   // Use external previews if provided, otherwise use internal
   const previews = externalPreviews || internalPreviews;
   
-  // Sync internal files state when external previews are cleared
+  // Sync internal files state when external previews are cleared or currentFiles changes
   useEffect(() => {
-    if (externalPreviews && externalPreviews.length === 0 && files.length > 0) {
+    if (currentFiles) {
+      // When parent provides files, sync internal state
+      setFiles(currentFiles);
+    } else if (externalPreviews && externalPreviews.length === 0) {
+      // Clear internal state when external previews are cleared and we're not using external files
       setFiles([]);
       setInternalPreviews([]);
     }
-  }, [externalPreviews?.length, files.length]);
+  }, [currentFiles, externalPreviews?.length]);
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
       if (acceptedFiles.length === 0) return;
 
-      // Calculate current file count based on external previews or internal files
-      const currentCount = externalPreviews ? externalPreviews.length : files.length;
+      // Calculate current file count based on external previews or actual current files
+      const currentCount = externalPreviews ? externalPreviews.length : actualCurrentFiles.length;
       
       const newFiles = multiple
         ? acceptedFiles.slice(0, maxFiles - currentCount)
@@ -52,9 +61,14 @@ export function FileUpload({
 
       if (newFiles.length === 0) return;
 
-      // Always update internal files state for remove functionality
-      const updatedFiles = multiple ? [...files, ...newFiles] : newFiles;
-      setFiles(updatedFiles);
+      // Use actual current files (from parent if provided, otherwise internal state)
+      // This ensures proper appending when parent manages files
+      const updatedFiles = multiple ? [...actualCurrentFiles, ...newFiles] : newFiles;
+      
+      // Update internal files state only if not using external management
+      if (!currentFiles) {
+        setFiles(updatedFiles);
+      }
       
       // Always call onFilesChange - parent component will handle previews if external
       onFilesChange(updatedFiles);
@@ -82,7 +96,7 @@ export function FileUpload({
         });
       }
     },
-    [multiple, maxFiles, files, onFilesChange, externalPreviews]
+    [multiple, maxFiles, actualCurrentFiles, onFilesChange, externalPreviews, currentFiles]
   );
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
@@ -95,16 +109,20 @@ export function FileUpload({
   });
 
   const removeFile = (index: number) => {
-    const updatedFiles = files.filter((_, i) => i !== index);
+    const updatedFiles = actualCurrentFiles.filter((_, i) => i !== index);
     const updatedPreviews = previews.filter((_, i) => i !== index);
-    setFiles(updatedFiles);
-    setInternalPreviews(updatedPreviews);
+    if (!currentFiles) {
+      setFiles(updatedFiles);
+      setInternalPreviews(updatedPreviews);
+    }
     onFilesChange(updatedFiles);
   };
 
   const clearAll = () => {
-    setFiles([]);
-    setInternalPreviews([]);
+    if (!currentFiles) {
+      setFiles([]);
+      setInternalPreviews([]);
+    }
     onFilesChange([]);
   };
 
@@ -163,7 +181,7 @@ export function FileUpload({
                     </div>
                   </div>
                 ))}
-                {files.length < maxFiles && (
+                {actualCurrentFiles.length < maxFiles && (
                   <div
                     className="aspect-video border-2 border-dashed border-muted-foreground/25 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors bg-muted/30"
                     onClick={(e) => {

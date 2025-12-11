@@ -9,6 +9,7 @@ import { HelpCircle } from 'lucide-react';
 import { ToolConfig } from '@/lib/tools/registry';
 import { BaseToolComponent } from '../base-tool-component';
 import { createRenderAction } from '@/lib/actions/render.actions';
+import { RotationSlider } from '../ui/rotation-slider';
 
 interface ProductPlacementProps {
   tool: ToolConfig;

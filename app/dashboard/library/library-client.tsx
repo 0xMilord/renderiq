@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 import type { RendersByProject } from '@/lib/actions/library.actions';
 import type { Render } from '@/lib/types/render';
 import { useProjectChainStore } from '@/lib/stores/project-chain-store';
+import { toast } from 'sonner';
 
 interface LibraryClientProps {
   rendersByProject: RendersByProject[];
@@ -93,20 +94,56 @@ export function LibraryClient({ rendersByProject }: LibraryClientProps) {
 
   // Memoize handleDownload with useCallback
   const handleDownload = useCallback(async (render: Render) => {
-    if (!render.outputUrl) return;
+    if (!render.outputUrl) {
+      toast.error('No download URL available');
+      return;
+    }
+    
+    const outputUrl = render.outputUrl;
+    const fileName = `render-${render.id}.${render.type === 'video' ? 'mp4' : 'png'}`;
+    
+    // Check if URL is same-origin (download attribute works)
+    let isSameOrigin = false;
     try {
-      const response = await fetch(render.outputUrl);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `render-${render.id}.${render.type === 'video' ? 'mp4' : 'png'}`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error('Download failed:', error);
+      const url = new URL(outputUrl, window.location.href);
+      isSameOrigin = url.origin === window.location.origin;
+    } catch (urlError) {
+      // Invalid URL format, treat as cross-origin and try fetch
+      console.warn('Invalid URL format, attempting fetch:', urlError);
+    }
+    
+    if (isSameOrigin) {
+      // Same-origin: Use direct download link (fastest)
+      const link = document.createElement('a');
+      link.href = outputUrl;
+      link.download = fileName;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      // Cross-origin: Try fetch first, fallback to opening in new tab
+      try {
+        const response = await fetch(outputUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      } catch (fetchError) {
+        // CORS error or other fetch failure: Open in new tab
+        console.warn('Download fetch failed (likely CORS), opening in new tab:', fetchError);
+        window.open(outputUrl, '_blank');
+        toast.info('Opened in new tab. Right-click and "Save As" to download.');
+      }
     }
   }, []);
 

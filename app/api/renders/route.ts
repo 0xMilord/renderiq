@@ -757,7 +757,6 @@ export async function handleRenderRequest(request: NextRequest) {
               ...(batchRequest.drawingType && { drawingType: batchRequest.drawingType }),
               ...(batchRequest.elevationSide && { elevationSide: batchRequest.elevationSide }),
               ...(batchRequest.floorPlanType && { floorPlanType: batchRequest.floorPlanType }),
-            },
               ...(batchRequest.sectionCutDirection && { sectionCutDirection: batchRequest.sectionCutDirection }),
             },
             status: 'pending',

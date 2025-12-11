@@ -28,7 +28,9 @@ import {
   Command,
   Users,
   Paintbrush,
-  Image
+  Image,
+  Key,
+  BarChart3
 } from 'lucide-react';
 import { 
   FaXTwitter, 
@@ -71,6 +73,8 @@ const pageTitles: Record<string, string> = {
   '/dashboard/ambassador': 'Ambassador Program',
   '/dashboard/profile': 'User Profile',
   '/dashboard/settings': 'Account Settings',
+  '/dashboard/api-keys': 'API Keys',
+  '/dashboard/analytics': 'Analytics',
 };
 
 // Page descriptions mapping (for main content header)
@@ -85,6 +89,8 @@ const pageDescriptions: Record<string, string> = {
   '/dashboard/ambassador': 'Manage your ambassador account, track referrals, and view earnings',
   '/dashboard/profile': 'View and manage your profile information',
   '/dashboard/settings': 'Your command center for account preferences',
+  '/dashboard/api-keys': 'Manage your API keys for programmatic access',
+  '/dashboard/analytics': 'View your usage statistics and analytics',
 };
 
 // Page icons mapping (for main content header)
@@ -99,6 +105,8 @@ const pageIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   '/dashboard/ambassador': Users,
   '/dashboard/profile': User,
   '/dashboard/settings': Command,
+  '/dashboard/api-keys': Key,
+  '/dashboard/analytics': BarChart3,
 };
 
 // Helper function to get page title from pathname (for sidebar)
@@ -195,6 +203,8 @@ const navItems = [
   { href: '/dashboard/likes', icon: Heart, label: 'Likes' },
   { href: '/dashboard/ambassador', icon: Users, label: 'Ambassador' },
   { href: '/dashboard/profile', icon: User, label: 'Profile' },
+  { href: '/dashboard/api-keys', icon: Key, label: 'API Keys' },
+  { href: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
   { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
 ];
 

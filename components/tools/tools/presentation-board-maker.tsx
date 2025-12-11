@@ -189,11 +189,15 @@ Create a professional architectural presentation board with these images. Use ${
       throw new Error(result.error || 'Failed to create presentation board');
     }
     
+    const outputUrl = Array.isArray(result.data) 
+      ? '' 
+      : ('outputUrl' in result.data ? (result.data as any).outputUrl : '');
+    
     return {
       success: true,
       data: {
         renderId: ('renderId' in result.data ? result.data.renderId : ('id' in result.data ? String(result.data.id) : '')) as string,
-        outputUrl: (result.data.outputUrl || '') as string,
+        outputUrl: (typeof outputUrl === 'string' ? outputUrl : '') as string,
       },
     };
   };
@@ -264,7 +268,10 @@ Create a professional architectural presentation board with these images. Use ${
                 </SelectContent>
               </Select>
               </div>
+            </div>
 
+            {/* Row 2: Color Scheme | Orientation */}
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
                   <Label htmlFor="color-scheme" className="text-sm">Color Scheme</Label>
@@ -286,6 +293,29 @@ Create a professional architectural presentation board with these images. Use ${
                     <SelectItem value="dark">Dark</SelectItem>
                     <SelectItem value="neutral">Neutral</SelectItem>
                     <SelectItem value="custom">Custom (From Images)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Label htmlFor="orientation" className="text-sm">Orientation</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Choose portrait or landscape orientation for the presentation board.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <Select value={orientation} onValueChange={(v: any) => setOrientation(v)}>
+                  <SelectTrigger id="orientation" className="h-10 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="portrait">Portrait</SelectItem>
+                    <SelectItem value="landscape">Landscape</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -362,53 +392,24 @@ Create a professional architectural presentation board with these images. Use ${
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
                   <Label htmlFor="include-annotations" className="text-sm">Include Annotations</Label>
-            <div className="grid grid-cols-2 gap-4">
-            <div>
-              <div className="flex items-center gap-1.5 mb-2">
-                <Label htmlFor="color-scheme" className="text-sm">Color Scheme</Label>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="max-w-xs">Select the color scheme for the board background and design elements. Custom derives colors from your images.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-              <Select value={colorScheme} onValueChange={(v: any) => setColorScheme(v)}>
-                  <SelectTrigger id="color-scheme" className="h-10 w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="light">Light</SelectItem>
-                  <SelectItem value="dark">Dark</SelectItem>
-                  <SelectItem value="neutral">Neutral</SelectItem>
-                  <SelectItem value="custom">Custom (From Images)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-1.5 mb-2">
-                <Label htmlFor="include-annotations" className="text-sm">Include Annotations</Label>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="max-w-xs">When enabled, adds labels, titles, and annotations. When disabled, creates visual-only layout without text.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-              <Select value={includeAnnotations ? 'yes' : 'no'} onValueChange={(v) => setIncludeAnnotations(v === 'yes')}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">When enabled, adds labels, titles, and annotations. When disabled, creates visual-only layout without text.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <Select value={includeAnnotations ? 'yes' : 'no'} onValueChange={(v) => setIncludeAnnotations(v === 'yes')}>
                   <SelectTrigger id="include-annotations" className="h-10 w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="yes">Yes (Include)</SelectItem>
-                  <SelectItem value="no">No (Visual Only)</SelectItem>
-                </SelectContent>
-              </Select>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="yes">Yes (Include)</SelectItem>
+                    <SelectItem value="no">No (Visual Only)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
@@ -428,6 +429,28 @@ Create a professional architectural presentation board with these images. Use ${
           </ol>
         </CardContent>
       </Card>
+      
+      <StyleReferenceDialog
+        open={colorDialogOpen}
+        onOpenChange={setColorDialogOpen}
+        toolId={tool.id}
+        onSelect={(file, styleName) => {
+          setColorReferenceImage(file);
+          setColorReferenceName(styleName || null);
+          if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              setColorReferencePreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+          } else {
+            setColorReferencePreview(null);
+            setColorReferenceName(null);
+          }
+        }}
+        currentImage={colorReferenceImage}
+        currentPreview={colorReferencePreview || undefined}
+      />
     </BaseToolComponent>
   );
 }

@@ -54,6 +54,7 @@ import { ModelSelector } from '@/components/ui/model-selector';
 import { getModelConfig, getDefaultModel, ModelId, modelSupportsQuality, getMaxQuality, getSupportedResolutions } from '@/lib/config/models';
 import { useWakeLock } from '@/lib/hooks/use-wake-lock';
 import { trackRenderStarted, trackRenderCompleted, trackRenderFailed, trackRenderCreditsCost } from '@/lib/utils/sentry-metrics';
+import { getToolExecutionsAction } from '@/lib/actions/tools.actions';
 
 interface BaseToolComponentProps {
   tool: ToolConfig;
@@ -217,14 +218,37 @@ export function BaseToolComponent({
       }
       
       try {
-        // Refresh renders to get latest status
-        await refetchRenders();
-        
         // Get current polling IDs from ref
         const currentPollingIds = Array.from(pollingIdsRef.current);
         
-        // Get updated renders from the hook (will include processing renders now)
-        const updatedRenders = toolRenders.filter(r => {
+        // Fetch render data directly to avoid React state update delays
+        const executionsResult = await getToolExecutionsAction({
+          projectId: projectId || undefined,
+          toolId: tool.id,
+          limit: 50,
+        });
+        
+        // Also refresh the hook for UI consistency
+        await refetchRenders();
+        
+        // Process executions to get render data
+        const freshRenders = (executionsResult.executions || [])
+          .filter(execution => {
+            // Include completed executions with output, or processing/pending
+            return execution.status === 'completed' || execution.status === 'processing' || execution.status === 'pending';
+          })
+          .map(execution => ({
+            id: execution.outputRenderId || execution.id,
+            renderId: execution.outputRenderId || execution.id,
+            outputUrl: execution.outputUrl || undefined,
+            status: execution.status,
+            createdAt: execution.createdAt,
+            executionId: execution.id,
+            toolId: execution.toolId,
+          }));
+        
+        // Filter for completed renders that we're polling for
+        const updatedRenders = freshRenders.filter(r => {
           const renderId = r.renderId || r.id;
           return currentPollingIds.includes(renderId) && 
                  r.status === 'completed' && 
@@ -612,6 +636,19 @@ export function BaseToolComponent({
               setActiveTab('output');
             }
           } else if (result && !result.success) {
+            // ✅ CHECK: Handle limit errors for custom handlers
+            if ((result as any).limitReached) {
+              const limitData = result as any;
+              openLimitDialog({
+                limitType: limitData.limitType || 'credits',
+                current: limitData.current || 0,
+                limit: limitData.limit ?? null,
+                planName: limitData.planName || 'Free',
+                message: result.error,
+              });
+              setProgress(0);
+              return; // Exit early - don't show error toast
+            }
             throw new Error(result.error || 'Failed to generate render');
           } else {
             // If no result returned, assume success was handled by custom handler
@@ -766,6 +803,7 @@ export function BaseToolComponent({
                 accept={{ 'image/*': ['.png', '.jpg', '.jpeg', '.webp'] }}
                 onFilesChange={handleFilesChange}
                 previews={previews}
+                currentFiles={images}
                 aspectRatio="16/9"
               />
               {previews.length === 0 && (
@@ -1243,21 +1281,57 @@ export function BaseToolComponent({
                       View Full Size
                     </Button>
                     <Button variant="outline" onClick={async () => {
+                      const outputUrl = displayResults[0].outputUrl;
+                      if (!outputUrl) {
+                        toast.error('No download URL available');
+                        return;
+                      }
+                      
+                      const isVideoFile = isVideo || outputUrl.match(/\.(mp4|webm|mov)$/i);
+                      const fileName = `render-${displayResults[0].renderId}.${isVideoFile ? 'mp4' : 'png'}`;
+                      
+                      // Check if URL is same-origin (download attribute works)
+                      let isSameOrigin = false;
                       try {
-                        const response = await fetch(displayResults[0].outputUrl);
-                        const blob = await response.blob();
-                        const url = window.URL.createObjectURL(blob);
+                        const url = new URL(outputUrl, window.location.href);
+                        isSameOrigin = url.origin === window.location.origin;
+                      } catch (urlError) {
+                        // Invalid URL format, treat as cross-origin and try fetch
+                        console.warn('Invalid URL format, attempting fetch:', urlError);
+                      }
+                      
+                      if (isSameOrigin) {
+                        // Same-origin: Use direct download link (fastest)
                         const link = document.createElement('a');
-                        link.href = url;
-                        const isVideoFile = isVideo || displayResults[0].outputUrl.match(/\.(mp4|webm|mov)$/i);
-                        link.download = `render-${displayResults[0].renderId}.${isVideoFile ? 'mp4' : 'png'}`;
+                        link.href = outputUrl;
+                        link.download = fileName;
+                        link.style.display = 'none';
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
-                        window.URL.revokeObjectURL(url);
-                      } catch (error) {
-                        console.error('Download failed:', error);
-                        toast.error('Failed to download image');
+                      } else {
+                        // Cross-origin: Try fetch first, fallback to opening in new tab
+                        try {
+                          const response = await fetch(outputUrl);
+                          if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
+                          }
+                          const blob = await response.blob();
+                          const blobUrl = window.URL.createObjectURL(blob);
+                          const link = document.createElement('a');
+                          link.href = blobUrl;
+                          link.download = fileName;
+                          link.style.display = 'none';
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                          window.URL.revokeObjectURL(blobUrl);
+                        } catch (fetchError) {
+                          // CORS error or other fetch failure: Open in new tab
+                          console.warn('Download fetch failed (likely CORS), opening in new tab:', fetchError);
+                          window.open(outputUrl, '_blank');
+                          toast.info('Opened in new tab. Right-click and "Save As" to download.');
+                        }
                       }
                     }}>
                       <Download className="h-4 w-4 mr-2" />
