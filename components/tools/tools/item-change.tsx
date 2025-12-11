@@ -9,6 +9,8 @@ import { HelpCircle } from 'lucide-react';
 import { ToolConfig } from '@/lib/tools/registry';
 import { BaseToolComponent } from '../base-tool-component';
 import { createRenderAction } from '@/lib/actions/render.actions';
+import { RotationSlider } from '../ui/rotation-slider';
+import { LabeledToggle } from '../ui/labeled-toggle';
 
 interface ItemChangeProps {
   tool: ToolConfig;
@@ -21,6 +23,8 @@ export function ItemChange({ tool, projectId, onHintChange, hintMessage }: ItemC
   const [replacementType, setReplacementType] = useState<'furniture' | 'decor' | 'fixtures' | 'artwork'>('furniture');
   const [preserveScale, setPreserveScale] = useState<boolean>(true);
   const [styleMatch, setStyleMatch] = useState<'match' | 'contrast' | 'neutral'>('match');
+  const [rotation, setRotation] = useState<number>(0);
+  const [replaceEverywhere, setReplaceEverywhere] = useState<boolean>(false);
 
   // Build system prompt based on settings - Following Gemini 3 best practices
   const buildSystemPrompt = (): string => {
@@ -71,7 +75,7 @@ You are an expert interior designer specializing in item replacement and interio
 </role>
 
 <task>
-Replace the specified ${replacementType} items in this interior space with alternative options, ${styleConfig.approach}, while ${preserveScale ? 'maintaining' : 'adjusting'} scale, lighting, shadows, and spatial relationships.
+Replace the specified ${replacementType} items in this interior space ${replaceEverywhere ? '(ALL instances throughout the entire scene)' : '(primary instance)'} with alternative options, ${styleConfig.approach}, while ${preserveScale ? 'maintaining' : 'adjusting'} scale, ${rotation !== 0 ? `rotated ${rotation}° from original orientation, ` : ''}lighting, shadows, and spatial relationships.
 </task>
 
 <constraints>
@@ -81,8 +85,10 @@ Replace the specified ${replacementType} items in this interior space with alter
 4. Replacement considerations: ${replacementConfig.considerations}
 5. Style matching: ${styleMatch} - ${styleConfig.description}
 6. Style approach: ${styleConfig.approach}
-7. Scale preservation: ${preserveScale ? 'Maintain the original scale of replaced items relative to the space' : 'Adjust scale to better fit the space and improve proportions'}
-8. Lighting preservation: Maintain the original lighting conditions, shadows, and highlights
+7. Replacement scope: ${replaceEverywhere ? 'Replace ALL instances of the specified item type throughout the entire scene' : 'Replace the primary instance of the specified item'}
+8. Rotation: ${rotation !== 0 ? `Rotate replacement item ${rotation}° from original orientation` : 'No rotation (0° - original orientation)'}
+9. Scale preservation: ${preserveScale ? 'Maintain the original scale of replaced items relative to the space' : 'Adjust scale to better fit the space and improve proportions'}
+10. Lighting preservation: Maintain the original lighting conditions, shadows, and highlights
 9. Shadow integration: Ensure replaced items cast realistic shadows that match the scene's light sources
 10. Spatial relationships: Maintain all spatial relationships, proportions, and interior layout exactly as in the original
 11. Professional quality: Suitable for interior design visualization, design iteration, and client presentations
@@ -91,6 +97,8 @@ Replace the specified ${replacementType} items in this interior space with alter
 
 <output_requirements>
 - Replacement type: ${replacementType} - ${replacementConfig.description}
+- Replacement scope: ${replaceEverywhere ? 'All instances' : 'Primary instance'}
+- Rotation: ${rotation}°
 - Style matching: ${styleMatch} - ${styleConfig.description}
 - Scale: ${preserveScale ? 'Preserve original scale' : 'Adjust for better fit'}
 - Lighting: Preserve original lighting conditions
@@ -99,7 +107,7 @@ Replace the specified ${replacementType} items in this interior space with alter
 </output_requirements>
 
 <context>
-Replace the specified ${replacementType} items in this interior space. ${replacementConfig.approach} considering ${replacementConfig.considerations}. ${styleConfig.approach} to achieve ${styleConfig.description}. ${preserveScale ? 'Maintain the original scale of replaced items relative to the space' : 'Adjust scale to better fit the space and improve proportions'}. Maintain the original lighting conditions, shadows, and highlights. Ensure replaced items cast realistic shadows that match the scene's light sources. Maintain all spatial relationships, proportions, and interior layout exactly as in the original. Create a photorealistic interior render with seamlessly replaced items suitable for interior design visualization and design iteration.
+Replace the specified ${replacementType} items in this interior space ${replaceEverywhere ? '- replace ALL instances of this item type throughout the entire scene' : '- replace the primary instance of this item'}. ${replacementConfig.approach} considering ${replacementConfig.considerations}. ${styleConfig.approach} to achieve ${styleConfig.description}. ${rotation !== 0 ? `Rotate the replacement item ${rotation}° from its original orientation. ` : ''}${preserveScale ? 'Maintain the original scale of replaced items relative to the space' : 'Adjust scale to better fit the space and improve proportions'}. Maintain the original lighting conditions, shadows, and highlights. Ensure replaced items cast realistic shadows that match the scene's light sources. Maintain all spatial relationships, proportions, and interior layout exactly as in the original. Create a photorealistic interior render with seamlessly replaced items suitable for interior design visualization and design iteration.
 </context>`;
   };
 
@@ -108,6 +116,8 @@ Replace the specified ${replacementType} items in this interior space. ${replace
     formData.append('replacementType', replacementType);
     formData.append('preserveScale', preserveScale.toString());
     formData.append('styleMatch', styleMatch);
+    formData.append('rotation', rotation.toString());
+    formData.append('replaceEverywhere', replaceEverywhere.toString());
     
     const result = await createRenderAction(formData);
     
@@ -186,7 +196,28 @@ Replace the specified ${replacementType} items in this interior space. ${replace
               </div>
             </div>
 
-            {/* Row 2: Preserve Scale (full width) */}
+            {/* Row 2: Rotation (slider, full width) */}
+            <div>
+              <RotationSlider
+                label="Rotation/Orientation"
+                value={rotation}
+                onValueChange={(values) => setRotation(values[0])}
+                tooltip="Rotate the replacement item to the desired orientation. Use this to adjust the item's angle for better placement."
+              />
+            </div>
+
+            {/* Row 3: Replace Everywhere (toggle, full width) */}
+            <div>
+              <LabeledToggle
+                label="Replace Everywhere"
+                checked={replaceEverywhere}
+                onCheckedChange={setReplaceEverywhere}
+                tooltip="When enabled, replaces all instances of the specified item type throughout the entire scene. When disabled, only replaces the primary instance."
+                id="replace-everywhere"
+              />
+            </div>
+
+            {/* Row 4: Preserve Scale (full width) */}
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="preserve-scale" className="text-sm">Preserve Scale</Label>

@@ -5,10 +5,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { HelpCircle } from 'lucide-react';
+import { HelpCircle, Image as ImageIcon } from 'lucide-react';
 import { ToolConfig } from '@/lib/tools/registry';
 import { BaseToolComponent } from '../base-tool-component';
 import { createRenderAction } from '@/lib/actions/render.actions';
+import { LabeledSlider } from '../ui/labeled-slider';
+import { StyleReferenceDialog } from '@/components/ui/style-reference-dialog';
 
 interface PortfolioLayoutGeneratorProps {
   tool: ToolConfig;
@@ -18,10 +20,17 @@ interface PortfolioLayoutGeneratorProps {
 }
 
 export function PortfolioLayoutGenerator({ tool, projectId, onHintChange, hintMessage }: PortfolioLayoutGeneratorProps) {
-  const [layoutStyle, setLayoutStyle] = useState<'grid' | 'masonry' | 'linear' | 'magazine' | 'editorial'>('grid');
+  const [layoutStyle, setLayoutStyle] = useState<'grid' | 'masonry' | 'linear' | 'magazine' | 'editorial' | 'hero-grid' | 'freeform'>('grid');
   const [colorScheme, setColorScheme] = useState<'light' | 'dark' | 'neutral' | 'minimal'>('light');
   const [typographyStyle, setTypographyStyle] = useState<'minimal' | 'elegant' | 'bold' | 'none'>('minimal');
   const [imageEmphasis, setImageEmphasis] = useState<'balanced' | 'large' | 'small'>('balanced');
+  const [spacing, setSpacing] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<'A4' | 'A3' | 'Letter' | 'Tabloid' | 'Custom'>('A4');
+  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('landscape');
+  const [colorReferenceImage, setColorReferenceImage] = useState<File | null>(null);
+  const [colorReferencePreview, setColorReferencePreview] = useState<string | null>(null);
+  const [colorReferenceName, setColorReferenceName] = useState<string | null>(null);
+  const [colorDialogOpen, setColorDialogOpen] = useState(false);
 
   // Build system prompt based on settings - Following Gemini 3 best practices
   const buildSystemPrompt = (): string => {
@@ -50,6 +59,44 @@ export function PortfolioLayoutGenerator({ tool, projectId, onHintChange, hintMe
         description: 'editorial layout with high-end design and artistic composition',
         characteristics: 'high-end design, artistic composition, sophisticated typography, creative layout, editorial aesthetic',
         use: 'high-end portfolio, artistic presentation, sophisticated design'
+      },
+      'hero-grid': {
+        description: 'hero + grid layout with prominent primary image and supporting grid',
+        characteristics: 'prominent hero image, supporting grid arrangement, visual hierarchy, primary focus element',
+        use: 'portfolio with focal point, hero image emphasis, structured supporting content'
+      },
+      'freeform': {
+        description: 'freeform layout with creative, organic arrangement',
+        characteristics: 'creative arrangement, organic flow, artistic composition, flexible placement',
+        use: 'artistic portfolio, creative composition, flexible design'
+      }
+    };
+
+    const pageSizeConfigs = {
+      'A4': {
+        dimensions: '210 × 297 mm (8.27 × 11.69 inches)',
+        description: 'A4 size portfolio page',
+        use: 'standard portfolio pages, digital portfolios, print portfolios'
+      },
+      'A3': {
+        dimensions: '297 × 420 mm (11.69 × 16.54 inches)',
+        description: 'A3 size portfolio page',
+        use: 'large portfolio pages, print portfolios, presentations'
+      },
+      'Letter': {
+        dimensions: '8.5 × 11 inches (216 × 279 mm)',
+        description: 'Letter size portfolio page',
+        use: 'US standard portfolio pages, print portfolios'
+      },
+      'Tabloid': {
+        dimensions: '11 × 17 inches (279 × 432 mm)',
+        description: 'Tabloid size portfolio page',
+        use: 'large format portfolio pages, print portfolios'
+      },
+      'Custom': {
+        dimensions: 'Custom dimensions based on content',
+        description: 'Custom size portfolio page',
+        use: 'flexible portfolio pages, custom dimensions'
       }
     };
 
@@ -110,6 +157,7 @@ export function PortfolioLayoutGenerator({ tool, projectId, onHintChange, hintMe
     const colorConfig = colorConfigs[colorScheme];
     const typographyConfig = typographyConfigs[typographyStyle];
     const emphasisConfig = emphasisConfigs[imageEmphasis];
+    const pageSizeConfig = pageSizeConfigs[pageSize];
 
     // Following Gemini 3 best practices: structured, precise, with clear constraints
     return `<role>
@@ -117,7 +165,7 @@ You are an expert portfolio designer specializing in creating professional archi
 </role>
 
 <task>
-Generate a professional architectural portfolio layout that showcases these project images with proper typography, spacing, visual hierarchy, and design elements suitable for online or print portfolios. Use ${layoutStyle} layout (${layoutConfig.description}) with ${colorScheme} color scheme (${colorConfig.description}) and ${typographyStyle} typography (${typographyConfig.description}).
+Generate a professional architectural portfolio layout that showcases these project images with proper typography, ${spacing}pt spacing, visual hierarchy, and design elements suitable for online or print portfolios. Use ${pageSize} size (${pageSizeConfig.dimensions}) in ${orientation} orientation with ${layoutStyle} layout (${layoutConfig.description})${colorReferenceImage ? ', extract color palette from the color reference image and apply it to the portfolio design' : ''}, ${colorScheme} color scheme (${colorConfig.description}), and ${typographyStyle} typography (${typographyConfig.description}).
 </task>
 
 <constraints>
@@ -129,18 +177,25 @@ Generate a professional architectural portfolio layout that showcases these proj
 6. Typography approach: ${typographyConfig.approach}
 7. Image emphasis: ${imageEmphasis} - ${emphasisConfig.description}
 8. Emphasis approach: ${emphasisConfig.approach}
-9. Visual hierarchy: Create clear visual hierarchy with primary and secondary focal points, proper image sizing, and strategic placement
-10. Spacing: Use professional spacing between images, consistent margins, balanced composition, and proper white space
-11. Typography integration: ${typographyStyle !== 'none' ? 'Integrate typography professionally with proper hierarchy, readability, and design integration' : 'Focus on visual layout without typography'}
-12. Professional quality: Suitable for online portfolios, print portfolios, and professional presentation
-13. Design elements: Include appropriate design elements, borders, backgrounds, and visual enhancements
-14. Portfolio standards: Follow professional portfolio design standards and best practices
-15. Do not: Create cluttered layouts, ignore visual hierarchy, or violate portfolio design principles
+9. Page size: ${pageSize} - ${pageSizeConfig.dimensions} for ${pageSizeConfig.use}
+10. Orientation: ${orientation} orientation with appropriate aspect ratio
+11. Spacing: Use ${spacing}pt spacing between images, consistent margins, balanced composition, and proper white space
+12. Color reference: ${colorReferenceImage ? 'Extract color palette from the color reference image and apply it to the portfolio design, background, borders, and design elements' : ''}
+13. Visual hierarchy: Create clear visual hierarchy with primary and secondary focal points, proper image sizing, and strategic placement
+14. Typography integration: ${typographyStyle !== 'none' ? 'Integrate typography professionally with proper hierarchy, readability, and design integration' : 'Focus on visual layout without typography'}
+15. Professional quality: Suitable for online portfolios, print portfolios, and professional presentation
+16. Design elements: Include appropriate design elements, borders, backgrounds, and visual enhancements
+17. Portfolio standards: Follow professional portfolio design standards and best practices
+18. Do not: Create cluttered layouts, ignore visual hierarchy, or violate portfolio design principles
 </constraints>
 
 <output_requirements>
+- Page size: ${pageSize} - ${pageSizeConfig.dimensions}
+- Orientation: ${orientation}
 - Layout: ${layoutStyle} - ${layoutConfig.description}
 - Color scheme: ${colorScheme} - ${colorConfig.description}
+- Color reference: ${colorReferenceImage ? 'Extracted from reference image' : 'Not used'}
+- Spacing: ${spacing}pt between images
 - Typography: ${typographyStyle} - ${typographyConfig.description}
 - Image emphasis: ${imageEmphasis} - ${emphasisConfig.description}
 - Visual hierarchy: Clear primary and secondary focal points
@@ -149,7 +204,7 @@ Generate a professional architectural portfolio layout that showcases these proj
 </output_requirements>
 
 <context>
-Generate a professional architectural portfolio layout showcasing these project images. Use ${layoutStyle} layout with ${layoutConfig.description} showing ${layoutConfig.characteristics} for ${layoutConfig.use}. Apply ${colorScheme} color scheme with ${colorConfig.description} showing ${colorConfig.characteristics}. ${typographyConfig.approach} for ${typographyConfig.description}. ${emphasisConfig.approach} to achieve ${emphasisConfig.description}. Create clear visual hierarchy with primary and secondary focal points, proper image sizing, and strategic placement. Use professional spacing between images, consistent margins, balanced composition, and proper white space. ${typographyStyle !== 'none' ? 'Integrate typography professionally with proper hierarchy, readability, and design integration' : 'Focus on visual layout without typography'}. Include appropriate design elements, borders, backgrounds, and visual enhancements. Follow professional portfolio design standards and best practices. Create a professional portfolio layout suitable for online portfolios, print portfolios, and professional presentation.
+Generate a professional architectural portfolio layout showcasing these project images. Use ${pageSize} size (${pageSizeConfig.dimensions}) in ${orientation} orientation suitable for ${pageSizeConfig.use}. Use ${layoutStyle} layout with ${layoutConfig.description} showing ${layoutConfig.characteristics} for ${layoutConfig.use}. Apply ${colorScheme} color scheme with ${colorConfig.description} showing ${colorConfig.characteristics}${colorReferenceImage ? '. Extract color palette from the color reference image and apply it to the portfolio design, background, borders, and design elements' : ''}. ${typographyConfig.approach} for ${typographyConfig.description}. ${emphasisConfig.approach} to achieve ${emphasisConfig.description}. Create clear visual hierarchy with primary and secondary focal points, proper image sizing, and strategic placement. Use ${spacing}pt spacing between images, consistent margins, balanced composition, and proper white space. ${typographyStyle !== 'none' ? 'Integrate typography professionally with proper hierarchy, readability, and design integration' : 'Focus on visual layout without typography'}. Include appropriate design elements, borders, backgrounds, and visual enhancements. Follow professional portfolio design standards and best practices. Create a professional portfolio layout suitable for online portfolios, print portfolios, and professional presentation.
 </context>`;
   };
 
@@ -159,6 +214,29 @@ Generate a professional architectural portfolio layout showcasing these project 
     formData.append('colorScheme', colorScheme);
     formData.append('typographyStyle', typographyStyle);
     formData.append('imageEmphasis', imageEmphasis);
+    formData.append('spacing', spacing.toString());
+    formData.append('pageSize', pageSize);
+    formData.append('orientation', orientation);
+    
+    // Add color reference if provided
+    if (colorReferenceImage) {
+      formData.append('colorReference', 'custom');
+      const colorImageBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result as string;
+          const base64Data = base64.split(',')[1];
+          resolve(base64Data);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(colorReferenceImage);
+      });
+      formData.append('colorReferenceImageData', colorImageBase64);
+      formData.append('colorReferenceImageType', colorReferenceImage.type);
+    } else if (colorReferenceName) {
+      formData.append('colorReference', 'library');
+      formData.append('colorReferenceName', colorReferenceName);
+    }
     
     const result = await createRenderAction(formData);
     
@@ -197,7 +275,7 @@ Generate a professional architectural portfolio layout showcasing these project 
                     <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="max-w-xs">Choose the portfolio layout. Grid: organized. Masonry: dynamic. Linear: sequential. Magazine: editorial. Editorial: high-end artistic.</p>
+                    <p className="max-w-xs">Choose the portfolio layout. Grid: organized. Masonry: dynamic. Linear: sequential. Magazine: editorial. Editorial: high-end artistic. Hero + Grid: prominent focal image. Freeform: creative arrangement.</p>
                   </TooltipContent>
                 </Tooltip>
               </div>
@@ -211,13 +289,15 @@ Generate a professional architectural portfolio layout showcasing these project 
                   <SelectItem value="linear">Linear</SelectItem>
                   <SelectItem value="magazine">Magazine</SelectItem>
                   <SelectItem value="editorial">Editorial</SelectItem>
+                  <SelectItem value="hero-grid">Hero + Grid</SelectItem>
+                  <SelectItem value="freeform">Freeform</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+              </div>
 
-            <div>
-              <div className="flex items-center gap-1.5 mb-2">
-                <Label htmlFor="color-scheme" className="text-sm">Color Scheme</Label>
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Label htmlFor="color-scheme" className="text-sm">Color Scheme</Label>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />

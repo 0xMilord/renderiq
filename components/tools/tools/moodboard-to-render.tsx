@@ -10,6 +10,7 @@ import { ToolConfig } from '@/lib/tools/registry';
 import { BaseToolComponent } from '../base-tool-component';
 import { createRenderAction } from '@/lib/actions/render.actions';
 import { StyleReferenceDialog } from '@/components/ui/style-reference-dialog';
+import { LabeledToggle } from '../ui/labeled-toggle';
 
 interface MoodboardToRenderProps {
   tool: ToolConfig;
@@ -19,9 +20,12 @@ interface MoodboardToRenderProps {
 }
 
 export function MoodboardToRender({ tool, projectId, onHintChange, hintMessage }: MoodboardToRenderProps) {
-  const [style, setStyle] = useState<'cohesive' | 'eclectic' | 'minimalist' | 'maximalist'>('cohesive');
+  const [style, setStyle] = useState<'cohesive' | 'minimalist' | 'maximalist'>('cohesive');
   const [roomType, setRoomType] = useState<'living' | 'bedroom' | 'kitchen' | 'office' | 'dining' | 'bathroom'>('living');
   const [detailLevel, setDetailLevel] = useState<'concept' | 'detailed' | 'complete'>('detailed');
+  const [focalLength, setFocalLength] = useState<'wide-shot' | 'detail-shot' | 'axonometric' | 'mid-shot'>('wide-shot');
+  const [windows, setWindows] = useState<boolean>(true);
+  const [lighting, setLighting] = useState<'daylight' | 'evening' | 'artificial-warm' | 'artificial-cool'>('daylight');
   const [styleReferenceImage, setStyleReferenceImage] = useState<File | null>(null);
   const [styleReferencePreview, setStyleReferencePreview] = useState<string | null>(null);
   const [styleReferenceName, setStyleReferenceName] = useState<string | null>(null);
@@ -34,11 +38,6 @@ export function MoodboardToRender({ tool, projectId, onHintChange, hintMessage }
         description: 'cohesive style with unified aesthetic, consistent elements, and harmonious design',
         approach: 'create a cohesive interior that unifies all moodboard elements into a harmonious, consistent design',
         characteristics: 'unified aesthetic, consistent color palette, harmonious elements, cohesive design language'
-      },
-      'eclectic': {
-        description: 'eclectic style with diverse elements, mixed aesthetics, and creative combinations',
-        approach: 'create an eclectic interior that combines diverse moodboard elements in creative, interesting ways',
-        characteristics: 'diverse elements, mixed aesthetics, creative combinations, eclectic design language'
       },
       'minimalist': {
         description: 'minimalist style with essential elements, clean lines, and uncluttered spaces',
@@ -97,6 +96,8 @@ export function MoodboardToRender({ tool, projectId, onHintChange, hintMessage }
     const styleConfig = styleConfigs[style];
     const roomConfig = roomConfigs[roomType];
     const detailConfig = detailConfigs[detailLevel];
+    const focalConfig = focalLengthConfigs[focalLength];
+    const lightingConfig = lightingConfigs[lighting];
 
     // Style reference instruction
     const styleReferenceInstruction = styleReferenceImage || styleReferenceName
@@ -109,7 +110,7 @@ You are an expert interior designer specializing in transforming moodboards into
 </role>
 
 <task>
-Transform this moodboard into a photorealistic ${roomConfig.description} render that captures the mood, color palette, materials, and aesthetic of the moodboard while creating a ${styleConfig.description} space with ${detailConfig.description}.
+Transform this moodboard into a photorealistic ${roomConfig.description} render using ${focalConfig.description} (${focalConfig.perspective}) with ${lighting} lighting (${lightingConfig.description} - ${lightingConfig.characteristics})${windows ? ', including visible windows with proper glazing and frames' : ', focusing on interior elements without emphasizing windows'}, capturing the mood, color palette, materials, and aesthetic of the moodboard while creating a ${styleConfig.description} space with ${detailConfig.description}.
 </task>
 
 <constraints>
@@ -121,9 +122,12 @@ Transform this moodboard into a photorealistic ${roomConfig.description} render 
 6. Style application: ${styleConfig.approach}
 7. Detail level: ${detailLevel} - ${detailConfig.description}
 8. Detail approach: ${detailConfig.approach}
-9. Moodboard interpretation: Extract and interpret color palette, materials, textures, furniture styles, lighting mood, and overall aesthetic from the moodboard
-10. Cohesive design: Create a ${styleConfig.description} interior that ${styleConfig.approach}
-11. Photorealistic quality: Achieve professional photorealistic rendering with realistic materials, lighting, and spatial relationships${styleReferenceInstruction}
+8. Focal length: ${focalLength} - ${focalConfig.description} with ${focalConfig.perspective}
+9. Windows: ${windows ? 'Include visible windows with proper glazing, frames, and natural light integration' : 'Do not emphasize windows - focus on interior elements and design'}
+10. Lighting: ${lighting} - ${lightingConfig.description} with ${lightingConfig.characteristics}
+11. Moodboard interpretation: Extract and interpret color palette, materials, textures, furniture styles, lighting mood, and overall aesthetic from the moodboard
+12. Cohesive design: Create a ${styleConfig.description} interior that ${styleConfig.approach}
+13. Photorealistic quality: Achieve professional photorealistic rendering with realistic materials, lighting, and spatial relationships${styleReferenceInstruction}
 12. Professional quality: Suitable for design visualization, client presentations, and design development
 13. Do not: Create unrealistic spaces, ignore moodboard elements, or create spaces that don't match the moodboard aesthetic
 </constraints>
@@ -132,13 +136,16 @@ Transform this moodboard into a photorealistic ${roomConfig.description} render 
 - Room type: ${roomType} - ${roomConfig.description}
 - Style: ${style} - ${styleConfig.description}
 - Detail level: ${detailLevel} - ${detailConfig.description}
+- Focal length: ${focalLength} - ${focalConfig.description}
+- Windows: ${windows ? 'Included' : 'Not emphasized'}
+- Lighting: ${lighting} - ${lightingConfig.description}
 - Moodboard interpretation: Extract color palette, materials, textures, and aesthetic
 - Professional quality: Suitable for design visualization and client presentations
 - Photorealistic rendering: Realistic materials, lighting, and spatial relationships
 </output_requirements>
 
 <context>
-Transform this moodboard into a photorealistic ${roomConfig.description} render. Extract and interpret the moodboard's color palette, materials, textures, furniture styles, lighting mood, and overall aesthetic. Create a ${styleConfig.description} interior that ${styleConfig.approach} with ${styleConfig.characteristics}. ${detailConfig.approach} to achieve ${detailConfig.description}. Include ${roomConfig.elements} appropriate for a ${roomConfig.description}. Create a cohesive, realistic space that captures the moodboard's essence while achieving professional photorealistic quality suitable for design visualization and client presentations.
+Transform this moodboard into a photorealistic ${roomConfig.description} render. Use ${focalConfig.description} (${focalConfig.perspective}) for the camera perspective. Apply ${lighting} lighting (${lightingConfig.description}) with ${lightingConfig.characteristics}. ${windows ? 'Include visible windows with proper glazing, frames, and natural light integration' : 'Focus on interior elements without emphasizing windows'}. Extract and interpret the moodboard's color palette, materials, textures, furniture styles, lighting mood, and overall aesthetic. Create a ${styleConfig.description} interior that ${styleConfig.approach} with ${styleConfig.characteristics}. ${detailConfig.approach} to achieve ${detailConfig.description}. Include ${roomConfig.elements} appropriate for a ${roomConfig.description}. Create a cohesive, realistic space that captures the moodboard's essence while achieving professional photorealistic quality suitable for design visualization and client presentations.
 </context>`;
   };
 
@@ -147,6 +154,9 @@ Transform this moodboard into a photorealistic ${roomConfig.description} render.
     formData.append('style', style);
     formData.append('roomType', roomType);
     formData.append('detailLevel', detailLevel);
+    formData.append('focalLength', focalLength);
+    formData.append('windows', windows.toString());
+    formData.append('lighting', lighting);
     
     // Add style reference if provided
     if (styleReferenceImage) {
@@ -213,7 +223,6 @@ Transform this moodboard into a photorealistic ${roomConfig.description} render.
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="cohesive">Cohesive</SelectItem>
-                  <SelectItem value="eclectic">Eclectic</SelectItem>
                   <SelectItem value="minimalist">Minimalist</SelectItem>
                   <SelectItem value="maximalist">Maximalist</SelectItem>
                 </SelectContent>
@@ -248,7 +257,71 @@ Transform this moodboard into a photorealistic ${roomConfig.description} render.
               </div>
             </div>
 
-            {/* Row 2: Detail Level (full width) */}
+            {/* Row 2: Focal Length | Lighting */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Label htmlFor="focal-length" className="text-sm">Focal Length</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Choose the camera perspective. Wide shot: full room. Detail shot: focused elements. Axonometric: technical view. Mid shot: balanced framing.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <Select value={focalLength} onValueChange={(v: any) => setFocalLength(v)}>
+                  <SelectTrigger id="focal-length" className="h-10 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="wide-shot">Wide Shot</SelectItem>
+                    <SelectItem value="detail-shot">Detail Shot</SelectItem>
+                    <SelectItem value="axonometric">Axonometric</SelectItem>
+                    <SelectItem value="mid-shot">Mid Shot</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Label htmlFor="lighting" className="text-sm">Lighting</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Select the lighting ambiance. Daylight: natural sunlight. Evening: golden hour. Artificial Warm: cozy. Artificial Cool: modern crisp.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <Select value={lighting} onValueChange={(v: any) => setLighting(v)}>
+                  <SelectTrigger id="lighting" className="h-10 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daylight">Daylight</SelectItem>
+                    <SelectItem value="evening">Evening</SelectItem>
+                    <SelectItem value="artificial-warm">Artificial Warm</SelectItem>
+                    <SelectItem value="artificial-cool">Artificial Cool</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Row 3: Windows (toggle, full width) */}
+            <div>
+              <LabeledToggle
+                label="Windows"
+                checked={windows}
+                onCheckedChange={setWindows}
+                tooltip="When enabled, includes visible windows with proper glazing and frames. When disabled, focuses on interior elements without emphasizing windows."
+                id="windows"
+              />
+            </div>
+
+            {/* Row 4: Detail Level (full width) */}
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="detail-level" className="text-sm">Detail Level</Label>

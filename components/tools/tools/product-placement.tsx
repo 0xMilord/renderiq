@@ -21,6 +21,8 @@ export function ProductPlacement({ tool, projectId, onHintChange, hintMessage }:
   const [placementStyle, setPlacementStyle] = useState<'natural' | 'prominent' | 'subtle'>('natural');
   const [lightingMatch, setLightingMatch] = useState<boolean>(true);
   const [scaleAdjustment, setScaleAdjustment] = useState<'auto' | 'preserve' | 'fit'>('auto');
+  const [rotation, setRotation] = useState<number>(0);
+  const [quantity, setQuantity] = useState<'single' | 'multiple'>('single');
 
   // Build system prompt based on settings - Following Gemini 3 best practices
   const buildSystemPrompt = (): string => {
@@ -66,7 +68,7 @@ You are an expert product visualization specialist specializing in seamlessly pl
 </role>
 
 <task>
-Place the specified product into this interior scene with proper scale, ${lightingMatch ? 'matching scene lighting' : 'maintaining product lighting'}, shadows, and perspective, making it appear naturally integrated into the space with ${placementConfig.description}.
+Place the specified product into this interior scene ${quantity === 'multiple' ? '(multiple instances)' : '(single instance)'} with proper scale, ${rotation !== 0 ? `rotated ${rotation}° from original orientation, ` : ''}${lightingMatch ? 'matching scene lighting' : 'maintaining product lighting'}, shadows, and perspective, making it appear naturally integrated into the space with ${placementConfig.description}.
 </task>
 
 <constraints>
@@ -74,9 +76,11 @@ Place the specified product into this interior scene with proper scale, ${lighti
 2. Placement style: ${placementStyle} - ${placementConfig.description}
 3. Placement characteristics: ${placementConfig.characteristics}
 4. Placement approach: ${placementConfig.approach}
-5. Scale adjustment: ${scaleAdjustment} - ${scaleConfig.description}
-6. Scale approach: ${scaleConfig.approach}
-7. Lighting integration: ${lightingMatch ? 'Match the product lighting to the scene lighting conditions, shadows, highlights, and light direction exactly' : 'Maintain the product\'s original lighting while ensuring it appears integrated into the scene'}
+5. Rotation: ${rotation !== 0 ? `Rotate product ${rotation}° from original orientation` : 'No rotation (0° - original orientation)'}
+6. Quantity: ${quantity === 'multiple' ? 'Place multiple instances of the product throughout the scene' : 'Place single product instance'}
+7. Scale adjustment: ${scaleAdjustment} - ${scaleConfig.description}
+8. Scale approach: ${scaleConfig.approach}
+9. Lighting integration: ${lightingMatch ? 'Match the product lighting to the scene lighting conditions, shadows, highlights, and light direction exactly' : 'Maintain the product\'s original lighting while ensuring it appears integrated into the scene'}
 8. Shadow integration: Create realistic shadows cast by the product that match the scene's light sources and surface properties
 9. Perspective matching: Ensure the product matches the scene's perspective, camera angle, and spatial relationships
 10. Material integration: Ensure the product materials interact realistically with the scene lighting and environment
@@ -86,6 +90,8 @@ Place the specified product into this interior scene with proper scale, ${lighti
 
 <output_requirements>
 - Placement style: ${placementStyle} - ${placementConfig.description}
+- Rotation: ${rotation}°
+- Quantity: ${quantity === 'multiple' ? 'Multiple instances' : 'Single instance'}
 - Scale: ${scaleAdjustment} - ${scaleConfig.description}
 - Lighting: ${lightingMatch ? 'Match scene lighting' : 'Maintain product lighting'}
 - Shadow integration: Realistic shadows matching scene light sources
@@ -95,7 +101,7 @@ Place the specified product into this interior scene with proper scale, ${lighti
 </output_requirements>
 
 <context>
-Place the specified product into this interior scene. ${placementConfig.approach} to achieve ${placementConfig.description} with ${placementConfig.characteristics}. ${scaleConfig.approach} for ${scaleConfig.description}. ${lightingMatch ? 'Match the product lighting to the scene lighting conditions, ensuring shadows, highlights, and light direction match exactly' : 'Maintain the product\'s original lighting while ensuring it appears naturally integrated'}. Create realistic shadows cast by the product that match the scene's light sources and surface properties. Ensure the product matches the scene's perspective, camera angle, and spatial relationships. Make the product materials interact realistically with the scene lighting and environment. Create a photorealistic interior render with seamlessly integrated product placement suitable for product visualization and marketing.
+Place the specified product into this interior scene ${quantity === 'multiple' ? '- place multiple instances of the product throughout the scene' : '- place a single product instance'}. ${placementConfig.approach} to achieve ${placementConfig.description} with ${placementConfig.characteristics}. ${rotation !== 0 ? `Rotate the product ${rotation}° from its original orientation to achieve the desired placement angle. ` : ''}${scaleConfig.approach} for ${scaleConfig.description}. ${lightingMatch ? 'Match the product lighting to the scene lighting conditions, ensuring shadows, highlights, and light direction match exactly' : 'Maintain the product\'s original lighting while ensuring it appears naturally integrated'}. Create realistic shadows cast by the product that match the scene's light sources and surface properties. Ensure the product matches the scene's perspective, camera angle, and spatial relationships. Make the product materials interact realistically with the scene lighting and environment. Create a photorealistic interior render with seamlessly integrated product placement suitable for product visualization and marketing.
 </context>`;
   };
 
@@ -106,6 +112,8 @@ Place the specified product into this interior scene. ${placementConfig.approach
     formData.append('placementStyle', placementStyle);
     formData.append('lightingMatch', lightingMatch.toString());
     formData.append('scaleAdjustment', scaleAdjustment);
+    formData.append('rotation', rotation.toString());
+    formData.append('quantity', quantity);
     
     const result = await createRenderAction(formData);
     
@@ -185,7 +193,41 @@ Place the specified product into this interior scene. ${placementConfig.approach
               </div>
             </div>
 
-            {/* Row 2: Match Scene Lighting (full width) */}
+            {/* Row 2: Rotation (slider, full width) */}
+            <div>
+              <RotationSlider
+                label="Rotation/Orientation"
+                value={rotation}
+                onValueChange={(values) => setRotation(values[0])}
+                tooltip="Rotate the product to the desired orientation. Use this to adjust the product's angle for better placement."
+              />
+            </div>
+
+            {/* Row 3: Quantity (select, full width) */}
+            <div>
+              <div className="flex items-center gap-1.5 mb-2">
+                <Label htmlFor="quantity" className="text-sm">Quantity</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">Choose whether to place a single product or multiple instances of the product throughout the scene.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <Select value={quantity} onValueChange={(v: any) => setQuantity(v)}>
+                <SelectTrigger id="quantity" className="h-10 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="single">Single</SelectItem>
+                  <SelectItem value="multiple">Multiple</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Row 4: Match Scene Lighting (full width) */}
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="lighting-match" className="text-sm">Match Scene Lighting</Label>

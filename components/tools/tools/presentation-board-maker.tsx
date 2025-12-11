@@ -5,10 +5,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { HelpCircle } from 'lucide-react';
+import { HelpCircle, Image as ImageIcon } from 'lucide-react';
 import { ToolConfig } from '@/lib/tools/registry';
 import { BaseToolComponent } from '../base-tool-component';
 import { createRenderAction } from '@/lib/actions/render.actions';
+import { LabeledSlider } from '../ui/labeled-slider';
+import { LabeledToggle } from '../ui/labeled-toggle';
+import { StyleReferenceDialog } from '@/components/ui/style-reference-dialog';
 
 interface PresentationBoardMakerProps {
   tool: ToolConfig;
@@ -19,9 +22,16 @@ interface PresentationBoardMakerProps {
 
 export function PresentationBoardMaker({ tool, projectId, onHintChange, hintMessage }: PresentationBoardMakerProps) {
   const [boardSize, setBoardSize] = useState<'A3' | 'A2' | 'A1' | 'A0'>('A2');
-  const [layoutStyle, setLayoutStyle] = useState<'grid' | 'masonry' | 'linear' | 'asymmetric' | 'magazine'>('grid');
+  const [layoutStyle, setLayoutStyle] = useState<'grid' | 'masonry' | 'linear' | 'asymmetric' | 'magazine' | 'hero-grid' | 'freeform'>('grid');
   const [colorScheme, setColorScheme] = useState<'light' | 'dark' | 'neutral' | 'custom'>('light');
   const [includeAnnotations, setIncludeAnnotations] = useState<boolean>(true);
+  const [placeholderTextBoxes, setPlaceholderTextBoxes] = useState<boolean>(false);
+  const [spacing, setSpacing] = useState<number>(1);
+  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('landscape');
+  const [colorReferenceImage, setColorReferenceImage] = useState<File | null>(null);
+  const [colorReferencePreview, setColorReferencePreview] = useState<string | null>(null);
+  const [colorReferenceName, setColorReferenceName] = useState<string | null>(null);
+  const [colorDialogOpen, setColorDialogOpen] = useState(false);
 
   // Build system prompt based on settings - Following Gemini 3 best practices
   const buildSystemPrompt = (): string => {
@@ -126,8 +136,12 @@ Create a professional architectural presentation board layout with these images,
 
 <output_requirements>
 - Board size: ${boardSize} - ${sizeConfig.dimensions}
+- Orientation: ${orientation}
 - Layout: ${layoutStyle} - ${layoutConfig.description}
 - Color scheme: ${colorScheme} - ${colorConfig.description}
+- Spacing: ${spacing}pt between images
+- Color reference: ${colorReferenceImage ? 'Extracted from reference image' : 'Not used'}
+- Placeholder text boxes: ${placeholderTextBoxes ? 'Included' : 'Not included'}
 - Visual hierarchy: Clear primary and secondary focal points
 - Annotations: ${includeAnnotations ? 'Include professional annotations and labels' : 'Visual layout only, no annotations'}
 - Professional quality: Print-ready quality suitable for ${sizeConfig.use}
@@ -135,7 +149,7 @@ Create a professional architectural presentation board layout with these images,
 </output_requirements>
 
 <context>
-Create a professional architectural presentation board with these images. Use ${sizeConfig.description} (${sizeConfig.dimensions}) suitable for ${sizeConfig.use}. Arrange images using ${layoutStyle} layout with ${layoutConfig.description} showing ${layoutConfig.characteristics} for ${layoutConfig.use}. Apply ${colorScheme} color scheme with ${colorConfig.description} showing ${colorConfig.characteristics}. Create clear visual hierarchy with primary and secondary focal points, proper image sizing, and strategic placement. Use professional spacing between images, consistent margins, and balanced composition. ${includeAnnotations ? 'Include appropriate annotations, labels, titles, and text elements following architectural presentation standards with professional typography for proper hierarchy and readability' : 'Focus on visual composition without annotations or typography'}. Include appropriate design elements, borders, backgrounds, and visual enhancements. Create a professional, print-ready presentation board suitable for ${sizeConfig.use}.
+Create a professional architectural presentation board with these images. Use ${sizeConfig.description} (${sizeConfig.dimensions}) in ${orientation} orientation suitable for ${sizeConfig.use}. Arrange images using ${layoutStyle} layout with ${layoutConfig.description} showing ${layoutConfig.characteristics} for ${layoutConfig.use}. Apply ${colorScheme} color scheme with ${colorConfig.description} showing ${colorConfig.characteristics}${colorReferenceImage ? '. Extract color palette from the color reference image and apply it to the board design, background, borders, and design elements' : ''}. Create clear visual hierarchy with primary and secondary focal points, proper image sizing, and strategic placement. Use ${spacing}pt spacing between images, consistent margins, and balanced composition. ${placeholderTextBoxes ? 'Include placeholder text boxes for future annotations and labels' : ''}${includeAnnotations ? 'Include appropriate annotations, labels, titles, and text elements following architectural presentation standards with professional typography for proper hierarchy and readability' : 'Focus on visual composition without annotations or typography'}. Include appropriate design elements, borders, backgrounds, and visual enhancements. Create a professional, print-ready presentation board suitable for ${sizeConfig.use}.
 </context>`;
   };
 
@@ -145,6 +159,29 @@ Create a professional architectural presentation board with these images. Use ${
     formData.append('layoutStyle', layoutStyle);
     formData.append('colorScheme', colorScheme);
     formData.append('includeAnnotations', includeAnnotations.toString());
+    formData.append('placeholderTextBoxes', placeholderTextBoxes.toString());
+    formData.append('spacing', spacing.toString());
+    formData.append('orientation', orientation);
+    
+    // Add color reference if provided
+    if (colorReferenceImage) {
+      formData.append('colorReference', 'custom');
+      const colorImageBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result as string;
+          const base64Data = base64.split(',')[1];
+          resolve(base64Data);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(colorReferenceImage);
+      });
+      formData.append('colorReferenceImageData', colorImageBase64);
+      formData.append('colorReferenceImageType', colorReferenceImage.type);
+    } else if (colorReferenceName) {
+      formData.append('colorReference', 'library');
+      formData.append('colorReferenceName', colorReferenceName);
+    }
     
     const result = await createRenderAction(formData);
     
@@ -222,12 +259,109 @@ Create a professional architectural presentation board with these images. Use ${
                   <SelectItem value="linear">Linear Layout</SelectItem>
                   <SelectItem value="asymmetric">Asymmetric Layout</SelectItem>
                   <SelectItem value="magazine">Magazine Style</SelectItem>
+                  <SelectItem value="hero-grid">Hero + Grid</SelectItem>
+                  <SelectItem value="freeform">Freeform</SelectItem>
                 </SelectContent>
               </Select>
               </div>
+
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Label htmlFor="color-scheme" className="text-sm">Color Scheme</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Select the color scheme for the board background and design elements. Custom derives colors from your images.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <Select value={colorScheme} onValueChange={(v: any) => setColorScheme(v)}>
+                  <SelectTrigger id="color-scheme" className="h-10 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="light">Light</SelectItem>
+                    <SelectItem value="dark">Dark</SelectItem>
+                    <SelectItem value="neutral">Neutral</SelectItem>
+                    <SelectItem value="custom">Custom (From Images)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            {/* Row 2: Color Scheme | Include Annotations */}
+            {/* Row 3: Spacing (slider, full width) */}
+            <div>
+              <LabeledSlider
+                label="Spacing"
+                value={spacing}
+                onValueChange={(values) => setSpacing(values[0])}
+                min={0}
+                max={3}
+                step={0.5}
+                tooltip="Control spacing between images in points (pt). Higher values create more space between images."
+                valueFormatter={(value) => `${value}pt`}
+              />
+            </div>
+
+            {/* Row 4: Color Reference Upload (full width) */}
+            <div className="flex flex-col space-y-2">
+              <div className="flex items-center gap-1.5">
+                <Label className="text-sm">Color Reference Image</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">Upload an image to extract color palette for the board design, background, borders, and design elements.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <div
+                className="relative w-full h-[132px] border-2 border-dashed rounded-lg cursor-pointer transition-all duration-200 flex items-center justify-center group"
+                onClick={() => setColorDialogOpen(true)}
+                style={{
+                  borderColor: colorReferencePreview ? 'transparent' : undefined,
+                }}
+              >
+                {colorReferencePreview ? (
+                  <>
+                    <img
+                      src={colorReferencePreview}
+                      alt="Color reference"
+                      className="w-full h-full rounded-lg object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 rounded-lg transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <ImageIcon className="h-4 w-4 text-white" />
+                    </div>
+                  </>
+                ) : (
+                  <ImageIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
+                )}
+              </div>
+              {colorReferenceName && (
+                <div>
+                  <p className="text-xs text-muted-foreground truncate">{colorReferenceName}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Row 5: Placeholder Text Boxes (toggle) | Include Annotations */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <LabeledToggle
+                  label="Placeholder Text Boxes"
+                  checked={placeholderTextBoxes}
+                  onCheckedChange={setPlaceholderTextBoxes}
+                  tooltip="When enabled, adds placeholder text boxes for future annotations. When disabled, no placeholder text boxes are included."
+                  id="placeholder-text-boxes"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Label htmlFor="include-annotations" className="text-sm">Include Annotations</Label>
             <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-1.5 mb-2">

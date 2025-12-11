@@ -19,8 +19,10 @@ interface UpholsteryChangeProps {
 }
 
 export function UpholsteryChange({ tool, projectId, onHintChange, hintMessage }: UpholsteryChangeProps) {
-  const [fabricType, setFabricType] = useState<'leather' | 'fabric' | 'velvet' | 'linen' | 'suede' | 'canvas'>('fabric');
-  const [pattern, setPattern] = useState<'solid' | 'striped' | 'geometric' | 'floral' | 'abstract'>('solid');
+  const [fabricType, setFabricType] = useState<'cotton' | 'linen' | 'velvet' | 'leather' | 'suede' | 'wool' | 'chenille' | 'boucle' | 'canvas' | 'rattan'>('cotton');
+  const [pattern, setPattern] = useState<'solid' | 'striped' | 'geometric' | 'floral' | 'abstract' | 'tweed' | 'self-texture'>('solid');
+  const [textureScale, setTextureScale] = useState<number>(50);
+  const [reflectance, setReflectance] = useState<'matte' | 'semi-sheen' | 'sheen'>('matte');
   const [styleReferenceImage, setStyleReferenceImage] = useState<File | null>(null);
   const [styleReferencePreview, setStyleReferencePreview] = useState<string | null>(null);
   const [styleReferenceName, setStyleReferenceName] = useState<string | null>(null);
@@ -81,11 +83,35 @@ export function UpholsteryChange({ tool, projectId, onHintChange, hintMessage }:
       'abstract': {
         description: 'abstract pattern with artistic, non-representational designs',
         application: 'apply abstract pattern with artistic, non-representational designs, maintaining fabric texture'
+      },
+      'tweed': {
+        description: 'tweed pattern with textured, woven appearance and color flecks',
+        application: 'apply tweed pattern with textured, woven appearance and color flecks, maintaining fabric texture'
+      },
+      'self-texture': {
+        description: 'self-texture pattern using the fabric\'s inherent texture without additional patterns',
+        application: 'apply self-texture pattern using the fabric\'s inherent texture characteristics without additional patterns'
+      }
+    };
+
+    const reflectanceConfigs = {
+      'matte': {
+        description: 'matte finish with no shine, diffused reflection',
+        properties: 'non-reflective surface, diffused light absorption, matte appearance'
+      },
+      'semi-sheen': {
+        description: 'semi-sheen finish with subtle shine, balanced reflection',
+        properties: 'subtle surface reflection, balanced light interaction, semi-sheen appearance'
+      },
+      'sheen': {
+        description: 'sheen finish with noticeable shine, reflective surface',
+        properties: 'noticeable surface reflection, light interaction, sheen appearance'
       }
     };
 
     const fabricConfig = fabricConfigs[fabricType];
     const patternConfig = patternConfigs[pattern];
+    const reflectanceConfig = reflectanceConfigs[reflectance];
 
     // Style reference instruction
     const styleReferenceInstruction = styleReferenceImage || styleReferenceName
@@ -108,26 +134,30 @@ Change the upholstery patterns and materials on furniture in this interior rende
 4. Fabric characteristics: Show ${fabricConfig.characteristics}
 5. Pattern: ${pattern} - ${patternConfig.description}
 6. Pattern application: ${patternConfig.application}
-7. Furniture preservation: Maintain all furniture forms, shapes, and structural elements exactly as in the original
-8. Lighting preservation: Maintain the original lighting conditions, shadows, and highlights on furniture
-9. Spatial relationships: Maintain all spatial relationships, proportions, and interior elements exactly as in the original
-10. Upholstery accuracy: Apply photorealistic ${fabricType} upholstery with ${pattern} pattern, showing proper fabric texture, pattern alignment, and material characteristics${styleReferenceInstruction}
-11. Professional quality: Suitable for interior design visualization, furniture selection, and client presentations
-12. Do not: Distort furniture forms, alter furniture structure, or create unrealistic upholstery applications
+7. Texture scale: Apply texture at ${textureScale}% scale for natural fabric appearance
+8. Reflectance: Apply ${reflectance} finish (${reflectanceConfig.description}) with ${reflectanceConfig.properties}
+9. Furniture preservation: Maintain all furniture forms, shapes, and structural elements exactly as in the original
+10. Lighting preservation: Maintain the original lighting conditions, shadows, and highlights on furniture
+11. Spatial relationships: Maintain all spatial relationships, proportions, and interior elements exactly as in the original
+12. Upholstery accuracy: Apply photorealistic ${fabricType} upholstery with ${pattern} pattern at ${textureScale}% texture scale, showing proper fabric texture, pattern alignment, ${reflectance} reflectance, and material characteristics${styleReferenceInstruction}
+13. Professional quality: Suitable for interior design visualization, furniture selection, and client presentations
+14. Do not: Distort furniture forms, alter furniture structure, or create unrealistic upholstery applications
 </constraints>
 
 <output_requirements>
 - Fabric type: ${fabricType} - ${fabricConfig.description}
 - Fabric properties: ${fabricConfig.properties}
 - Pattern: ${pattern} - ${patternConfig.description}
+- Texture scale: ${textureScale}% for natural appearance
+- Reflectance: ${reflectance} - ${reflectanceConfig.description}
 - Furniture preservation: Maintain all furniture forms and structure
 - Lighting: Preserve original lighting conditions
 - Professional quality: Suitable for interior design visualization
-- Upholstery realism: Photorealistic ${fabricType} with ${pattern} pattern
+- Upholstery realism: Photorealistic ${fabricType} with ${pattern} pattern at ${textureScale}% scale with ${reflectance} finish
 </output_requirements>
 
 <context>
-Change the upholstery patterns and materials on furniture in this interior render. Apply ${fabricType} (${fabricConfig.description}) showing ${fabricConfig.properties} and ${fabricConfig.characteristics}. ${patternConfig.application} to create ${patternConfig.description}. Maintain all furniture forms, shapes, and structural elements exactly as in the original. Preserve the original lighting conditions, shadows, and highlights on furniture. Maintain all spatial relationships, proportions, and interior elements. Create a photorealistic interior render with transformed furniture upholstery showing ${fabricType} with ${pattern} pattern, suitable for interior design visualization and furniture selection.
+Change the upholstery patterns and materials on furniture in this interior render. Apply ${fabricType} (${fabricConfig.description}) showing ${fabricConfig.properties} and ${fabricConfig.characteristics}. ${patternConfig.application} to create ${patternConfig.description}. Apply texture at ${textureScale}% scale for natural fabric appearance. Apply ${reflectance} finish (${reflectanceConfig.description}) with ${reflectanceConfig.properties} to achieve proper material reflectance. Maintain all furniture forms, shapes, and structural elements exactly as in the original. Preserve the original lighting conditions, shadows, and highlights on furniture. Maintain all spatial relationships, proportions, and interior elements. Create a photorealistic interior render with transformed furniture upholstery showing ${fabricType} with ${pattern} pattern at ${textureScale}% texture scale with ${reflectance} finish, suitable for interior design visualization and furniture selection.
 </context>`;
   };
 
@@ -135,6 +165,8 @@ Change the upholstery patterns and materials on furniture in this interior rende
     formData.set('prompt', buildSystemPrompt());
     formData.append('fabricType', fabricType);
     formData.append('pattern', pattern);
+    formData.append('textureScale', textureScale.toString());
+    formData.append('reflectance', reflectance);
     
     // Add style reference if provided
     if (styleReferenceImage) {
@@ -200,12 +232,16 @@ Change the upholstery patterns and materials on furniture in this interior rende
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="leather">Leather</SelectItem>
-                  <SelectItem value="fabric">Fabric</SelectItem>
-                  <SelectItem value="velvet">Velvet</SelectItem>
+                  <SelectItem value="cotton">Cotton</SelectItem>
                   <SelectItem value="linen">Linen</SelectItem>
+                  <SelectItem value="velvet">Velvet</SelectItem>
+                  <SelectItem value="leather">Leather</SelectItem>
                   <SelectItem value="suede">Suede</SelectItem>
+                  <SelectItem value="wool">Wool</SelectItem>
+                  <SelectItem value="chenille">Chenille</SelectItem>
+                  <SelectItem value="boucle">Bouclé</SelectItem>
                   <SelectItem value="canvas">Canvas</SelectItem>
+                  <SelectItem value="rattan">Rattan (Cane)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -232,9 +268,50 @@ Change the upholstery patterns and materials on furniture in this interior rende
                   <SelectItem value="geometric">Geometric</SelectItem>
                   <SelectItem value="floral">Floral</SelectItem>
                   <SelectItem value="abstract">Abstract</SelectItem>
+                  <SelectItem value="tweed">Tweed</SelectItem>
+                  <SelectItem value="self-texture">Self-Texture</SelectItem>
                 </SelectContent>
               </Select>
               </div>
+            </div>
+
+            {/* Row 2: Texture Scale (slider, full width) */}
+            <div>
+              <LabeledSlider
+                label="Texture Scale"
+                value={textureScale}
+                onValueChange={(values) => setTextureScale(values[0])}
+                min={0}
+                max={100}
+                step={1}
+                tooltip="Control the scale of the fabric texture. Lower values create finer textures, higher values create coarser textures."
+                valueFormatter={(value) => `${value}%`}
+              />
+            </div>
+
+            {/* Row 3: Reflectance (select, full width) */}
+            <div>
+              <div className="flex items-center gap-1.5 mb-2">
+                <Label htmlFor="reflectance" className="text-sm">Reflectance</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">Select the surface finish reflectance. Matte: no shine. Semi-sheen: subtle shine. Sheen: noticeable shine.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <Select value={reflectance} onValueChange={(v: any) => setReflectance(v)}>
+                <SelectTrigger id="reflectance" className="h-10 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="matte">Matte</SelectItem>
+                  <SelectItem value="semi-sheen">Semi-Sheen</SelectItem>
+                  <SelectItem value="sheen">Sheen</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Style Reference */}

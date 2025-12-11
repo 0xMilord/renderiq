@@ -10,6 +10,7 @@ import { ToolConfig } from '@/lib/tools/registry';
 import { BaseToolComponent } from '../base-tool-component';
 import { createRenderAction } from '@/lib/actions/render.actions';
 import { StyleReferenceDialog } from '@/components/ui/style-reference-dialog';
+import { LabeledToggle } from '../ui/labeled-toggle';
 
 interface ThreeDToRenderProps {
   tool: ToolConfig;
@@ -19,9 +20,11 @@ interface ThreeDToRenderProps {
 }
 
 export function ThreeDToRender({ tool, projectId, onHintChange, hintMessage }: ThreeDToRenderProps) {
-  const [lightingStyle, setLightingStyle] = useState<string>('natural');
-  const [environment, setEnvironment] = useState<string>('none');
+  const [lighting, setLighting] = useState<'none' | 'early-morning' | 'midday' | 'sunset' | 'indoor-dramatic' | 'studio' | 'indoor-soft' | 'overcast'>('none');
+  const [environment, setEnvironment] = useState<'indoor' | 'outdoor-urban' | 'outdoor-natural' | 'white-studio'>('indoor');
   const [cameraAngle, setCameraAngle] = useState<string>('eye-level');
+  const [focalLength, setFocalLength] = useState<'wide-shot' | 'detail-shot' | 'mid-shot'>('wide-shot');
+  const [depthOfField, setDepthOfField] = useState<boolean>(false);
   const [styleReferenceImage, setStyleReferenceImage] = useState<File | null>(null);
   const [styleReferencePreview, setStyleReferencePreview] = useState<string | null>(null);
   const [styleReferenceName, setStyleReferenceName] = useState<string | null>(null);
@@ -98,9 +101,10 @@ export function ThreeDToRender({ tool, projectId, onHintChange, hintMessage }: T
       }
     };
 
-    const lightingConfig = lightingConfigs[lightingStyle] || lightingConfigs['natural'];
-    const envConfig = environmentConfigs[environment] || environmentConfigs['none'];
+    const lightingConfig = lightingConfigs[lighting] || lightingConfigs['none'];
+    const envConfig = environmentConfigs[environment] || environmentConfigs['indoor'];
     const cameraConfig = cameraConfigs[cameraAngle] || cameraConfigs['eye-level'];
+    const focalConfig = focalLengthConfigs[focalLength] || focalLengthConfigs['wide-shot'];
 
     // Style reference instruction
     const styleReferenceInstruction = styleReferenceImage || styleReferenceName
@@ -113,20 +117,22 @@ You are an expert architectural visualizer specializing in transforming 3D model
 </role>
 
 <task>
-Transform this 3D model screenshot into a photorealistic architectural render with realistic materials, ${lightingConfig.description}, ${envConfig.description}, and ${cameraConfig.description} suitable for professional presentation.
+Transform this 3D model screenshot into a photorealistic architectural render with realistic materials, ${lightingConfig.description}, ${envConfig.description}, ${focalConfig.description} (${focalConfig.perspective}), and ${cameraConfig.description}${depthOfField ? ' with cinematic depth of field and selective focus' : ' with sharp focus throughout'}, suitable for professional presentation.
 </task>
 
 <constraints>
 1. Output format: Generate a single photorealistic architectural render image
 2. Lighting: ${lightingConfig.description} - ${lightingConfig.characteristics}
 3. Environment: ${envConfig.description} - ${envConfig.elements}
-4. Camera angle: ${cameraConfig.description} - ${cameraConfig.perspective}
-5. Material realism: Apply realistic architectural materials (concrete, glass, metal, wood, etc.) with proper textures, reflections, and surface properties
-6. Lighting quality: ${lightingConfig.characteristics} creating ${lightingConfig.mood}
-7. Environmental integration: ${envConfig.elements} creating ${envConfig.atmosphere}
-8. Composition: ${cameraConfig.composition}
-9. Architectural accuracy: Maintain all 3D model proportions, spatial relationships, and design elements
-10. Photorealistic quality: Achieve professional architectural visualization quality suitable for client presentations and marketing materials${styleReferenceInstruction}
+4. Focal length: ${focalLength} - ${focalConfig.description} with ${focalConfig.perspective}
+5. Camera angle: ${cameraConfig.description} - ${cameraConfig.perspective}
+6. Depth of field: ${depthOfField ? 'Apply cinematic depth of field with selective focus and background blur' : 'Use sharp focus throughout the entire image'}
+7. Material realism: Apply realistic architectural materials (concrete, glass, metal, wood, etc.) with proper textures, reflections, and surface properties
+8. Lighting quality: ${lightingConfig.characteristics} creating ${lightingConfig.mood}
+9. Environmental integration: ${envConfig.elements} creating ${envConfig.atmosphere}
+10. Composition: ${cameraConfig.composition}
+11. Architectural accuracy: Maintain all 3D model proportions, spatial relationships, and design elements
+12. Photorealistic quality: Achieve professional architectural visualization quality suitable for client presentations and marketing materials${styleReferenceInstruction}
 11. Do not: Distort proportions, alter the architectural design, or create unrealistic elements
 </constraints>
 
@@ -134,14 +140,16 @@ Transform this 3D model screenshot into a photorealistic architectural render wi
 - Render type: Photorealistic architectural render
 - Lighting: ${lightingConfig.description} - ${lightingConfig.mood}
 - Environment: ${envConfig.description} - ${envConfig.atmosphere}
+- Focal length: ${focalLength} - ${focalConfig.description}
 - Camera: ${cameraConfig.description} - ${cameraConfig.composition}
+- Depth of field: ${depthOfField ? 'Cinematic selective focus' : 'Sharp throughout'}
 - Material quality: Realistic architectural materials with proper textures and surface properties
 - Professional quality: Suitable for client presentations, design development, and architectural visualization
 - Design accuracy: Maintain all original 3D model proportions and spatial relationships
 </output_requirements>
 
 <context>
-Transform this 3D model screenshot into a photorealistic architectural render. Apply ${lightingConfig.description} with ${lightingConfig.characteristics} to create ${lightingConfig.mood}. Integrate ${envConfig.description} with ${envConfig.elements} to create ${envConfig.atmosphere}. Use ${cameraConfig.description} with ${cameraConfig.perspective} for ${cameraConfig.composition}. Apply realistic architectural materials with proper textures, reflections, and surface properties. Maintain all architectural proportions and design elements from the 3D model while achieving professional photorealistic quality.
+Transform this 3D model screenshot into a photorealistic architectural render. Apply ${lightingConfig.description} with ${lightingConfig.characteristics} to create ${lightingConfig.mood}. Integrate ${envConfig.description} with ${envConfig.elements} to create ${envConfig.atmosphere}. Use ${focalConfig.description} (${focalConfig.perspective}) for the focal length perspective. Use ${cameraConfig.description} with ${cameraConfig.perspective} for ${cameraConfig.composition}. ${depthOfField ? 'Apply cinematic depth of field with selective focus, creating background blur while keeping the architectural subject sharp' : 'Use sharp focus throughout the entire image for maximum detail and clarity'}. Apply realistic architectural materials with proper textures, reflections, and surface properties. Maintain all architectural proportions and design elements from the 3D model while achieving professional photorealistic quality.
 </context>`;
   };
 
@@ -150,9 +158,11 @@ Transform this 3D model screenshot into a photorealistic architectural render. A
     formData.set('prompt', buildSystemPrompt());
     
     // Add custom settings to formData for reference
-    formData.append('lightingStyle', lightingStyle);
+    formData.append('lighting', lighting);
     formData.append('environment', environment);
     formData.append('cameraAngle', cameraAngle);
+    formData.append('focalLength', focalLength);
+    formData.append('depthOfField', depthOfField.toString());
     
     // Add style reference if provided
     if (styleReferenceImage) {
@@ -210,19 +220,23 @@ Transform this 3D model screenshot into a photorealistic architectural render. A
                     <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="max-w-xs">Choose the lighting style for your render. Natural: realistic daylight. Dramatic: high contrast. Soft: diffused. Studio: professional controlled lighting.</p>
+                    <p className="max-w-xs">Choose the lighting style. None: neutral. Early Morning/Midday/Sunset: natural. Indoor Dramatic/Soft: indoor lighting. Studio: professional. Overcast: diffused natural.</p>
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <Select value={lightingStyle} onValueChange={setLightingStyle}>
+              <Select value={lighting} onValueChange={(v: any) => setLighting(v)}>
                   <SelectTrigger id="lighting-style" className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="natural">Natural Daylight</SelectItem>
-                  <SelectItem value="dramatic">Dramatic</SelectItem>
-                  <SelectItem value="soft">Soft</SelectItem>
-                  <SelectItem value="studio">Studio Lighting</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="early-morning">Early Morning</SelectItem>
+                  <SelectItem value="midday">Midday</SelectItem>
+                  <SelectItem value="sunset">Sunset</SelectItem>
+                  <SelectItem value="indoor-dramatic">Indoor Dramatic</SelectItem>
+                  <SelectItem value="studio">Studio</SelectItem>
+                  <SelectItem value="indoor-soft">Indoor Soft</SelectItem>
+                  <SelectItem value="overcast">Overcast</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -235,7 +249,7 @@ Transform this 3D model screenshot into a photorealistic architectural render. A
                     <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="max-w-xs">Select the environmental context. None: focus on architecture. Urban: city context. Natural: landscape. Minimal: clean surroundings.</p>
+                    <p className="max-w-xs">Select the environmental context. Indoor: interior space. Outdoor - Urban: city context. Outdoor Natural: landscape. White Studio: clean studio backdrop.</p>
                   </TooltipContent>
                 </Tooltip>
               </div>
@@ -244,16 +258,53 @@ Transform this 3D model screenshot into a photorealistic architectural render. A
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="urban">Urban</SelectItem>
-                  <SelectItem value="natural">Natural</SelectItem>
-                  <SelectItem value="minimal">Minimal</SelectItem>
+                  <SelectItem value="indoor">Indoor</SelectItem>
+                  <SelectItem value="outdoor-urban">Outdoor - Urban</SelectItem>
+                  <SelectItem value="outdoor-natural">Outdoor Natural</SelectItem>
+                  <SelectItem value="white-studio">White Studio</SelectItem>
                 </SelectContent>
               </Select>
               </div>
             </div>
 
-            {/* Row 2: Camera Angle (full width) */}
+            {/* Row 2: Focal Length | Depth of Field (toggle) */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Label htmlFor="focal-length" className="text-sm">Focal Length</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Choose the camera perspective. Wide shot: full form. Detail shot: focused elements. Mid shot: balanced framing.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <Select value={focalLength} onValueChange={(v: any) => setFocalLength(v)}>
+                  <SelectTrigger id="focal-length" className="h-10 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="wide-shot">Wide Shot</SelectItem>
+                    <SelectItem value="detail-shot">Detail Shot</SelectItem>
+                    <SelectItem value="mid-shot">Mid Shot</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <LabeledToggle
+                  label="Depth of Field"
+                  checked={depthOfField}
+                  onCheckedChange={setDepthOfField}
+                  tooltip="When enabled, applies cinematic depth of field with selective focus and background blur. When disabled, uses sharp focus throughout."
+                  id="depth-of-field"
+                />
+              </div>
+            </div>
+
+            {/* Row 3: Camera Angle (full width) */}
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Label htmlFor="camera-angle" className="text-sm">Camera Angle</Label>

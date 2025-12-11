@@ -20,8 +20,10 @@ interface SketchToRenderProps {
 }
 
 export function SketchToRender({ tool, projectId, onHintChange, hintMessage }: SketchToRenderProps) {
-  const [detailLevel, setDetailLevel] = useState<'preserve' | 'enhance' | 'transform'>('enhance');
-  const [environment, setEnvironment] = useState<string>('none');
+  const [style, setStyle] = useState<'preserve-original' | 'enhance-realism' | 'concept' | 'render-sketch-outline'>('enhance-realism');
+  const [lighting, setLighting] = useState<'none' | 'early-morning' | 'midday' | 'sunset' | 'indoor-dramatic' | 'studio' | 'indoor-soft' | 'overcast'>('none');
+  const [focalLength, setFocalLength] = useState<'wide-shot' | 'detail-shot' | 'mid-shot'>('wide-shot');
+  const [cameraAngle, setCameraAngle] = useState<'eye-level' | 'aerial' | 'low-angle' | 'close-up'>('eye-level');
   const [styleReferenceImage, setStyleReferenceImage] = useState<File | null>(null);
   const [styleReferencePreview, setStyleReferencePreview] = useState<string | null>(null);
   const [styleReferenceName, setStyleReferenceName] = useState<string | null>(null);
@@ -29,65 +31,128 @@ export function SketchToRender({ tool, projectId, onHintChange, hintMessage }: S
 
   // Build system prompt based on settings - Following Gemini 3 best practices
   const buildSystemPrompt = (): string => {
-    // Style preservation configurations
+    // Style configurations
     const styleConfigs = {
-      'preserve': {
+      'preserve-original': {
         role: 'expert architectural visualizer specializing in sketch-to-render conversion while preserving artistic style',
         task: 'Transform this architectural sketch into a photorealistic render while carefully preserving the original sketch style, line quality, and artistic character',
         approach: 'Maintain the sketchy, hand-drawn aesthetic while adding realistic materials, lighting, and depth. Preserve visible sketch lines, hatching, and artistic marks as design elements integrated into the photorealistic render',
-        focus: 'artistic preservation, style integration, maintaining sketch character in photorealistic context'
+        focus: 'artistic preservation, style integration, maintaining sketch character in photorealistic context',
+        description: 'preserve original sketch style while adding realistic elements'
       },
-      'enhance': {
+      'enhance-realism': {
         role: 'expert architectural visualizer specializing in enhancing sketches with realistic details',
         task: 'Transform this architectural sketch into a photorealistic render that enhances the original design with realistic materials, lighting, and environmental context while maintaining design intent',
         approach: 'Interpret the sketch lines and forms, then enhance with photorealistic materials, proper lighting, shadows, and environmental context. Maintain the original proportions and design intent while adding realistic architectural details',
-        focus: 'realistic enhancement, design intent preservation, photorealistic material application'
+        focus: 'realistic enhancement, design intent preservation, photorealistic material application',
+        description: 'enhance realism while maintaining design intent'
       },
-      'transform': {
-        role: 'expert architectural visualizer specializing in complete sketch-to-photorealistic transformation',
-        task: 'Transform this architectural sketch into a fully photorealistic architectural render with complete material realism, lighting, and environmental integration',
-        approach: 'Fully interpret and transform the sketch into a photorealistic architectural render. Add complete material realism, proper architectural lighting, environmental context, and all photorealistic details while maintaining the original design proportions and spatial relationships',
-        focus: 'complete photorealistic transformation, full material realism, architectural accuracy'
+      'concept': {
+        role: 'expert architectural visualizer specializing in conceptual sketch visualization',
+        task: 'Transform this architectural sketch into a conceptual architectural visualization that highlights design intent and key elements',
+        approach: 'Create a conceptual visualization that emphasizes design intent, key architectural elements, and spatial relationships while maintaining the sketch\'s conceptual character',
+        focus: 'conceptual visualization, design intent emphasis, key element highlighting',
+        description: 'conceptual visualization emphasizing design intent'
+      },
+      'render-sketch-outline': {
+        role: 'expert architectural visualizer specializing in hybrid sketch-render visualization',
+        task: 'Transform this architectural sketch into a photorealistic render while maintaining visible sketch outline and line work over the realistic rendering',
+        approach: 'Create a photorealistic architectural render with realistic materials, lighting, and details, while preserving and overlaying the original sketch outline and line work as visible design elements',
+        focus: 'hybrid visualization, sketch outline preservation, realistic rendering with visible sketch lines',
+        description: 'photorealistic render with visible sketch outline overlay'
       }
     };
 
-    const styleConfig = styleConfigs[detailLevel];
+    const lightingConfigs: Record<string, { description: string; characteristics: string; mood: string }> = {
+      'none': {
+        description: 'neutral lighting that best showcases the architectural design',
+        characteristics: 'neutral illumination, balanced exposure, focus on architectural form',
+        mood: 'clean, professional, architectural focus'
+      },
+      'early-morning': {
+        description: 'early morning lighting with soft, warm golden hour tones',
+        characteristics: 'soft warm light, golden hour tones, gentle shadows, morning ambiance, warm color temperature',
+        mood: 'peaceful, serene, morning architectural atmosphere'
+      },
+      'midday': {
+        description: 'midday lighting with bright, direct sunlight and clear shadows',
+        characteristics: 'bright direct sunlight, clear sharp shadows, high contrast, midday sun position, natural daylight',
+        mood: 'bright, clear, vibrant architectural presentation'
+      },
+      'sunset': {
+        description: 'sunset lighting with warm golden and orange tones, dramatic atmosphere',
+        characteristics: 'warm golden and orange tones, dramatic color temperature, long shadows, sunset ambiance, atmospheric glow',
+        mood: 'dramatic, warm, cinematic architectural visualization'
+      },
+      'indoor-dramatic': {
+        description: 'indoor dramatic lighting with strong contrasts and highlighted elements',
+        characteristics: 'strong directional light, deep shadows, high contrast, dramatic highlights, cinematic indoor quality',
+        mood: 'dramatic, impactful, visually striking indoor architectural visualization'
+      },
+      'studio': {
+        description: 'professional studio lighting with controlled illumination and balanced exposure',
+        characteristics: 'controlled light sources, balanced exposure, professional lighting setup, even illumination, product photography quality',
+        mood: 'professional, clean, polished architectural presentation'
+      },
+      'indoor-soft': {
+        description: 'indoor soft lighting with gentle, diffused illumination',
+        characteristics: 'soft diffused light, gentle shadows, even illumination, comfortable indoor ambiance, warm atmosphere',
+        mood: 'gentle, welcoming, comfortable indoor architectural atmosphere'
+      },
+      'overcast': {
+        description: 'overcast lighting with soft, diffused natural light',
+        characteristics: 'diffused natural light, soft even shadows, muted sky, cool color temperature, overcast conditions',
+        mood: 'calm, soft, diffused architectural presentation'
+      }
+    };
+
+    const cameraConfigs = {
+      'eye-level': {
+        description: 'eye-level perspective at human height (approximately 1.6-1.8m)',
+        perspective: 'human-scale perspective, natural viewing angle, relatable scale',
+        composition: 'natural human perspective, engaging composition, relatable scale'
+      },
+      'aerial': {
+        description: 'aerial or bird\'s-eye view from above showing overall form and context',
+        perspective: 'elevated viewpoint, overall form visibility, context relationship',
+        composition: 'comprehensive view, form and context, site relationship'
+      },
+      'low-angle': {
+        description: 'low-angle perspective looking up, emphasizing height and monumentality',
+        perspective: 'upward-looking angle, height emphasis, monumental quality',
+        composition: 'dramatic height, powerful presence, monumental composition'
+      },
+      'close-up': {
+        description: 'close-up view focusing on architectural details and material qualities',
+        perspective: 'intimate detail view, material focus, texture emphasis',
+        composition: 'detail-focused, material quality, texture and craftsmanship'
+      }
+    };
+
+    const focalLengthConfigs = {
+      'wide-shot': {
+        description: 'wide shot camera perspective showing the full architectural form',
+        perspective: 'wide field of view, full form visibility, comprehensive coverage'
+      },
+      'detail-shot': {
+        description: 'detail shot camera perspective focusing on specific architectural elements',
+        perspective: 'narrow field of view, detail focus, intimate framing, close-up perspective'
+      },
+      'mid-shot': {
+        description: 'mid shot camera perspective with balanced framing',
+        perspective: 'medium field of view, balanced framing, moderate coverage'
+      }
+    };
+
+    const styleConfig = styleConfigs[style];
+    const lightingConfig = lightingConfigs[lighting] || lightingConfigs['none'];
+    const cameraConfig = cameraConfigs[cameraAngle] || cameraConfigs['eye-level'];
+    const focalConfig = focalLengthConfigs[focalLength] || focalLengthConfigs['wide-shot'];
 
     // Style reference instruction
     const styleReferenceInstruction = styleReferenceImage || styleReferenceName
       ? ' IMPORTANT: A style reference image has been provided showing the desired rendering style. Match the lighting quality, color grading, material rendering, post-processing style, overall visual aesthetic, and rendering approach from the style reference image. The style reference shows the exact rendering style you want - replicate its visual characteristics, lighting mood, color palette, material quality, and overall rendering aesthetic while maintaining design intent.'
       : '';
-
-    // Environment configurations
-    const environmentConfigs: Record<string, { lighting: string; atmosphere: string; details: string }> = {
-      'none': {
-        lighting: 'neutral architectural lighting that best showcases the design',
-        atmosphere: 'clean, professional architectural presentation atmosphere',
-        details: 'focus on the architecture without specific environmental context'
-      },
-      'sunny': {
-        lighting: 'bright, natural daylight with strong directional sunlight creating clear shadows and highlights',
-        atmosphere: 'clear, sunny day with blue sky and natural outdoor lighting',
-        details: 'sunlight patterns, cast shadows, bright highlights, clear sky, natural outdoor ambiance'
-      },
-      'overcast': {
-        lighting: 'soft, diffused natural light with even illumination and gentle shadows',
-        atmosphere: 'overcast day with soft, even lighting and muted sky',
-        details: 'soft shadows, even illumination, muted sky tones, diffused natural light'
-      },
-      'sunset': {
-        lighting: 'warm, golden hour lighting with dramatic color temperature and long shadows',
-        atmosphere: 'sunset atmosphere with warm golden and orange tones, dramatic sky',
-        details: 'warm color temperature, golden highlights, long dramatic shadows, sunset sky colors, atmospheric glow'
-      },
-      'night': {
-        lighting: 'artificial and ambient lighting with dramatic contrast and illuminated elements',
-        atmosphere: 'nighttime atmosphere with artificial lighting, dark sky, and illuminated architecture',
-        details: 'artificial lighting, illuminated windows, dramatic contrast, dark sky, nighttime ambiance, light spill'
-      }
-    };
-
-    const envConfig = environmentConfigs[environment] || environmentConfigs['none'];
 
     // Following Gemini 3 best practices: structured, precise, with clear constraints
     return `<role>
@@ -95,36 +160,36 @@ You are an ${styleConfig.role}.
 </role>
 
 <task>
-${styleConfig.task}. The input may show any architectural sketch: hand-drawn sketches, digital sketches, conceptual drawings, design studies, or technical sketches. Create a photorealistic render that accurately represents the architectural design shown in the sketch.
+${styleConfig.task}. Use ${focalConfig.description} (${focalConfig.perspective}) for camera perspective and ${cameraConfig.description} (${cameraConfig.perspective}) for viewing angle. Apply ${lightingConfig.description} (${lightingConfig.characteristics}) for lighting conditions. The input may show any architectural sketch: hand-drawn sketches, digital sketches, conceptual drawings, design studies, or technical sketches. Create a render that accurately represents the architectural design shown in the sketch with ${styleConfig.description}.
 </task>
 
 <constraints>
-1. Output format: Generate a single photorealistic architectural render image
-2. Style approach: ${styleConfig.approach}
-3. Environment: ${envConfig.atmosphere}
-4. Lighting: ${envConfig.lighting}
-5. Environmental details: ${envConfig.details}
-6. Design preservation: Maintain the original sketch proportions, spatial relationships, and design intent
-7. Material realism: Apply realistic architectural materials (concrete, glass, metal, wood, etc.) appropriate to the design
-8. Architectural accuracy: Ensure all architectural elements are properly represented with correct proportions and relationships
-9. Focus: ${styleConfig.focus}${styleReferenceInstruction}
-10. Do not: Distort proportions, add elements not present in the sketch, or create unrealistic architectural elements
+1. Output format: Generate a single architectural render image
+2. Style: ${style} - ${styleConfig.description}
+3. Style approach: ${styleConfig.approach}
+4. Focal length: ${focalLength} - ${focalConfig.description} with ${focalConfig.perspective}
+5. Camera angle: ${cameraAngle} - ${cameraConfig.description} with ${cameraConfig.perspective}
+6. Lighting: ${lighting} - ${lightingConfig.description} with ${lightingConfig.characteristics} creating ${lightingConfig.mood}
+7. Design preservation: Maintain the original sketch proportions, spatial relationships, and design intent
+8. Material realism: Apply realistic architectural materials (concrete, glass, metal, wood, etc.) appropriate to the design
+9. Architectural accuracy: Ensure all architectural elements are properly represented with correct proportions and relationships
+10. Focus: ${styleConfig.focus}${styleReferenceInstruction}
+11. Do not: Distort proportions, add elements not present in the sketch, or create unrealistic architectural elements
 </constraints>
 
 <output_requirements>
-- Render type: Photorealistic architectural render
-- Style: ${detailLevel === 'preserve' ? 'Preserve sketch style while adding realism' : detailLevel === 'enhance' ? 'Enhanced realism maintaining design intent' : 'Complete photorealistic transformation'}
-- Environment: ${envConfig.atmosphere}
-- Lighting: ${envConfig.lighting}
+- Render type: Architectural render
+- Style: ${style} - ${styleConfig.description}
+- Focal length: ${focalLength} - ${focalConfig.description}
+- Camera angle: ${cameraAngle} - ${cameraConfig.description}
+- Lighting: ${lighting} - ${lightingConfig.description} - ${lightingConfig.mood}
 - Material quality: Realistic architectural materials with proper textures, reflections, and surface properties
 - Professional quality: Suitable for client presentations, design development, and architectural visualization
 - Design accuracy: Maintain original sketch proportions and spatial relationships
 </output_requirements>
 
 <context>
-Transform the architectural sketch into a photorealistic render following ${styleConfig.approach}. Work with any architectural sketch style, from quick conceptual drawings to detailed technical sketches. The render must accurately represent the design while ${detailLevel === 'preserve' ? 'preserving the artistic sketch character' : detailLevel === 'enhance' ? 'enhancing with realistic details' : 'fully transforming into photorealistic quality'}.
-
-Environment setting: ${envConfig.atmosphere}. Lighting: ${envConfig.lighting}. Include ${envConfig.details} to create a convincing architectural visualization.
+Transform the architectural sketch into an architectural render following ${styleConfig.approach}. Work with any architectural sketch style, from quick conceptual drawings to detailed technical sketches. Use ${focalConfig.description} (${focalConfig.perspective}) for the focal length perspective and ${cameraConfig.description} (${cameraConfig.perspective}) for the camera viewing angle. Apply ${lightingConfig.description} with ${lightingConfig.characteristics} to create ${lightingConfig.mood}. The render must accurately represent the design while ${style === 'preserve-original' ? 'preserving the artistic sketch character' : style === 'enhance-realism' ? 'enhancing with realistic details' : style === 'concept' ? 'emphasizing design intent and key elements' : 'maintaining visible sketch outline over realistic rendering'} to create a convincing architectural visualization.
 </context>`;
   };
 
@@ -133,8 +198,10 @@ Environment setting: ${envConfig.atmosphere}. Lighting: ${envConfig.lighting}. I
     formData.set('prompt', buildSystemPrompt());
     
     // Add custom settings to formData for reference
-    formData.append('detailLevel', detailLevel);
-    formData.append('environment', environment);
+    formData.append('style', style);
+    formData.append('lighting', lighting);
+    formData.append('focalLength', focalLength);
+    formData.append('cameraAngle', cameraAngle);
     
     // Add style reference if provided
     if (styleReferenceImage) {
