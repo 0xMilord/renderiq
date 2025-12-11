@@ -13,7 +13,8 @@ import {
   Trash2,
   Image as ImageIcon,
   Video,
-  MessageSquare
+  MessageSquare,
+  FolderOpen
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -41,7 +42,7 @@ interface ProjectCardProps {
     renderCount?: number;
     latestRenders?: LatestRender[];
   };
-  viewMode: 'default' | 'compact' | 'list' | 'sidebar';
+  viewMode: 'default' | 'compact' | 'list' | 'sidebar' | 'micro';
   onEdit?: (project: Project) => void;
   onDuplicate?: (project: Project) => void;
   onDelete?: (project: Project) => void;
@@ -388,6 +389,82 @@ function ProjectCardComponent({
           </div>
         </CardContent>
       </Card>
+    );
+  }
+
+  if (viewMode === 'micro') {
+    // Get latest render thumbnail
+    const latestRender = latestRenders.find(r => r.status !== 'failed' && r.outputUrl) || latestRenders[0];
+    
+    return (
+      <Link 
+        href={finalViewUrl}
+        className="block"
+        onClick={(e) => {
+          if (onSelect) {
+            e.preventDefault();
+            onSelect(project);
+          }
+        }}
+      >
+        <div className="group flex items-center gap-3 p-2 rounded-lg border border-border hover:bg-muted/50 hover:border-primary/50 transition-all cursor-pointer">
+          {/* Thumbnail */}
+          <div className="flex-shrink-0 w-10 h-10 rounded-md bg-muted overflow-hidden flex items-center justify-center">
+            {latestRender?.outputUrl ? (
+              latestRender.type === 'video' ? (
+                <video
+                  src={latestRender.outputUrl}
+                  className="w-full h-full object-cover"
+                  muted
+                  playsInline
+                />
+              ) : (
+                <img
+                  src={latestRender.outputUrl}
+                  alt={toSentenceCase(project.name)}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    const parent = target.parentElement;
+                    if (parent) {
+                      parent.innerHTML = '<svg class="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>';
+                    }
+                  }}
+                />
+              )
+            ) : (
+              <FolderOpen className="h-5 w-5 text-muted-foreground" />
+            )}
+          </div>
+          
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-0.5">
+              <h3 className="text-sm font-medium truncate">
+                {toSentenceCase(project.name)}
+              </h3>
+              <Badge className={cn("text-[10px] px-1.5 py-0 shrink-0", platformBadge.color)}>
+                {platformBadge.label}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              {project.renderCount !== undefined && (
+                <>
+                  {project.renderCount > 0 ? (
+                    <>
+                      <ImageIcon className="h-3 w-3" />
+                      <span>{project.renderCount} renders</span>
+                    </>
+                  ) : (
+                    <span>No renders yet</span>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </Link>
     );
   }
 

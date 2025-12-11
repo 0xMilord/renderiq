@@ -119,14 +119,21 @@ export function RecentActivityPaginated({ activities }: RecentActivityPaginatedP
                         )}
                         <p className="text-xs sm:text-sm font-medium truncate">
                           {activity.type === 'render' && activity.render
-                            ? activity.render.prompt
+                            ? 'Generated render'
                             : activity.type === 'like' && activity.like
-                            ? `Liked "${activity.like.render.prompt}"`
+                            ? 'Liked render'
                             : 'Activity'}
                         </p>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(activity.timestamp).toLocaleDateString()}
+                        {(() => {
+                          // ✅ FIXED: Use consistent date formatting to prevent hydration mismatch
+                          const d = new Date(activity.timestamp);
+                          const month = String(d.getMonth() + 1).padStart(2, '0');
+                          const day = String(d.getDate()).padStart(2, '0');
+                          const year = d.getFullYear();
+                          return `${month}/${day}/${year}`;
+                        })()}
                       </p>
                     </div>
                   </div>

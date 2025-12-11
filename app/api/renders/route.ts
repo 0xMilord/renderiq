@@ -63,18 +63,27 @@ export async function handleRenderRequest(request: NextRequest) {
     logger.log('🚀 Starting render generation API call');
     
     // ✅ FIXED: Wrap auth and formData parsing in try-catch to handle early errors
+    // Support Bearer token auth for plugins
     try {
-    const { user: authUser } = await getCachedUser();
-    
-    if (!authUser) {
-      securityLog('auth_failed', { error: 'Authentication required' }, 'warn');
-      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
-    }
-    
-    user = authUser;
-    
-    // Redact user ID in logs
-    logger.log('✅ User authenticated');
+      // Check for Bearer token in Authorization header
+      const authHeader = request.headers.get('authorization');
+      let bearerToken: string | undefined;
+      
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        bearerToken = authHeader.substring(7);
+      }
+      
+      const { user: authUser } = await getCachedUser(bearerToken);
+      
+      if (!authUser) {
+        securityLog('auth_failed', { error: 'Authentication required' }, 'warn');
+        return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+      }
+      
+      user = authUser;
+      
+      // Redact user ID in logs
+      logger.log('✅ User authenticated');
     } catch (authError) {
       logger.error('❌ Auth error:', authError);
       return NextResponse.json({ 
@@ -145,6 +154,20 @@ export async function handleRenderRequest(request: NextRequest) {
     const negativePrompt = negativePromptRaw ? sanitizeInput(negativePromptRaw) : null;
     
     const imageType = sanitizeInput(formData.get('imageType') as string | null);
+    
+    // Extract telemetry metadata for plugin tracking
+    const sourcePlatform = sanitizeInput(formData.get('sourcePlatform') as string | null);
+    const pluginVersion = sanitizeInput(formData.get('pluginVersion') as string | null);
+    const userAgent = sanitizeInput(formData.get('userAgent') as string | null);
+    const callbackUrl = sanitizeInput(formData.get('callback_url') as string | null);
+    
+    // Build metadata object if any telemetry fields present
+    const metadata = (sourcePlatform || pluginVersion || userAgent || callbackUrl) ? {
+      ...(sourcePlatform && { sourcePlatform }),
+      ...(pluginVersion && { pluginVersion }),
+      ...(userAgent && { userAgent }),
+      ...(callbackUrl && { callbackUrl }),
+    } : undefined;
     
     // Check if user has pro subscription
     const isPro = await BillingDAL.isUserPro(user.id);
@@ -734,9 +757,11 @@ export async function handleRenderRequest(request: NextRequest) {
               ...(batchRequest.drawingType && { drawingType: batchRequest.drawingType }),
               ...(batchRequest.elevationSide && { elevationSide: batchRequest.elevationSide }),
               ...(batchRequest.floorPlanType && { floorPlanType: batchRequest.floorPlanType }),
+            },
               ...(batchRequest.sectionCutDirection && { sectionCutDirection: batchRequest.sectionCutDirection }),
             },
             status: 'pending',
+            metadata,
             chainId: finalChainId,
             chainPosition: currentChainPosition++,
             referenceRenderId: validatedReferenceRenderId,
@@ -905,6 +930,7 @@ export async function handleRenderRequest(request: NextRequest) {
       uploadedImageUrl,
       uploadedImageKey,
       uploadedImageId,
+      metadata,
     });
 
     logger.log('✅ Render record created in database', {

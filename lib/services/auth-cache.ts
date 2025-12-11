@@ -33,14 +33,28 @@ if (typeof setInterval !== 'undefined') {
 /**
  * Get user from cache or DB
  * This function caches the user session to prevent DB hammering
+ * Supports optional Bearer token for plugin authentication
  */
-export async function getCachedUser(): Promise<{ user: User | null; fromCache: boolean }> {
+export async function getCachedUser(bearerToken?: string): Promise<{ user: User | null; fromCache: boolean }> {
   try {
     const supabase = await createClient();
     
-    // ✅ SECURITY: Use getUser() instead of getSession() to authenticate with Supabase Auth server
-    // This ensures the user data is authentic and not just from cookies
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    let user: User | null = null;
+    let userError: any = null;
+    
+    // If Bearer token provided, use it directly
+    if (bearerToken) {
+      const { data: { user: tokenUser }, error: tokenError } = await supabase.auth.getUser(bearerToken);
+      user = tokenUser;
+      userError = tokenError;
+    } else {
+      // Otherwise, use cookie-based auth (existing behavior)
+      // ✅ SECURITY: Use getUser() instead of getSession() to authenticate with Supabase Auth server
+      // This ensures the user data is authentic and not just from cookies
+      const { data: { user: cookieUser }, error: cookieError } = await supabase.auth.getUser();
+      user = cookieUser;
+      userError = cookieError;
+    }
     
     if (userError || !user) {
       return { user: null, fromCache: false };

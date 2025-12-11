@@ -29,7 +29,7 @@ module Renderiq
       system_prompt = build_system_prompt(settings)
       
       # Send request using FormData (multipart/form-data)
-      uri = URI("#{API_BASE_URL}/api/sketchup-extension/renders")
+      uri = URI("#{API_BASE_URL}/api/plugins/renders")
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
       http.read_timeout = 300 # 5 minutes
@@ -97,20 +97,21 @@ module Renderiq
       request = Net::HTTP::Post.new(uri.path)
       request['Content-Type'] = "multipart/form-data; boundary=#{boundary}"
       request['Authorization'] = "Bearer #{access_token}" if access_token
+      request['X-Renderiq-Platform'] = 'sketchup'
+      request['User-Agent'] = "Renderiq-SketchUp-Plugin/#{File.mtime(__FILE__).strftime('%Y%m%d')}"
       request.body = body
-      
-      # Convert to JSON
-      request.body = request_data.to_json
       
       begin
         response = http.request(request)
         
-        if response.code == '200' || response.code == '201'
+        if response.code == '200' || response.code == '201' || response.code == '202'
           result = JSON.parse(response.body)
+          # Handle unified API response format
+          data = result['data'] || result
           return {
             success: true,
-            render_id: result['data'] && result['data']['renderId'] || result['renderId'],
-            status: 'processing'
+            render_id: data['renderId'] || data['id'] || result['renderId'],
+            status: data['status'] || 'processing'
           }
         else
           error_data = JSON.parse(response.body) rescue {}
@@ -132,23 +133,26 @@ module Renderiq
     # @param access_token [String] Access token
     # @return [Hash] Render status and result URL
     def self.poll_render_status(render_id, access_token)
-      uri = URI("#{API_BASE_URL}/api/sketchup-extension/renders/#{render_id}")
+      uri = URI("#{API_BASE_URL}/api/plugins/renders/#{render_id}")
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
       
       request = Net::HTTP::Get.new(uri.path)
       request['Authorization'] = "Bearer #{access_token}" if access_token
+      request['X-Renderiq-Platform'] = 'sketchup'
       
       begin
         response = http.request(request)
         
         if response.code == '200'
           result = JSON.parse(response.body)
+          # Handle unified API response format
+          data = result['data'] || result
           return {
             success: true,
-            status: result['status'] || 'processing',
-            output_url: result['outputUrl'],
-            error: result['error']
+            status: data['status'] || result['status'] || 'processing',
+            output_url: data['outputUrl'] || result['outputUrl'],
+            error: data['error'] || result['error']
           }
         else
           return {

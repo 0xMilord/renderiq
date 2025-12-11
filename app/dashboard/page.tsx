@@ -5,16 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Plus, 
   FolderOpen, 
   Image, 
-  CreditCard, 
   TrendingUp, 
-  Clock,
-  Users,
-  Zap,
-  Sparkles,
-  Paintbrush
+  Zap
 } from 'lucide-react';
 import Link from 'next/link';
 import { ProjectsDAL } from '@/lib/dal/projects';
@@ -66,7 +60,27 @@ export default async function DashboardPage() {
         .where(eq(renders.userId, user.id))
     ]);
 
-    recentProjects = projectsData || [];
+    // ✅ FIXED: Batch fetch latest renders for all projects to show thumbnails
+    const projectIds = projectsData?.map(p => p.id) || [];
+    const latestRenders = projectIds.length > 0 
+      ? await ProjectsDAL.getLatestRendersForProjects(projectIds, 1)
+      : [];
+    
+    // Attach latest renders to projects
+    const rendersByProject = latestRenders.reduce((acc, render) => {
+      if (!acc[render.projectId]) {
+        acc[render.projectId] = [];
+      }
+      acc[render.projectId].push(render);
+      return acc;
+    }, {} as Record<string, typeof latestRenders>);
+    
+    const projectsWithRenders = (projectsData || []).map(project => ({
+      ...project,
+      latestRenders: rendersByProject[project.id] || []
+    }));
+
+    recentProjects = projectsWithRenders;
     recentActivity = activityData || [];
     userCredits = creditsData?.balance || 0;
     // Derive project count from fetched data instead of separate query
@@ -83,52 +97,6 @@ export default async function DashboardPage() {
   return (
     <div className="h-full w-full">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-        {/* Page Title */}
-        <div className="mb-4 sm:mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold">Here&apos;s what&apos;s happening in your dashboard</h1>
-        </div>
-
-        {/* Quick Actions Ribbon */}
-        <div className="mb-4 sm:mb-6">
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-muted/50 border border-border rounded-lg">
-            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-              <span className="text-sm font-medium text-muted-foreground hidden sm:inline">Quick Actions:</span>
-              <div className="h-4 w-px bg-border hidden sm:block" />
-            </div>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-1">
-              <Button asChild size="default" variant="default" className="flex-1 min-w-0">
-                <Link href="/render" className="flex items-center justify-center gap-2">
-                  <Sparkles className="h-4 w-4 shrink-0" />
-                  <span className="hidden sm:inline">Render</span>
-                </Link>
-              </Button>
-              <Button asChild size="default" variant="outline" className="relative flex-1 min-w-0">
-                <Link href="/canvas" className="flex items-center justify-center gap-2">
-                  <Paintbrush className="h-4 w-4 shrink-0" />
-                  <span className="hidden sm:inline">Canvas</span>
-                </Link>
-              </Button>
-              <Button asChild size="default" variant="outline" className="flex-1 min-w-0">
-                <Link href="/dashboard/projects" className="flex items-center justify-center gap-2">
-                  <FolderOpen className="h-4 w-4 shrink-0" />
-                  <span className="hidden sm:inline">Projects</span>
-                </Link>
-              </Button>
-              <Button asChild size="default" variant="outline" className="flex-1 min-w-0">
-                <Link href="/dashboard/billing" className="flex items-center justify-center gap-2">
-                  <CreditCard className="h-4 w-4 shrink-0" />
-                  <span className="hidden sm:inline">Billing</span>
-                </Link>
-              </Button>
-              <Button asChild size="default" variant="outline" className="flex-1 min-w-0">
-                <Link href="/gallery" className="flex items-center justify-center gap-2">
-                  <Image className="h-4 w-4 shrink-0" />
-                  <span className="hidden sm:inline">Gallery</span>
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
 
         {/* Quick Stats - Standardized Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">

@@ -26,7 +26,9 @@ import {
   RefreshCw,
   Sparkles,
   Command,
-  Users
+  Users,
+  Paintbrush,
+  Image
 } from 'lucide-react';
 import { 
   FaXTwitter, 
@@ -73,7 +75,7 @@ const pageTitles: Record<string, string> = {
 
 // Page descriptions mapping (for main content header)
 const pageDescriptions: Record<string, string> = {
-  '/dashboard': "Here's what's happening in your dashboard",
+  '/dashboard': "",
   '/dashboard/projects': 'Organize and manage your projects and render chains',
   '/dashboard/library': 'View all your renders organized by project',
   '/dashboard/billing': 'Manage your subscription, credits, and payment history',
@@ -746,11 +748,49 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Header */}
-        <div className="px-4 border-b shrink-0 h-16 flex items-center justify-between pointer-events-auto">
-          <div className="min-w-0 flex-1 overflow-hidden flex items-center gap-3">
-            <CurrentPageIcon className="h-5 w-5 text-primary shrink-0" />
-            <h2 className="text-lg font-semibold text-foreground truncate min-w-0">{currentPageDescription}</h2>
-          </div>
+        <div className="px-4 border-b shrink-0 flex items-center justify-between pointer-events-auto">
+          {pathname === '/dashboard' ? (
+            /* Quick Actions for Dashboard */
+            <div className="flex-1 py-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <Button asChild size="default" variant="default" className="flex-1 min-w-0 sm:flex-initial">
+                  <Link href="/render" className="flex items-center justify-center gap-2">
+                    <Sparkles className="h-4 w-4 shrink-0" />
+                    <span className="hidden sm:inline">Render</span>
+                  </Link>
+                </Button>
+                <Button asChild size="default" variant="outline" className="relative flex-1 min-w-0 sm:flex-initial">
+                  <Link href="/canvas" className="flex items-center justify-center gap-2">
+                    <Paintbrush className="h-4 w-4 shrink-0" />
+                    <span className="hidden sm:inline">Canvas</span>
+                  </Link>
+                </Button>
+                <Button asChild size="default" variant="outline" className="flex-1 min-w-0 sm:flex-initial">
+                  <Link href="/dashboard/projects" className="flex items-center justify-center gap-2">
+                    <FolderOpen className="h-4 w-4 shrink-0" />
+                    <span className="hidden sm:inline">Projects</span>
+                  </Link>
+                </Button>
+                <Button asChild size="default" variant="outline" className="flex-1 min-w-0 sm:flex-initial">
+                  <Link href="/dashboard/billing" className="flex items-center justify-center gap-2">
+                    <CreditCard className="h-4 w-4 shrink-0" />
+                    <span className="hidden sm:inline">Billing</span>
+                  </Link>
+                </Button>
+                <Button asChild size="default" variant="outline" className="flex-1 min-w-0 sm:flex-initial">
+                  <Link href="/gallery" className="flex items-center justify-center gap-2">
+                    <Image className="h-4 w-4 shrink-0" />
+                    <span className="hidden sm:inline">Gallery</span>
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="min-w-0 flex-1 overflow-hidden flex items-center gap-3 h-16">
+              <CurrentPageIcon className="h-5 w-5 text-primary shrink-0" />
+              <h2 className="text-lg font-semibold text-foreground truncate min-w-0">{currentPageDescription}</h2>
+            </div>
+          )}
           {/* Projects Page Actions */}
           {pathname === '/dashboard/projects' && (
             <div className="flex items-center gap-2 shrink-0 ml-4">

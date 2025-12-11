@@ -1,0 +1,188 @@
+<Window x:Class="RenderiqRevitPlugin.UI.SettingsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Renderiq Settings" 
+        Height="500" 
+        Width="450"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <TabControl Grid.Row="0">
+            <!-- Account Tab -->
+            <TabItem Header="Account">
+                <StackPanel Margin="20">
+                    <GroupBox Header="Authentication" Margin="0,0,0,20">
+                        <StackPanel Margin="10">
+                            <TextBlock x:Name="AuthStatusTextBlock" 
+                                       Text="Status: Not signed in" 
+                                       Margin="0,0,0,10"/>
+                            <Button Content="Sign In" 
+                                    Width="120" 
+                                    Height="30"
+                                    Click="SignInButton_Click"
+                                    Margin="0,0,0,10"/>
+                            <Button Content="Sign Out" 
+                                    Width="120" 
+                                    Height="30"
+                                    Click="SignOutButton_Click"/>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="API Key (Optional)">
+                        <StackPanel Margin="10">
+                            <TextBlock Text="Use API key instead of email/password:" 
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,10"/>
+                            <PasswordBox x:Name="ApiKeyPasswordBox" 
+                                         Height="30" 
+                                         Margin="0,0,0,10"/>
+                            <Button Content="Save API Key" 
+                                    Width="120" 
+                                    Height="30"
+                                    Click="SaveApiKeyButton_Click"/>
+                        </StackPanel>
+                    </GroupBox>
+                </StackPanel>
+            </TabItem>
+
+            <!-- Render Settings Tab -->
+            <TabItem Header="Render Settings">
+                <StackPanel Margin="20">
+                    <GroupBox Header="Default Settings" Margin="0,0,0,20">
+                        <StackPanel Margin="10">
+                            <Grid Margin="0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="150"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" 
+                                           Text="Default Quality:" 
+                                           VerticalAlignment="Center"/>
+                                <ComboBox x:Name="DefaultQualityComboBox" 
+                                          Grid.Column="1" 
+                                          SelectedIndex="1">
+                                    <ComboBoxItem Content="Standard"/>
+                                    <ComboBoxItem Content="High"/>
+                                    <ComboBoxItem Content="Ultra"/>
+                                </ComboBox>
+                            </Grid>
+
+                            <Grid Margin="0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="150"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" 
+                                           Text="Default Style:" 
+                                           VerticalAlignment="Center"/>
+                                <ComboBox x:Name="DefaultStyleComboBox" 
+                                          Grid.Column="1" 
+                                          SelectedIndex="0">
+                                    <ComboBoxItem Content="Photorealistic"/>
+                                    <ComboBoxItem Content="Dramatic"/>
+                                    <ComboBoxItem Content="Soft"/>
+                                    <ComboBoxItem Content="Studio"/>
+                                    <ComboBoxItem Content="Natural"/>
+                                </ComboBox>
+                            </Grid>
+
+                            <Grid Margin="0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="150"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" 
+                                           Text="Default Aspect:" 
+                                           VerticalAlignment="Center"/>
+                                <ComboBox x:Name="DefaultAspectComboBox" 
+                                          Grid.Column="1" 
+                                          SelectedIndex="0">
+                                    <ComboBoxItem Content="16:9"/>
+                                    <ComboBoxItem Content="4:3"/>
+                                    <ComboBoxItem Content="1:1"/>
+                                    <ComboBoxItem Content="9:16"/>
+                                </ComboBox>
+                            </Grid>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="Export Settings">
+                        <StackPanel Margin="10">
+                            <Grid Margin="0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="150"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" 
+                                           Text="Export Resolution:" 
+                                           VerticalAlignment="Center"/>
+                                <ComboBox x:Name="ExportResolutionComboBox" 
+                                          Grid.Column="1" 
+                                          SelectedIndex="1">
+                                    <ComboBoxItem Content="1920 (Standard)"/>
+                                    <ComboBoxItem Content="4096 (High)"/>
+                                    <ComboBoxItem Content="8192 (Ultra)"/>
+                                </ComboBox>
+                            </Grid>
+                        </StackPanel>
+                    </GroupBox>
+                </StackPanel>
+            </TabItem>
+
+            <!-- Advanced Tab -->
+            <TabItem Header="Advanced">
+                <StackPanel Margin="20">
+                    <GroupBox Header="Network" Margin="0,0,0,20">
+                        <StackPanel Margin="10">
+                            <CheckBox x:Name="UseResumableUploadCheckBox" 
+                                      Content="Use resumable uploads for large files (>50MB)" 
+                                      IsChecked="True"
+                                      Margin="0,5"/>
+                            <CheckBox x:Name="AutoRetryCheckBox" 
+                                      Content="Auto-retry on network errors" 
+                                      IsChecked="True"
+                                      Margin="0,5"/>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="Webhooks">
+                        <StackPanel Margin="10">
+                            <TextBlock Text="Webhook URL (optional):" 
+                                       Margin="0,0,0,5"/>
+                            <TextBox x:Name="WebhookUrlTextBox" 
+                                     Height="30" 
+                                     Margin="0,0,0,10"/>
+                            <Button Content="Test Webhook" 
+                                    Width="120" 
+                                    Height="30"
+                                    Click="TestWebhookButton_Click"/>
+                        </StackPanel>
+                    </GroupBox>
+                </StackPanel>
+            </TabItem>
+        </TabControl>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="1" 
+                    Orientation="Horizontal" 
+                    HorizontalAlignment="Right" 
+                    Margin="0,20,0,0">
+            <Button Content="Cancel" 
+                    Width="100" 
+                    Height="30" 
+                    Margin="0,0,10,0"
+                    Click="CancelButton_Click"/>
+            <Button Content="Save" 
+                    Width="100" 
+                    Height="30"
+                    Click="SaveButton_Click"
+                    IsDefault="True"/>
+        </StackPanel>
+    </Grid>
+</Window>
+

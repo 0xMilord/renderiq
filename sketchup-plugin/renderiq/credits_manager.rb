@@ -15,24 +15,26 @@ module Renderiq
     # @param access_token [String] Access token
     # @return [Hash] Credits info
     def self.get_credits(access_token)
-      uri = URI("#{API_BASE_URL}/api/sketchup-extension/credits")
+      uri = URI("#{API_BASE_URL}/api/plugins/credits")
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
       
       request = Net::HTTP::Get.new(uri.path)
       request['Authorization'] = "Bearer #{access_token}"
+      request['X-Renderiq-Platform'] = 'sketchup'
       
       begin
         response = http.request(request)
         
         if response.code == '200'
           result = JSON.parse(response.body)
-          credits_data = result['credits'] || result
+          # Handle unified API response format
+          credits_data = result['data'] || result['credits'] || result
           return {
             success: true,
             balance: credits_data['balance'] || 0,
-            total_earned: credits_data['totalEarned'] || 0,
-            total_spent: credits_data['totalSpent'] || 0
+            total_earned: credits_data['totalEarned'] || credits_data['total_earned'] || 0,
+            total_spent: credits_data['totalSpent'] || credits_data['total_spent'] || 0
           }
         else
           error_data = JSON.parse(response.body) rescue {}

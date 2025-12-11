@@ -264,6 +264,14 @@ export const renders = pgTable('renders', {
   uploadedImageId: uuid('uploaded_image_id').references(() => fileStorage.id),
   // Platform identifier to prevent cross-contamination
   platform: text('platform', { enum: ['render', 'tools', 'canvas'] }),
+  // Telemetry metadata for plugin tracking
+  metadata: jsonb('metadata').$type<{
+    sourcePlatform?: string; // 'sketchup', 'revit', etc.
+    pluginVersion?: string;
+    userAgent?: string;
+    callbackUrl?: string;
+    [key: string]: any;
+  }>(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -905,3 +913,57 @@ export type NewAmbassadorPayout = typeof ambassadorPayouts.$inferInsert;
 
 export type AmbassadorVolumeTier = typeof ambassadorVolumeTiers.$inferSelect;
 export type NewAmbassadorVolumeTier = typeof ambassadorVolumeTiers.$inferInsert;
+
+// Plugin API Keys - for plugin authentication
+export const pluginApiKeys = pgTable('plugin_api_keys', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  name: text('name').notNull(),
+  key: text('key').notNull().unique(), // Hashed API key
+  keyPrefix: text('key_prefix').notNull(), // First 8 chars for display (rk_live_xxxx)
+  scopes: jsonb('scopes').$type<string[]>().notNull().default([]), // ['renders:create', 'renders:read', etc.]
+  expiresAt: timestamp('expires_at'),
+  lastUsedAt: timestamp('last_used_at'),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Plugin Webhooks - for receiving render status updates
+// Resumable upload sessions for large file uploads
+export const resumableUploads = pgTable('resumable_uploads', {
+  id: text('id').primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  bucket: text('bucket').notNull(),
+  filePath: text('file_path').notNull(),
+  totalSize: bigint('total_size', { mode: 'number' }).notNull(),
+  uploadedBytes: bigint('uploaded_bytes', { mode: 'number' }).default(0).notNull(),
+  uploadUrl: text('upload_url').notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  status: text('status', { enum: ['initialized', 'uploading', 'completed', 'failed'] }).default('initialized').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const pluginWebhooks = pgTable('plugin_webhooks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  url: text('url').notNull(),
+  secret: text('secret').notNull(), // HMAC signing secret
+  events: jsonb('events').$type<string[]>().notNull().default([]), // ['render.completed', 'render.failed']
+  isActive: boolean('is_active').default(true).notNull(),
+  lastTriggeredAt: timestamp('last_triggered_at'),
+  failureCount: integer('failure_count').default(0).notNull(),
+  lastFailureAt: timestamp('last_failure_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export type PluginApiKey = typeof pluginApiKeys.$inferSelect;
+export type NewPluginApiKey = typeof pluginApiKeys.$inferInsert;
+
+export type PluginWebhook = typeof pluginWebhooks.$inferSelect;
+export type NewPluginWebhook = typeof pluginWebhooks.$inferInsert;
+
+export type ResumableUpload = typeof resumableUploads.$inferSelect;
+export type NewResumableUpload = typeof resumableUploads.$inferInsert;

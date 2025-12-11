@@ -1,0 +1,843 @@
+openapi: 3.0.3
+
+info:
+  title: Renderiq Plugin API
+  description: |
+    Unified API for Renderiq plugins across all AEC platforms (SketchUp, Revit, AutoCAD, Rhino, ArchiCAD, Blender).
+    
+    ## Authentication
+    - Bearer token: Use `Authorization: Bearer <token>` header
+    - API key: Use `X-Api-Key: <key>` header (alternative to Bearer token)
+    
+    ## Webhooks
+    Register webhooks to receive render status updates without polling. Webhook payloads are signed with HMAC-SHA256.
+    
+    ## Resumable Uploads
+    For large files (>50MB), use resumable upload endpoints to upload in chunks.
+    
+  version: "1.0.0"
+  contact:
+    name: Renderiq Support
+    email: support@renderiq.io
+    url: https://renderiq.io/support
+
+servers:
+  - url: https://renderiq.io/api/plugins
+    description: Production
+  - url: http://localhost:3000/api/plugins
+    description: Development (local)
+
+security:
+  - bearerAuth: []
+  - ApiKeyAuth: []
+
+tags:
+  - name: Authentication
+    description: User authentication and token management
+  - name: Renders
+    description: Create and manage render requests
+  - name: Projects
+    description: Project management
+  - name: Credits
+    description: Credit balance and usage
+  - name: Webhooks
+    description: Webhook registration and management
+  - name: API Keys
+    description: API key management for plugins
+  - name: Health
+    description: API health and status
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token from `/auth/signin`
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Api-Key
+      description: API key for plugin authentication (alternative to Bearer token)
+
+  schemas:
+    Error:
+      type: object
+      required:
+        - success
+        - error
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: "Invalid authentication token"
+        errorCode:
+          type: string
+          example: "AUTH_REQUIRED"
+        details:
+          type: object
+          description: Additional error details
+
+    AuthResponse:
+      type: object
+      required:
+        - success
+        - access_token
+        - user
+      properties:
+        success:
+          type: boolean
+          example: true
+        access_token:
+          type: string
+          description: JWT access token (expires in 1 hour)
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refresh_token:
+          type: string
+          description: Refresh token for obtaining new access tokens
+        expires_at:
+          type: string
+          format: date-time
+          description: Token expiration timestamp
+        token_type:
+          type: string
+          example: "Bearer"
+        user:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        credits:
+          $ref: '#/components/schemas/Credits'
+
+    Credits:
+      type: object
+      properties:
+        balance:
+          type: integer
+          description: Current credit balance
+          example: 100
+        totalEarned:
+          type: integer
+          example: 500
+        totalSpent:
+          type: integer
+          example: 400
+        monthlyEarned:
+          type: integer
+          example: 50
+        monthlySpent:
+          type: integer
+          example: 30
+
+    CreateRenderRequest:
+      type: object
+      required:
+        - uploadedImageData
+        - uploadedImageType
+      properties:
+        prompt:
+          type: string
+          description: Optional prompt (system prompt generated if not provided)
+          maxLength: 2000
+        uploadedImageData:
+          type: string
+          format: binary
+          description: Image data (base64 encoded or binary)
+        uploadedImageType:
+          type: string
+          enum: [image/png, image/jpeg, image/jpg]
+          example: "image/png"
+        quality:
+          type: string
+          enum: [standard, high, ultra]
+          default: high
+          description: |
+            - standard: 1080p (5 credits)
+            - high: 4K (10 credits)
+            - ultra: 4K Enhanced (15 credits)
+        aspectRatio:
+          type: string
+          enum: [16:9, 4:3, 1:1, 9:16, 3:2, 2:3]
+          default: "16:9"
+        style:
+          type: string
+          enum: [photorealistic, dramatic, soft, studio, natural]
+          default: photorealistic
+        model:
+          type: string
+          enum: [gemini-3-pro-image-preview, gemini-2.5-flash-image]
+          description: AI model to use
+        projectId:
+          type: string
+          format: uuid
+          description: Optional project ID to associate render with
+        callback_url:
+          type: string
+          format: uri
+          description: Webhook URL to receive render status updates
+        resumable:
+          type: boolean
+          default: false
+          description: Use resumable upload for large files (>50MB)
+
+    CreateRenderResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            renderId:
+              type: string
+              format: uuid
+            status:
+              type: string
+              enum: [pending, processing]
+              example: "pending"
+            creditsCost:
+              type: integer
+              example: 10
+            estimatedTime:
+              type: integer
+              description: Estimated processing time in seconds
+              example: 30
+            uploadUrl:
+              type: string
+              format: uri
+              description: Resumable upload URL (if resumable=true)
+
+    RenderStatus:
+      type: object
+      required:
+        - renderId
+        - status
+      properties:
+        renderId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Processing progress percentage
+        outputUrl:
+          type: string
+          format: uri
+          description: CDN URL of rendered image (when status=completed)
+        error:
+          type: string
+          description: Error message (when status=failed)
+        errorCode:
+          type: string
+          description: Error code (when status=failed)
+        processingTime:
+          type: number
+          description: Actual processing time in seconds
+        creditsUsed:
+          type: integer
+          description: Credits actually used
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        renderCount:
+          type: integer
+        platform:
+          type: string
+          enum: [sketchup, revit, autocad, rhino, archicad, blender]
+
+    ProjectsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            projects:
+              type: array
+              items:
+                $ref: '#/components/schemas/Project'
+            total:
+              type: integer
+            limit:
+              type: integer
+            offset:
+              type: integer
+
+    WebhookRegistration:
+      type: object
+      required:
+        - url
+        - events
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Webhook URL to receive events
+        events:
+          type: array
+          items:
+            type: string
+            enum: [render.completed, render.failed, render.processing]
+          description: Events to subscribe to
+        secret:
+          type: string
+          description: Optional secret for HMAC signing (auto-generated if not provided)
+
+    WebhookResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            webhookId:
+              type: string
+              format: uuid
+            url:
+              type: string
+              format: uri
+            secret:
+              type: string
+              description: Secret for HMAC signature verification
+            events:
+              type: array
+              items:
+                type: string
+
+    WebhookPayload:
+      type: object
+      required:
+        - event
+        - timestamp
+        - data
+        - signature
+      properties:
+        event:
+          type: string
+          enum: [render.completed, render.failed, render.processing]
+        timestamp:
+          type: string
+          format: date-time
+        data:
+          type: object
+          properties:
+            renderId:
+              type: string
+              format: uuid
+            status:
+              type: string
+            outputUrl:
+              type: string
+              format: uri
+            error:
+              type: string
+        signature:
+          type: string
+          description: HMAC-SHA256 signature of payload
+
+    ApiKey:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          description: Human-readable name for the API key
+        key:
+          type: string
+          description: API key (only shown once on creation)
+          example: "rk_live_..."
+        scopes:
+          type: array
+          items:
+            type: string
+            enum: [renders:create, renders:read, projects:read, webhook:write]
+          description: Permissions granted to this key
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Expiration date (null = never expires)
+        createdAt:
+          type: string
+          format: date-time
+        lastUsedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    ApiKeyCreate:
+      type: object
+      required:
+        - name
+        - scopes
+      properties:
+        name:
+          type: string
+          example: "SketchUp Plugin - Production"
+        scopes:
+          type: array
+          items:
+            type: string
+            enum: [renders:create, renders:read, projects:read, webhook:write]
+          example: ["renders:create", "renders:read"]
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Optional expiration date
+
+    HealthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        status:
+          type: string
+          enum: [healthy, degraded, down]
+        timestamp:
+          type: string
+          format: date-time
+        api:
+          type: object
+          properties:
+            version:
+              type: string
+            platform:
+              type: string
+              enum: [sketchup, revit, autocad, rhino, archicad, blender, unknown]
+            version_detected:
+              type: string
+              nullable: true
+        services:
+          type: object
+          properties:
+            api:
+              type: string
+            authentication:
+              type: string
+            rendering:
+              type: string
+            storage:
+              type: string
+
+paths:
+  /auth/signin:
+    post:
+      tags:
+        - Authentication
+      summary: Sign in and get access token
+      description: |
+        Authenticate with email and password to receive access token.
+        Use this token in the `Authorization: Bearer <token>` header for subsequent requests.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        "200":
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "400":
+          description: Missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user info
+      description: Get user information and credit balance from access token
+      responses:
+        "200":
+          description: User information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  user:
+                    $ref: '#/components/schemas/User'
+        "401":
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /renders:
+    post:
+      tags:
+        - Renders
+      summary: Create a new render request
+      description: |
+        Submit an image for AI rendering. Supports both standard and resumable uploads.
+        
+        **Resumable Uploads**: For files >50MB, set `resumable=true` to get an upload URL for chunked uploads.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateRenderRequest'
+      responses:
+        "202":
+          description: Render request accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateRenderResponse'
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "402":
+          description: Insufficient credits
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  error:
+                    type: string
+                  errorCode:
+                    type: string
+                    example: "INSUFFICIENT_CREDITS"
+                  requiredCredits:
+                    type: integer
+                  availableCredits:
+                    type: integer
+
+  /renders/{renderId}:
+    get:
+      tags:
+        - Renders
+      summary: Get render status and result
+      description: Poll for render status. Use webhooks to avoid polling.
+      parameters:
+        - in: path
+          name: renderId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Render ID from create render response
+      responses:
+        "200":
+          description: Render status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/RenderStatus'
+        "404":
+          description: Render not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /projects:
+    get:
+      tags:
+        - Projects
+      summary: List user's projects
+      parameters:
+        - in: query
+          name: platform
+          schema:
+            type: string
+            enum: [sketchup, revit, autocad, rhino, archicad, blender]
+          description: Filter by platform
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Projects list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectsResponse'
+
+  /projects:
+    post:
+      tags:
+        - Projects
+      summary: Create a new project
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                image:
+                  type: string
+                  format: binary
+                platform:
+                  type: string
+                  enum: [sketchup, revit, autocad, rhino, archicad, blender]
+      responses:
+        "201":
+          description: Project created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Project'
+
+  /credits:
+    get:
+      tags:
+        - Credits
+      summary: Get credit balance
+      responses:
+        "200":
+          description: Credit balance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Credits'
+
+  /webhooks/register:
+    post:
+      tags:
+        - Webhooks
+      summary: Register a webhook
+      description: |
+        Register a webhook URL to receive render status updates.
+        Webhook payloads are signed with HMAC-SHA256 using the provided secret.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookRegistration'
+      responses:
+        "201":
+          description: Webhook registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/WebhookResponse'
+        "400":
+          description: Invalid webhook URL or events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /webhooks/{webhookId}:
+    delete:
+      tags:
+        - Webhooks
+      summary: Unregister a webhook
+      parameters:
+        - in: path
+          name: webhookId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Webhook unregistered
+        "404":
+          description: Webhook not found
+
+  /keys:
+    post:
+      tags:
+        - API Keys
+      summary: Create an API key
+      description: |
+        Generate an API key for plugin authentication.
+        The key is only shown once - store it securely.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiKeyCreate'
+      responses:
+        "201":
+          description: API key created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/ApiKey'
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /keys:
+    get:
+      tags:
+        - API Keys
+      summary: List API keys
+      description: List all API keys for the authenticated user (keys are masked)
+      responses:
+        "200":
+          description: API keys list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ApiKey'
+
+  /keys/{keyId}:
+    delete:
+      tags:
+        - API Keys
+      summary: Revoke an API key
+      parameters:
+        - in: path
+          name: keyId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: API key revoked
+        "404":
+          description: API key not found
+
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check API health and platform detection
+      security: []
+      responses:
+        "200":
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+

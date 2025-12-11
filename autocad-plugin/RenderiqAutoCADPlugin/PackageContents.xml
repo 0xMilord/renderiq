@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage
+    SchemaVersion="1.0"
+    AutodeskProduct="AutoCAD"
+    ProductType="Application"
+    Name="Renderiq"
+    Description="AI-powered photorealistic rendering for AutoCAD"
+    Author="Renderiq"
+    AppVersion="1.0.0.0"
+    ProductCode="{A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D}"
+    UpgradeCode="{B2C3D4E5-F6A7-4B8C-9D0E-1F2A3B4C5D6E}">
+  
+  <CompanyDetails
+      Name="Renderiq"
+      Url="https://renderiq.io"
+      Email="support@renderiq.io" />
+  
+  <Components>
+    <RuntimeRequirements
+        OS="Win64"
+        Platform="AutoCAD*"
+        SeriesMin="R24.0"
+        SeriesMax="R24.9" />
+    
+    <ComponentEntry
+        AppName="Renderiq"
+        ModuleName="./RenderiqAutoCADPlugin.dll"
+        AppDescription="Renderiq AutoCAD Plugin"
+        LoadOnCommandInvocation="True">
+      
+      <Commands GroupName="RENDERIQ">
+        <Command Global="RENDERIQ" Local="RENDERIQ" />
+        <Command Global="RENDERIQCREDITS" Local="RENDERIQCREDITS" />
+        <Command Global="RENDERIQSETTINGS" Local="RENDERIQSETTINGS" />
+        <Command Global="RENDERIQPROJECTS" Local="RENDERIQPROJECTS" />
+        <Command Global="RENDERIQQUEUE" Local="RENDERIQQUEUE" />
+      </Commands>
+      
+      <RuntimeRequirements
+          OS="Win64"
+          Platform="AutoCAD*"
+          SeriesMin="R24.0"
+          SeriesMax="R24.9" />
+    </ComponentEntry>
+  </Components>
+</ApplicationPackage>
+

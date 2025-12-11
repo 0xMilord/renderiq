@@ -23,6 +23,13 @@ export interface CreateRenderData {
   uploadedImageKey?: string;
   uploadedImageId?: string;
   platform?: 'render' | 'tools' | 'canvas'; // Platform identifier to prevent cross-contamination
+  metadata?: {
+    sourcePlatform?: string; // Plugin platform: 'sketchup', 'revit', etc.
+    pluginVersion?: string;
+    userAgent?: string;
+    callbackUrl?: string;
+    [key: string]: any;
+  };
 }
 
 export interface UpdateRenderData {
@@ -53,6 +60,7 @@ export class RendersDAL {
         uploadedImageKey: data.uploadedImageKey,
         uploadedImageId: data.uploadedImageId,
         platform: data.platform || 'render', // Default to 'render' for backward compatibility
+        metadata: data.metadata || null,
       })
       .returning();
 
@@ -136,12 +144,29 @@ export class RendersDAL {
         outputKey,
         status,
         processingTime: processingTime || null,
+        completedAt: status === 'completed' ? new Date() : null,
         updatedAt: new Date(),
       })
       .where(eq(renders.id, id))
       .returning();
 
     logger.log('✅ Render output updated:', updatedRender.id);
+    
+    // Trigger webhooks if render completed or failed
+    if (status === 'completed' || status === 'failed') {
+      // Fire-and-forget webhook delivery (non-blocking)
+      const { deliverRenderWebhooksForEvent } = await import('@/lib/services/webhooks');
+      deliverRenderWebhooksForEvent(
+        updatedRender.userId,
+        updatedRender.id,
+        status,
+        status === 'completed' ? outputUrl : undefined,
+        status === 'failed' ? 'Render processing failed' : undefined
+      ).catch(err => {
+        logger.warn('⚠️ Webhook delivery failed (non-critical):', err);
+      });
+    }
+    
     return updatedRender;
   }
 

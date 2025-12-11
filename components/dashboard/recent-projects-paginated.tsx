@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { FolderOpen, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import type { Project } from '@/lib/db/schema';
-import { ProjectCardMicro } from '@/components/projects/project-card-micro';
+import { ProjectCard } from '@/components/projects/project-card';
 import { useProjects } from '@/lib/hooks/use-projects';
 
 interface RecentProjectsPaginatedProps {
@@ -60,9 +60,10 @@ export function RecentProjectsPaginated({ projects }: RecentProjectsPaginatedPro
           <>
             <div className="space-y-2 flex-1 min-h-0 overflow-y-auto">
               {currentProjects.map((project) => (
-                <ProjectCardMicro
+                <ProjectCard
                   key={project.id}
                   project={project}
+                  viewMode="micro"
                 />
               ))}
               {/* Placeholder items to maintain height */}

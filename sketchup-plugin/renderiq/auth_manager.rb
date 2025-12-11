@@ -17,12 +17,13 @@ module Renderiq
     # @param password [String] User password
     # @return [Hash] Authentication result with access_token and user info
     def self.authenticate(email, password)
-      uri = URI("#{API_BASE_URL}/api/sketchup-extension/auth/signin")
+      uri = URI("#{API_BASE_URL}/api/plugins/auth/signin")
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
       
       request = Net::HTTP::Post.new(uri.path)
       request['Content-Type'] = 'application/json'
+      request['X-Renderiq-Platform'] = 'sketchup'
       
       request_data = {
         email: email,
@@ -61,12 +62,13 @@ module Renderiq
     # @param access_token [String] Access token
     # @return [Hash] User info
     def self.get_user_info(access_token)
-      uri = URI("#{API_BASE_URL}/api/sketchup-extension/auth/me")
+      uri = URI("#{API_BASE_URL}/api/plugins/auth/me")
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
       
       request = Net::HTTP::Get.new(uri.path)
       request['Authorization'] = "Bearer #{access_token}"
+      request['X-Renderiq-Platform'] = 'sketchup'
       
       begin
         response = http.request(request)
