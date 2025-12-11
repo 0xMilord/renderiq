@@ -159,7 +159,7 @@ export default function UseCasesPage() {
       <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="relative pt-[calc(1rem+2.75rem+1.5rem)] pb-20 px-4 bg-gradient-to-b from-primary/5 to-background">
-        <div className="container mx-auto max-w-7xl">
+        <div className="container mx-auto">
           <div className="text-center max-w-3xl mx-auto mb-16">
             <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/60">
               AI Architecture Use Cases
@@ -180,7 +180,7 @@ export default function UseCasesPage() {
 
       {/* Primary Use Cases */}
       <section className="py-20 px-4">
-        <div className="container mx-auto max-w-7xl">
+        <div className="container mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
               10 Essential AI Architecture Use Cases
@@ -262,7 +262,7 @@ export default function UseCasesPage() {
 
       {/* Industry-Specific Use Cases */}
       <section className="py-20 px-4 bg-muted/30">
-        <div className="container mx-auto max-w-7xl">
+        <div className="container mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
               Industry-Specific Applications
@@ -306,7 +306,7 @@ export default function UseCasesPage() {
 
       {/* Feature Highlights */}
       <section className="py-20 px-4">
-        <div className="container mx-auto max-w-7xl">
+        <div className="container mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
               Complete AI Design Suite

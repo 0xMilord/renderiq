@@ -10,13 +10,14 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function CanvasPage() {
-  try {
-    const { user } = await getCachedUser();
+  const { user } = await getCachedUser();
 
-    if (!user) {
-      console.error('❌ [CanvasPage SSR] Auth error: No user');
-      redirect('/login');
-    }
+  if (!user) {
+    console.error('❌ [CanvasPage SSR] Auth error: No user');
+    redirect('/login');
+  }
+
+  try {
 
     logger.log('🚀 [CanvasPage SSR] Fetching data for user:', user.id);
     const startTime = Date.now();

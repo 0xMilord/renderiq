@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
+import { useUserBillingStats } from '@/lib/hooks/use-subscription';
 import { Edit, Camera, MapPin, Globe, Calendar } from 'lucide-react';
 import { useState } from 'react';
 import { ProfileEditForm } from './profile-edit-form';
@@ -12,6 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 
 export function ProfileHeader() {
   const { profile, loading } = useUserProfile();
+  const { data: billingStats } = useUserBillingStats(profile?.id);
+  const isPro = billingStats?.isPro || false;
   const [isEditing, setIsEditing] = useState(false);
 
   if (loading) {
@@ -65,7 +68,12 @@ export function ProfileHeader() {
               <h2 className="text-2xl font-bold text-foreground truncate">
                 {profile.name || 'Anonymous User'}
               </h2>
-              <Badge variant={profile.isActive ? 'default' : 'secondary'}>
+              {isPro && (
+                <Badge variant="default" className="bg-primary text-primary-foreground">
+                  PRO
+                </Badge>
+              )}
+              <Badge variant={profile.isActive ? 'secondary' : 'outline'}>
                 {profile.isActive ? 'Active' : 'Inactive'}
               </Badge>
             </div>

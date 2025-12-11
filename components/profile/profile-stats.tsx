@@ -55,7 +55,7 @@ export function ProfileStats() {
         <CardContent>
           <div className="text-2xl font-bold">{userStats.totalProjects}</div>
           <p className="text-xs text-muted-foreground">
-            +2 from last month
+            Active projects
           </p>
         </CardContent>
       </Card>
@@ -68,7 +68,7 @@ export function ProfileStats() {
         <CardContent>
           <div className="text-2xl font-bold">{userStats.totalRenders}</div>
           <p className="text-xs text-muted-foreground">
-            +12% from last month
+            All time renders
           </p>
         </CardContent>
       </Card>

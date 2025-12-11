@@ -15,18 +15,21 @@ import {
   Plus
 } from 'lucide-react';
 import Link from 'next/link';
-import { ImageCard } from '@/components/projects/image-card';
+import { CommonImageCard } from '@/components/common/image-card';
 import { ViewModeToggle } from '@/components/projects/view-mode-toggle';
 import { ImageModal } from '@/components/common/image-modal';
 import { cn } from '@/lib/utils';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useRenders } from '@/lib/hooks/use-renders';
-import { ChainList } from '@/components/projects/chain-list';
+import { ChainCard } from '@/components/projects/chain-card';
 import type { Render, Project } from '@/lib/db/schema';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createRenderChain } from '@/lib/actions/projects.actions';
 import { useRouter } from 'next/navigation';
 import { logger } from '@/lib/utils/logger';
+import { useUIPreferencesStore } from '@/lib/stores/ui-preferences-store';
+import { useSearchFilterStore } from '@/lib/stores/search-filter-store';
+import { useModalStore } from '@/lib/stores/modal-store';
 
 type ViewMode = 'default' | 'compact' | 'list';
 
@@ -138,9 +141,8 @@ export default function ProjectSlugPage() {
 
   // Memoize event handlers with useCallback
   const handleView = useCallback((render: Render) => {
-    setSelectedRender(render);
-    setIsModalOpen(true);
-  }, []);
+    openImageModal(render);
+  }, [openImageModal]);
 
   const handleDownload = useCallback((render: Render) => {
     if (render.outputUrl) {
@@ -282,12 +284,32 @@ export default function ProjectSlugPage() {
           </div>
 
           <TabsContent value="chains">
-            <ChainList 
-              chains={chainsWithRenders} 
-              projectId={project.id}
-              projectSlug={project.slug}
-              onCreateChain={handleCreateChain}
-            />
+            {chainsWithRenders.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <ImageIcon className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No Chains Yet</h3>
+                  <p className="text-sm text-muted-foreground mb-4 text-center">
+                    Chains will be created automatically when you generate renders
+                  </p>
+                  <Button onClick={handleCreateChain}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Chain
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {chainsWithRenders.map((chain) => (
+                  <ChainCard
+                    key={chain.id}
+                    chain={chain}
+                    projectSlug={project.slug}
+                    viewMode={viewMode}
+                  />
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="renders" className="mt-0">
@@ -311,10 +333,12 @@ export default function ProjectSlugPage() {
         ) : sortedRenders.length > 0 ? (
           <div className={cn("grid gap-3 sm:gap-4", gridCols)}>
             {sortedRenders.map((render) => (
-              <ImageCard
+              <CommonImageCard
                 key={render.id}
                 render={render}
                 viewMode={viewMode}
+                variant="owner"
+                showUser={false}
                 onView={handleView}
                 onDownload={handleDownload}
                 onLike={handleLike}

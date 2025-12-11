@@ -24,7 +24,7 @@ export const subscriptionPlans = pgTable('subscription_plans', {
   name: text('name').notNull(),
   description: text('description'),
   price: decimal('price', { precision: 10, scale: 2 }).notNull(),
-  currency: text('currency').default('USD').notNull(),
+  currency: text('currency').default('INR').notNull(),
   interval: text('interval', { enum: ['month', 'year'] }).notNull(),
   creditsPerMonth: integer('credits_per_month').notNull(),
   maxProjects: integer('max_projects'),

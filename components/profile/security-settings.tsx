@@ -211,22 +211,17 @@ export function SecuritySettings() {
               <div>
                 <h3 className="font-medium">Current Session</h3>
                 <p className="text-sm text-muted-foreground">
-                  Chrome on Windows • Last active now
+                  This browser • Active now
                 </p>
               </div>
               <Badge variant="outline">Current</Badge>
             </div>
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div>
-                <h3 className="font-medium">Mobile App</h3>
-                <p className="text-sm text-muted-foreground">
-                  iOS App • Last active 2 hours ago
-                </p>
-              </div>
-              <Button variant="outline" size="sm">
-                Revoke
-              </Button>
-            </div>
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                Session management across multiple devices is not yet available. To sign out from all devices, please sign out and sign back in.
+              </AlertDescription>
+            </Alert>
           </div>
         </CardContent>
       </Card>

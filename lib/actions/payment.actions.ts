@@ -185,7 +185,8 @@ export async function createPaymentOrderAction(
  */
 export async function createPaymentSubscriptionAction(
   planId: string,
-  upgrade: boolean = false
+  upgrade: boolean = false,
+  currency?: string
 ) {
   try {
     logger.log('💳 PaymentActions: Creating payment subscription');
@@ -199,10 +200,17 @@ export async function createPaymentSubscriptionAction(
       return { success: false, error: 'User email not found' };
     }
 
+    // Validate currency if provided
+    const finalCurrency = currency && SUPPORTED_CURRENCIES[currency]
+      ? getRazorpayCurrencyCode(currency)
+      : 'INR'; // Default to INR (plan currency)
+
     logger.log('📥 PaymentActions: Received subscription request:', {
       planId,
       upgrade,
       userId: user.id,
+      requestedCurrency: currency,
+      finalCurrency,
     });
 
     // Check for existing subscription
@@ -284,13 +292,46 @@ export async function createPaymentSubscriptionAction(
       }
     }
 
+    // Get plan details for currency conversion
+    const [planData] = await db
+      .select()
+      .from(subscriptionPlans)
+      .where(eq(subscriptionPlans.id, planId))
+      .limit(1);
+
+    if (!planData) {
+      return { success: false, error: 'Subscription plan not found' };
+    }
+
+    // Convert price if currency is different from plan currency
+    let convertedAmount = parseFloat(planData.price);
+    let displayCurrency = planData.currency;
+    
+    if (finalCurrency !== 'INR' && planData.currency === 'INR') {
+      // Convert from INR to target currency for display/reference
+      convertedAmount = await convertCurrency(parseFloat(planData.price), finalCurrency);
+      displayCurrency = finalCurrency;
+      
+      logger.log(`💱 PaymentActions: Converted subscription price: ${planData.price} ${planData.currency} → ${convertedAmount.toFixed(2)} ${finalCurrency}`);
+      
+      // Note: Razorpay subscriptions use the plan's currency (INR), but we store converted amount for reference
+    }
+
     // Create subscription
+    // Note: Razorpay subscriptions use the plan's pre-configured currency (INR)
+    // The converted amount is stored in metadata for reference
     const result = await RazorpayService.createSubscription(
       user.id,
       planId,
       {
         name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
         email: user.email,
+      },
+      {
+        requestedCurrency: finalCurrency,
+        convertedAmount: finalCurrency !== planData.currency ? convertedAmount : undefined,
+        originalAmount: parseFloat(planData.price),
+        originalCurrency: planData.currency,
       }
     );
 

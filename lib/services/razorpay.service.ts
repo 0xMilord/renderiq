@@ -497,6 +497,12 @@ export class RazorpayService {
       name: string;
       email: string;
       contact?: string;
+    },
+    currencyMetadata?: {
+      requestedCurrency?: string;
+      convertedAmount?: number;
+      originalAmount?: number;
+      originalCurrency?: string;
     }
   ) {
     let plan: any = null;
@@ -584,6 +590,8 @@ export class RazorpayService {
       logger.log('💳 RazorpayService: Attempting to create subscription with plan:', plan.razorpayPlanId);
 
       // Create subscription in Razorpay
+      // Note: Razorpay subscriptions use the plan's pre-configured currency
+      // Currency metadata is stored in notes for reference
       const subscriptionOptions = {
         plan_id: plan.razorpayPlanId,
         customer_notify: 1 as 0 | 1,
@@ -591,6 +599,12 @@ export class RazorpayService {
         notes: {
           userId,
           planId,
+          ...(currencyMetadata && {
+            requestedCurrency: currencyMetadata.requestedCurrency,
+            convertedAmount: currencyMetadata.convertedAmount,
+            originalAmount: currencyMetadata.originalAmount,
+            originalCurrency: currencyMetadata.originalCurrency,
+          }),
         },
         ...(razorpayCustomerId && { customer_id: razorpayCustomerId }),
       };

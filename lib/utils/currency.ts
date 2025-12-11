@@ -101,14 +101,13 @@ export function detectUserCurrency(): string {
   try {
     // Try to get from localStorage first
     const savedCurrency = localStorage.getItem('user_currency');
-    // Accept any valid 3-letter currency code EXCEPT USD (default to INR for Razorpay)
-    // If USD is saved, treat it as no preference and default to INR
-    if (savedCurrency && /^[A-Z]{3}$/.test(savedCurrency) && savedCurrency !== 'USD') {
+    // Accept any valid 3-letter currency code
+    if (savedCurrency && /^[A-Z]{3}$/.test(savedCurrency)) {
       return savedCurrency;
     }
     
-    // If USD or invalid, default to INR for Razorpay
-    if (savedCurrency === 'USD' || !savedCurrency) {
+    // If invalid or not saved, default to INR for Razorpay
+    if (!savedCurrency) {
       return BASE_CURRENCY; // INR
     }
 
@@ -151,14 +150,14 @@ export function detectUserCurrency(): string {
 
 /**
  * Get exchange rate from INR to target currency
- * Uses free API: exchangerate-api.com (no API key needed, supports 160+ currencies)
+ * Supports multiple exchange rate APIs with fallback:
+ * 1. Fixer.io (if EXCHANGE_RATE_API_KEY is set)
+ * 2. exchangerate-api.com (free tier, no API key needed)
  * 
  * API Details:
- * - Free tier: No API key required
- * - Updates: Daily (at midnight UTC)
+ * - Fixer.io: Paid service with reliable rates, requires API key
+ * - exchangerate-api.com: Free tier, daily updates at midnight UTC
  * - Supports: All ISO 4217 currencies (160+)
- * - Rate limits: Generous free tier
- * - Endpoint: https://api.exchangerate-api.com/v4/latest/INR
  */
 export async function getExchangeRate(targetCurrency: string): Promise<number> {
   if (targetCurrency === BASE_CURRENCY) {
@@ -175,9 +174,39 @@ export async function getExchangeRate(targetCurrency: string): Promise<number> {
   }
 
   try {
-    // Use exchangerate-api.com (free, no API key needed, supports 160+ currencies)
-    // This API returns rates for ALL currencies in one call
-    const response = await fetch(
+    const apiKey = process.env.EXCHANGE_RATE_API_KEY;
+    let response: Response;
+    let data: any;
+
+    // Try Fixer.io first if API key is available (more reliable)
+    if (apiKey) {
+      try {
+        response = await fetch(
+          `https://api.fixer.io/latest?base=${BASE_CURRENCY}&access_key=${apiKey}`,
+          { 
+            next: { revalidate: 300 }, // Cache for 5 minutes (Next.js)
+            cache: 'force-cache', // Browser cache
+          }
+        );
+
+        if (response.ok) {
+          data = await response.json();
+          if (data.success && data.rates) {
+            const rate = data.rates[targetCurrency];
+            if (rate && typeof rate === 'number') {
+              exchangeRateCache.set(cacheKey, { rate, timestamp: now });
+              return rate;
+            }
+          }
+        }
+      } catch (fixerError) {
+        console.warn('Fixer.io API failed, falling back to exchangerate-api.com:', fixerError);
+        // Fall through to free API
+      }
+    }
+
+    // Fallback to exchangerate-api.com (free, no API key needed)
+    response = await fetch(
       `https://api.exchangerate-api.com/v4/latest/${BASE_CURRENCY}`,
       { 
         next: { revalidate: 300 }, // Cache for 5 minutes (Next.js)
@@ -189,7 +218,7 @@ export async function getExchangeRate(targetCurrency: string): Promise<number> {
       throw new Error(`Failed to fetch exchange rate: ${response.status}`);
     }
 
-    const data = await response.json();
+    data = await response.json();
     
     // The API returns rates object with all currencies
     // Example: { rates: { USD: 0.012, EUR: 0.011, ... } }
@@ -200,10 +229,13 @@ export async function getExchangeRate(targetCurrency: string): Promise<number> {
     const rate = data.rates[targetCurrency];
 
     if (!rate || typeof rate !== 'number') {
-      console.warn(`Exchange rate not found for ${targetCurrency}, using 1`);
-      // Cache a fallback rate to avoid repeated failed lookups
-      exchangeRateCache.set(cacheKey, { rate: 1, timestamp: now });
-      return 1;
+      console.warn(`Exchange rate not found for ${targetCurrency}, using fallback`);
+      // Use fallback rate
+      const fallbackRates = getFallbackRates();
+      const fallbackRate = fallbackRates[targetCurrency] || 1;
+      // Cache fallback rate temporarily (expire in 1 minute)
+      exchangeRateCache.set(cacheKey, { rate: fallbackRate, timestamp: now - CACHE_DURATION + 60000 });
+      return fallbackRate;
     }
 
     // Cache the rate
@@ -219,31 +251,76 @@ export async function getExchangeRate(targetCurrency: string): Promise<number> {
       return cached.rate;
     }
     
-    // Fallback rates (approximate, will be updated on next successful fetch)
-    // These are rough estimates - real rates will be fetched on next attempt
-    const fallbackRates: Record<string, number> = {
-      USD: 0.012, EUR: 0.011, GBP: 0.0095, CAD: 0.016, AUD: 0.018,
-      SGD: 0.016, JPY: 1.8, AED: 0.044, SAR: 0.045, CNY: 0.086,
-      KRW: 16.0, HKD: 0.094, MYR: 0.056, THB: 0.43, IDR: 190,
-      PHP: 0.67, VND: 300, QAR: 0.044, KWD: 0.0037, OMR: 0.0046,
-      BHD: 0.0045, ILS: 0.044, TRY: 0.39, CHF: 0.011, SEK: 0.13,
-      NOK: 0.13, DKK: 0.082, PLN: 0.048, CZK: 0.28, HUF: 4.3,
-      RON: 0.054, RUB: 1.1, MXN: 0.20, BRL: 0.060, ARS: 10.5,
-      CLP: 11.0, COP: 47, PEN: 0.044, NZD: 0.019, ZAR: 0.22,
-      EGP: 0.37, NGN: 18, KES: 1.6, PKR: 3.3, BDT: 1.3,
-      LKR: 3.8, NPR: 1.6,
-    };
-
+    // Use fallback rates
+    const fallbackRates = getFallbackRates();
     const fallbackRate = fallbackRates[targetCurrency];
     if (fallbackRate) {
-      // Cache fallback rate temporarily
-      exchangeRateCache.set(cacheKey, { rate: fallbackRate, timestamp: now - CACHE_DURATION + 60000 }); // Expire in 1 minute
+      // Cache fallback rate temporarily (expire in 1 minute)
+      exchangeRateCache.set(cacheKey, { rate: fallbackRate, timestamp: now - CACHE_DURATION + 60000 });
       return fallbackRate;
     }
 
     // Last resort: return 1 (no conversion)
+    console.warn(`No exchange rate available for ${targetCurrency}, using 1:1 conversion`);
     return 1;
   }
+}
+
+/**
+ * Get fallback exchange rates (updated January 2025)
+ * These are approximate rates used when API fails
+ */
+function getFallbackRates(): Record<string, number> {
+  // Current approximate rates (January 2025): 1 INR = X target currency
+  return {
+    USD: 0.012,      // 1 INR = 0.012 USD (83 INR = 1 USD)
+    EUR: 0.011,      // 1 INR = 0.011 EUR
+    GBP: 0.0095,     // 1 INR = 0.0095 GBP
+    CAD: 0.016,      // 1 INR = 0.016 CAD
+    AUD: 0.018,      // 1 INR = 0.018 AUD
+    SGD: 0.016,      // 1 INR = 0.016 SGD
+    JPY: 1.8,        // 1 INR = 1.8 JPY
+    AED: 0.044,      // 1 INR = 0.044 AED
+    SAR: 0.045,      // 1 INR = 0.045 SAR
+    CNY: 0.086,      // 1 INR = 0.086 CNY
+    KRW: 16.0,       // 1 INR = 16 KRW
+    HKD: 0.094,      // 1 INR = 0.094 HKD
+    MYR: 0.056,      // 1 INR = 0.056 MYR
+    THB: 0.43,       // 1 INR = 0.43 THB
+    IDR: 190,        // 1 INR = 190 IDR
+    PHP: 0.67,       // 1 INR = 0.67 PHP
+    VND: 300,        // 1 INR = 300 VND
+    QAR: 0.044,      // 1 INR = 0.044 QAR
+    KWD: 0.0037,     // 1 INR = 0.0037 KWD
+    OMR: 0.0046,     // 1 INR = 0.0046 OMR
+    BHD: 0.0045,     // 1 INR = 0.0045 BHD
+    ILS: 0.044,      // 1 INR = 0.044 ILS
+    TRY: 0.39,       // 1 INR = 0.39 TRY
+    CHF: 0.011,      // 1 INR = 0.011 CHF
+    SEK: 0.13,       // 1 INR = 0.13 SEK
+    NOK: 0.13,       // 1 INR = 0.13 NOK
+    DKK: 0.082,      // 1 INR = 0.082 DKK
+    PLN: 0.048,      // 1 INR = 0.048 PLN
+    CZK: 0.28,       // 1 INR = 0.28 CZK
+    HUF: 4.3,        // 1 INR = 4.3 HUF
+    RON: 0.054,      // 1 INR = 0.054 RON
+    RUB: 1.1,        // 1 INR = 1.1 RUB
+    MXN: 0.20,       // 1 INR = 0.20 MXN
+    BRL: 0.060,      // 1 INR = 0.060 BRL
+    ARS: 10.5,       // 1 INR = 10.5 ARS
+    CLP: 11.0,       // 1 INR = 11.0 CLP
+    COP: 47,         // 1 INR = 47 COP
+    PEN: 0.044,      // 1 INR = 0.044 PEN
+    NZD: 0.019,      // 1 INR = 0.019 NZD
+    ZAR: 0.22,       // 1 INR = 0.22 ZAR
+    EGP: 0.37,       // 1 INR = 0.37 EGP
+    NGN: 18,         // 1 INR = 18 NGN
+    KES: 1.6,        // 1 INR = 1.6 KES
+    PKR: 3.3,        // 1 INR = 3.3 PKR
+    BDT: 1.3,        // 1 INR = 1.3 BDT
+    LKR: 3.8,        // 1 INR = 3.8 LKR
+    NPR: 1.6,        // 1 INR = 1.6 NPR
+  };
 }
 
 /**

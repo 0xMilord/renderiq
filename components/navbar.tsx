@@ -256,20 +256,20 @@ export function Navbar() {
                     </DropdownMenuTrigger>
                   <DropdownMenuContent 
                     align="start" 
-                    className="bg-background border border-border rounded-lg shadow-lg z-50 p-6"
+                    className="bg-background border border-border rounded-lg shadow-lg z-50 p-4"
                   >
-                    <div className="grid grid-cols-4 gap-2 min-w-[800px] max-w-[900px]">
+                    <div className="grid grid-cols-2 gap-2 min-w-[400px] max-w-[500px]">
                       {/* View All Apps - First Item */}
                       <div className="relative">
                         <DropdownMenuItem asChild>
                           <Link 
                             href="/apps"
-                            className="flex flex-col items-center gap-3 p-4 rounded-lg border border-transparent hover:bg-primary/20 hover:border-primary transition-all min-w-0 text-center"
+                            className="flex items-center gap-2 p-2 rounded-lg border border-transparent hover:bg-primary/20 hover:border-primary transition-all min-w-0"
                           >
-                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                              <Wrench className="h-5 w-5 shrink-0" />
+                            <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0">
+                              <Wrench className="h-3.5 w-3.5 shrink-0" />
                             </div>
-                            <span className="text-sm leading-snug truncate min-w-0 w-full">View All Apps</span>
+                            <span className="text-xs leading-snug truncate min-w-0 flex-1">View All Apps</span>
                           </Link>
                         </DropdownMenuItem>
                       </div>
@@ -280,9 +280,9 @@ export function Navbar() {
                             <DropdownMenuItem asChild>
                               <Link 
                                 href={`/apps/${tool.slug}`}
-                                className="flex flex-col items-center gap-3 p-4 rounded-lg border border-transparent hover:bg-primary/20 hover:border-primary transition-all min-w-0 text-center"
+                                className="flex items-center gap-2 p-2 rounded-lg border border-transparent hover:bg-primary/20 hover:border-primary transition-all min-w-0"
                               >
-                                <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center overflow-hidden">
+                                <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center overflow-hidden shrink-0">
                                   <img 
                                     src={iconPath} 
                                     alt={tool.name}
@@ -293,7 +293,7 @@ export function Navbar() {
                                     }}
                                   />
                                 </div>
-                                <span className="text-sm leading-snug truncate min-w-0 w-full">{tool.name}</span>
+                                <span className="text-xs leading-snug truncate min-w-0 flex-1">{tool.name}</span>
                               </Link>
                             </DropdownMenuItem>
                           </div>
@@ -381,7 +381,7 @@ export function Navbar() {
                                 className="flex flex-col items-center justify-center gap-2 p-3 rounded-lg border border-transparent hover:bg-primary/20 hover:border-primary transition-all group"
                                 onClick={() => setIsOpen(false)}
                               >
-                                <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors overflow-hidden">
+                                <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors overflow-hidden">
                                   <img 
                                     src={iconPath} 
                                     alt={tool.name}

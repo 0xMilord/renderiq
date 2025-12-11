@@ -575,9 +575,9 @@ export function GalleryItemPageClient({ item, similarItems }: GalleryItemPageCli
 
           {/* More like this - Full width */}
           {similarItems.length > 0 && (
-            <section className="mt-12 w-full max-w-full overflow-hidden" aria-label="Similar gallery items">
+            <section className="mt-12 w-full max-w-full" aria-label="Similar gallery items">
               <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">More like this</h2>
-              <div className="h-[600px] overflow-y-auto pr-2 w-full">
+              <div className="w-full">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 w-full max-w-full">
                   {similarItems.map((similarItem) => (
                     <GalleryImageCard

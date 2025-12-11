@@ -10,28 +10,19 @@ export function useCurrency() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Force INR as default for Razorpay (Indian payment gateway)
+    // Default to INR for Razorpay (Indian payment gateway), but allow any valid currency
     if (typeof window === 'undefined') {
       return;
     }
 
     const savedCurrency = localStorage.getItem('user_currency');
     
-    // If USD or no currency saved, reset to INR (Razorpay default)
-    // Only keep non-INR currencies if user explicitly selected them (not USD)
-    if (!savedCurrency || savedCurrency === 'USD') {
-      localStorage.setItem('user_currency', 'INR');
-      setCurrency('INR');
-      loadExchangeRate('INR');
-      return;
-    }
-
-    // Use saved currency if it's valid and not USD
-    if (/^[A-Z]{3}$/.test(savedCurrency) && savedCurrency !== 'USD') {
+    // Use saved currency if it's valid, otherwise default to INR
+    if (savedCurrency && /^[A-Z]{3}$/.test(savedCurrency)) {
       setCurrency(savedCurrency);
       loadExchangeRate(savedCurrency);
     } else {
-      // Invalid or USD, default to INR
+      // No valid currency saved, default to INR
       localStorage.setItem('user_currency', 'INR');
       setCurrency('INR');
       loadExchangeRate('INR');

@@ -165,7 +165,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Protect upload, render, dashboard, engine, and project routes
+  // Protect upload, render, dashboard, engine, canvas, and project routes
   // IMPORTANT: Don't redirect if user is on signup/login pages - they might be in the middle of signup
   // where no session exists yet (email confirmation required)
   if (
@@ -174,6 +174,7 @@ export async function middleware(request: NextRequest) {
     pathname !== '/login' &&
     (pathname.startsWith('/upload') ||
      pathname.startsWith('/render') ||
+     pathname.startsWith('/canvas') ||
      pathname.startsWith('/project') ||
      pathname.startsWith('/dashboard') ||
      pathname.startsWith('/api/protected') ||

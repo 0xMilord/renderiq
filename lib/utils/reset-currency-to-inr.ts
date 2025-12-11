@@ -1,6 +1,7 @@
 /**
- * Utility to reset user currency preference to INR
+ * Utility to set default currency preference to INR if none is saved
  * Call this on app initialization to ensure INR is default for Razorpay
+ * Note: Now allows any valid currency including USD
  */
 
 export function resetCurrencyToINR() {
@@ -10,8 +11,9 @@ export function resetCurrencyToINR() {
 
   const savedCurrency = localStorage.getItem('user_currency');
   
-  // Reset to INR if USD or no currency saved
-  if (!savedCurrency || savedCurrency === 'USD') {
+  // Only set default to INR if no valid currency is saved
+  // Allow any valid 3-letter currency code including USD
+  if (!savedCurrency || !/^[A-Z]{3}$/.test(savedCurrency)) {
     localStorage.setItem('user_currency', 'INR');
   }
 }

@@ -180,7 +180,7 @@ export default function BlogPage() {
       <div className="min-h-screen bg-background">
       {/* Hero */}
       <section className="pt-[calc(1rem+2.75rem+1.5rem)] pb-5 px-4 sm:px-6 lg:px-8 border-b">
-        <div className="w-full max-w-7xl mx-auto">
+        <div className="container mx-auto">
           <div className="max-w-3xl">
             <h1 className="text-4xl md:text-5xl font-bold mb-2">
               Renderiq Blog
@@ -219,7 +219,7 @@ export default function BlogPage() {
 
       {/* Blog List */}
       <section className="py-5 px-4 sm:px-6 lg:px-8">
-        <div className="w-full max-w-7xl mx-auto">
+        <div className="container mx-auto">
           {blogs.length === 0 ? (
             <div className="text-center py-5">
               <p className="text-muted-foreground">No blog posts yet. Check back soon!</p>

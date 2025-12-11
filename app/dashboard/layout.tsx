@@ -356,7 +356,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         className={cn(
           "flex flex-col border-r bg-card transition-all duration-300 shrink-0 overflow-hidden",
           isSidebarOpen 
-            ? "w-1/2 sm:w-60" 
+            ? "w-[55%] sm:w-[275px]" 
             : "w-12"
         )}
       >

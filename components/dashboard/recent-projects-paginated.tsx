@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { FolderOpen, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import type { Project } from '@/lib/db/schema';
-import { ProjectCard } from '@/components/projects/project-card';
+import { ProjectCardMicro } from '@/components/projects/project-card-micro';
 import { useProjects } from '@/lib/hooks/use-projects';
 
 interface RecentProjectsPaginatedProps {
@@ -58,20 +58,16 @@ export function RecentProjectsPaginated({ projects }: RecentProjectsPaginatedPro
       <CardContent className="flex-1 flex flex-col min-h-0 h-[400px]">
         {projects.length > 0 ? (
           <>
-            <div className="space-y-3 flex-1 min-h-0 overflow-y-auto">
+            <div className="space-y-2 flex-1 min-h-0 overflow-y-auto">
               {currentProjects.map((project) => (
-                <ProjectCard
+                <ProjectCardMicro
                   key={project.id}
                   project={project}
-                  viewMode="list"
-                  onEdit={() => refetch()}
-                  onDuplicate={handleDuplicateProject}
-                  onDelete={handleDeleteProject}
                 />
               ))}
               {/* Placeholder items to maintain height */}
               {currentProjects.length < ITEMS_PER_PAGE && Array.from({ length: ITEMS_PER_PAGE - currentProjects.length }).map((_, i) => (
-                <div key={`placeholder-${i}`} className="h-[73px] opacity-0 pointer-events-none" aria-hidden="true" />
+                <div key={`placeholder-${i}`} className="h-[60px] opacity-0 pointer-events-none" aria-hidden="true" />
               ))}
             </div>
             

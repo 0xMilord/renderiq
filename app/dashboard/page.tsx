@@ -54,7 +54,7 @@ export default async function DashboardPage() {
       creditsData,
       renderCountResult
     ] = await Promise.all([
-      ProjectsDAL.getByUserId(user.id, 100), // All projects for pagination
+      ProjectsDAL.getByUserIdWithRenderCounts(user.id, 100, 0), // All projects for pagination with render counts
       ActivityDAL.getUserActivity(user.id, 100), // Unified activity feed (renders + likes)
       BillingDAL.getUserCreditsWithReset(user.id), // User credits
       // Get total render count and completed count in single query
@@ -83,6 +83,11 @@ export default async function DashboardPage() {
   return (
     <div className="h-full w-full">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        {/* Page Title */}
+        <div className="mb-4 sm:mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold">Here&apos;s what&apos;s happening in your dashboard</h1>
+        </div>
+
         {/* Quick Actions Ribbon */}
         <div className="mb-4 sm:mb-6">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-muted/50 border border-border rounded-lg">
@@ -92,28 +97,33 @@ export default async function DashboardPage() {
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-1">
               <Button asChild size="default" variant="default" className="flex-1 min-w-0">
-                <Link href="/render" className="flex items-center justify-center">
-                  <Sparkles className="h-4 w-4" />
+                <Link href="/render" className="flex items-center justify-center gap-2">
+                  <Sparkles className="h-4 w-4 shrink-0" />
+                  <span className="hidden sm:inline">Render</span>
                 </Link>
               </Button>
               <Button asChild size="default" variant="outline" className="relative flex-1 min-w-0">
-                <Link href="/canvas" className="flex items-center justify-center">
-                  <Paintbrush className="h-4 w-4" />
+                <Link href="/canvas" className="flex items-center justify-center gap-2">
+                  <Paintbrush className="h-4 w-4 shrink-0" />
+                  <span className="hidden sm:inline">Canvas</span>
                 </Link>
               </Button>
               <Button asChild size="default" variant="outline" className="flex-1 min-w-0">
-                <Link href="/dashboard/projects" className="flex items-center justify-center">
-                  <FolderOpen className="h-4 w-4" />
+                <Link href="/dashboard/projects" className="flex items-center justify-center gap-2">
+                  <FolderOpen className="h-4 w-4 shrink-0" />
+                  <span className="hidden sm:inline">Projects</span>
                 </Link>
               </Button>
               <Button asChild size="default" variant="outline" className="flex-1 min-w-0">
-                <Link href="/dashboard/billing" className="flex items-center justify-center">
-                  <CreditCard className="h-4 w-4" />
+                <Link href="/dashboard/billing" className="flex items-center justify-center gap-2">
+                  <CreditCard className="h-4 w-4 shrink-0" />
+                  <span className="hidden sm:inline">Billing</span>
                 </Link>
               </Button>
               <Button asChild size="default" variant="outline" className="flex-1 min-w-0">
-                <Link href="/gallery" className="flex items-center justify-center">
-                  <Image className="h-4 w-4" />
+                <Link href="/gallery" className="flex items-center justify-center gap-2">
+                  <Image className="h-4 w-4 shrink-0" />
+                  <span className="hidden sm:inline">Gallery</span>
                 </Link>
               </Button>
             </div>

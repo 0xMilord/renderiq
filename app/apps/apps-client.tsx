@@ -442,7 +442,7 @@ export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
                           </div>
                         </div>
                         
-                        <CardHeader className="flex-1 flex flex-col">
+                        <CardHeader className="flex-1 flex flex-col pt-0">
                           {/* Icon, Title, and Description in same row */}
                           <div className="flex items-start gap-3 mb-3">
                             <div className="rounded-md bg-primary/10 group-hover:bg-primary/20 transition-colors overflow-hidden shrink-0">
