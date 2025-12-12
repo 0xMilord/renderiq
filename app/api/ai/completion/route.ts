@@ -1,11 +1,16 @@
 import { AISDKService } from '@/lib/services/ai-sdk-service';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/utils/logger';
+import { handleCORSPreflight, withCORS } from '@/lib/middleware/cors';
 
 /**
  * Google Generative AI Completion API Route
  */
 export async function POST(request: NextRequest) {
+  // ⚡ Fast path: Handle CORS preflight immediately
+  const preflight = handleCORSPreflight(request);
+  if (preflight) return preflight;
+
   try {
     const { prompt } = await request.json();
 
@@ -30,7 +35,7 @@ export async function POST(request: NextRequest) {
       usage: result.usage
     });
 
-    return Response.json({
+    const successResponse = NextResponse.json({
       success: true,
       data: {
         text: result.text,
@@ -38,10 +43,11 @@ export async function POST(request: NextRequest) {
         provider: 'google-generative-ai'
       }
     });
+    return withCORS(successResponse, request);
 
   } catch (error) {
     logger.error('❌ AI Completion: Completion failed', error);
-    return Response.json(
+    const errorResponse = NextResponse.json(
       { 
         success: false,
         error: 'Completion failed', 
@@ -49,5 +55,6 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     );
+    return withCORS(errorResponse, request);
   }
 }

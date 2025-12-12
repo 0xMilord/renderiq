@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/utils/logger';
 import { unmaskAuthUrl } from '@/lib/utils/url-masker';
+import { handleCORSPreflight, withCORS } from '@/lib/middleware/cors';
 
 /**
  * Auth URL Proxy Route
@@ -21,15 +22,20 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { path: string[] } }
 ) {
+  // ⚡ Fast path: Handle CORS preflight immediately
+  const preflight = handleCORSPreflight(request);
+  if (preflight) return preflight;
+
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     
     if (!supabaseUrl) {
       logger.error('❌ AuthProxy: NEXT_PUBLIC_SUPABASE_URL not configured');
-      return NextResponse.json(
+      const configErrorResponse = NextResponse.json(
         { error: 'Auth proxy not configured' },
         { status: 500 }
       );
+      return withCORS(configErrorResponse, request);
     }
 
     // Reconstruct the path from the catch-all route
@@ -81,17 +87,21 @@ export async function GET(
     // Return the response from Supabase
     const body = await response.text();
     
-    return new NextResponse(body, {
+    const proxyResponse = new NextResponse(body, {
       status: response.status,
       statusText: response.statusText,
       headers,
     });
+    
+    // Add CORS headers to proxied response
+    return withCORS(proxyResponse, request);
   } catch (error) {
     logger.error('❌ AuthProxy: Error proxying request:', error);
-    return NextResponse.json(
+    const errorResponse = NextResponse.json(
       { error: 'Failed to proxy auth request' },
       { status: 500 }
     );
+    return withCORS(errorResponse, request);
   }
 }
 
@@ -99,15 +109,20 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { path: string[] } }
 ) {
+  // ⚡ Fast path: Handle CORS preflight immediately
+  const preflight = handleCORSPreflight(request);
+  if (preflight) return preflight;
+
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     
     if (!supabaseUrl) {
       logger.error('❌ AuthProxy: NEXT_PUBLIC_SUPABASE_URL not configured');
-      return NextResponse.json(
+      const configErrorResponse = NextResponse.json(
         { error: 'Auth proxy not configured' },
         { status: 500 }
       );
+      return withCORS(configErrorResponse, request);
     }
 
     // Reconstruct the path
@@ -161,17 +176,21 @@ export async function POST(
     // Return response
     const responseBody = await response.text();
     
-    return new NextResponse(responseBody, {
+    const proxyResponse = new NextResponse(responseBody, {
       status: response.status,
       statusText: response.statusText,
       headers,
     });
+    
+    // Add CORS headers to proxied response
+    return withCORS(proxyResponse, request);
   } catch (error) {
     logger.error('❌ AuthProxy: Error proxying POST request:', error);
-    return NextResponse.json(
+    const errorResponse = NextResponse.json(
       { error: 'Failed to proxy auth request' },
       { status: 500 }
     );
+    return withCORS(errorResponse, request);
   }
 }
 

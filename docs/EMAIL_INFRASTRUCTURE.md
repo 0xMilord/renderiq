@@ -149,7 +149,7 @@ sendVerificationEmail({
 ```
 1. User signs up → Supabase sends verification email (via Supabase or Resend SMTP)
 2. User clicks verification link → Profile created
-3. Welcome email sent via Resend (with 10 free credits)
+3. Welcome email sent via Resend (with 25 free credits)
 ```
 
 ### 2. Payment Flow

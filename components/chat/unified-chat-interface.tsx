@@ -219,6 +219,8 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   // ✅ FIXED: Network recovery state (declared early to avoid hoisting issues)
   const [isRecovering, setIsRecovering] = useState(false);
   const [recoveryRenderId, setRecoveryRenderId] = useState<string | null>(null);
+  // Pipeline stage events for progress display
+  const [stageEvents, setStageEvents] = useState<Array<{ stage: string; status: 'success' | 'failed'; durationMs: number }>>([]);
   // ✅ MIGRATED: Using Modal Store for limit dialog and prompt modals
   const { 
     limitDialogOpen, 
@@ -344,6 +346,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   const chainName = chain?.name;
   useDynamicTitle(undefined, projectName, chainName);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fullscreenImageUrl, setFullscreenImageUrl] = useState<string | null>(null);
   const [beforeAfterView, setBeforeAfterView] = useState<'before' | 'after'>('after');
   
   // Fixed aspect ratio for better quality
@@ -583,6 +586,21 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     });
     return latest;
   }, [currentRender, chain?.renders, latestRender, completedRenders.length]);
+
+  // ✅ Extract stage events from render metadata when render is loaded
+  useEffect(() => {
+    if (renderWithLatestData && renderWithLatestData.status === 'completed') {
+      // Try to extract stage events from metadata or contextData
+      const metadata = (renderWithLatestData as any).metadata;
+      const contextData = (renderWithLatestData as any).contextData;
+      
+      if (metadata?.stageEvents && Array.isArray(metadata.stageEvents)) {
+        setStageEvents(metadata.stageEvents);
+      } else if (contextData?.stageEvents && Array.isArray(contextData.stageEvents)) {
+        setStageEvents(contextData.stageEvents);
+      }
+    }
+  }, [renderWithLatestData?.id, renderWithLatestData?.status]);
 
   const displayVersion = useMemo(() => {
     return getVersionNumber(renderWithLatestData, chain?.renders) || 1;
@@ -1468,6 +1486,24 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
             throw new Error('Failed to get response from API');
           }
         } catch (error) {
+          // ✅ FIXED: Check if error contains limit error info from retryFetch
+          // retryFetch attaches errorJson to the error object when API returns error status
+          const errorWithJson = error as any;
+          if (errorWithJson.errorJson?.limitReached) {
+            // Extract limit error info and show dialog
+            openLimitDialog({
+              limitType: errorWithJson.errorJson.limitType || 'credits',
+              current: errorWithJson.errorJson.current || 0,
+              limit: errorWithJson.errorJson.limit ?? null,
+              planName: errorWithJson.errorJson.planName || 'Free',
+              message: errorWithJson.errorJson.error || errorWithJson.message || 'Limit reached',
+            });
+            // Don't show error toast - dialog handles it
+            setIsGenerating(false);
+            setProgress(0);
+            return; // Exit early - don't proceed with error handling
+          }
+          
           // Re-throw to be caught by outer catch block
           throw error;
         }
@@ -1482,6 +1518,11 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         });
         
         if (apiResult.success && apiResult.data) {
+          // Extract stage events from metadata if available
+          if (apiResult.data.metadata?.stageEvents) {
+            setStageEvents(apiResult.data.metadata.stageEvents);
+          }
+          
           result = {
             success: true,
             data: {
@@ -1663,6 +1704,29 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     } catch (error) {
       logger.error(`Failed to generate ${generationType}:`, error);
       
+      // ✅ FIXED: Check if error contains limit error info from retryFetch
+      // retryFetch attaches errorJson to the error object when API returns error status
+      const errorWithJson = error as any;
+      if (errorWithJson.errorJson?.limitReached) {
+        // Extract limit error info and show dialog
+        openLimitDialog({
+          limitType: errorWithJson.errorJson.limitType || 'credits',
+          current: errorWithJson.errorJson.current || 0,
+          limit: errorWithJson.errorJson.limit ?? null,
+          planName: errorWithJson.errorJson.planName || 'Free',
+          message: errorWithJson.errorJson.error || errorWithJson.message || 'Limit reached',
+        });
+        // Don't show error toast - dialog handles it
+        // Update assistant message with error state
+        updateMessage(assistantMessage.id, {
+          content: getRenderiqMessage(0, isVideoMode, true),
+          isGenerating: false
+        });
+        setIsGenerating(false);
+        setProgress(0);
+        return; // Exit early - don't proceed with error handling
+      }
+      
       // Track render failed
       const errorMessage = error instanceof Error ? error.message : String(error);
       trackRenderFailed(generationType, renderStyle, quality, errorMessage);
@@ -1721,15 +1785,57 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   };
 
 
-  const handleDownload = () => {
-    if (currentRender?.outputUrl) {
+  const handleDownload = async () => {
+    if (!currentRender?.outputUrl) return;
+    
+    const outputUrl = currentRender.outputUrl;
+    const fileExtension = currentRender.type === 'video' ? 'mp4' : 'png';
+    const fileName = `render-${currentRender.id}.${fileExtension}`;
+    
+    // Check if URL is same-origin (download attribute works)
+    let isSameOrigin = false;
+    try {
+      const url = new URL(outputUrl, window.location.href);
+      isSameOrigin = url.origin === window.location.origin;
+    } catch (urlError) {
+      // Invalid URL format, treat as cross-origin and try fetch
+      console.warn('Invalid URL format, attempting fetch:', urlError);
+    }
+    
+    if (isSameOrigin) {
+      // Same-origin: Use direct download link (fastest)
       const link = document.createElement('a');
-      link.href = currentRender.outputUrl;
-      const fileExtension = currentRender.type === 'video' ? 'mp4' : 'png';
-      link.download = `render-${currentRender.id}.${fileExtension}`;
+      link.href = outputUrl;
+      link.download = fileName;
+      link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      toast.success('Download started');
+    } else {
+      // Cross-origin: Try fetch first, fallback to opening in new tab
+      try {
+        const response = await fetch(outputUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+        toast.success('Download started');
+      } catch (fetchError) {
+        // CORS error or other fetch failure: Open in new tab
+        console.warn('Download fetch failed (likely CORS), opening in new tab:', fetchError);
+        window.open(outputUrl, '_blank');
+        toast.info('Opened in new tab. Right-click and "Save As" to download.');
+      }
     }
   };
 
@@ -2561,10 +2667,16 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                     />
                   )}
                   
-                  {/* Show uploaded image in user message */}
+                  {/* Show uploaded image in user message - same size as generated image */}
                   {message.uploadedImage && message.uploadedImage.previewUrl && (
-                    <div className="mt-2">
-                      <div className="relative w-24 h-16 sm:w-32 sm:h-20 bg-muted/20 rounded-lg overflow-hidden border border-white/20">
+                    <div className="mt-2 w-full max-w-full overflow-hidden">
+                      <div className="relative w-full max-w-full aspect-video rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity bg-muted/20 border border-white/20 group"
+                        onClick={() => {
+                          // Open fullscreen dialog
+                          setFullscreenImageUrl(message.uploadedImage!.previewUrl);
+                          setIsFullscreen(true);
+                        }}
+                      >
                         {shouldUseRegularImg(message.uploadedImage.previewUrl) ? (
                           <img
                             src={message.uploadedImage.previewUrl}
@@ -2595,6 +2707,10 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                             className="object-cover"
                           />
                         )}
+                        {/* Fullscreen indicator on hover */}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <Maximize className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
                       </div>
                       <p className="text-[10px] sm:text-xs text-white/70 mt-1">
                         {message.uploadedImage.persistedUrl ? 'Using uploaded image' : 'Working with uploaded image'}
@@ -2625,8 +2741,17 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                       <div className="mb-1 flex items-center justify-between">
                         <span className="text-[10px] sm:text-xs text-muted-foreground">Version {getVersionNumber(message.render, chain?.renders) || index + 1}</span>
                       </div>
-                      <div className="relative w-full max-w-full aspect-video rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity bg-muted animate-in fade-in-0 zoom-in-95 duration-500"
-                        onClick={() => {
+                      <div className="relative w-full max-w-full aspect-video rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity bg-muted animate-in fade-in-0 zoom-in-95 duration-500 group"
+                        onClick={(e) => {
+                          // Open fullscreen on click
+                          if (message.render!.outputUrl) {
+                            setFullscreenImageUrl(message.render!.outputUrl);
+                            setIsFullscreen(true);
+                          }
+                        }}
+                        onDoubleClick={(e) => {
+                          // Double-click to open render view
+                          e.stopPropagation();
                           // ✅ SIMPLIFIED: Get render from chain.renders (single source of truth)
                           const renderToSet = getRenderById(chain?.renders, message.render!.id) || message.render!;
                           userSelectedRenderIdRef.current = renderToSet.id;
@@ -2653,6 +2778,10 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                           }
                         }}
                       >
+                        {/* Fullscreen indicator on hover */}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center pointer-events-none z-10">
+                          <Maximize className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
                         {message.render.type === 'video' ? (
                           message.render.outputUrl ? (
                             <video
@@ -2792,13 +2921,15 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                           setSelectedVideoModel(modelId);
                         } else {
                           setSelectedImageModel(modelId);
-                          // Auto-adjust quality if current quality is not supported
-                          const modelConfig = getModelConfig(modelId);
-                          if (modelConfig && modelConfig.type === 'image') {
-                            if (!modelSupportsQuality(modelId, quality as 'standard' | 'high' | 'ultra')) {
-                              const maxQuality = getMaxQuality(modelId);
-                              setQuality(maxQuality);
-                              toast.info(`Quality adjusted to ${maxQuality} (maximum supported by selected model)`);
+                          // Auto-adjust quality if current quality is not supported (skip for "auto" mode)
+                          if (modelId !== 'auto') {
+                            const modelConfig = getModelConfig(modelId);
+                            if (modelConfig && modelConfig.type === 'image') {
+                              if (!modelSupportsQuality(modelId, quality as 'standard' | 'high' | 'ultra')) {
+                                const maxQuality = getMaxQuality(modelId);
+                                setQuality(maxQuality);
+                                toast.info(`Quality adjusted to ${maxQuality} (maximum supported by selected model)`);
+                              }
                             }
                           }
                         }
@@ -3843,6 +3974,20 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                                 <span>{Math.round(Math.min(progress, 100))}%</span>
                               </div>
                               <Progress value={Math.min(progress, 100)} className="h-1.5 sm:h-2" />
+                              {/* Pipeline Stage Events */}
+                              {stageEvents.length > 0 && (
+                                <div className="mt-2 space-y-1">
+                                  {stageEvents.map((event, idx) => (
+                                    <div key={idx} className="flex items-center gap-2 text-xs text-muted-foreground">
+                                      <div className={`w-1.5 h-1.5 rounded-full ${
+                                        event.status === 'success' ? 'bg-green-500' : 'bg-red-500'
+                                      }`} />
+                                      <span className="capitalize">{event.stage.replace(/_/g, ' ')}</span>
+                                      <span className="ml-auto text-[10px]">{(event.durationMs / 1000).toFixed(1)}s</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -4108,6 +4253,26 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                         </div>
                       </div>
 
+                      {/* Pipeline Stage Events - Show below image */}
+                      {stageEvents.length > 0 && (
+                        <div className="p-2 border-t border-border bg-background flex-shrink-0">
+                          <div className="space-y-1">
+                            <div className="text-xs font-medium text-muted-foreground mb-1">
+                              Pipeline Stages
+                            </div>
+                            {stageEvents.map((event, idx) => (
+                              <div key={idx} className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <div className={`w-1.5 h-1.5 rounded-full ${
+                                  event.status === 'success' ? 'bg-green-500' : 'bg-red-500'
+                                }`} />
+                                <span className="capitalize flex-1">{event.stage.replace(/_/g, ' ')}</span>
+                                <span className="text-[10px] text-muted-foreground/70">{(event.durationMs / 1000).toFixed(1)}s</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Upscaling Result */}
                       {upscalingResult && (
                         <div className="p-1.5 sm:p-2 border-t border-border bg-background flex-shrink-0">
@@ -4289,35 +4454,27 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         </DialogContent>
       </Dialog>
 
-      {/* Fullscreen Image Dialog */}
-      {isFullscreen && currentRender && (
+      {/* Fullscreen Image Dialog - Supports both render images and uploaded images */}
+      {isFullscreen && (currentRender || fullscreenImageUrl) && (
         <div 
           className="fixed inset-0 z-50 bg-black flex items-center justify-center"
-          onClick={() => setIsFullscreen(false)}
+          onClick={() => {
+            setIsFullscreen(false);
+            setFullscreenImageUrl(null);
+          }}
         >
           <div className="relative w-full h-full flex items-center justify-center p-4">
-            {currentRender.type === 'video' ? (
-              <video
-                src={currentRender.outputUrl}
-                className="max-w-full max-h-full object-contain"
-                controls
-                loop
-                muted
-                playsInline
-                autoPlay
-                onClick={(e) => e.stopPropagation()}
-              />
-            ) : currentRender.outputUrl ? (
-              // Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking
-              shouldUseRegularImg(currentRender.outputUrl) ? (
+            {fullscreenImageUrl ? (
+              // Fullscreen for uploaded image
+              shouldUseRegularImg(fullscreenImageUrl) ? (
                 <img
-                  src={currentRender.outputUrl}
-                  alt={currentRender.prompt}
+                  src={fullscreenImageUrl}
+                  alt="Uploaded image"
                   className="max-w-full max-h-full object-contain"
                   onClick={(e) => e.stopPropagation()}
                   onError={(e) => {
                     const img = e.target as HTMLImageElement;
-                    const originalUrl = currentRender.outputUrl;
+                    const originalUrl = fullscreenImageUrl;
                     console.error('Image load error:', originalUrl);
                     logger.error('Failed to load image:', originalUrl);
                     
@@ -4334,40 +4491,98 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                 />
               ) : (
                 <Image
-                  src={currentRender.outputUrl}
-                  alt={currentRender.prompt}
+                  src={fullscreenImageUrl}
+                  alt="Uploaded image"
                   width={1200}
                   height={800}
                   className="max-w-full max-h-full object-contain"
                   onClick={(e) => e.stopPropagation()}
                   onError={(e) => {
-                    console.error('Image load error:', currentRender.outputUrl);
-                    logger.error('Failed to load image:', currentRender.outputUrl);
+                    console.error('Image load error:', fullscreenImageUrl);
+                    logger.error('Failed to load image:', fullscreenImageUrl);
                   }}
                 />
               )
-            ) : (
-              <div className="flex items-center justify-center text-white">
-                <ImageIcon className="h-16 w-16 text-muted-foreground" />
-              </div>
-            )}
+            ) : currentRender ? (
+              // Fullscreen for render image
+              currentRender.type === 'video' ? (
+                <video
+                  src={currentRender.outputUrl}
+                  className="max-w-full max-h-full object-contain"
+                  controls
+                  loop
+                  muted
+                  playsInline
+                  autoPlay
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : currentRender.outputUrl ? (
+                // Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking
+                shouldUseRegularImg(currentRender.outputUrl) ? (
+                  <img
+                    src={currentRender.outputUrl}
+                    alt={currentRender.prompt}
+                    className="max-w-full max-h-full object-contain"
+                    onClick={(e) => e.stopPropagation()}
+                    onError={(e) => {
+                      const img = e.target as HTMLImageElement;
+                      const originalUrl = currentRender.outputUrl;
+                      console.error('Image load error:', originalUrl);
+                      logger.error('Failed to load image:', originalUrl);
+                      
+                      // Try CDN fallback to direct GCS URL
+                      const fallbackUrl = handleImageErrorWithFallback(originalUrl, e);
+                      if (fallbackUrl && fallbackUrl !== '/placeholder-image.jpg') {
+                        console.log('Trying fallback to direct GCS URL:', fallbackUrl);
+                        img.src = fallbackUrl;
+                      } else {
+                        // No fallback available, use placeholder
+                        img.src = '/placeholder-image.jpg';
+                      }
+                    }}
+                  />
+                ) : (
+                  <Image
+                    src={currentRender.outputUrl}
+                    alt={currentRender.prompt}
+                    width={1200}
+                    height={800}
+                    className="max-w-full max-h-full object-contain"
+                    onClick={(e) => e.stopPropagation()}
+                    onError={(e) => {
+                      console.error('Image load error:', currentRender.outputUrl);
+                      logger.error('Failed to load image:', currentRender.outputUrl);
+                    }}
+                  />
+                )
+              ) : (
+                <div className="flex items-center justify-center text-white">
+                  <ImageIcon className="h-16 w-16 text-muted-foreground" />
+                </div>
+              )
+            ) : null}
             
             {/* Close Button */}
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setIsFullscreen(false)}
+              onClick={() => {
+                setIsFullscreen(false);
+                setFullscreenImageUrl(null);
+              }}
               className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white h-10 w-10 rounded-full"
             >
               <X className="h-6 w-6" />
             </Button>
             
             {/* Image Info */}
-            <div className="absolute bottom-4 left-4 right-4 text-center">
-              <p className="text-white text-sm bg-black/50 px-3 py-1 rounded">
-                {currentRender.prompt}
-              </p>
-            </div>
+            {currentRender && (
+              <div className="absolute bottom-4 left-4 right-4 text-center">
+                <p className="text-white text-sm bg-black/50 px-3 py-1 rounded">
+                  {currentRender.prompt}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}

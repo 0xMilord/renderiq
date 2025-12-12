@@ -8,7 +8,7 @@ This document describes the comprehensive sybil attack prevention system impleme
 
 **The Issue:**
 - Users create multiple Gmail accounts (e.g., 10 accounts)
-- Each account claims 10 free credits on signup
+- Each account claims 25 free credits on signup
 - Users consume ~100 credits/month across all accounts (worth ~500 INR)
 - At scale (10k users), this results in significant financial loss
 
@@ -100,7 +100,7 @@ A multi-layered sybil detection system that:
 
 | Risk Level | Score Range | Credits Awarded | Action |
 |------------|-------------|-----------------|--------|
-| **Low** | 0-29 | 10 credits | Full credits, no restrictions |
+| **Low** | 0-29 | 25 credits | Full credits, no restrictions |
 | **Medium** | 30-49 | 5 credits | Reduced credits, monitor |
 | **High** | 50-69 | 2 credits | Significantly reduced, flag for review |
 | **Critical** | 70-100 | 0 credits | Account blocked, manual review required |
@@ -121,8 +121,8 @@ const CONFIG = {
     CRITICAL: 85,
   },
   INITIAL_CREDITS: {
-    TRUSTED: 10,
-    LOW_RISK: 10,
+    TRUSTED: 25,
+    LOW_RISK: 25,
     MEDIUM_RISK: 5,
     HIGH_RISK: 2,
     CRITICAL_RISK: 0,

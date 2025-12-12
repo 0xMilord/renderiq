@@ -612,7 +612,7 @@ export async function sendWelcomeEmail(data: MarketingEmailData): Promise<{ succ
     <h2>Welcome to Renderiq! 🎉</h2>
     <p>Hi ${data.name},</p>
     <p>Thank you for joining Renderiq! We're excited to have you on board.</p>
-    <p>As a welcome gift, you've received <span class="highlight">10 free credits</span> to get started!</p>
+    <p>As a welcome gift, you've received <span class="highlight">25 free credits</span> to get started!</p>
     <p style="text-align: center;">
       <a href="${APP_URL}/dashboard" class="button">Start Creating</a>
     </p>
@@ -631,7 +631,7 @@ export async function sendWelcomeEmail(data: MarketingEmailData): Promise<{ succ
     to: data.email,
     subject: 'Welcome to Renderiq!',
     html: getBaseTemplate(content, 'Welcome to Renderiq'),
-    text: `Hi ${data.name},\n\nThank you for joining Renderiq! We're excited to have you on board.\n\nAs a welcome gift, you've received 10 free credits to get started!\n\nStart creating: ${APP_URL}/dashboard\n\nIf you have any questions, our support team is here to help.`,
+    text: `Hi ${data.name},\n\nThank you for joining Renderiq! We're excited to have you on board.\n\nAs a welcome gift, you've received 25 free credits to get started!\n\nStart creating: ${APP_URL}/dashboard\n\nIf you have any questions, our support team is here to help.`,
   });
 }
 

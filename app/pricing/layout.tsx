@@ -15,7 +15,7 @@ const pricingProductSchema = generateProductSchema({
       priceCurrency: 'USD',
       availability: 'InStock',
       url: `${siteUrl}/signup`,
-      description: '10 free credits to get started with AI rendering'
+      description: '25 free credits to get started with AI rendering'
     },
     {
       name: 'Starter Plan',
@@ -46,7 +46,7 @@ const pricingProductSchema = generateProductSchema({
 
 export const metadata: Metadata = {
   title: "Pricing | Renderiq - AI Architectural Visualization Plans & Credits",
-  description: "Affordable AI architectural rendering pricing. Free tier with 10 credits. Starter $7.99/month (₹799, 100 credits), Pro $24.99/month (₹2,499, 400 credits), Enterprise $64.99/month (₹6,499, 1,200 credits). Annual plans available. Compare pricing for AEC visualization software.",
+  description: "Affordable AI architectural rendering pricing. Free tier with 25 credits. Starter $7.99/month (₹799, 100 credits), Pro $24.99/month (₹2,499, 400 credits), Enterprise $64.99/month (₹6,499, 1,200 credits). Annual plans available. Compare pricing for AEC visualization software.",
   keywords: [
     "AI architecture pricing", "architectural rendering cost", "AI rendering pricing", "architecture software pricing",
     "AEC software pricing", "architectural visualization pricing", "rendering software cost", "AI architecture tools pricing",

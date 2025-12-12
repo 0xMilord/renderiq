@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { handleCORSPreflight, withCORS } from '@/lib/middleware/cors';
 
 // Cache for exchange rates (5 minutes)
 const exchangeRateCache = new Map<string, { rate: number; timestamp: number }>();
@@ -70,16 +71,21 @@ function getFallbackRates(): Record<string, number> {
  * 2. exchangerate-api.com (free tier, no API key needed)
  */
 export async function GET(request: NextRequest) {
+  // ⚡ Fast path: Handle CORS preflight immediately
+  const preflight = handleCORSPreflight(request);
+  if (preflight) return preflight;
+  
   try {
     const { searchParams } = new URL(request.url);
     const targetCurrency = searchParams.get('currency')?.toUpperCase() || BASE_CURRENCY;
 
     if (targetCurrency === BASE_CURRENCY) {
-      return NextResponse.json({ 
+      const baseResponse = NextResponse.json({ 
         success: true, 
         currency: targetCurrency,
         rate: 1 
       });
+      return withCORS(baseResponse, request);
     }
 
     const cacheKey = `${BASE_CURRENCY}_${targetCurrency}`;
@@ -88,12 +94,13 @@ export async function GET(request: NextRequest) {
 
     // Return cached rate if still valid
     if (cached && (now - cached.timestamp) < CACHE_DURATION) {
-      return NextResponse.json({
+      const cachedResponse = NextResponse.json({
         success: true,
         currency: targetCurrency,
         rate: cached.rate,
         cached: true,
       });
+      return withCORS(cachedResponse, request);
     }
 
     const apiKey = process.env.EXCHANGE_RATE_API_KEY;
@@ -116,12 +123,13 @@ export async function GET(request: NextRequest) {
             const rate = data.rates[targetCurrency];
             if (rate && typeof rate === 'number') {
               exchangeRateCache.set(cacheKey, { rate, timestamp: now });
-              return NextResponse.json({
+              const apiResponse = NextResponse.json({
                 success: true,
                 currency: targetCurrency,
                 rate,
                 source: 'fixer.io',
               });
+              return withCORS(apiResponse, request);
             }
           }
         }
@@ -157,24 +165,26 @@ export async function GET(request: NextRequest) {
       const fallbackRate = fallbackRates[targetCurrency] || 1;
       exchangeRateCache.set(cacheKey, { rate: fallbackRate, timestamp: now - CACHE_DURATION + 60000 }); // Expire in 1 minute
       
-      return NextResponse.json({
+      const fallbackResponse = NextResponse.json({
         success: true,
         currency: targetCurrency,
         rate: fallbackRate,
         fallback: true,
         source: 'fallback',
       });
+      return withCORS(fallbackResponse, request);
     }
 
     // Cache the rate
     exchangeRateCache.set(cacheKey, { rate, timestamp: now });
 
-    return NextResponse.json({
+    const successResponse = NextResponse.json({
       success: true,
       currency: targetCurrency,
       rate,
       source: 'exchangerate-api.com',
     });
+    return withCORS(successResponse, request);
   } catch (error) {
     console.error('Error fetching exchange rate:', error);
     
@@ -185,7 +195,7 @@ export async function GET(request: NextRequest) {
     const fallbackRates = getFallbackRates();
     const fallbackRate = fallbackRates[targetCurrency] || 1;
     
-    return NextResponse.json({
+    const errorResponse = NextResponse.json({
       success: false,
       error: 'Failed to fetch exchange rate',
       currency: targetCurrency,
@@ -193,6 +203,7 @@ export async function GET(request: NextRequest) {
       fallback: true,
       source: 'fallback',
     }, { status: 500 });
+    return withCORS(errorResponse, request);
   }
 }
 

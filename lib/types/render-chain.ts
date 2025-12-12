@@ -13,6 +13,23 @@ export interface ContextData {
   previousPrompts?: string[];
   userFeedback?: string;
   chainEvolution?: string;
+  // Pipeline memory from technical moat Stage 7
+  pipelineMemory?: {
+    styleCodes?: {
+      colorPalette: string[];
+      lightingStyle: string;
+      materialStyle: string;
+      architecturalStyle: string;
+    };
+    palette?: string[];
+    geometry?: {
+      perspective: 'orthographic' | 'perspective' | 'isometric';
+      focalLength: string;
+      cameraAngle: string;
+    };
+    materials?: string[];
+    extractedAt?: string;
+  };
 }
 
 // Render with context

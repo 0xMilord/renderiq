@@ -78,6 +78,8 @@ export async function createRenderAction(formData: FormData) {
     const referenceRenderId = formData.get('referenceRenderId') as string | null;
     const negativePrompt = formData.get('negativePrompt') as string | null;
     const imageType = formData.get('imageType') as string | null;
+    const model = formData.get('model') as string | null; // ✅ Extract model for model-based pricing
+    const imageSize = formData.get('imageSize') as '1K' | '2K' | '4K' | null;
     
     // Check if user has pro subscription
     const isPro = await BillingDAL.isUserPro(userId);
@@ -105,7 +107,6 @@ export async function createRenderAction(formData: FormData) {
     const styleTransferImageType = formData.get('styleTransferImageType') as string | null || formData.get('styleReferenceImageType') as string | null;
     const temperatureParam = formData.get('temperature') as string | null;
     const temperature = temperatureParam ? parseFloat(temperatureParam) : 0.7;
-    const imageSize = formData.get('imageSize') as '1K' | '2K' | '4K' | null;
 
     // Validate required fields
     if (!prompt || !style || !quality || !aspectRatio || !type || !projectId) {
@@ -171,31 +172,63 @@ export async function createRenderAction(formData: FormData) {
       };
     }
 
-    // Calculate credits cost
-    // Image: 5 credits base (standard), 10 credits (high), 15 credits (ultra)
-    // For upscaling: multiply by resolution multiplier (1K=1x, 2K=2x, 4K=4x)
-    // Note: For upscale tool, quality is forced to 'standard' and only resolution matters
-    // Video: 30 credits per second (based on Veo 3.1 pricing with 2x markup and 100 INR/USD conversion)
-    // For batch requests: multiply by number of requests
-    // Define these outside the if/else so they're accessible for batch processing
-    const baseCreditsPerImage = 5;
-    
-    // Resolution multiplier for upscaling (1K=1x, 2K=2x, 4K=4x)
-    const resolutionMultiplier = imageSize === '4K' ? 4 : imageSize === '2K' ? 2 : 1;
-    
-    // For upscaling (when imageSize is provided), don't use quality multiplier
-    // Quality multiplier only applies to non-upscale tools
-    const isUpscaleTool = !!imageSize;
-    const qualityMultiplier = isUpscaleTool ? 1 : (quality === 'high' ? 2 : quality === 'ultra' ? 3 : 1);
+    // ✅ FIX: Use centralized model-based pricing instead of fixed pricing
+    // This ensures consistency with API route and base tool component display
+    const { getModelConfig, getDefaultModel } = await import('@/lib/config/models');
     
     let creditsCost: number;
     if (type === 'video') {
-      // Video: 30 credits per second
+      // Video generation: Use model-based pricing
+      const videoModelId = model || getDefaultModel('video').id;
+      const modelConfig = getModelConfig(videoModelId as any);
       const duration = parseInt(formData.get('duration') as string) || 5;
-      const creditsPerSecond = 30;
-      creditsCost = creditsPerSecond * duration;
+      
+      if (!modelConfig || modelConfig.type !== 'video') {
+        logger.warn('⚠️ Invalid video model, using default');
+        const defaultModel = getDefaultModel('video');
+        creditsCost = defaultModel.calculateCredits({ duration });
+      } else {
+        creditsCost = modelConfig.calculateCredits({ duration });
+      }
+      
+      logger.log('💰 Video credits cost calculation:', {
+        model: videoModelId,
+        duration,
+        totalCredits: creditsCost
+      });
     } else {
-      // Check if this is a batch request
+      // Image generation: Use model-based pricing
+      const imageModelId = model || getDefaultModel('image').id;
+      const modelConfig = getModelConfig(imageModelId as any);
+      const effectiveImageSize = imageSize || (quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K');
+      
+      // ✅ FIX: For "auto" mode, use maximum cost (same as API route)
+      if (imageModelId === 'auto') {
+        const maxCostModel = getModelConfig('gemini-3-pro-image-preview' as any);
+        if (maxCostModel && maxCostModel.type === 'image') {
+          creditsCost = maxCostModel.calculateCredits({ quality, imageSize: effectiveImageSize });
+          logger.log('💰 Image credits cost calculation (auto mode - using max cost):', {
+            model: 'auto',
+            estimatedModel: 'gemini-3-pro-image-preview',
+            quality,
+            imageSize: effectiveImageSize,
+            totalCredits: creditsCost,
+            note: 'Will refund difference if cheaper model is selected'
+          });
+        } else {
+          const defaultModel = getDefaultModel('image');
+          creditsCost = defaultModel.calculateCredits({ quality, imageSize: effectiveImageSize });
+          logger.warn('⚠️ Max cost model not found for auto mode, using default');
+        }
+      } else if (!modelConfig || modelConfig.type !== 'image') {
+        logger.warn('⚠️ Invalid image model, using default');
+        const defaultModel = getDefaultModel('image');
+        creditsCost = defaultModel.calculateCredits({ quality, imageSize: effectiveImageSize });
+      } else {
+        creditsCost = modelConfig.calculateCredits({ quality, imageSize: effectiveImageSize });
+      }
+      
+      // For batch: multiply by number of requests
       const useBatchAPI = formData.get('useBatchAPI') === 'true';
       let numberOfRequests = 1;
       
@@ -212,17 +245,17 @@ export async function createRenderAction(formData: FormData) {
         }
       }
       
-      // Image: 5 credits base, multiplied by quality (if not upscale), multiplied by resolution (if upscale), multiplied by number of requests
-      if (isUpscaleTool) {
-        // For upscaling: base × resolution × requests (no quality multiplier)
-        creditsCost = baseCreditsPerImage * resolutionMultiplier * numberOfRequests;
-        logger.log(`💰 Upscale credits cost calculation: ${baseCreditsPerImage} base × ${resolutionMultiplier} resolution (${imageSize}) × ${numberOfRequests} requests = ${creditsCost} credits`);
-      } else {
-        // For regular tools: base × quality × requests (no resolution multiplier)
-        creditsCost = baseCreditsPerImage * qualityMultiplier * numberOfRequests;
-        if (useBatchAPI) {
-          logger.log(`💰 Batch credits cost calculation: ${numberOfRequests} requests × ${baseCreditsPerImage} base × ${qualityMultiplier} quality = ${creditsCost} credits`);
-        }
+      creditsCost = creditsCost * numberOfRequests;
+      
+      if (imageModelId !== 'auto') {
+        logger.log('💰 Image credits cost calculation:', {
+          model: imageModelId,
+          quality,
+          imageSize: effectiveImageSize,
+          numberOfRequests: useBatchAPI ? numberOfRequests : 1,
+          isBatch: useBatchAPI,
+          totalCredits: creditsCost
+        });
       }
     }
 
@@ -534,6 +567,17 @@ export async function createRenderAction(formData: FormData) {
         }
       }
       
+      // ✅ FIX: Calculate credits per batch item using model-based pricing
+      // Each batch item should use the same credit calculation as the main request
+      // Divide total credits by number of requests to get per-item cost
+      const batchItemCreditsCost = Math.ceil(creditsCost / numberOfRequests);
+      
+      logger.log('💰 Batch credits calculation:', {
+        totalCredits: creditsCost,
+        numberOfRequests,
+        perItemCredits: batchItemCreditsCost
+      });
+      
       // Process renders asynchronously (don't await - let them process in background)
       // This allows the server action to return immediately with render IDs
       Promise.all(renderRecords.map(async ({ renderId, batchRequest, label }) => {
@@ -582,7 +626,7 @@ export async function createRenderAction(formData: FormData) {
             imageSize: imageSize || null,
             projectId,
             userId: userId,
-            creditsCost: baseCreditsPerImage * qualityMultiplier * resolutionMultiplier, // Single item cost with resolution multiplier
+            creditsCost: batchItemCreditsCost, // ✅ FIX: Use calculated per-item cost from model-based pricing
             isPublic,
           });
 

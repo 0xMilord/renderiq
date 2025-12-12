@@ -260,6 +260,34 @@ export class RendersDAL {
     };
   }
 
+  /**
+   * Get latest completed render in chain with pipeline memory
+   * ✅ OPTIMIZED: Single query with WHERE, ORDER BY, LIMIT
+   */
+  static async getLatestCompletedRenderWithMemory(chainId: string) {
+    logger.log('🔍 [OPTIMIZED] Fetching latest completed render with memory for chain:', chainId);
+    
+    const [render] = await db
+      .select()
+      .from(renders)
+      .where(
+        and(
+          eq(renders.chainId, chainId),
+          eq(renders.status, 'completed')
+        )
+      )
+      .orderBy(desc(renders.chainPosition))
+      .limit(1);
+
+    if (!render) {
+      logger.log('⚠️ No completed renders found in chain');
+      return null;
+    }
+
+    logger.log('✅ [OPTIMIZED] Found latest completed render:', render.id);
+    return render;
+  }
+
   static async updateContext(renderId: string, context: ContextData) {
     logger.log('🔄 Updating render context:', { renderId, context });
     

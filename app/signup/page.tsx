@@ -280,7 +280,7 @@ export default function SignupPage() {
               </Button>
             </div>
             <p className="text-center text-sm text-muted-foreground mt-2">
-              Sign up for free 10 credits!
+              Sign up for free 25 credits!
             </p>
           </div>
 

@@ -1,33 +1,16 @@
 import { AISDKService } from '@/lib/services/ai-sdk-service';
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/utils/logger';
-import { validatePrompt, sanitizeInput, isAllowedOrigin, getSafeErrorMessage, securityLog } from '@/lib/utils/security';
-import { rateLimitMiddleware } from '@/lib/utils/rate-limit';
+import { validatePrompt, sanitizeInput, getSafeErrorMessage, securityLog } from '@/lib/utils/security';
+import { withPublicApiRoute } from '@/lib/middleware/api-route';
 import * as Sentry from '@sentry/nextjs';
 
 /**
  * Google Generative AI Image Generation API Route
- * Security: Input validation, rate limiting, origin checking
+ * Migrated to unified middleware: CORS, rate limiting, error handling
  */
-export async function POST(request: NextRequest) {
-  try {
-    // Rate limiting
-    const rateLimit = rateLimitMiddleware(request, { maxRequests: 50, windowMs: 60000 });
-    if (!rateLimit.allowed) {
-      return rateLimit.response!;
-    }
-
-    // Check origin (only if provided - optimized for performance)
-    const origin = request.headers.get('origin');
-    if (origin && !isAllowedOrigin(origin)) {
-      securityLog('unauthorized_origin', { origin }, 'warn');
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 403 }
-      );
-    }
-    // Note: Requests without origin header are allowed (same-origin or direct API calls)
-
+export const POST = withPublicApiRoute(
+  async ({ request }) => {
     const body = await request.json().catch(() => ({}));
     const { prompt, style, quality, aspectRatio, negativePrompt, seed, uploadedImageData, uploadedImageType } = body;
 
@@ -67,7 +50,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!result.success || !result.data) {
-      return Response.json(
+      return NextResponse.json(
         { success: false, error: result.error || 'Image generation failed' },
         { status: 500 }
       );
@@ -84,7 +67,7 @@ export async function POST(request: NextRequest) {
       provider: result.data.provider
     });
 
-    return Response.json({
+    return NextResponse.json({
       success: true,
       data: {
         imageUrl: imageUrl,
@@ -94,23 +77,18 @@ export async function POST(request: NextRequest) {
         metadata: result.data.metadata
       }
     });
-
-  } catch (error) {
-    securityLog('image_generation_error', { error: getSafeErrorMessage(error) }, 'error');
-    logger.error('❌ AI Image: Generation failed', error);
-    
-    // Add Sentry context for image generation errors
-    Sentry.setContext('ai_image_generation', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
-    
-    // Never expose internal errors
-    return NextResponse.json(
-      { 
-        success: false,
-        error: 'Image generation failed. Please try again.' 
-      },
-      { status: 500 }
-    );
+  },
+  {
+    enableCORS: true,
+    enableRateLimit: true,
+    rateLimitConfig: { maxRequests: 50, windowMs: 60000 },
+    routeName: 'POST /api/ai/generate-image',
+    onError: (error, request) => {
+      securityLog('image_generation_error', { error: getSafeErrorMessage(error) }, 'error');
+      Sentry.setContext('ai_image_generation', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return null; // Use default error handler
+    }
   }
-}
+);

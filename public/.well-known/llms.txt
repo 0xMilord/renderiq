@@ -142,8 +142,8 @@ capabilities:
 - Mobile-responsive design with native app-like experience
 
 # Pricing Information (INR - Indian Rupees)
-pricing_model: Freemium (free 10 credits) + paid subscriptions & credit top-up options
-free_credits: 10 credits for new users (monthly refresh on Free plan)
+pricing_model: Freemium (free 25 credits) + paid subscriptions & credit top-up options
+free_credits: 25 credits for new users (monthly refresh on Free plan)
 currency: INR (Indian Rupees) - Primary currency with automatic conversion for international users
 subscription_plans:
   - Free: ₹0/month – 10 credits/month, 3 projects, 5 renders per project, standard quality, community support

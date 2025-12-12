@@ -65,6 +65,11 @@ export interface VideoGenerationResult {
     duration?: number;
     style?: string;
     aspectRatio?: string;
+    model?: string;
+    resolution?: string;
+    operationName?: string;
+    operation?: any;
+    [key: string]: any; // Allow additional metadata
   };
 }
 
@@ -183,7 +188,7 @@ Original prompt: "${originalPrompt}"`;
       return {
         ...validatedResult,
         processingTime,
-        provider: modelName
+        provider: 'google-generative-ai'
       };
 
     } catch (error) {
@@ -342,6 +347,7 @@ Original prompt: "${originalPrompt}"`;
       // For image generation models, use imageConfig with aspectRatio and imageSize
       // DO NOT use mediaResolution - it's only for multimodal models processing input media
       // Note: gemini-2.5-flash-image may not support imageSize parameter, so we conditionally include it
+      // Note: Thinking mode is not available for image generation models (only for text generation)
       const config: {
         responseModalities: string[];
         imageConfig: { aspectRatio: string; imageSize?: string };
@@ -354,6 +360,19 @@ Original prompt: "${originalPrompt}"`;
           ...(isFlashImage ? {} : { imageSize: imageSize })
         }
       };
+
+      // Log complex prompts for future thinking mode support
+      if (!isFlashImage && modelName.includes('gemini-3-pro-image-preview')) {
+        const isComplexPrompt = request.prompt.length > 200 || 
+                               request.prompt.toLowerCase().includes('technical') ||
+                               request.prompt.toLowerCase().includes('cad') ||
+                               request.prompt.toLowerCase().includes('elevation') ||
+                               request.prompt.toLowerCase().includes('section') ||
+                               request.prompt.toLowerCase().includes('floor plan');
+        if (isComplexPrompt) {
+          logger.log('💭 AISDKService: Complex architectural prompt detected');
+        }
+      }
 
       const response = await this.genAI.models.generateContent({
         model: modelName,
@@ -504,15 +523,29 @@ Original prompt: "${originalPrompt}"`;
    * 
    * Veo 3.1 is accessed through the @google/genai SDK using generateVideos()
    * This is an async operation that requires polling until completion.
+   * 
+   * Supports all Veo 3.1 features:
+   * - Reference images (up to 3)
+   * - First/last frame interpolation
+   * - Video extension (previous video)
+   * - Resolution selection (720p/1080p)
    */
   async generateVideo(request: {
     prompt: string;
-    duration: number;
-    aspectRatio: '16:9' | '9:16' | '1:1';
-    uploadedImageData?: string;
+    duration?: number;
+    durationSeconds?: number; // Alias for duration
+    aspectRatio?: '16:9' | '9:16' | '1:1';
+    uploadedImageData?: string; // For image-to-video (first frame)
     uploadedImageType?: string;
     model?: string; // Model ID (e.g., 'veo-3.1-generate-preview', 'veo-3.1-fast-generate-preview')
-  }): Promise<{ success: boolean; data?: VideoGenerationResult; error?: string }> {
+    // Enhanced features
+    referenceImages?: Array<{ imageData: string; imageType: string; referenceType?: 'asset' | 'person' }>;
+    firstFrameImage?: { imageData: string; imageType: string };
+    lastFrameImage?: { imageData: string; imageType: string };
+    previousVideo?: { videoData: string; videoType: string };
+    resolution?: '720p' | '1080p';
+    negativePrompt?: string;
+  }): Promise<{ success: boolean; data?: VideoGenerationResult & { operationName?: string; operation?: any }; error?: string }> {
     logger.log('🎬 AISDKService: Starting Veo 3.1 video generation', {
       prompt: request.prompt,
       duration: request.duration,
@@ -526,9 +559,28 @@ Original prompt: "${originalPrompt}"`;
       // Build clean, structured prompt following best practices
       let enhancedPrompt = request.prompt.trim();
       
-      // Prepare image for image-to-video if provided
+      // Determine duration (support both duration and durationSeconds)
+      const duration = request.durationSeconds || request.duration || 8;
+      const validDuration = duration === 4 || duration === 6 || duration === 8 
+        ? duration 
+        : 8; // Default to 8 if invalid
+
+      // Determine aspect ratio
+      const aspectRatio = request.aspectRatio || '16:9';
+
+      // Determine resolution (1080p only for 8s, 16:9)
+      const resolution = request.resolution || 
+        (validDuration === 8 && aspectRatio === '16:9' ? '1080p' : '720p');
+
+      // Prepare image for image-to-video if provided (first frame)
       let imageInput: { imageBytes: string; mimeType: string } | undefined;
-      if (request.uploadedImageData) {
+      if (request.firstFrameImage) {
+        imageInput = {
+          imageBytes: request.firstFrameImage.imageData,
+          mimeType: request.firstFrameImage.imageType || 'image/png',
+        };
+        logger.log('🎬 Veo: Using first frame interpolation');
+      } else if (request.uploadedImageData) {
         imageInput = {
           imageBytes: request.uploadedImageData,
           mimeType: request.uploadedImageType || 'image/png',
@@ -539,18 +591,46 @@ Original prompt: "${originalPrompt}"`;
       }
 
       // Prepare config for Veo 3.1
-      // According to API: durationSeconds must be a number (4, 6, or 8)
-      // resolution: "720p" (default) or "1080p" (8s duration only, 16:9 only)
-      // Ensure duration is valid (4, 6, or 8)
-      const validDuration = request.duration === 4 || request.duration === 6 || request.duration === 8 
-        ? request.duration 
-        : 8; // Default to 8 if invalid
-      
       const config: any = {
-        aspectRatio: request.aspectRatio,
-        durationSeconds: validDuration, // Must be a number: 4, 6, or 8
-        resolution: (validDuration === 8 && request.aspectRatio === '16:9') ? '1080p' : '720p',
+        aspectRatio: aspectRatio,
+        durationSeconds: validDuration,
+        resolution: resolution,
       };
+
+      // Add negative prompt if provided
+      if (request.negativePrompt) {
+        config.negativePrompt = request.negativePrompt;
+      }
+
+      // Add reference images if provided (up to 3)
+      if (request.referenceImages && request.referenceImages.length > 0) {
+        config.referenceImages = request.referenceImages.slice(0, 3).map(img => ({
+          image: {
+            imageBytes: img.imageData,
+            mimeType: img.imageType || 'image/png'
+          },
+          referenceType: img.referenceType || 'asset'
+        }));
+        logger.log('🎬 Veo: Using reference images', { count: config.referenceImages.length });
+      }
+
+      // Add last frame if provided (for interpolation)
+      if (request.lastFrameImage) {
+        config.lastFrame = {
+          imageBytes: request.lastFrameImage.imageData,
+          mimeType: request.lastFrameImage.imageType || 'image/png'
+        };
+        logger.log('🎬 Veo: Using last frame interpolation');
+      }
+
+      // Add previous video if provided (for extension)
+      if (request.previousVideo) {
+        config.video = {
+          videoBytes: request.previousVideo.videoData,
+          mimeType: request.previousVideo.videoType || 'video/mp4'
+        };
+        logger.log('🎬 Veo: Using video extension');
+      }
 
       // Use specified model or default to Veo 3.1 Standard
       const modelName = request.model || 'veo-3.1-generate-preview';
@@ -576,31 +656,36 @@ Original prompt: "${originalPrompt}"`;
       });
 
       // Poll the operation until video is ready (max 6 minutes based on docs)
-      const maxWaitTime = 6 * 60 * 1000; // 6 minutes in milliseconds
-      const pollInterval = 10000; // 10 seconds
-      const startPollTime = Date.now();
+      // Poll the operation until video is ready (max 6 minutes based on docs)
+      if (!operation.done) {
+        const maxWaitTime = 6 * 60 * 1000; // 6 minutes in milliseconds
+        const pollInterval = 10000; // 10 seconds
+        const startPollTime = Date.now();
 
-      while (!operation.done) {
-        const elapsed = Date.now() - startPollTime;
-        if (elapsed > maxWaitTime) {
-          logger.error('❌ Veo: Operation timeout after 6 minutes');
-          return {
-            success: false,
-            error: 'Video generation timed out after 6 minutes. Please try again.'
-          };
+        while (!operation.done) {
+          const elapsed = Date.now() - startPollTime;
+          if (elapsed > maxWaitTime) {
+            logger.error('❌ Veo: Operation timeout after 6 minutes');
+            return {
+              success: false,
+              error: 'Video generation timed out after 6 minutes. Please try again.'
+            };
+          }
+
+          logger.log('⏳ Veo: Polling operation status...', {
+            elapsed: Math.round(elapsed / 1000) + 's'
+          });
+
+          await new Promise(resolve => setTimeout(resolve, pollInterval));
+          
+          // Get updated operation status
+          // According to docs: ai.operations.getVideosOperation() polls the operation
+          operation = await (this.genAI.operations as any).getVideosOperation({
+            operation: operation,
+          });
         }
-
-        logger.log('⏳ Veo: Polling operation status...', {
-          elapsed: Math.round(elapsed / 1000) + 's'
-        });
-
-        await new Promise(resolve => setTimeout(resolve, pollInterval));
-        
-        // Get updated operation status
-        // According to docs: ai.operations.getVideosOperation() polls the operation
-        operation = await (this.genAI.operations as any).getVideosOperation({
-          operation: operation,
-        });
+      } else {
+        logger.log('✅ Veo: Operation completed immediately');
       }
 
       logger.log('✅ Veo: Operation completed');
@@ -716,11 +801,15 @@ Original prompt: "${originalPrompt}"`;
           videoData,
           videoUrl,
           processingTime,
-          provider: modelName,
+          provider: 'google-generative-ai',
           metadata: {
             prompt: enhancedPrompt,
-            duration: request.duration,
-            aspectRatio: request.aspectRatio,
+            duration: validDuration,
+            aspectRatio: aspectRatio,
+            model: modelName,
+            resolution: resolution,
+            operationName: operation.name,
+            operation: operation
           },
         },
       };
@@ -864,6 +953,62 @@ Original prompt: "${originalPrompt}"`;
   }
 
   /**
+   * Generate text with structured outputs (JSON Schema)
+   * Uses cheap Gemini 2.5 Flash model
+   */
+  async generateTextWithStructuredOutput(
+    prompt: string,
+    options?: {
+      temperature?: number;
+      maxTokens?: number;
+      responseMimeType?: 'application/json';
+      responseJsonSchema?: any;
+      model?: string; // Default: 'gemini-2.5-flash'
+    }
+  ): Promise<{ text: string; usage?: any }> {
+    try {
+      const model = options?.model || 'gemini-2.5-flash';
+      const config: any = {
+        temperature: options?.temperature ?? 0.3,
+        maxOutputTokens: options?.maxTokens ?? 1000,
+      };
+
+      // Add structured outputs if requested
+      // NOTE: Google Search Grounding (tool use) is NOT compatible with structured outputs (responseMimeType: 'application/json')
+      // When using structured outputs, we cannot use tools at the same time
+      if (options?.responseMimeType === 'application/json' && options?.responseJsonSchema) {
+        config.responseMimeType = 'application/json';
+        config.responseJsonSchema = options.responseJsonSchema;
+        // Do NOT add Google Search Grounding when using structured outputs - they are incompatible
+      } else {
+        // Only add Google Search Grounding when NOT using structured outputs
+        // This can be used for other text generation tasks that don't require structured JSON
+        const tools: any[] = [];
+        if (model.includes('gemini-2.5') || model.includes('gemini-3')) {
+          tools.push({ googleSearch: {} });
+        }
+        if (tools.length > 0) {
+          config.tools = tools;
+        }
+      }
+
+      const response = await this.genAI.models.generateContent({
+        model,
+        contents: prompt,
+        config
+      });
+
+      return {
+        text: response.text,
+        usage: response.usageMetadata,
+      };
+    } catch (error) {
+      logger.error('❌ AISDKService: Structured text generation failed', error);
+      throw new Error(`Structured text generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
    * Stream chat messages
    */
   async *streamChat(messages: Array<{ role: 'user' | 'assistant'; content: string }>): AsyncGenerator<string, void, unknown> {
@@ -904,6 +1049,236 @@ Original prompt: "${originalPrompt}"`;
     } catch (error) {
       logger.error('❌ AISDKService: Chat streaming failed', error);
       throw new Error(`Chat streaming failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Generate text with image input using vision model (for image analysis)
+   * Uses cheap Gemini 2.5 Flash model with structured outputs
+   */
+  async generateTextWithImage(
+    prompt: string,
+    imageData?: string,
+    imageType?: string,
+    options?: {
+      temperature?: number;
+      maxTokens?: number;
+      responseMimeType?: 'application/json' | 'text/plain';
+      responseJsonSchema?: any;
+    }
+  ): Promise<{ text: string; usage?: any }> {
+    // Google best practice: When using a single image with text, place the text prompt AFTER the image
+    // This improves model understanding and accuracy
+    const contents: any[] = [];
+    
+    if (imageData && imageType) {
+      contents.push({
+        inlineData: {
+          mimeType: imageType,
+          data: imageData
+        }
+      });
+    }
+    
+    // Add text prompt AFTER image (Google best practice)
+    contents.push({ text: prompt });
+
+    const config: any = {
+      temperature: options?.temperature ?? 0.3,
+      maxOutputTokens: options?.maxTokens ?? 1000,
+    };
+
+    // Add structured outputs if requested
+    if (options?.responseMimeType === 'application/json' && options?.responseJsonSchema) {
+      config.responseMimeType = 'application/json';
+      config.responseJsonSchema = options.responseJsonSchema;
+    }
+
+    const response = await this.genAI.models.generateContent({
+      model: 'gemini-2.5-flash', // Cheap vision model
+      contents: contents,
+      config: config
+    });
+
+    return {
+      text: response.text,
+      usage: response.usageMetadata,
+    };
+  }
+
+  /**
+   * Generate text with multiple images (for video generation with reference images)
+   * Uses cheap Gemini 2.5 Flash vision model with structured outputs
+   */
+  async generateTextWithMultipleImages(
+    prompt: string,
+    images: Array<{ imageData: string; imageType: string }>,
+    options?: {
+      temperature?: number;
+      maxTokens?: number;
+      responseMimeType?: 'application/json' | 'text/plain';
+      responseJsonSchema?: any;
+      model?: string; // Default: 'gemini-2.5-flash'
+    }
+  ): Promise<{ text: string; usage?: any }> {
+    // Google best practice: For multiple images, place images first, then text prompt
+    // This allows the model to process all visual context before the text instruction
+    const contents: any[] = [];
+    
+    // Add all images first (up to 3 for Veo, but can handle more for analysis)
+    for (const img of images.slice(0, 5)) { // Limit to 5 for safety
+      contents.push({
+        inlineData: {
+          mimeType: img.imageType || 'image/png',
+          data: img.imageData
+        }
+      });
+    }
+    
+    // Add text prompt AFTER all images (Google best practice)
+    contents.push({ text: prompt });
+
+    const config: any = {
+      temperature: options?.temperature ?? 0.3,
+      maxOutputTokens: options?.maxTokens ?? 1500, // More tokens for multiple images
+    };
+
+    // Add structured outputs if requested
+    if (options?.responseMimeType === 'application/json' && options?.responseJsonSchema) {
+      config.responseMimeType = 'application/json';
+      config.responseJsonSchema = options.responseJsonSchema;
+    }
+
+    const model = options?.model || 'gemini-2.5-flash';
+    const response = await this.genAI.models.generateContent({
+      model,
+      contents: contents,
+      config: config
+    });
+
+    return {
+      text: response.text,
+      usage: response.usageMetadata,
+    };
+  }
+
+  /**
+   * Multi-Turn Chat Support for Image Editing
+   * Creates a chat session for iterative image refinement
+   * Thought signatures are handled automatically by the SDK
+   */
+  async createChatSession(config?: {
+    model?: string;
+    aspectRatio?: string;
+    imageSize?: '1K' | '2K' | '4K';
+  }): Promise<{ id: string }> {
+    try {
+      const model = config?.model || 'gemini-3-pro-image-preview';
+      
+      const chat = await this.genAI.chats.create({
+        model,
+        config: {
+          responseModalities: ['IMAGE'],
+          imageConfig: {
+            aspectRatio: config?.aspectRatio || '16:9',
+            ...(config?.imageSize && { imageSize: config.imageSize })
+          }
+        }
+      });
+
+      // Chat object may have different structure - handle gracefully
+      const chatId = (chat as any).id || (chat as any).name || String(Date.now());
+      logger.log('✅ AISDKService: Chat session created', { chatId });
+      return { id: chatId };
+    } catch (error) {
+      logger.error('❌ AISDKService: Failed to create chat session', error);
+      throw new Error(`Chat session creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Send message in chat session (for multi-turn image editing)
+   * Maintains conversation context and thought signatures automatically
+   */
+  async sendChatMessage(
+    chatSessionId: string,
+    message: string,
+    imageData?: string,
+    imageType?: string,
+    config?: {
+      aspectRatio?: string;
+      imageSize?: '1K' | '2K' | '4K';
+    }
+  ): Promise<ImageGenerationResult> {
+    const startTime = Date.now();
+
+    try {
+      logger.log('💬 AISDKService: Sending chat message', {
+        chatSessionId,
+        messageLength: message.length,
+        hasImage: !!imageData
+      });
+
+      // Get chat session - handle different SDK versions
+      const chats = (this.genAI as any).chats;
+      if (!chats || typeof chats.get !== 'function') {
+        throw new Error('Chat API not available in this SDK version. Use generateContent instead.');
+      }
+      const chat = chats.get(chatSessionId);
+      const contents: any[] = [message];
+      
+      if (imageData) {
+        contents.push({
+          inlineData: {
+            data: imageData,
+            mimeType: imageType || 'image/png'
+          }
+        });
+      }
+      
+      const response = await chat.sendMessage({
+        contents,
+        config: {
+          responseModalities: ['IMAGE'],
+          imageConfig: {
+            aspectRatio: config?.aspectRatio || '16:9',
+            ...(config?.imageSize && { imageSize: config.imageSize })
+          }
+        }
+      });
+      
+      // Extract image from response
+      const imagePart = response.candidates[0].content.parts.find(
+        (part: any) => part.inlineData
+      );
+      
+      if (!imagePart?.inlineData) {
+        throw new Error('No image in response');
+      }
+
+      const processingTime = Date.now() - startTime;
+      logger.log('✅ AISDKService: Chat message processed', {
+        processingTime: `${processingTime}ms`
+      });
+      
+      return {
+        imageUrl: `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`,
+        imageData: imagePart.inlineData.data,
+        processingTime,
+        provider: 'google-generative-ai',
+        metadata: {
+          prompt: message,
+          style: 'realistic',
+          quality: 'standard',
+          aspectRatio: config?.aspectRatio || '16:9',
+          chatSessionId,
+          // Additional metadata
+          pipelineStage: 'chat-session'
+        } as any // Allow additional metadata fields
+      };
+    } catch (error) {
+      logger.error('❌ AISDKService: Failed to send chat message', error);
+      throw new Error(`Chat message failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }

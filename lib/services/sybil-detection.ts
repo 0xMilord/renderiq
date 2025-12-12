@@ -59,9 +59,9 @@ const CONFIG = {
     CRITICAL: 85, // Relaxed from 70 to 85 - less strict
   },
   INITIAL_CREDITS: {
-    TRUSTED: 10,
-    LOW: 10,      // Always give 10 credits for low risk
-    MEDIUM: 10,   // Relaxed: Give 10 credits instead of 5 for medium risk
+    TRUSTED: 25,
+    LOW: 25,      // Always give 25 credits for low risk
+    MEDIUM: 25,   // Relaxed: Give 25 credits instead of 5 for medium risk
     HIGH: 5,      // Relaxed: Give 5 credits instead of 0 for high risk
     CRITICAL: 0,  // Only critical risk gets 0 credits
   },

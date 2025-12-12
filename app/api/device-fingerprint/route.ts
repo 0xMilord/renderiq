@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/utils/logger';
 import { generateFingerprintHash, parseUserAgent } from '@/lib/utils/device-fingerprint';
 import { getClientIdentifier, checkRateLimit } from '@/lib/utils/rate-limit';
+import { handleCORSPreflight, withCORS } from '@/lib/middleware/cors';
 
 /**
  * Device Fingerprint API
@@ -9,15 +10,20 @@ import { getClientIdentifier, checkRateLimit } from '@/lib/utils/rate-limit';
  * This is called before/during signup to collect device characteristics
  */
 export async function POST(request: NextRequest) {
+  // ⚡ Fast path: Handle CORS preflight immediately
+  const preflight = handleCORSPreflight(request);
+  if (preflight) return preflight;
+
   try {
     // Rate limit fingerprint collection (prevent abuse)
     const ipAddress = getClientIdentifier(request);
     const rateLimit = checkRateLimit(ipAddress, { maxRequests: 10, windowMs: 60 * 1000 });
     if (!rateLimit.allowed) {
-      return NextResponse.json(
+      const rateLimitResponse = NextResponse.json(
         { success: false, error: 'Rate limit exceeded' },
         { status: 429 }
       );
+      return withCORS(rateLimitResponse, request);
     }
 
     const body = await request.json().catch(() => ({}));
@@ -39,10 +45,11 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!userAgent || !language || !timezone) {
-      return NextResponse.json(
+      const validationErrorResponse = NextResponse.json(
         { success: false, error: 'Missing required fields' },
         { status: 400 }
       );
+      return withCORS(validationErrorResponse, request);
     }
 
     // Generate fingerprint hash
@@ -72,7 +79,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Return fingerprint hash to client (they'll send it during signup)
-    return NextResponse.json({
+    const successResponse = NextResponse.json({
       success: true,
       fingerprintHash,
       deviceInfo: {
@@ -81,12 +88,14 @@ export async function POST(request: NextRequest) {
         platform: detectedPlatform,
       },
     });
+    return withCORS(successResponse, request);
   } catch (error) {
     logger.error('❌ Device Fingerprint: Error collecting fingerprint:', error);
-    return NextResponse.json(
+    const errorResponse = NextResponse.json(
       { success: false, error: 'Failed to process fingerprint' },
       { status: 500 }
     );
+    return withCORS(errorResponse, request);
   }
 }
 

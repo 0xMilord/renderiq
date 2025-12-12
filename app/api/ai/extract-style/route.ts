@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/utils/logger';
 import { validatePrompt, sanitizeInput, getSafeErrorMessage, securityLog } from '@/lib/utils/security';
 import { rateLimitMiddleware } from '@/lib/utils/rate-limit';
+import { handleCORSPreflight, withCORS } from '@/lib/middleware/cors';
 import * as Sentry from '@sentry/nextjs';
 
 /**
@@ -10,21 +11,33 @@ import * as Sentry from '@sentry/nextjs';
  * TODO: Implement actual AI-based style extraction using Gemini Vision API
  */
 export async function POST(request: NextRequest) {
+  // ⚡ Fast path: Handle CORS preflight immediately
+  const preflight = handleCORSPreflight(request);
+  if (preflight) return preflight;
+
   try {
     // Rate limiting
     const rateLimit = rateLimitMiddleware(request, { maxRequests: 20, windowMs: 60000 });
     if (!rateLimit.allowed) {
-      return rateLimit.response!;
+      const rateLimitResponse = NextResponse.json(
+        { success: false, error: 'Rate limit exceeded. Please try again later.' },
+        { 
+          status: 429,
+          headers: rateLimit.response?.headers ? Object.fromEntries(rateLimit.response.headers) : {}
+        }
+      );
+      return withCORS(rateLimitResponse, request);
     }
 
     const body = await request.json().catch(() => ({}));
     const { imageData, imageType, extractionOptions } = body;
 
     if (!imageData) {
-      return NextResponse.json(
+      const validationErrorResponse = NextResponse.json(
         { success: false, error: 'Image data is required' },
         { status: 400 }
       );
+      return withCORS(validationErrorResponse, request);
     }
 
     logger.log('🎨 Style Extraction: Starting style extraction from image');
@@ -64,10 +77,11 @@ export async function POST(request: NextRequest) {
 
     logger.log('✅ Style Extraction: Style extracted successfully');
 
-    return NextResponse.json({
+    const successResponse = NextResponse.json({
       success: true,
       data: defaultStyle,
     });
+    return withCORS(successResponse, request);
 
   } catch (error) {
     securityLog('style_extraction_error', { error: getSafeErrorMessage(error) }, 'error');
@@ -78,13 +92,14 @@ export async function POST(request: NextRequest) {
       error: error instanceof Error ? error.message : 'Unknown error',
     });
     
-    return NextResponse.json(
+    const errorResponse = NextResponse.json(
       { 
         success: false,
         error: 'Style extraction failed. Please try again.' 
       },
       { status: 500 }
     );
+    return withCORS(errorResponse, request);
   }
 }
 

@@ -43,9 +43,15 @@ const getToolIconPath = (slug: string): string => {
 };
 
 // Component to display tool cover image
-function ToolCardMedia({ tool }: { tool: ToolConfig }) {
+// Optimized with lazy loading and priority flags for performance
+function ToolCardMedia({ tool, index }: { tool: ToolConfig; index: number }) {
   const [imageError, setImageError] = useState(false);
   const coverImage = `/apps/cover/${tool.slug}.jpg`;
+  
+  // Load first 4 images with priority (above the fold)
+  // Lazy load all others for better performance
+  const isAboveFold = index < 4;
+  const loading = isAboveFold ? undefined : 'lazy';
 
   return (
     <div className="relative w-full aspect-video bg-muted overflow-hidden">
@@ -53,6 +59,8 @@ function ToolCardMedia({ tool }: { tool: ToolConfig }) {
         src={coverImage}
         alt={tool.name}
         fill
+        priority={isAboveFold}
+        loading={loading}
         className="object-cover group-hover:scale-105 transition-transform duration-300"
         sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
         onError={() => setImageError(true)}
@@ -67,15 +75,21 @@ function ToolCardMedia({ tool }: { tool: ToolConfig }) {
 }
 
 // Component to render tool icon with fallback to category icon
+// Optimized with lazy loading for performance
 function ToolIconWithFallback({ 
   tool, 
-  CategoryIcon 
+  CategoryIcon,
+  index 
 }: { 
   tool: ToolConfig; 
   CategoryIcon: typeof Sparkles;
+  index: number;
 }) {
   const [iconError, setIconError] = useState(false);
   const iconPath = getToolIconPath(tool.slug);
+  
+  // Load first 4 icons immediately, lazy load others
+  const isAboveFold = index < 4;
 
   if (iconError) {
     return <CategoryIcon className="h-16 w-16 text-primary" />;
@@ -86,6 +100,7 @@ function ToolIconWithFallback({
       src={iconPath} 
       alt={tool.name}
       className="w-16 h-16 object-contain rounded-md"
+      loading={isAboveFold ? undefined : 'lazy'}
       onError={() => setIconError(true)}
     />
   );
@@ -394,7 +409,7 @@ export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredTools.map((tool) => {
+                {filteredTools.map((tool, index) => {
                   const CategoryIcon = categoryIcons[tool.category];
                   const category = categories.find(c => c.id === tool.category);
                   // Use effective status (respects feature flags)
@@ -418,7 +433,7 @@ export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
                       )}>
                         {/* Image with category badge overlay */}
                         <div className="relative">
-                          <ToolCardMedia tool={tool} />
+                          <ToolCardMedia tool={tool} index={index} />
                           {/* Category badge over image */}
                           {category && (
                             <div className="absolute top-2 left-2">
@@ -446,7 +461,7 @@ export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
                           {/* Icon, Title, and Description in same row */}
                           <div className="flex items-start gap-3 mb-3">
                             <div className="rounded-md bg-primary/10 group-hover:bg-primary/20 transition-colors overflow-hidden shrink-0">
-                              <ToolIconWithFallback tool={tool} CategoryIcon={CategoryIcon} />
+                              <ToolIconWithFallback tool={tool} CategoryIcon={CategoryIcon} index={index} />
                             </div>
                             <div className="flex-1 min-w-0">
                               <CardTitle className={cn(

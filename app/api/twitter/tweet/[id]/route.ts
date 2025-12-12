@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/utils/logger';
+import { handleCORSPreflight, withCORS } from '@/lib/middleware/cors';
 
 /**
  * Twitter Tweet API
@@ -10,6 +11,10 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // ⚡ Fast path: Handle CORS preflight immediately
+  const preflight = handleCORSPreflight(request);
+  if (preflight) return preflight;
+
   try {
     const { id: tweetId } = await params;
     
@@ -20,10 +25,11 @@ export async function GET(
     // Ensure username is valid (not default 'user')
     const validUsername = username && username !== 'user' ? username : null;
     if (!validUsername) {
-      return NextResponse.json(
+      const validationErrorResponse = NextResponse.json(
         { success: false, error: 'Username is required' },
         { status: 400 }
       );
+      return withCORS(validationErrorResponse, request);
     }
 
     logger.log('📱 Fetching tweet:', tweetId, 'from user:', validUsername);
@@ -120,7 +126,7 @@ export async function GET(
         textLength: text.length,
       });
       
-      return NextResponse.json({
+      const successResponse = NextResponse.json({
         success: true,
         data: {
           id: tweetId,
@@ -140,6 +146,7 @@ export async function GET(
           html: html, // Include HTML for embedding if needed
         },
       });
+      return withCORS(successResponse, request);
     } catch (fetchError) {
       const errorMessage = fetchError instanceof Error ? fetchError.message : 'Unknown error';
       
@@ -152,7 +159,7 @@ export async function GET(
       
       // Return structure with username from URL so fallback can be used
       // This allows the frontend to still display the tweet card with fallback data
-      return NextResponse.json({
+      const fallbackResponse = NextResponse.json({
         success: false,
         data: {
           id: tweetId,
@@ -174,13 +181,15 @@ export async function GET(
           ? 'Twitter API access restricted - using fallback data' 
           : 'Failed to fetch tweet data',
       });
+      return withCORS(fallbackResponse, request);
     }
   } catch (error) {
     logger.error('❌ Error in tweet API route:', error);
-    return NextResponse.json(
+    const errorResponse = NextResponse.json(
       { success: false, error: 'Failed to fetch tweet' },
       { status: 500 }
     );
+    return withCORS(errorResponse, request);
   }
 }
 

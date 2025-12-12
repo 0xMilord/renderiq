@@ -1,22 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCachedUser } from '@/lib/services/auth-cache';
 import { PaymentProviderFactory } from '@/lib/services/payment-provider.factory';
 import { logger } from '@/lib/utils/logger';
 import { checkDuplicatePayment } from '@/lib/utils/payment-security';
+import { withAuthenticatedApiRoute } from '@/lib/middleware/api-route';
 import * as Sentry from '@sentry/nextjs';
 
-export async function POST(request: NextRequest) {
-  try {
+export const POST = withAuthenticatedApiRoute(
+  async ({ request, user }) => {
     logger.log('🔐 API: Verifying payment');
-
-    const { user } = await getCachedUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
 
     const body = await request.json();
     
@@ -108,16 +99,17 @@ export async function POST(request: NextRequest) {
         creditsAdded: verifyResult.data?.type === 'credit_package',
       },
     });
-  } catch (error) {
-    logger.error('❌ API: Error verifying payment:', error);
-    
-    Sentry.setContext('payment_verification', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
-    
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
+  },
+  {
+    routeName: 'POST /api/payments/verify-payment',
+    enableCORS: true,
+    enableRateLimit: false, // Payment verification should not be rate limited
+    onError: (error, request) => {
+      logger.error('❌ API: Error verifying payment:', error);
+      Sentry.setContext('payment_verification', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return null; // Use default error handler
+    }
   }
-}
+);

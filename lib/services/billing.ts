@@ -5,7 +5,7 @@ import { RazorpayService } from './razorpay.service';
 import { logger } from '@/lib/utils/logger';
 
 // Maximum initial credits for new users on signup
-const INITIAL_SIGNUP_CREDITS = 10;
+const INITIAL_SIGNUP_CREDITS = 25;
 
 export class BillingService {
   /**
@@ -226,7 +226,7 @@ export class BillingService {
         .limit(1);
       
       if (!userCredit) {
-        // Create initial credits record (capped at max 10 for signup)
+        // Create initial credits record (capped at max 25 for signup)
         const initialCredits = Math.min(
           parseInt(process.env.DEFAULT_FREE_CREDITS || String(INITIAL_SIGNUP_CREDITS)),
           INITIAL_SIGNUP_CREDITS

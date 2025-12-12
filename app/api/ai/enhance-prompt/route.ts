@@ -1,11 +1,16 @@
 import { AISDKService } from '@/lib/services/ai-sdk-service';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/utils/logger';
+import { handleCORSPreflight, withCORS } from '@/lib/middleware/cors';
 
 /**
  * Google Generative AI Prompt Enhancement API Route
  */
 export async function POST(request: NextRequest) {
+  // ⚡ Fast path: Handle CORS preflight immediately
+  const preflight = handleCORSPreflight(request);
+  if (preflight) return preflight;
+
   try {
     const { prompt } = await request.json();
 
@@ -29,14 +34,15 @@ export async function POST(request: NextRequest) {
       provider: result.provider
     });
 
-    return Response.json({
+    const successResponse = NextResponse.json({
       success: true,
       data: result
     });
+    return withCORS(successResponse, request);
 
   } catch (error) {
     logger.error('❌ AI Enhancement: Enhancement failed', error);
-    return Response.json(
+    const errorResponse = NextResponse.json(
       { 
         success: false,
         error: 'Enhancement failed', 
@@ -44,5 +50,6 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     );
+    return withCORS(errorResponse, request);
   }
 }

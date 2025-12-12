@@ -5,28 +5,35 @@ import { logger } from '@/lib/utils/logger';
 import { db } from '@/lib/db';
 import { userSubscriptions, subscriptionPlans, userCredits } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
+import { handleCORSPreflight, withCORS } from '@/lib/middleware/cors';
 
 export async function POST(request: NextRequest) {
+  // ⚡ Fast path: Handle CORS preflight immediately
+  const preflight = handleCORSPreflight(request);
+  if (preflight) return preflight;
+
   try {
     logger.log('🔐 API: Verifying Razorpay subscription payment');
 
     const { user } = await getCachedUser();
 
     if (!user) {
-      return NextResponse.json(
+      const authErrorResponse = NextResponse.json(
         { success: false, error: 'Authentication required' },
         { status: 401 }
       );
+      return withCORS(authErrorResponse, request);
     }
 
     const body = await request.json();
     const { subscriptionId, paymentId, signature } = body;
 
     if (!subscriptionId) {
-      return NextResponse.json(
+      const validationErrorResponse = NextResponse.json(
         { success: false, error: 'Subscription ID is required' },
         { status: 400 }
       );
+      return withCORS(validationErrorResponse, request);
     }
 
     // If paymentId and signature are provided, use proper verification (like credit packages)
@@ -40,18 +47,20 @@ export async function POST(request: NextRequest) {
       );
 
       if (!verifyResult.success) {
-        return NextResponse.json(
+        const verifyErrorResponse = NextResponse.json(
           { success: false, error: verifyResult.error },
           { status: 400 }
         );
+        return withCORS(verifyErrorResponse, request);
       }
 
       // Check if payment order belongs to the user
       if (verifyResult.data?.userId !== user.id) {
-        return NextResponse.json(
+        const unauthorizedResponse = NextResponse.json(
           { success: false, error: 'Unauthorized' },
           { status: 403 }
         );
+        return withCORS(unauthorizedResponse, request);
       }
 
       // Get subscription to check if credits were added
@@ -73,7 +82,7 @@ export async function POST(request: NextRequest) {
         .limit(1);
 
       logger.log('✅ API: Subscription payment verified and activated');
-      return NextResponse.json({
+      const successResponse = NextResponse.json({
         success: true,
         data: {
           activated: true,
@@ -82,6 +91,7 @@ export async function POST(request: NextRequest) {
           paymentOrderId: verifyResult.data?.paymentOrderId,
         },
       });
+      return withCORS(successResponse, request);
     }
 
     // Fallback: If no paymentId/signature, check subscription status (old method)
@@ -99,18 +109,20 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (!subscription || !subscription.subscription) {
-      return NextResponse.json(
+      const notFoundResponse = NextResponse.json(
         { success: false, error: 'Subscription not found' },
         { status: 404 }
       );
+      return withCORS(notFoundResponse, request);
     }
 
     // Check if subscription belongs to user
     if (subscription.subscription.userId !== user.id) {
-      return NextResponse.json(
+      const unauthorizedResponse = NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 403 }
       );
+      return withCORS(unauthorizedResponse, request);
     }
 
     // Fetch subscription status from Razorpay
@@ -159,7 +171,7 @@ export async function POST(request: NextRequest) {
         // ✅ REMOVED: Credit addition - credits are added by verifySubscriptionPayment(), not in fallback route
         // This fallback route should only activate subscription, credits are handled by proper verification
         logger.log('✅ API: Subscription activated (credits will be added via proper verification)');
-        return NextResponse.json({
+        const activatedResponse = NextResponse.json({
           success: true,
           data: {
             activated: true,
@@ -167,18 +179,20 @@ export async function POST(request: NextRequest) {
             message: 'Subscription activated. Please use proper payment verification to add credits.',
           },
         });
+        return withCORS(activatedResponse, request);
       } else if (subscription.subscription.status === 'active') {
         logger.log('✅ API: Subscription already active');
-        return NextResponse.json({
+        const alreadyActiveResponse = NextResponse.json({
           success: true,
           data: {
             activated: false,
             alreadyActive: true,
           },
         });
+        return withCORS(alreadyActiveResponse, request);
       } else {
         logger.log('⚠️ API: Subscription not yet active in Razorpay, status:', razorpaySubscription.status);
-        return NextResponse.json({
+        const processingResponse = NextResponse.json({
           success: true,
           data: {
             activated: false,
@@ -186,25 +200,29 @@ export async function POST(request: NextRequest) {
             message: 'Payment is still processing. Credits will be added when payment is confirmed.',
           },
         });
+        return withCORS(processingResponse, request);
       }
     } catch (error: any) {
       logger.error('❌ API: Error verifying subscription:', error);
-      return NextResponse.json(
+      const verifyErrorResponse = NextResponse.json(
         { success: false, error: error.message || 'Failed to verify subscription' },
         { status: 500 }
       );
+      return withCORS(verifyErrorResponse, request);
     }
 
-    return NextResponse.json({
+    const fallbackResponse = NextResponse.json({
       success: true,
       data: { activated: false },
     });
+    return withCORS(fallbackResponse, request);
   } catch (error: any) {
     logger.error('❌ API: Error verifying subscription:', error);
-    return NextResponse.json(
+    const errorResponse = NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }
     );
+    return withCORS(errorResponse, request);
   }
 }
 

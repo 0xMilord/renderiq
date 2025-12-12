@@ -7,14 +7,16 @@
 
 ## Executive Summary
 
-This audit examines the entire pricing infrastructure, API costs, markup calculations, credit deduction system, and profitability analysis for ₹100,000 revenue.
+This audit examines the entire pricing infrastructure, API costs, markup calculations, credit deduction system, 7-stage pipeline costs, model routing, and profitability analysis for ₹100,000 revenue.
 
 **Key Findings:**
 - ✅ Credit infrastructure is well-implemented
 - ⚠️ **CRITICAL:** Video pricing inconsistency between `/api/renders` and `/api/video`
-- ✅ Markup strategy: 2x multiplier on API costs
+- ⚠️ **IMPORTANT:** 7-stage pipeline costs (~$0.004-0.006 per render) are NOT included in credit pricing
+- ✅ Markup strategy: 2x multiplier on API costs (for Stage 5 only)
 - ✅ Base pricing: 5 INR per credit
-- 📊 Profit margin on ₹100k revenue: **~47%** (after API costs)
+- 📊 Profit margin on ₹100k revenue: **~41-43%** (after all API costs including pipeline)
+- 📊 **Pipeline Impact:** Additional ~$0.004-0.006 per render (absorbed, not charged)
 
 ---
 
@@ -225,15 +227,16 @@ API Cost (USD) × 2 (markup) × Exchange Rate (83 INR/USD) ÷ Credit Price (5 IN
 - API cost: 160 × $0.75 × 83 = ₹9,960
 
 **Total Expenses:**
-- API Costs: ₹35,510 + ₹9,960 = **₹45,470**
+- Stage 5 API Costs: ₹35,510 + ₹9,960 = **₹45,470**
+- Pipeline Overhead (if enabled): 3,200 × ₹0.42 = **₹1,344**
 - Infrastructure (estimated 10%): ₹10,000
 - Payment processing (2%): ₹2,000
-- **Total Expenses: ₹57,470**
+- **Total Expenses: ₹58,814** (with pipeline) / **₹57,470** (without pipeline)
 
 **Profit:**
 - Revenue: ₹100,000
-- Expenses: ₹57,470
-- **Profit: ₹42,530 (42.5% margin)**
+- Expenses: ₹58,814 (with pipeline) / ₹57,470 (without pipeline)
+- **Profit: ₹41,186 (41.2% margin with pipeline)** / **₹42,530 (42.5% margin without pipeline)**
 
 ### 4.2 Scenario 2: Video-Heavy Usage (40% Images, 60% Videos)
 
@@ -256,15 +259,16 @@ API Cost (USD) × 2 (markup) × Exchange Rate (83 INR/USD) ÷ Credit Price (5 IN
 - API cost: 480 × $0.75 × 83 = ₹29,880
 
 **Total Expenses:**
-- API Costs: ₹17,755 + ₹29,880 = **₹47,635**
+- Stage 5 API Costs: ₹17,755 + ₹29,880 = **₹47,635**
+- Pipeline Overhead (if enabled): 1,600 × ₹0.42 = **₹672**
 - Infrastructure (estimated 10%): ₹10,000
 - Payment processing (2%): ₹2,000
-- **Total Expenses: ₹59,635**
+- **Total Expenses: ₹60,307** (with pipeline) / **₹59,635** (without pipeline)
 
 **Profit:**
 - Revenue: ₹100,000
-- Expenses: ₹59,635
-- **Profit: ₹40,365 (40.4% margin)**
+- Expenses: ₹60,307 (with pipeline) / ₹59,635 (without pipeline)
+- **Profit: ₹39,693 (39.7% margin with pipeline)** / **₹40,365 (40.4% margin without pipeline)**
 
 ### 4.3 Scenario 3: Balanced Usage (50% Images, 50% Videos)
 
@@ -287,32 +291,72 @@ API Cost (USD) × 2 (markup) × Exchange Rate (83 INR/USD) ÷ Credit Price (5 IN
 - API cost: 400 × $0.75 × 83 = ₹24,900
 
 **Total Expenses:**
-- API Costs: ₹22,244 + ₹24,900 = **₹47,144**
+- Stage 5 API Costs: ₹22,244 + ₹24,900 = **₹47,144**
+- Pipeline Overhead (if enabled): 2,000 × ₹0.42 = **₹840**
 - Infrastructure (estimated 10%): ₹10,000
 - Payment processing (2%): ₹2,000
-- **Total Expenses: ₹59,144**
+- **Total Expenses: ₹59,984** (with pipeline) / **₹59,144** (without pipeline)
 
 **Profit:**
 - Revenue: ₹100,000
-- Expenses: ₹59,144
-- **Profit: ₹40,856 (40.9% margin)**
+- Expenses: ₹59,984 (with pipeline) / ₹59,144 (without pipeline)
+- **Profit: ₹40,016 (40.0% margin with pipeline)** / **₹40,856 (40.9% margin without pipeline)**
 
 ### 4.4 Average Profitability Summary
 
-**Average Profit Margin:** ~41-43%  
-**Average Profit on ₹100k Revenue:** ₹40,000 - ₹43,000
+**Average Profit Margin (without pipeline):** ~41-43%  
+**Average Profit Margin (with pipeline):** ~40-41%  
+**Average Profit on ₹100k Revenue:** ₹39,000 - ₹42,000 (with pipeline) / ₹40,000 - ₹43,000 (without pipeline)
 
-**Breakdown:**
-- API Costs: ~47% of revenue
+**Breakdown (with pipeline):**
+- Stage 5 API Costs: ~47% of revenue
+- Pipeline Overhead: ~0.8-1.3% of revenue (if enabled)
 - Infrastructure: ~10% of revenue
 - Payment Processing: ~2% of revenue
-- **Profit: ~41% of revenue**
+- **Profit: ~40-41% of revenue**
+
+**Breakdown (without pipeline):**
+- Stage 5 API Costs: ~47% of revenue
+- Infrastructure: ~10% of revenue
+- Payment Processing: ~2% of revenue
+- **Profit: ~41-43% of revenue**
 
 ---
 
 ## 5. Critical Issues & Recommendations
 
-### 5.1 ⚠️ CRITICAL: Video Pricing Inconsistency
+### 5.1 ⚠️ IMPORTANT: 7-Stage Pipeline Costs Not Included in Pricing
+
+**Issue:**
+- Pipeline stages 1-4, 6-7 cost ~$0.004-0.006 per render
+- These costs are currently **absorbed by the platform**
+- Credits only cover Stage 5 (image generation) cost
+- Pipeline is optional (feature flag), but when enabled, costs are not recovered
+
+**Impact:**
+- Reduces profit margin by ~1-1.5% when pipeline is enabled
+- Pipeline provides value (better quality, consistency) but cost is not passed to users
+- At scale, this could be significant (e.g., ₹1,344 on ₹100k revenue)
+
+**Options:**
+1. **Current Approach (Absorb Costs):** Continue absorbing pipeline costs as value-add
+   - Pros: Better quality without price increase
+   - Cons: Lower profit margins
+   
+2. **Add Pipeline Surcharge:** Add small credit surcharge when pipeline is enabled
+   - Pros: Recover costs, maintain margins
+   - Cons: More complex pricing, potential user confusion
+   
+3. **Bundle Pipeline:** Include pipeline in higher quality tiers only
+   - Pros: Pipeline costs offset by higher credit charges
+   - Cons: Pipeline not available for standard quality
+
+**Recommendation:**
+- **Short-term:** Continue absorbing costs (pipeline is competitive advantage)
+- **Long-term:** Consider adding "Premium Pipeline" option with +1-2 credit surcharge
+- **Monitor:** Track pipeline usage and cost impact at scale
+
+### 5.2 ⚠️ CRITICAL: Video Pricing Inconsistency
 
 **Issue:**
 - `/api/renders` charges 25 credits/second (₹125/second)
@@ -337,7 +381,30 @@ const creditsPerSecond = 25;
 const creditsCost = creditsPerSecond * duration;
 ```
 
-### 5.2 Markup Analysis
+### 5.3 Model Routing Impact on Costs
+
+**Current Implementation:**
+- Model routing selects optimal model based on complexity/quality
+- Simple renders → Flash Image ($0.039) vs Pro Image ($0.134)
+- **Cost difference: $0.095 per image (₹7.88)**
+
+**Credit Pricing:**
+- All standard quality images: 5 credits (₹25)
+- **Profit variation:**
+  - Flash Image: ₹25 - ₹3.24 = ₹21.76 (87% margin)
+  - Pro Image: ₹25 - ₹11.12 = ₹13.88 (55.5% margin)
+
+**Analysis:**
+- Current pricing model works well: Higher margins on simple renders offset complex ones
+- Average profit margin maintained across mix of simple/complex renders
+- Model routing optimizes costs without affecting user pricing
+
+**Recommendation:**
+- ✅ Keep current pricing model (flat rate per quality tier)
+- ✅ Model routing provides cost optimization without user impact
+- Consider analytics to track model selection distribution
+
+### 5.4 Markup Analysis
 
 **Current Markup:** 2x on API costs
 
@@ -353,7 +420,7 @@ const creditsCost = creditsPerSecond * duration;
   - Quality tiers (already implemented)
   - Market competition
 
-### 5.3 Credit Infrastructure
+### 5.5 Credit Infrastructure
 
 **Status:** ✅ Well-implemented
 
@@ -467,6 +534,11 @@ const creditsCost = creditsPerSecond * duration;
    - Add middleware to enforce pricing
    - Priority: **HIGH**
 
+3. **Track Pipeline Costs**
+   - Add analytics for pipeline usage
+   - Monitor cost impact at scale
+   - Priority: **MEDIUM**
+
 ### 8.2 Short-Term Improvements
 
 1. **Implement Batch API Option**
@@ -499,20 +571,25 @@ const creditsCost = creditsPerSecond * duration;
 
 **Strengths:**
 - Well-implemented credit infrastructure
-- Reasonable markup strategy (2x)
+- Reasonable markup strategy (2x on Stage 5)
 - Good profit margins (40-43%)
 - Competitive pricing (5 INR/credit)
+- ✅ 7-stage pipeline provides value (costs absorbed)
+- ✅ Model routing optimizes costs automatically
 
 **Critical Issues:**
 - ⚠️ Video pricing inconsistency (revenue leakage risk)
+- ⚠️ Pipeline costs not included in pricing (absorbed, reduces margin by ~1-1.5%)
 - Need for pricing standardization
 
 **Profitability:**
-- **On ₹100k revenue:** ~₹41k profit (41% margin)
+- **On ₹100k revenue (without pipeline):** ~₹41k profit (41% margin)
+- **On ₹100k revenue (with pipeline):** ~₹40k profit (40% margin)
 - **Break-even:** ~₹15k/month
 - **Scalability:** Linear profit growth with revenue
+- **Pipeline Impact:** ~1-1.5% margin reduction when enabled
 
-**Grade:** **B+** (would be A- after fixing video pricing)
+**Grade:** **B+** (would be A- after fixing video pricing and pipeline cost strategy)
 
 ---
 
@@ -524,6 +601,14 @@ const creditsCost = creditsPerSecond * duration;
 - `lib/services/billing.ts` - Credit management
 - `lib/actions/render.actions.ts` - Render creation with credits
 - `lib/dal/billing.ts` - Billing data access layer
+- `lib/services/render-pipeline.ts` - 7-stage pipeline orchestrator
+- `lib/services/semantic-parsing.ts` - Stage 1 (semantic parsing)
+- `lib/services/image-understanding.ts` - Stage 2 (image understanding)
+- `lib/services/prompt-optimizer.ts` - Stage 3 (prompt optimization)
+- `lib/services/model-router.ts` - Stage 4 (model routing)
+- `lib/services/image-validator.ts` - Stage 6 (validation)
+- `lib/services/pipeline-memory.ts` - Stage 7 (memory extraction)
+- `lib/config/models.ts` - Model configuration and pricing
 
 ### Database Tables:
 - `user_credits` - Credit balances
@@ -535,12 +620,30 @@ const creditsCost = creditsPerSecond * duration;
 
 ## Appendix B: Pricing Reference Table
 
-| Service | API Cost | Markup | Revenue | Profit | Margin |
-|---------|----------|--------|---------|--------|--------|
+### Stage 5 Only (Current Credit Pricing)
+
+| Service | API Cost (Stage 5) | Markup | Revenue | Profit | Margin |
+|---------|-------------------|--------|---------|--------|--------|
 | Image (Standard) | ₹11.12 | 2x | ₹25 | ₹13.88 | 55.5% |
 | Image (High) | ₹11.12 | 2x | ₹50 | ₹38.88 | 77.8% |
 | Image (Ultra) | ₹11.12 | 2x | ₹75 | ₹63.88 | 85.2% |
 | Video (per second) | ₹62.25 | 2x | ₹125 | ₹62.75 | 50.2% |
+
+### With Full 7-Stage Pipeline (Costs Absorbed)
+
+| Service | Stage 5 Cost | Pipeline Overhead | Total Cost | Revenue | Profit | Margin |
+|---------|-------------|-------------------|------------|---------|--------|--------|
+| Image (Standard) | ₹11.12 | ₹0.42 | ₹11.54 | ₹25 | ₹13.46 | 53.8% |
+| Image (High) | ₹11.12 | ₹0.42 | ₹11.54 | ₹50 | ₹38.46 | 76.9% |
+| Image (Ultra) | ₹11.12 | ₹0.42 | ₹11.54 | ₹75 | ₹63.46 | 84.6% |
+
+### Model Routing Impact
+
+| Model | API Cost | Revenue | Profit | Margin |
+|-------|----------|---------|--------|--------|
+| Flash Image (Simple) | ₹3.24 | ₹25 | ₹21.76 | 87.0% |
+| Pro Image 1K/2K (Complex) | ₹11.12 | ₹25 | ₹13.88 | 55.5% |
+| Pro Image 4K (Ultra) | ₹19.92 | ₹75 | ₹55.08 | 73.4% |
 
 ---
 

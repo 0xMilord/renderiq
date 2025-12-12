@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCachedUser } from '@/lib/services/auth-cache';
 import { BillingDAL } from '@/lib/dal/billing';
 import { BillingService } from '@/lib/services/billing';
 import { RendersDAL } from '@/lib/dal/renders';
@@ -8,19 +7,12 @@ import { AISDKService } from '@/lib/services/ai-sdk-service';
 import { StorageService } from '@/lib/services/storage';
 import { logger } from '@/lib/utils/logger';
 import { getModelConfig } from '@/lib/config/models';
+import { withAuthenticatedApiRoute } from '@/lib/middleware/api-route';
+import * as Sentry from '@sentry/nextjs';
 
-export async function POST(request: NextRequest) {
-  try {
+export const POST = withAuthenticatedApiRoute(
+  async ({ request, user }) => {
     logger.log('🎬 Video API: Starting video generation request');
-
-    // Authenticate user
-    const { user } = await getCachedUser();
-    
-    if (!user) {
-      logger.error('🎬 Video API: Authentication failed');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     logger.log('✅ Video API: User authenticated:', user.id);
 
     // Parse form data
@@ -97,9 +89,10 @@ export async function POST(request: NextRequest) {
     );
 
     if (!deductResult.success) {
-      logger.error('❌ Video API: Failed to deduct credits:', deductResult.error);
+      const errorMessage = 'error' in deductResult ? deductResult.error : 'Failed to deduct credits';
+      logger.error('❌ Video API: Failed to deduct credits:', errorMessage);
       return NextResponse.json({ 
-        error: deductResult.error || 'Failed to deduct credits'
+        error: errorMessage
       }, { status: 500 });
     }
 
@@ -150,6 +143,153 @@ export async function POST(request: NextRequest) {
       let uploadedImageKey: string | undefined;
       let uploadedImageId: string | undefined;
 
+      // 🚀 TECHNICAL MOAT: Full Video Pipeline (optional - can be enabled via feature flag)
+      const useFullPipeline = process.env.ENABLE_FULL_VIDEO_PIPELINE === 'true' || 
+                               request.nextUrl.searchParams.get('fullPipeline') === 'true';
+      
+      let result: any;
+      let optimizedPrompt = prompt;
+      let selectedModel = model;
+
+      if (useFullPipeline) {
+        try {
+          logger.log('🚀 Using FULL Technical Moat Video Pipeline (all stages)');
+          const { VideoPipeline } = await import('@/lib/services/video-pipeline');
+          
+          // Build reference images array if we have them
+          const referenceImages: Array<{ imageData: string; imageType: string }> = [];
+          let firstFrameImage: { imageData: string; imageType: string } | undefined;
+          let lastFrameImage: { imageData: string; imageType: string } | undefined;
+
+          // Collect images based on generation type
+          if (generationType === 'image-to-video') {
+            const uploadedImage = formData.get('uploadedImage') as File;
+            if (uploadedImage) {
+              const imageBuffer = await uploadedImage.arrayBuffer();
+              const imageBase64 = Buffer.from(imageBuffer).toString('base64');
+              firstFrameImage = {
+                imageData: imageBase64,
+                imageType: 'image/jpeg'
+              };
+            }
+          } else if (generationType === 'keyframe-sequence') {
+            const keyframeCount = parseInt(formData.get('keyframeCount') as string) || 0;
+            for (let i = 0; i < keyframeCount; i++) {
+              const keyframe = formData.get(`keyframe_${i}`) as File;
+              if (keyframe) {
+                const keyframeBuffer = await keyframe.arrayBuffer();
+                const keyframeBase64 = Buffer.from(keyframeBuffer).toString('base64');
+                if (i === 0) {
+                  firstFrameImage = { imageData: keyframeBase64, imageType: 'image/jpeg' };
+                }
+                if (i === keyframeCount - 1) {
+                  lastFrameImage = { imageData: keyframeBase64, imageType: 'image/jpeg' };
+                }
+                referenceImages.push({ imageData: keyframeBase64, imageType: 'image/jpeg' });
+              }
+            }
+          }
+
+          const quality = 'standard' as 'standard' | 'high' | 'ultra'; // Can be enhanced later
+          
+          const pipelineResult = await VideoPipeline.generateVideo({
+            prompt,
+            referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
+            firstFrameImage,
+            lastFrameImage,
+            quality,
+            aspectRatio: aspectRatio || '16:9',
+            durationSeconds: duration,
+            chainId: finalChainId,
+            // Only pass forceModel if a specific model is selected (not "auto")
+            // When "auto" is selected, ModelRouter will automatically select the best model
+            forceModel: (model && model !== 'auto') ? (model as any) : undefined,
+            skipStages: {
+              validation: true, // Skip validation for now
+              memoryExtraction: true // Skip memory extraction for now
+            }
+          });
+
+          if (pipelineResult.success && pipelineResult.data) {
+            // Our AISDKService.generateVideo currently polls until completion.
+            // If videoUrl is present, return completed immediately.
+            if ((pipelineResult.data as any).videoUrl) {
+              return NextResponse.json({
+                success: true,
+                status: 'completed',
+                videoUrl: (pipelineResult.data as any).videoUrl,
+                selectedModel: pipelineResult.data.selectedModel
+              });
+            }
+
+            // Fallback: return operationName if available for future async handling
+            return NextResponse.json({
+              success: true,
+              operationName: pipelineResult.data.operationName,
+              status: 'completed',
+              selectedModel: pipelineResult.data.selectedModel
+            });
+          } else {
+            logger.error('❌ Full video pipeline failed, falling back to simple flow:', pipelineResult.error);
+            // Fall through to simple flow
+          }
+        } catch (error) {
+          logger.error('⚠️ Full video pipeline error, falling back to simple flow:', error);
+          // Fall through to simple flow
+        }
+      }
+
+      // 🚀 TECHNICAL MOAT: Simple Optimization (always enabled)
+      // Optimize prompt if we have image inputs
+      if (!result && (generationType === 'image-to-video' || generationType === 'keyframe-sequence')) {
+        try {
+          logger.log('🔍 Video API: Optimizing prompt with vision model (Technical Moat - Simple)...');
+          const { VideoPromptOptimizer } = await import('@/lib/services/video-prompt-optimizer');
+          
+          // Collect reference images
+          const referenceImages: Array<{ imageData: string; imageType: string }> = [];
+          
+          if (generationType === 'image-to-video') {
+            // Will be handled in the specific handler below
+          } else if (generationType === 'keyframe-sequence') {
+            const keyframeCount = parseInt(formData.get('keyframeCount') as string) || 0;
+            for (let i = 0; i < keyframeCount; i++) {
+              const keyframe = formData.get(`keyframe_${i}`) as File;
+              if (keyframe) {
+                const keyframeBuffer = await keyframe.arrayBuffer();
+                const keyframeBase64 = Buffer.from(keyframeBuffer).toString('base64');
+                referenceImages.push({ imageData: keyframeBase64, imageType: 'image/jpeg' });
+              }
+            }
+          }
+
+          if (referenceImages.length > 0) {
+            const optimization = await VideoPromptOptimizer.optimizeVideoPrompt(
+              prompt,
+              referenceImages
+            );
+            optimizedPrompt = optimization.optimizedPrompt;
+            logger.log('✅ Video API: Prompt optimized');
+          }
+        } catch (error) {
+          logger.error('⚠️ Video prompt optimization failed:', error);
+        }
+      }
+
+      // Use ModelRouter to select optimal model if not explicitly provided
+      if (!selectedModel && !result) {
+        try {
+          const { ModelRouter } = await import('@/lib/services/model-router');
+          const quality = 'standard' as 'standard' | 'high' | 'ultra';
+          selectedModel = ModelRouter.selectVideoModel(quality);
+          logger.log('🎯 Video API: ModelRouter selected model:', selectedModel);
+        } catch (error) {
+          logger.error('⚠️ Video model routing failed, using default:', error);
+          const { getDefaultModel } = await import('@/lib/config/models');
+          selectedModel = getDefaultModel('video').id;
+        }
+      }
+
       // Handle different generation types
       if (generationType === 'image-to-video') {
         // Handle single image upload
@@ -175,13 +315,27 @@ export async function POST(request: NextRequest) {
         const imageBuffer = await uploadedImage.arrayBuffer();
         const imageBase64 = Buffer.from(imageBuffer).toString('base64');
 
+        // Optimize prompt with the uploaded image
+        try {
+          const { SimplePromptOptimizer } = await import('@/lib/services/simple-prompt-optimizer');
+          optimizedPrompt = await SimplePromptOptimizer.optimizePrompt(
+            prompt,
+            imageBase64,
+            'image/jpeg'
+          );
+          logger.log('✅ Video API: Prompt optimized with image');
+        } catch (error) {
+          logger.error('⚠️ Video prompt optimization failed:', error);
+        }
+
         // Generate video from image using AI SDK
         result = await aiService.generateVideo({
-          prompt,
+          prompt: optimizedPrompt,
           duration,
           aspectRatio: aspectRatio,
           uploadedImageData: imageBase64,
-          uploadedImageType: 'image/jpeg'
+          uploadedImageType: 'image/jpeg',
+          model: selectedModel
         });
 
       } else if (generationType === 'keyframe-sequence') {
@@ -202,22 +356,61 @@ export async function POST(request: NextRequest) {
           throw new Error('At least one keyframe is required');
         }
 
+        // Optimize prompt with first keyframe
+        try {
+          const { SimplePromptOptimizer } = await import('@/lib/services/simple-prompt-optimizer');
+          optimizedPrompt = await SimplePromptOptimizer.optimizePrompt(
+            prompt,
+            keyframes[0],
+            'image/jpeg'
+          );
+          logger.log('✅ Video API: Prompt optimized with keyframe');
+        } catch (error) {
+          logger.error('⚠️ Video prompt optimization failed:', error);
+        }
+
+        // Optimize prompt with first keyframe
+        if (!result) {
+          try {
+            const { VideoPromptOptimizer } = await import('@/lib/services/video-prompt-optimizer');
+            const optimization = await VideoPromptOptimizer.optimizeVideoPrompt(
+              prompt,
+              keyframes.map(k => ({ imageData: k, imageType: 'image/jpeg' }))
+            );
+            optimizedPrompt = optimization.optimizedPrompt;
+            logger.log('✅ Video API: Prompt optimized with keyframes');
+          } catch (error) {
+            logger.error('⚠️ Video prompt optimization failed:', error);
+          }
+        }
+
         // Generate video from keyframes using AI SDK
-        result = await aiService.generateVideo({
-          prompt,
-          duration,
-          aspectRatio: aspectRatio,
-          uploadedImageData: keyframes[0], // Use first keyframe
-          uploadedImageType: 'image/jpeg'
-        });
+        if (!result) {
+          result = await aiService.generateVideo({
+            prompt: optimizedPrompt,
+            duration: duration,
+            durationSeconds: duration,
+            aspectRatio: aspectRatio,
+            firstFrameImage: { imageData: keyframes[0], imageType: 'image/jpeg' },
+            lastFrameImage: keyframes.length > 1 ? { imageData: keyframes[keyframes.length - 1], imageType: 'image/jpeg' } : undefined,
+            referenceImages: keyframes.slice(0, 3).map(k => ({ imageData: k, imageType: 'image/jpeg' })),
+            model: selectedModel,
+            resolution: '720p'
+          });
+        }
 
       } else {
         // Text-to-video generation using AI SDK
-        result = await aiService.generateVideo({
-          prompt,
-          duration,
-          aspectRatio: aspectRatio
-        });
+        if (!result) {
+          result = await aiService.generateVideo({
+            prompt: optimizedPrompt,
+            duration: duration,
+            durationSeconds: duration,
+            aspectRatio: aspectRatio,
+            model: selectedModel,
+            resolution: '720p'
+          });
+        }
       }
 
       if (!result.success || !result.data) {
@@ -349,18 +542,17 @@ export async function POST(request: NextRequest) {
         error: error instanceof Error ? error.message : 'Video generation failed'
       }, { status: 500 });
     }
-
-  } catch (error) {
-    logger.error('🎬 Video API: Unexpected error:', error);
-    
-    // Add Sentry context for video generation errors
-    Sentry.setContext('video_api', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
-    
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Internal server error'
-    }, { status: 500 });
+  },
+  {
+    routeName: 'POST /api/video',
+    enableCORS: true,
+    enableRateLimit: false, // Video generation should not be rate limited (handled by credits)
+    onError: (error, request) => {
+      logger.error('🎬 Video API: Unexpected error:', error);
+      Sentry.setContext('video_api', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return null; // Use default error handler
+    }
   }
-}
+);

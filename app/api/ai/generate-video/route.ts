@@ -1,19 +1,25 @@
 import { AISDKService } from '@/lib/services/ai-sdk-service';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/utils/logger';
+import { handleCORSPreflight, withCORS } from '@/lib/middleware/cors';
 
 /**
  * Google Generative AI Video Generation API Route
  */
 export async function POST(request: NextRequest) {
+  // ⚡ Fast path: Handle CORS preflight immediately
+  const preflight = handleCORSPreflight(request);
+  if (preflight) return preflight;
+
   try {
     const { prompt, duration, style, aspectRatio } = await request.json();
 
     if (!prompt || typeof prompt !== 'string') {
-      return Response.json(
+      const validationErrorResponse = NextResponse.json(
         { success: false, error: 'Prompt is required' },
         { status: 400 }
       );
+      return withCORS(validationErrorResponse, request);
     }
 
     logger.log('🎬 AI Video: Starting video generation via Google Generative AI', {
@@ -31,10 +37,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (!result.success || !result.data) {
-      return Response.json(
+      const generationErrorResponse = NextResponse.json(
         { success: false, error: result.error || 'Video generation failed' },
         { status: 500 }
       );
+      return withCORS(generationErrorResponse, request);
     }
 
     logger.log('✅ AI Video: Generation successful', {
@@ -42,14 +49,15 @@ export async function POST(request: NextRequest) {
       provider: result.data.provider
     });
 
-    return Response.json({
+    const successResponse = NextResponse.json({
       success: true,
       data: result.data
     });
+    return withCORS(successResponse, request);
 
   } catch (error) {
     logger.error('❌ AI Video: Generation failed', error);
-    return Response.json(
+    const errorResponse = NextResponse.json(
       { 
         success: false,
         error: 'Video generation failed', 
@@ -57,5 +65,6 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     );
+    return withCORS(errorResponse, request);
   }
 }

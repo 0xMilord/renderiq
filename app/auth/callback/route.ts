@@ -9,7 +9,7 @@ import type { DeviceFingerprintInput } from '@/lib/services/sybil-detection';
 import { AuthDAL } from '@/lib/dal/auth';
 
 // Maximum initial credits for new users on signup (trusted users)
-const INITIAL_SIGNUP_CREDITS = 10;
+const INITIAL_SIGNUP_CREDITS = 25;
 
 export async function GET(request: Request) {
   logger.log('🔄 Auth Callback: Processing OAuth callback');

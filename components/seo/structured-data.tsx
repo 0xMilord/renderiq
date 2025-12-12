@@ -54,7 +54,7 @@ export function StructuredData({ type, data }: StructuredDataProps) {
             "@type": "Offer",
             "price": "0",
             "priceCurrency": "USD",
-            "description": "Free tier with 10 credits"
+            "description": "Free tier with 25 credits"
           },
           "featureList": [
             "AI-powered architectural rendering",
@@ -114,7 +114,7 @@ export function StructuredData({ type, data }: StructuredDataProps) {
               "name": "Free Plan",
               "price": "0",
               "priceCurrency": "USD",
-              "description": "10 free credits to get started"
+              "description": "25 free credits to get started"
             },
             {
               "@type": "Offer",

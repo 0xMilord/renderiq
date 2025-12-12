@@ -168,8 +168,9 @@ export function BaseToolComponent({
   useWakeLock(loading || pollingRenderIds.size > 0);
 
   // Auto-adjust quality when model changes if current quality is unsupported
+  // Skip this check for "auto" mode - ModelRouter will select appropriate model
   useEffect(() => {
-    if (selectedModel) {
+    if (selectedModel && selectedModel !== 'auto') {
       const modelId = selectedModel as ModelId;
       if (!modelSupportsQuality(modelId, quality)) {
         // Current quality not supported, adjust to max supported quality
@@ -327,20 +328,46 @@ export function BaseToolComponent({
     }
   }, [pollingRenderIds.size, pollForRenderUpdates]); // Only trigger when size changes
 
-  // Calculate credits cost - use model-based pricing if model is selected, otherwise use custom or default
+  // Calculate credits cost - use model-based pricing from centralized config
   const isVideo = tool.outputType === 'video';
   const imageSize = quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K';
   
-  // For video, use video model; for image, use image model
-  const modelConfig = isVideo 
-    ? (videoModel ? getModelConfig(videoModel as ModelId) : getDefaultModel('video'))
-    : (selectedModel ? getModelConfig(selectedModel as ModelId) : getDefaultModel('image'));
+  // ✅ FIX: Use centralized model-based pricing
+  // For "auto" mode, use maximum cost (Gemini 3 Pro Image) for display
+  // This matches API route behavior - users will be refunded if cheaper model is selected
+  let creditsCost: number;
   
-  const creditsCost = customCreditsCost 
-    ? (typeof customCreditsCost === 'function' ? customCreditsCost(quality) : customCreditsCost)
-    : isVideo
-      ? (modelConfig ? modelConfig.calculateCredits({ duration: videoDuration }) : videoDuration * 16) // Default 16 credits/second
-      : (modelConfig ? modelConfig.calculateCredits({ quality, imageSize }) : (quality === 'high' ? 10 : quality === 'ultra' ? 15 : 5));
+  if (customCreditsCost) {
+    // Use custom credits cost if provided (for tools with special pricing)
+    creditsCost = typeof customCreditsCost === 'function' ? customCreditsCost(quality) : customCreditsCost;
+  } else if (isVideo) {
+    // Video generation: use model-based pricing
+    const modelConfig = videoModel ? getModelConfig(videoModel as ModelId) : getDefaultModel('video');
+    creditsCost = modelConfig ? modelConfig.calculateCredits({ duration: videoDuration }) : videoDuration * 16;
+  } else {
+    // Image generation: use model-based pricing
+    // Handle "auto" mode by using maximum cost (Gemini 3 Pro Image)
+    let modelConfig: ReturnType<typeof getModelConfig> | undefined;
+    if (selectedModel === 'auto' || !selectedModel) {
+      // For "auto" mode, use maximum cost for display (matches API route)
+      modelConfig = getModelConfig('gemini-3-pro-image-preview' as ModelId);
+    } else {
+      modelConfig = getModelConfig(selectedModel as ModelId);
+    }
+    
+    // Fallback to default if model config not found
+    if (!modelConfig) {
+      modelConfig = getDefaultModel('image');
+    }
+    
+    // Calculate credits - if model is "auto", it returns 0, so use max cost model
+    if (modelConfig.id === 'auto') {
+      const maxCostModel = getModelConfig('gemini-3-pro-image-preview' as ModelId);
+      creditsCost = maxCostModel ? maxCostModel.calculateCredits({ quality, imageSize }) : getDefaultModel('image').calculateCredits({ quality, imageSize });
+    } else {
+      creditsCost = modelConfig.calculateCredits({ quality, imageSize });
+    }
+  }
 
   // Handle file changes from FileUpload component
   const handleFilesChange = useCallback((files: File[]) => {
@@ -969,9 +996,14 @@ export function BaseToolComponent({
                               <TooltipContent>
                                 <p className="max-w-xs">
                                   Output quality affects resolution and detail. Higher quality uses more credits but produces better results.
-                                  {selectedModel && (
+                                  {selectedModel && selectedModel !== 'auto' && (
                                     <span className="block mt-1 text-xs">
                                       Selected model supports: {getSupportedResolutions(selectedModel as ModelId).join(', ')}
+                                    </span>
+                                  )}
+                                  {selectedModel === 'auto' && (
+                                    <span className="block mt-1 text-xs text-muted-foreground">
+                                      Auto mode will select the best model based on quality and task complexity
                                     </span>
                                   )}
                                 </p>
@@ -981,8 +1013,8 @@ export function BaseToolComponent({
                           <Select 
                             value={quality} 
                             onValueChange={(v: 'standard' | 'high' | 'ultra') => {
-                              // Validate quality is supported by selected model
-                              if (selectedModel) {
+                              // Validate quality is supported by selected model (skip validation for "auto" mode)
+                              if (selectedModel && selectedModel !== 'auto') {
                                 const modelId = selectedModel as ModelId;
                                 if (modelSupportsQuality(modelId, v)) {
                                   setQuality(v);
@@ -990,6 +1022,7 @@ export function BaseToolComponent({
                                   toast.error(`This quality is not supported by the selected model. Maximum quality: ${getMaxQuality(modelId)}`);
                                 }
                               } else {
+                                // Auto mode or no model selected - allow any quality (ModelRouter will select appropriate model)
                                 setQuality(v);
                               }
                             }}
@@ -1000,19 +1033,19 @@ export function BaseToolComponent({
                             <SelectContent>
                               <SelectItem 
                                 value="standard" 
-                                disabled={selectedModel ? !modelSupportsQuality(selectedModel as ModelId, 'standard') : false}
+                                disabled={selectedModel && selectedModel !== 'auto' ? !modelSupportsQuality(selectedModel as ModelId, 'standard') : false}
                               >
                                 1080p (1K)
                               </SelectItem>
                               <SelectItem 
                                 value="high" 
-                                disabled={selectedModel ? !modelSupportsQuality(selectedModel as ModelId, 'high') : false}
+                                disabled={selectedModel && selectedModel !== 'auto' ? !modelSupportsQuality(selectedModel as ModelId, 'high') : false}
                               >
                                 2160p (2K)
                               </SelectItem>
                               <SelectItem 
                                 value="ultra" 
-                                disabled={selectedModel ? !modelSupportsQuality(selectedModel as ModelId, 'ultra') : false}
+                                disabled={selectedModel && selectedModel !== 'auto' ? !modelSupportsQuality(selectedModel as ModelId, 'ultra') : false}
                               >
                                 4320p (4K)
                               </SelectItem>
@@ -1115,20 +1148,24 @@ export function BaseToolComponent({
 
   // Output Panel Content
   const OutputPanelContent = () => {
-    const hasMultipleResults = results.length > 1;
-    const displayResults = hasMultipleResults ? results.slice(0, 8) : (result ? [result] : []);
+    // ✅ FIX: Combine results and result into a single array
+    const allResults = results.length > 0 ? results : (result ? [result] : []);
+    const hasMultipleResults = allResults.length > 1;
+    const displayResults = allResults.slice(0, 10); // Support up to 10 outputs
     
-    // Calculate expected count for placeholders
-    // Priority: 1) actual results count, 2) expectedOutputCount prop, 3) fallback to 1
+    // ✅ FIX: Calculate expected count for placeholders
+    // Priority: 1) expectedOutputCount prop, 2) actual results count, 3) fallback to 1
     const getExpectedCount = (): number => {
-      if (results.length > 0) {
-        return results.length; // Use actual results if available
-      }
       if (loading && expectedOutputCount !== undefined) {
         // Use expectedOutputCount if provided (can be number or function)
-        return typeof expectedOutputCount === 'function' 
+        const count = typeof expectedOutputCount === 'function' 
           ? expectedOutputCount() 
           : expectedOutputCount;
+        return Math.max(1, Math.min(10, count)); // Clamp between 1 and 10
+      }
+      // If we have results, use that count (but only if loading - otherwise we show actual results)
+      if (loading && allResults.length > 0) {
+        return allResults.length;
       }
       // Fallback: try to infer from customCreditsCost if it's a function
       if (loading && typeof customCreditsCost === 'function') {
@@ -1136,27 +1173,43 @@ export function BaseToolComponent({
         const credits = customCreditsCost(quality);
         const qualityMultiplier = quality === 'high' ? 2 : quality === 'ultra' ? 3 : 1;
         const inferredCount = Math.floor(credits / (5 * qualityMultiplier));
-        return Math.max(1, Math.min(8, inferredCount)); // Clamp between 1 and 8
+        return Math.max(1, Math.min(10, inferredCount)); // Clamp between 1 and 10
       }
       return 1; // Default to 1 placeholder
     };
     
     const expectedCount = getExpectedCount();
     
+    // ✅ FIX: Determine what to show
+    // Show actual images for completed renders, placeholders for pending ones
+    const hasAnyResults = displayResults.length > 0;
+    const hasAnyCompleted = displayResults.some(r => r.outputUrl);
+    const hasAnyPending = displayResults.some(r => !r.outputUrl);
+    const showPlaceholders = loading && (!hasAnyResults || hasAnyPending);
+    
+    // ✅ FIX: Calculate how many placeholders to show
+    // If we have some results, show placeholders only for missing ones
+    // Otherwise, show expected count
+    const placeholderCount = hasAnyResults 
+      ? Math.max(0, expectedCount - displayResults.length) // Only show placeholders for missing items
+      : expectedCount; // Show full expected count if no results yet
+    
     return (
       <div className="p-[3px] bg-muted/30 border border-border/60 rounded-lg">
         <Card className="w-full min-h-[90vh] rounded-[5px]">
           <CardContent className="p-6 lg:p-12 w-full min-h-[90vh]">
-          {loading ? (
+          {showPlaceholders && !hasAnyCompleted ? (
+            // ✅ FIX: Show placeholders only when no results are completed yet
             <div className="grid grid-cols-2 gap-4 max-w-4xl mx-auto">
-              {Array.from({ length: Math.min(8, Math.max(1, expectedCount)) }).map((_, idx) => (
-                <ShimmerGridItem key={idx} />
+              {Array.from({ length: Math.max(1, Math.min(10, expectedCount)) }).map((_, idx) => (
+                <ShimmerGridItem key={`placeholder-${idx}`} />
               ))}
             </div>
-          ) : displayResults.length > 0 ? (
+          ) : hasAnyResults || hasAnyCompleted ? (
             <div className="space-y-6">
               {hasMultipleResults ? (
                 <div className="grid grid-cols-2 gap-4 max-w-4xl mx-auto">
+                  {/* ✅ FIX: Show actual images for completed renders */}
                   {displayResults.map((res, idx) => (
                     <div key={res.renderId || idx} className="space-y-2">
                       <div 
@@ -1194,15 +1247,8 @@ export function BaseToolComponent({
                             )}
                           </>
                         ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-                            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                            <p className="text-xs text-muted-foreground">Generating...</p>
-                            {res.label && (
-                              <div className="absolute top-2 left-2 bg-background/90 backdrop-blur-sm border border-border text-foreground px-2 py-1 rounded text-xs font-medium z-10">
-                                {res.label}
-                              </div>
-                            )}
-                          </div>
+                          // ✅ FIX: Show placeholder for pending renders (no outputUrl yet)
+                          <ShimmerGridItem />
                         )}
                       </div>
                       <div className="flex gap-2">
@@ -1247,34 +1293,39 @@ export function BaseToolComponent({
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div 
-                    className={cn(
-                      "relative max-w-full max-h-[calc(100vh-300px)] mx-auto rounded-lg",
-                      !isVideo && !displayResults[0].outputUrl.match(/\.(mp4|webm|mov)$/i) && "cursor-pointer group"
-                    )}
-                    onClick={() => !isVideo && !displayResults[0].outputUrl.match(/\.(mp4|webm|mov)$/i) && setFullscreenImage({ url: displayResults[0].outputUrl })}
-                  >
-                    {isVideo || displayResults[0].outputUrl.match(/\.(mp4|webm|mov)$/i) ? (
-                      <video 
-                        src={displayResults[0].outputUrl} 
-                        className="max-w-full max-h-[calc(100vh-300px)] mx-auto rounded-lg"
-                        controls
-                        loop
-                        playsInline
-                      >
-                        Your browser does not support the video tag.
-                      </video>
-                    ) : (
-                      <img 
-                        src={displayResults[0].outputUrl} 
-                        alt="Generated result" 
-                        className="max-w-full max-h-[calc(100vh-300px)] mx-auto rounded-lg"
-                      />
-                    )}
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 rounded-lg transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                      <Maximize2 className="h-8 w-8 text-white" />
+                  {displayResults[0]?.outputUrl ? (
+                    <div 
+                      className={cn(
+                        "relative max-w-full max-h-[calc(100vh-300px)] mx-auto rounded-lg",
+                        !isVideo && !displayResults[0].outputUrl.match(/\.(mp4|webm|mov)$/i) && "cursor-pointer group"
+                      )}
+                      onClick={() => !isVideo && !displayResults[0].outputUrl.match(/\.(mp4|webm|mov)$/i) && setFullscreenImage({ url: displayResults[0].outputUrl })}
+                    >
+                      {isVideo || displayResults[0].outputUrl.match(/\.(mp4|webm|mov)$/i) ? (
+                        <video 
+                          src={displayResults[0].outputUrl} 
+                          className="max-w-full max-h-[calc(100vh-300px)] mx-auto rounded-lg"
+                          controls
+                          loop
+                          playsInline
+                        >
+                          Your browser does not support the video tag.
+                        </video>
+                      ) : (
+                        <img 
+                          src={displayResults[0].outputUrl} 
+                          alt="Generated result" 
+                          className="max-w-full max-h-[calc(100vh-300px)] mx-auto rounded-lg"
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 rounded-lg transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                        <Maximize2 className="h-8 w-8 text-white" />
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    // ✅ FIX: Show placeholder for single output if still loading
+                    <ShimmerGridItem />
+                  )}
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
                     <Button onClick={() => setFullscreenImage({ url: displayResults[0].outputUrl })}>
                       <Eye className="h-4 w-4 mr-2" />

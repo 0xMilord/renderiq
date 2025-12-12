@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
 import { getAuthRedirectUrl } from '@/lib/utils/auth-redirect';
+import { handleCORSPreflight, withCORS } from '@/lib/middleware/cors';
 
 /**
  * API route to resend verification email
@@ -9,14 +10,19 @@ import { getAuthRedirectUrl } from '@/lib/utils/auth-redirect';
  * Supabase automatically sends emails using templates configured in Dashboard → Authentication → Email Templates
  */
 export async function POST(request: NextRequest) {
+  // ⚡ Fast path: Handle CORS preflight immediately
+  const preflight = handleCORSPreflight(request);
+  if (preflight) return preflight;
+
   try {
     const { email } = await request.json();
 
     if (!email) {
-      return NextResponse.json(
+      const validationErrorResponse = NextResponse.json(
         { error: 'Email is required' },
         { status: 400 }
       );
+      return withCORS(validationErrorResponse, request);
     }
 
     // ✅ Use Supabase's native resend method - it will use custom templates from Dashboard
@@ -38,24 +44,27 @@ export async function POST(request: NextRequest) {
     if (resendError) {
       logger.error('❌ SendVerification: Failed to resend verification:', resendError);
       // Don't reveal if email exists or not for security
-      return NextResponse.json(
+      const errorResponse = NextResponse.json(
         { success: true, message: 'If an account exists with this email, a verification link has been sent.' },
         { status: 200 }
       );
+      return withCORS(errorResponse, request);
     }
 
     logger.log('✅ SendVerification: Verification email sent via Supabase (custom templates):', email);
 
-    return NextResponse.json({
+    const successResponse = NextResponse.json({
       success: true,
       message: 'Verification email sent successfully',
     });
+    return withCORS(successResponse, request);
   } catch (error) {
     logger.error('❌ SendVerification: Error:', error);
-    return NextResponse.json(
+    const errorResponse = NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
     );
+    return withCORS(errorResponse, request);
   }
 }
 

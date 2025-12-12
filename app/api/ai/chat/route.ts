@@ -1,11 +1,16 @@
 import { AISDKService } from '@/lib/services/ai-sdk-service';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/utils/logger';
+import { handleCORSPreflight, withCORS } from '@/lib/middleware/cors';
 
 /**
  * Google Generative AI Chat API Route with streaming support
  */
 export async function POST(request: NextRequest) {
+  // ⚡ Fast path: Handle CORS preflight immediately
+  const preflight = handleCORSPreflight(request);
+  if (preflight) return preflight;
+
   try {
     const { messages } = await request.json();
 
@@ -57,17 +62,30 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return new Response(stream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      },
+    // For streaming responses, add CORS headers manually
+    const origin = request.headers.get('origin');
+    const headers = new Headers({
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
     });
+    
+    // Add CORS headers for streaming response
+    if (origin) {
+      const { isAllowedOrigin } = await import('@/lib/utils/security');
+      if (isAllowedOrigin(origin)) {
+        headers.set('Access-Control-Allow-Origin', origin);
+        headers.set('Access-Control-Allow-Credentials', 'true');
+      }
+    }
+    headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
+    return new Response(stream, { headers });
 
   } catch (error) {
     logger.error('❌ AI Chat: Chat failed', error);
-    return Response.json(
+    const errorResponse = NextResponse.json(
       { 
         success: false,
         error: 'Chat failed', 
@@ -78,5 +96,6 @@ export async function POST(request: NextRequest) {
         headers: { 'Content-Type': 'application/json' }
       }
     );
+    return withCORS(errorResponse, request);
   }
 }

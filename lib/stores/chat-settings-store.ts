@@ -66,8 +66,8 @@ const defaultSettings: Omit<ChatSettingsState,
   styleTransferPreview: null,
   temperature: '0.5',
   quality: 'standard',
-  selectedImageModel: undefined,
-  selectedVideoModel: undefined,
+  selectedImageModel: 'auto' as ModelId, // Default to auto mode (uses ModelRouter)
+  selectedVideoModel: 'auto' as ModelId, // Default to auto mode (uses ModelRouter)
   videoDuration: 8,
   isVideoMode: false,
   videoKeyframes: [],

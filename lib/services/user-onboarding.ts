@@ -6,7 +6,7 @@ import { getClientIdentifier } from '@/lib/utils/rate-limit';
 import { generateFingerprintHash } from '@/lib/utils/device-fingerprint';
 
 // Maximum initial credits for new users on signup (trusted users)
-const INITIAL_SIGNUP_CREDITS = 10;
+const INITIAL_SIGNUP_CREDITS = 25;
 
 export interface UserProfile {
   id: string;
@@ -102,7 +102,7 @@ export class UserOnboardingService {
 
       // NOW run sybil detection AFTER user is created (so foreign keys exist)
       let sybilResult;
-      let creditsToAward = INITIAL_SIGNUP_CREDITS; // Default to 10 credits
+      let creditsToAward = INITIAL_SIGNUP_CREDITS; // Default to 25 credits
       let ipAddress: string | undefined;
       let userAgent: string | undefined;
 
@@ -119,12 +119,12 @@ export class UserOnboardingService {
             context.request.headers
           );
 
-          // Use recommended credits from sybil detection (defaults to 10 if detection fails)
+          // Use recommended credits from sybil detection (defaults to 25 if detection fails)
           creditsToAward = sybilResult.recommendedCredits || INITIAL_SIGNUP_CREDITS;
         } catch (error) {
           // If sybil detection fails, log but ALWAYS continue with default credits
           logger.error('❌ UserOnboarding: Sybil detection failed, using default credits:', error);
-          creditsToAward = INITIAL_SIGNUP_CREDITS; // Always give 10 credits if detection fails
+          creditsToAward = INITIAL_SIGNUP_CREDITS; // Always give 25 credits if detection fails
         }
       } else {
         // No fingerprint available - give default credits and log warning
@@ -230,17 +230,38 @@ export class UserOnboardingService {
     logger.log('💰 UserOnboarding: Initializing credits for user:', userId, 'Credits:', credits);
     
     try {
-      // ✅ OPTIMIZED: Use billing service which already has upsert pattern (2 queries → 1)
-      const { BillingService } = await import('./billing');
-      const creditsResult = await BillingService.getUserCredits(userId);
+      // ✅ FIXED: Check if credits exist WITHOUT creating them (getUserCredits auto-creates)
+      // Use AuthDAL directly to check existence without auto-creation
+      const { AuthDAL } = await import('@/lib/dal/auth');
+      const existingCredits = await AuthDAL.getUserCredits(userId);
       
-      if (creditsResult.success && creditsResult.credits) {
-        logger.log('✅ UserOnboarding: User already has credits, skipping initialization');
-        return { success: true };
+      if (existingCredits) {
+        // Credits already exist - check if balance is 0 (might be from getUserCredits fallback)
+        if (existingCredits.balance === 0 || existingCredits.balance < credits) {
+          logger.log('💰 UserOnboarding: Credits exist but balance is low, adding credits');
+          const { BillingService } = await import('./billing');
+          const addCreditsResult = await BillingService.addCredits(
+            userId,
+            credits - existingCredits.balance, // Add only the difference
+            'bonus',
+            'Initial signup credits'
+          );
+          
+          if (addCreditsResult.success) {
+            logger.log('✅ UserOnboarding: User credits updated:', addCreditsResult.newBalance);
+            return { success: true, data: { balance: addCreditsResult.newBalance || credits } };
+          } else {
+            throw new Error(addCreditsResult.error || 'Failed to add credits');
+          }
+        } else {
+          logger.log('✅ UserOnboarding: User already has sufficient credits, skipping initialization');
+          return { success: true, data: { balance: existingCredits.balance } };
+        }
       }
 
-      // If credits don't exist, add them using billing service (uses upsert internally)
+      // Credits don't exist - create them with the specified amount
       if (credits > 0) {
+        const { BillingService } = await import('./billing');
         const addCreditsResult = await BillingService.addCredits(
           userId,
           credits,

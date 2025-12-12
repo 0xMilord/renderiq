@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { paymentOrders } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
+import { handleCORSPreflight, withCORS } from '@/lib/middleware/cors';
 
 // Force Node.js runtime for pdfkit (requires Node.js APIs)
 export const runtime = 'nodejs';
@@ -13,6 +14,10 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // ⚡ Fast path: Handle CORS preflight immediately
+  const preflight = handleCORSPreflight(request);
+  if (preflight) return preflight;
+
   try {
     const { id } = await params;
     logger.log('🧾 API: Getting receipt for payment order:', id);
@@ -77,10 +82,11 @@ export async function GET(
     if (!paymentOrder.receiptPdfUrl) {
       const receiptResult = await ReceiptService.generateReceiptPdf(paymentOrderId);
       if (!receiptResult.success) {
-        return NextResponse.json(
+        const receiptErrorResponse = NextResponse.json(
           { success: false, error: receiptResult.error },
           { status: 500 }
         );
+        return withCORS(receiptErrorResponse, request);
       }
     }
 
@@ -92,10 +98,11 @@ export async function GET(
       .limit(1);
 
     if (!updatedOrder?.receiptPdfUrl) {
-      return NextResponse.json(
+      const generateErrorResponse = NextResponse.json(
         { success: false, error: 'Failed to generate receipt' },
         { status: 500 }
       );
+      return withCORS(generateErrorResponse, request);
     }
 
     // Check if download query parameter is present
@@ -107,10 +114,11 @@ export async function GET(
       try {
         const pdfResponse = await fetch(updatedOrder.receiptPdfUrl);
         if (!pdfResponse.ok) {
-          return NextResponse.json(
+          const fetchErrorResponse = NextResponse.json(
             { success: false, error: 'Failed to fetch PDF' },
             { status: 500 }
           );
+          return withCORS(fetchErrorResponse, request);
         }
 
         const pdfBuffer = await pdfResponse.arrayBuffer();
@@ -119,7 +127,7 @@ export async function GET(
         // Force download by using attachment and proper filename encoding
         const encodedFileName = encodeURIComponent(fileName);
         
-        return new NextResponse(pdfBuffer, {
+        const pdfResponse = new NextResponse(pdfBuffer, {
           headers: {
             'Content-Type': 'application/pdf',
             'Content-Disposition': `attachment; filename="${fileName}"; filename*=UTF-8''${encodedFileName}`,
@@ -129,29 +137,33 @@ export async function GET(
             'Expires': '0',
           },
         });
+        return withCORS(pdfResponse, request);
       } catch (error) {
         logger.error('❌ API: Error streaming PDF:', error);
-        return NextResponse.json(
+        const streamErrorResponse = NextResponse.json(
           { success: false, error: 'Failed to stream PDF' },
           { status: 500 }
         );
+        return withCORS(streamErrorResponse, request);
       }
     }
 
     // Return receipt URL
-    return NextResponse.json({
+    const successResponse = NextResponse.json({
       success: true,
       data: {
         receiptUrl: updatedOrder.receiptPdfUrl,
         invoiceNumber: updatedOrder.invoiceNumber,
       },
     });
+    return withCORS(successResponse, request);
   } catch (error) {
     logger.error('❌ API: Error getting receipt:', error);
-    return NextResponse.json(
+    const errorResponse = NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }
     );
+    return withCORS(errorResponse, request);
   }
 }
 
@@ -159,6 +171,10 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // ⚡ Fast path: Handle CORS preflight immediately
+  const preflight = handleCORSPreflight(request);
+  if (preflight) return preflight;
+
   try {
     const { id } = await params;
     logger.log('🧾 API: Generating receipt for payment order:', id);
@@ -223,24 +239,27 @@ export async function POST(
     const receiptResult = await ReceiptService.generateReceiptPdf(paymentOrderId);
 
     if (!receiptResult.success) {
-      return NextResponse.json(
+      const receiptErrorResponse = NextResponse.json(
         { success: false, error: receiptResult.error },
         { status: 500 }
       );
+      return withCORS(receiptErrorResponse, request);
     }
 
-    return NextResponse.json({
+    const successResponse = NextResponse.json({
       success: true,
       data: {
         receiptUrl: receiptResult.pdfUrl,
       },
     });
+    return withCORS(successResponse, request);
   } catch (error) {
     logger.error('❌ API: Error generating receipt:', error);
-    return NextResponse.json(
+    const errorResponse = NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }
     );
+    return withCORS(errorResponse, request);
   }
 }
 

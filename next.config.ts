@@ -177,14 +177,8 @@ const nextConfig: NextConfig = {
             key: 'X-Content-Type-Options',
             value: 'nosniff',
           },
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY',
-          },
-          {
-            key: 'X-XSS-Protection',
-            value: '1; mode=block',
-          },
+          // Note: X-Frame-Options removed - using CSP frame-ancestors instead (more modern)
+          // Note: X-XSS-Protection removed - deprecated, modern browsers ignore it
           {
             key: 'Referrer-Policy',
             value: 'strict-origin-when-cross-origin',
@@ -197,24 +191,29 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              // Razorpay: Allow all HTTPS scripts (required for Razorpay checkout)
-              // Google Analytics & Tag Manager: Allow scripts from Google domains
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: https://www.googletagmanager.com https://*.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://www.google.com https://*.google.com",
-              "style-src 'self' 'unsafe-inline' https:",
-              "img-src 'self' data: https: blob: https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com https://*.googletagmanager.com",
-              "media-src 'self' https: blob: data:",
-              "font-src 'self' data: https:",
-              // Razorpay: Allow all HTTPS connections (required for payment processing)
-              // Google Analytics & Tag Manager: Allow connections to Google domains
-              "connect-src 'self' https: wss: https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com https://*.googletagmanager.com https://www.google.com https://*.google.com https://www.googleapis.com https://*.googleapis.com",
-              // Razorpay: Allow all HTTPS frames (required for payment modal)
-              "frame-src 'self' https:",
-              "child-src 'self' https:",
+              // Scripts: Allow self, Razorpay checkout, Google Analytics/Tag Manager
+              // Note: 'unsafe-inline' and 'unsafe-eval' required for Razorpay and some third-party scripts
+              // TODO: Consider migrating to nonce-based CSP in future for better security
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://www.googletagmanager.com https://*.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://www.google.com https://*.google.com",
+              // Styles: Allow self and inline (required for dynamic styling)
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+              // Images: Allow self, data URIs, blobs, Google Analytics, and common CDN domains
+              "img-src 'self' data: blob: https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com https://*.googletagmanager.com https://storage.googleapis.com https://cdn.renderiq.io https://*.supabase.co https://lh3.googleusercontent.com https://*.googleusercontent.com https://api.dicebear.com",
+              // Media: Allow self, blobs, and data URIs
+              "media-src 'self' blob: data:",
+              // Fonts: Allow self, data URIs, and Google Fonts
+              "font-src 'self' data: https://fonts.gstatic.com https://fonts.googleapis.com",
+              // Connections: Allow self, Razorpay API, Google services, Supabase, and WebSockets
+              "connect-src 'self' https://api.razorpay.com https://checkout.razorpay.com https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com https://*.googletagmanager.com https://www.google.com https://*.google.com https://www.googleapis.com https://*.googleapis.com https://*.supabase.co wss://*.supabase.co",
+              // Frames: Allow self and Razorpay checkout (for payment modal)
+              "frame-src 'self' https://checkout.razorpay.com https://api.razorpay.com",
+              "child-src 'self' https://checkout.razorpay.com",
               "object-src 'none'",
               "base-uri 'self'",
-              // Razorpay: Allow form submissions to any HTTPS (required for payment forms)
-              "form-action 'self' https:",
-              "frame-ancestors 'none'",
+              // Form actions: Allow self and Razorpay (for payment forms)
+              "form-action 'self' https://checkout.razorpay.com https://api.razorpay.com",
+              // Frame ancestors: Allow self (Razorpay opens in modal, not embedded)
+              "frame-ancestors 'self'",
               "upgrade-insecure-requests",
             ].join('; '),
           },

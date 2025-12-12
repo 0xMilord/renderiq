@@ -49,7 +49,7 @@ capabilities:
 
 # Pricing Information
 pricing_model: Freemium with subscription tiers
-free_credits: 10 credits for new users
+free_credits: 25 credits for new users
 subscription_plans:
 - Starter: $7.99/month (₹799) - 100 credits
 - Pro: $24.99/month (₹2,499) - 400 credits

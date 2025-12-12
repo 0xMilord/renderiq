@@ -22,6 +22,8 @@ export const ALLOWED_DOMAINS = [
  * Check if origin is allowed
  * Optimized: Only validates if origin is provided, doesn't block requests without origin
  * This improves performance by not blocking same-origin requests
+ * 
+ * SECURITY: Fails secure - returns false on parse errors to prevent bypass
  */
 export function isAllowedOrigin(origin: string | null): boolean {
   // If no origin header, allow (same-origin request or direct API call)
@@ -32,20 +34,33 @@ export function isAllowedOrigin(origin: string | null): boolean {
     const url = new URL(origin);
     const hostname = url.hostname.toLowerCase();
     
+    // Validate protocol (must be http or https)
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      securityLog('invalid_origin_protocol', { origin, protocol: url.protocol }, 'warn');
+      return false;
+    }
+    
     // Allow localhost in development
     if (process.env.NODE_ENV === 'development') {
-      if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
         return true;
       }
     }
     
     // Check against allowed domains
-    return ALLOWED_DOMAINS.some(domain => 
+    const isAllowed = ALLOWED_DOMAINS.some(domain => 
       hostname === domain || hostname.endsWith(`.${domain}`)
     );
-  } catch {
-    // If origin parsing fails, allow (better UX than blocking)
-    return true;
+    
+    if (!isAllowed) {
+      securityLog('origin_not_allowed', { origin, hostname }, 'warn');
+    }
+    
+    return isAllowed;
+  } catch (error) {
+    // SECURITY: Fail secure - block on parse failure to prevent bypass
+    securityLog('origin_parse_failed', { origin, error: error instanceof Error ? error.message : 'unknown' }, 'warn');
+    return false;
   }
 }
 

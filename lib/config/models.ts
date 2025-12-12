@@ -11,11 +11,13 @@
 
 export type ModelType = 'image' | 'video' | '3d';
 export type ImageModelId = 
+  | 'auto' // Auto-select based on task complexity (uses ModelRouter)
   | 'gemini-3-pro-image-preview'
   | 'gemini-2.5-flash-image';
   // Note: gemini-2.5-flash, gemini-2.5-flash-lite, gemini-2.5-pro are TEXT models, not image generation models
 
 export type VideoModelId =
+  | 'auto' // Auto-select based on task complexity (uses ModelRouter)
   | 'veo-3.1-generate-preview'
   | 'veo-3.1-fast-generate-preview'
   | 'veo-3.0-generate-001'
@@ -322,8 +324,33 @@ export const ALL_MODELS: Record<ModelId, ModelConfig> = {
 
 /**
  * Get model configuration by ID
+ * Handles special "auto" mode which uses ModelRouter for automatic selection
  */
-export function getModelConfig(modelId: ModelId): ModelConfig | undefined {
+/**
+ * Get model configuration by ID
+ * Handles special "auto" mode which uses ModelRouter for automatic selection
+ * Note: "auto" can be used for both image and video types
+ */
+export function getModelConfig(modelId: ModelId, type?: ModelType): ModelConfig | undefined {
+  // Handle "auto" mode - return a special config for display purposes
+  if (modelId === 'auto') {
+    return {
+      id: 'auto' as ModelId,
+      name: 'Auto (Smart Selection)',
+      alias: 'Auto',
+      type: type || 'image', // Use provided type or default to image
+      description: 'Automatically selects the best model based on task complexity, quality requirements, and tool context',
+      pricing: {
+        base: 0, // Variable based on selected model
+      },
+      calculateCredits: () => 0, // Will be calculated based on actual model selected
+      capabilities: {
+        speed: 'standard',
+      },
+      available: true,
+      recommendedFor: ['Best performance', 'Cost optimization', 'Automatic selection'],
+    };
+  }
   return ALL_MODELS[modelId];
 }
 
@@ -380,8 +407,11 @@ export function getSupportedResolutions(modelId: ModelId): ('1K' | '2K' | '4K')[
 /**
  * Check if a quality level is supported by the model
  * Maps: standard -> 1K, high -> 2K, ultra -> 4K
+ * Note: "auto" mode always returns true since ModelRouter will select an appropriate model
  */
 export function modelSupportsQuality(modelId: ModelId, quality: 'standard' | 'high' | 'ultra'): boolean {
+  // "auto" mode always supports all qualities (ModelRouter will select appropriate model)
+  if (modelId === 'auto') return true;
   const resolution = quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K';
   return modelSupportsResolution(modelId, resolution);
 }
@@ -389,7 +419,13 @@ export function modelSupportsQuality(modelId: ModelId, quality: 'standard' | 'hi
 /**
  * Get the maximum quality supported by a model
  */
+/**
+ * Get the maximum quality supported by a model
+ * Note: "auto" mode returns 'ultra' since ModelRouter can select any model
+ */
 export function getMaxQuality(modelId: ModelId): 'standard' | 'high' | 'ultra' {
+  // "auto" mode can use any model, so it supports all qualities up to ultra
+  if (modelId === 'auto') return 'ultra';
   const resolutions = getSupportedResolutions(modelId);
   if (resolutions.includes('4K')) return 'ultra';
   if (resolutions.includes('2K')) return 'high';

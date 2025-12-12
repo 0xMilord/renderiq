@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { securityLog } from '@/lib/utils/security';
 import { logger } from '@/lib/utils/logger';
+import { handleCORSPreflight, withCORS } from '@/lib/middleware/cors';
 
 /**
  * Security endpoint to track console access
  * Helps detect potential account hijacking attempts
  */
 export async function POST(request: NextRequest) {
+  // ⚡ Fast path: Handle CORS preflight immediately
+  const preflight = handleCORSPreflight(request);
+  if (preflight) return preflight;
+
   try {
     const data = await request.json().catch(() => ({}));
     
@@ -17,11 +22,13 @@ export async function POST(request: NextRequest) {
     }, 'info');
     
     // Return success without exposing anything
-    return NextResponse.json({ success: true }, { status: 200 });
+    const successResponse = NextResponse.json({ success: true }, { status: 200 });
+    return withCORS(successResponse, request);
   } catch (error) {
     // Silently fail - don't expose errors
     logger.error('Security logging error:', error);
-    return NextResponse.json({ success: true }, { status: 200 });
+    const errorResponse = NextResponse.json({ success: true }, { status: 200 });
+    return withCORS(errorResponse, request);
   }
 }
 

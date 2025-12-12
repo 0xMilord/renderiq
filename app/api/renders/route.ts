@@ -17,7 +17,6 @@ import { trackRenderStarted, trackRenderCompleted, trackRenderFailed, trackRende
 import { 
   validatePrompt, 
   sanitizeInput, 
-  isAllowedOrigin, 
   getSafeErrorMessage, 
   securityLog,
   isValidUUID,
@@ -25,6 +24,7 @@ import {
   isValidFileSize,
   redactSensitive
 } from '@/lib/utils/security';
+import { handleCORSPreflight, withCORS } from '@/lib/middleware/cors';
 import { rateLimitMiddleware } from '@/lib/utils/rate-limit';
 
 const aiService = AISDKService.getInstance();
@@ -45,20 +45,24 @@ export async function handleRenderRequest(request: NextRequest) {
   // Set transaction name for better organization in Sentry
   setTransactionName('POST /api/renders');
   
+  // Handle CORS preflight
+  const preflight = handleCORSPreflight(request);
+  if (preflight) return preflight;
+  
   try {
     // Rate limiting
     const rateLimit = rateLimitMiddleware(request, { maxRequests: 30, windowMs: 60000 });
     if (!rateLimit.allowed) {
-      return rateLimit.response!;
+      // Convert Response to NextResponse for CORS
+      const rateLimitResponse = NextResponse.json(
+        { success: false, error: 'Rate limit exceeded. Please try again later.' },
+        { 
+          status: 429,
+          headers: rateLimit.response?.headers ? Object.fromEntries(rateLimit.response.headers) : {}
+        }
+      );
+      return withCORS(rateLimitResponse, request);
     }
-
-    // Check origin (only if provided - optimized for performance)
-    const origin = request.headers.get('origin');
-    if (origin && !isAllowedOrigin(origin)) {
-      securityLog('unauthorized_origin', { origin }, 'warn');
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
-    }
-    // Note: Requests without origin header are allowed (same-origin or direct API calls)
 
     logger.log('🚀 Starting render generation API call');
     
@@ -182,6 +186,7 @@ export async function handleRenderRequest(request: NextRequest) {
     const negativePromptRaw = formData.get('negativePrompt') as string | null;
     const negativePrompt = negativePromptRaw ? sanitizeInput(negativePromptRaw) : null;
     
+    // Extract tool settings (if coming from tools)
     const imageType = sanitizeInput(formData.get('imageType') as string | null);
     
     // Extract telemetry metadata for plugin tracking
@@ -189,13 +194,31 @@ export async function handleRenderRequest(request: NextRequest) {
     const pluginVersion = sanitizeInput(formData.get('pluginVersion') as string | null);
     const userAgent = sanitizeInput(formData.get('userAgent') as string | null);
     const callbackUrl = sanitizeInput(formData.get('callback_url') as string | null);
+    const toolSettings: Record<string, string> = {};
+    
+    // Extract common tool settings that tools append to FormData
+    const toolSettingKeys = [
+      'lighting', 'cameraAngle', 'focalLength', 'environment', 'depthOfField',
+      'furnitureStyle', 'roomType', 'presentationStyle', 'lod', 'decorativeDetails', 'shadows',
+      'cameraPathStyle', 'sceneType', 'lightingTypes', 'timeOfDay', 'lightingTemp', 'sunlightDirection',
+      'detailLevel', 'windows', 'style', 'includeText'
+    ];
+    
+    for (const key of toolSettingKeys) {
+      const value = formData.get(key) as string | null;
+      if (value) {
+        toolSettings[key] = sanitizeInput(value);
+      }
+    }
     
     // Build metadata object if any telemetry fields present
-    const metadata = (sourcePlatform || pluginVersion || userAgent || callbackUrl) ? {
+    const metadata = (sourcePlatform || pluginVersion || userAgent || callbackUrl || imageType) ? {
       ...(sourcePlatform && { sourcePlatform }),
       ...(pluginVersion && { pluginVersion }),
       ...(userAgent && { userAgent }),
       ...(callbackUrl && { callbackUrl }),
+      ...(imageType && { toolId: imageType, toolName: imageType }), // Use imageType as toolId/toolName
+      ...(Object.keys(toolSettings).length > 0 && { toolSettings }), // Include tool settings in metadata
     } : undefined;
     
     // Check if user has pro subscription
@@ -228,6 +251,14 @@ export async function handleRenderRequest(request: NextRequest) {
     const styleTransferImageData = formData.get('styleTransferImageData') as string | null || formData.get('styleReferenceImageData') as string | null;
     const styleTransferImageType = formData.get('styleTransferImageType') as string | null || formData.get('styleReferenceImageType') as string | null;
     
+    // Add effect and environment to toolSettings if they exist
+    if (effect && effect !== 'none') {
+      toolSettings['effect'] = effect;
+    }
+    if (environment && environment !== 'none') {
+      toolSettings['environment'] = environment;
+    }
+    
     if (styleTransferImageType && !isValidImageType(styleTransferImageType)) {
       securityLog('invalid_style_image_type', { type: styleTransferImageType }, 'warn');
       return NextResponse.json({ success: false, error: 'Invalid style image type' }, { status: 400 });
@@ -240,8 +271,9 @@ export async function handleRenderRequest(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid temperature value' }, { status: 400 });
     }
     
-    // Validate model + quality combination if model is specified
-    if (model && type === 'image') {
+    // Validate model + quality combination if model is specified (skip validation for "auto" mode)
+    // "auto" mode uses ModelRouter to automatically select the best model, so no validation needed
+    if (model && model !== 'auto' && type === 'image') {
       const { getModelConfig, modelSupportsQuality, getMaxQuality } = await import('@/lib/config/models');
       const modelConfig = getModelConfig(model as any);
       if (modelConfig && modelConfig.type === 'image') {
@@ -340,14 +372,34 @@ export async function handleRenderRequest(request: NextRequest) {
       // Image generation: Use model-based pricing
       const imageModelId = model || getDefaultModel('image').id;
       const modelConfig = getModelConfig(imageModelId as any);
+      const imageSize = quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K';
       
-      if (!modelConfig || modelConfig.type !== 'image') {
+      // ✅ FIX: For "auto" mode, use maximum possible cost (Gemini 3 Pro Image)
+      // This ensures users have enough credits before generation starts
+      // We'll refund the difference if a cheaper model is selected by the pipeline
+      if (imageModelId === 'auto') {
+        const maxCostModel = getModelConfig('gemini-3-pro-image-preview' as any);
+        if (maxCostModel && maxCostModel.type === 'image') {
+          creditsCost = maxCostModel.calculateCredits({ quality, imageSize });
+          logger.log('💰 Image credits cost calculation (auto mode - using max cost):', {
+            model: 'auto',
+            estimatedModel: 'gemini-3-pro-image-preview',
+            quality,
+            imageSize,
+            totalCredits: creditsCost,
+            note: 'Will refund difference if cheaper model is selected'
+          });
+        } else {
+          // Fallback: use default model if max cost model not found
+          const defaultModel = getDefaultModel('image');
+          creditsCost = defaultModel.calculateCredits({ quality, imageSize });
+          logger.warn('⚠️ Max cost model not found for auto mode, using default');
+        }
+      } else if (!modelConfig || modelConfig.type !== 'image') {
         logger.warn('⚠️ Invalid image model, using default');
         const defaultModel = getDefaultModel('image');
-        const imageSize = quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K';
         creditsCost = defaultModel.calculateCredits({ quality, imageSize });
       } else {
-        const imageSize = quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K';
         creditsCost = modelConfig.calculateCredits({ quality, imageSize });
       }
       
@@ -355,14 +407,16 @@ export async function handleRenderRequest(request: NextRequest) {
       const numberOfRequests = useBatchAPI && batchRequests.length > 0 ? batchRequests.length : 1;
       creditsCost = creditsCost * numberOfRequests;
       
-      logger.log('💰 Image credits cost calculation:', {
-        model: imageModelId,
-        quality,
-        imageSize: quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K',
-        numberOfRequests: useBatchAPI ? numberOfRequests : 1,
-        isBatch: useBatchAPI,
-        totalCredits: creditsCost
-      });
+      if (imageModelId !== 'auto') {
+        logger.log('💰 Image credits cost calculation:', {
+          model: imageModelId,
+          quality,
+          imageSize,
+          numberOfRequests: useBatchAPI ? numberOfRequests : 1,
+          isBatch: useBatchAPI,
+          totalCredits: creditsCost
+        });
+      }
     }
     
     // Track render started and credits cost
@@ -971,6 +1025,17 @@ export async function handleRenderRequest(request: NextRequest) {
       createdAt: render.createdAt
     });
 
+    // Record usage tracking (non-blocking)
+    if (creditsCost) {
+      try {
+        const { AnalyticsService } = await import('@/lib/services/analytics-service');
+        const isApiCall = !!(metadata as any)?.sourcePlatform;
+        await AnalyticsService.recordRenderCreation(user.id, creditsCost, isApiCall);
+      } catch (error) {
+        logger.error('⚠️ Failed to record usage tracking (non-critical)', error);
+      }
+    }
+
     // Update render status to processing
     await RendersDAL.updateStatus(render.id, 'processing');
 
@@ -1107,39 +1172,108 @@ export async function handleRenderRequest(request: NextRequest) {
           // No image at all - generate from scratch
           logger.log('🎨 Generating from scratch (no image input)');
         }
+
+        // 🚀 TECHNICAL MOAT: Full Pipeline (optional - can be enabled via feature flag)
+        // Check if full pipeline is enabled (via query param or env var)
+        const useFullPipeline = process.env.ENABLE_FULL_PIPELINE === 'true' || 
+                                 request.nextUrl.searchParams.get('fullPipeline') === 'true';
         
-        logger.log('🎨 Calling aiService.generateImage with parameters:', {
-          promptLength: contextualPrompt.length,
-          aspectRatio,
-          hasUploadedImage: !!imageDataToUse,
-          hasStyleTransfer: !!styleTransferImageData,
-          model: model || 'default',
-          imageSize: quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K'
-        });
+        if (useFullPipeline) {
+          try {
+            logger.log('🚀 Using FULL Technical Moat Pipeline (all 7 stages)');
+            const { RenderPipeline } = await import('@/lib/services/render-pipeline');
+            
+            // Build tool context from metadata, imageType, or toolSettings
+            // Always create toolContext if toolSettings exist (for effect, environment, etc.)
+            const meta = metadata as any;
+            const hasToolSettings = toolSettings && Object.keys(toolSettings).length > 0;
+            const toolContext = (metadata?.sourcePlatform === 'tools' || imageType || hasToolSettings) ? {
+              toolId: meta?.toolId || imageType || 'unknown',
+              toolName: meta?.toolName || imageType || 'Unknown Tool',
+              toolSettings: meta?.toolSettings || toolSettings || {} // Pass tool settings to pipeline (effect, environment, etc.)
+            } : undefined;
+
+            // CRITICAL: Pass uploaded image as referenceImageData if it exists
+            // Priority: uploadedImageData > referenceRenderImageData
+            const imageDataForPipeline = uploadedImageData || referenceRenderImageData;
+            const imageTypeForPipeline = uploadedImageType || referenceRenderImageType;
+            
+            logger.log('🖼️ Pipeline image input:', {
+ers on ui c
+            // Build tool context from metadata or imageType
+            const meta = metadata as any;
+            const toolContext = (metadata?.sourcePlatform === 'tools' || imageType) ? {
+              toolId: meta?.toolId || imageType || 'unknown',
+              toolName: meta?.toolName || imageType || 'Unknown Tool',
+              toolSettings: meta?.toolSettings || toolSettings // Pass tool settings
+            } : undefined;
+            
+            selectedModel = ModelRouter.selectImageModel(
+              quality,
+              toolContext,
+              undefined // Complexity can be added later from semantic parsing
+            );
+            logger.log('🎯 ModelRouter: Selected model:', selectedModel);
+          } catch (error) {
+            logger.error('⚠️ Model routing failed, using default:', error);
+            // Fallback to default model selection logic
+            const { getDefaultModel } = await import('@/lib/config/models');
+            selectedModel = getDefaultModel('image').id;
+          }
+        }
         
-        result = await aiService.generateImage({
-          prompt: contextualPrompt,
-          aspectRatio,
-          uploadedImageData: imageDataToUse || undefined,
-          uploadedImageType: imageTypeToUse || undefined,
-          negativePrompt: negativePrompt || undefined,
-          seed,
-          environment: environment || undefined,
-          effect: effect || undefined,
-          styleTransferImageData: styleTransferImageData || undefined,
-          styleTransferImageType: styleTransferImageType || undefined,
-          temperature,
-          model: model || undefined,
-          imageSize: quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K',
-        });
-        
-        logger.log('🎨 aiService.generateImage completed', {
-          success: result.success,
-          hasData: !!result.data,
-          hasError: !!result.error,
-          error: result.error?.substring(0, 100)
-        });
-      }
+        // Only proceed with regular generation if full pipeline wasn't used or failed
+        if (!result) {
+          logger.log('🎨 Calling aiService.generateImage with parameters:', {
+            promptLength: contextualPrompt.length,
+            aspectRatio,
+            hasUploadedImage: !!imageDataToUse,
+            hasStyleTransfer: !!styleTransferImageData,
+            model: selectedModel,
+            imageSize: quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K'
+          });
+          
+          result = await aiService.generateImage({
+            prompt: contextualPrompt,
+            aspectRatio,
+            uploadedImageData: imageDataToUse || undefined,
+            uploadedImageType: imageTypeToUse || undefined,
+            negativePrompt: negativePrompt || undefined,
+            seed,
+            environment: environment || undefined,
+            effect: effect || undefined,
+            styleTransferImageData: styleTransferImageData || undefined,
+            styleTransferImageType: styleTransferImageType || undefined,
+            temperature,
+            model: selectedModel,
+            imageSize: quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K',
+          });
+          
+          logger.log('🎨 aiService.generateImage completed', {
+            success: result.success,
+            hasData: !!result.data,
+            hasError: !!result.error,
+            error: result.error?.substring(0, 100)
+          });
+
+          // 🚀 TECHNICAL MOAT: Extract and save pipeline memory after generation (if not using full pipeline)
+          // This enables consistency for future renders in the same chain
+          if (result.success && result.data?.imageData && finalChainId && quality !== 'standard') {
+            try {
+              const { PipelineMemoryService } = await import('@/lib/services/pipeline-memory');
+              const memory = await PipelineMemoryService.extractMemory(
+                result.data.imageData,
+                'image/png'
+              );
+              await PipelineMemoryService.saveMemory(render.id, memory);
+              logger.log('✅ Pipeline memory extracted and saved');
+            } catch (error) {
+              logger.error('⚠️ Failed to extract/save pipeline memory:', error);
+              // Non-critical, continue
+            }
+          }
+        }
+      } // Close the else block for image generation
 
       if (!result.success || !result.data) {
         logger.error('❌ Generation failed:', result.error);
@@ -1210,6 +1344,9 @@ export async function handleRenderRequest(request: NextRequest) {
 
       // Upload generated image/video to storage
       let uploadResult;
+      const typeString = String(type);
+      const isVideo = typeString === 'video';
+
       if (processedImageData) {
         // Use processed base64 data (with or without watermark)
         const fileExtension = 'png';
@@ -1224,7 +1361,7 @@ export async function handleRenderRequest(request: NextRequest) {
         );
       } else if (result.data.imageData) {
         // Use base64 data directly (for videos or if processing skipped)
-        const fileExtension = type === 'video' ? 'mp4' : 'png';
+        const fileExtension = isVideo ? 'mp4' : 'png';
         logger.log(`📤 Uploading base64 ${type} data to storage`);
         const buffer = Buffer.from(result.data.imageData, 'base64');
         uploadResult = await StorageService.uploadFile(
@@ -1239,9 +1376,9 @@ export async function handleRenderRequest(request: NextRequest) {
         logger.log(`📤 Fetching ${type} from URL for storage`);
         const response = await fetch(result.data.imageUrl);
         const blob = await response.blob();
-        const fileExtension = type === 'video' ? 'mp4' : 'png';
+        const fileExtension = isVideo ? 'mp4' : 'png';
         const outputFile = new File([blob], `render_${render.id}.${fileExtension}`, {
-          type: type === 'video' ? 'video/mp4' : 'image/png'
+          type: isVideo ? 'video/mp4' : 'image/png'
         });
         uploadResult = await StorageService.uploadFile(
           outputFile,
@@ -1280,7 +1417,7 @@ export async function handleRenderRequest(request: NextRequest) {
       // ✅ FIX: Fetch updated render to include all fields (uploadedImageUrl, chainPosition, etc.)
       const updatedRender = await RendersDAL.getById(render.id);
 
-      return NextResponse.json({
+      const successResponse = NextResponse.json({
         success: true,
         data: {
           id: render.id,
@@ -1297,6 +1434,7 @@ export async function handleRenderRequest(request: NextRequest) {
           chainId: updatedRender?.chainId || null,
         },
       });
+      return withCORS(successResponse, request);
 
     } catch (error) {
       logger.error('❌ Generation error:', error);
@@ -1359,6 +1497,7 @@ export async function handleRenderRequest(request: NextRequest) {
         refunded: true
       }, { status: statusCode });
     }
+    // End of generation try-catch block
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1443,8 +1582,8 @@ export async function handleRenderRequest(request: NextRequest) {
       const userFacingError = isDevelopment 
         ? `Internal server error: ${errorMessage}` 
         : 'Internal server error. Please try again or contact support if the issue persists.';
-    
-    return NextResponse.json({ 
+      
+      const errorResponse = NextResponse.json({ 
         success: false, 
         error: userFacingError,
         refunded: typeof creditsCost !== 'undefined' && user?.id,
@@ -1456,10 +1595,11 @@ export async function handleRenderRequest(request: NextRequest) {
           'Content-Type': 'application/json',
         }
       });
+      return withCORS(errorResponse, request);
     } catch (responseError) {
       // ✅ FIXED: If even creating the response fails, return a minimal safe response
       logger.error('❌ CRITICAL: Failed to create error response:', responseError);
-      return new NextResponse(
+      const fallbackResponse = new NextResponse(
         JSON.stringify({ 
       success: false, 
       error: 'Internal server error',
@@ -1472,12 +1612,8 @@ export async function handleRenderRequest(request: NextRequest) {
           }
         }
       );
+      return withCORS(fallbackResponse, request);
     }
-  } finally {
-    // Track API response time for successful requests
-    const duration = Date.now() - startTime;
-    // Only track if we haven't already tracked an error
-    // This will be handled by the success path or error path above
   }
 }
 
@@ -1491,7 +1627,7 @@ export async function POST(request: NextRequest) {
     logger.error('❌ CRITICAL: Top-level POST handler caught exception:', errorMessage);
     
     try {
-      return NextResponse.json({ 
+      const topLevelErrorResponse = NextResponse.json({ 
         success: false, 
         error: 'Internal server error. Please try again.',
         refunded: false
@@ -1501,6 +1637,7 @@ export async function POST(request: NextRequest) {
           'Content-Type': 'application/json',
         }
       });
+      return withCORS(topLevelErrorResponse, request);
     } catch {
       // If even creating a JSON response fails, return a minimal text response
       return new NextResponse('Internal Server Error', { 

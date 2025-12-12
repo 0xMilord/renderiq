@@ -54,7 +54,7 @@ export const softwareSchema = {
       name: 'Free Plan',
       price: '0',
       priceCurrency: 'USD',
-      description: '10 free credits to get started with AI rendering'
+      description: '25 free credits to get started with AI rendering'
     },
     {
       '@type': 'Offer',
@@ -422,7 +422,7 @@ export const comprehensiveFAQSchema = {
       name: 'What is the pricing for AI architectural rendering?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'We offer a free plan with 10 credits to get started. Our Starter plan is $7.99/month (₹799) with 100 credits, Pro plan is $24.99/month (₹2,499) with 400 credits, and Enterprise plan is $64.99/month (₹6,499) with 1,200 credits. Annual plans available with 20-25% savings.'
+        text: 'We offer a free plan with 25 credits to get started. Our Starter plan is $7.99/month (₹799) with 100 credits, Pro plan is $24.99/month (₹2,499) with 400 credits, and Enterprise plan is $64.99/month (₹6,499) with 1,200 credits. Annual plans available with 20-25% savings.'
       }
     },
     {
@@ -471,7 +471,7 @@ export const comprehensiveFAQSchema = {
       name: 'How much does architectural rendering cost?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Renderiq offers affordable architectural rendering starting with a free plan (10 credits). Our Starter plan is $7.99/month (₹799, 100 credits), Pro plan is $24.99/month (₹2,499, 400 credits), and Enterprise plan is $64.99/month (₹6,499, 1,200 credits). Annual plans available with 20-25% savings. This is significantly more cost-effective than traditional rendering services that charge $500-$2000 per render.'
+        text: 'Renderiq offers affordable architectural rendering starting with a free plan (25 credits). Our Starter plan is $7.99/month (₹799, 100 credits), Pro plan is $24.99/month (₹2,499, 400 credits), and Enterprise plan is $64.99/month (₹6,499, 1,200 credits). Annual plans available with 20-25% savings. This is significantly more cost-effective than traditional rendering services that charge $500-$2000 per render.'
       }
     },
     {

@@ -1,8 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { Check, ChevronsUpDown, Zap, Video, ChevronDown } from 'lucide-react';
-import { SiGoogle } from 'react-icons/si';
+import { Check, ChevronsUpDown, Zap, Video, ChevronDown, Sparkles } from 'lucide-react';
+import { SiGooglegemini } from 'react-icons/si';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -48,15 +48,20 @@ export function ModelSelector({
   const [open, setOpen] = React.useState(false);
   
   const models = getModelsByType(type);
-  const selectedModel = value ? getModelConfig(value) : getDefaultModel(type);
+  // Add "auto" option at the beginning
+  const autoModel = getModelConfig('auto' as ModelId, type);
+  const allModels = autoModel ? [autoModel, ...models] : models;
+  // Treat undefined as "auto" (default behavior)
+  const effectiveValue = value || 'auto';
+  const selectedModel = getModelConfig(effectiveValue as ModelId, type) || (autoModel || getDefaultModel(type));
   const defaultModel = getDefaultModel(type);
   
-  // Calculate credits for selected model
-  const credits = selectedModel?.calculateCredits({
+  // Calculate credits for selected model (skip for "auto" - will be calculated based on actual model)
+  const credits = selectedModel?.id === 'auto' ? 0 : (selectedModel?.calculateCredits({
     quality,
     duration,
     imageSize: imageSize || (quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K'),
-  }) || 0;
+  }) || 0);
 
   const handleSelect = (modelId: ModelId) => {
     onValueChange(modelId);
@@ -79,7 +84,11 @@ export function ModelSelector({
             )}
             disabled={disabled}
           >
-            <SiGoogle className="h-3 w-3 shrink-0" />
+            {effectiveValue === 'auto' ? (
+              <Sparkles className="h-3 w-3 shrink-0" />
+            ) : (
+              <SiGooglegemini className="h-3 w-3 shrink-0" />
+            )}
             <span className="truncate max-w-[80px] sm:max-w-[120px]">
               {selectedModel?.name}
             </span>
@@ -98,13 +107,13 @@ export function ModelSelector({
           <Command className="rounded-lg">
             <CommandList className="max-h-[calc(80vh-3rem)] sm:max-h-[400px]">
               <CommandGroup>
-                {models.map((model) => {
-                  const modelCredits = model.calculateCredits({
+                {allModels.map((model) => {
+                  const modelCredits = model.id === 'auto' ? 0 : model.calculateCredits({
                     quality,
                     duration,
                     imageSize: imageSize || (quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K'),
                   });
-                  const isSelected = value === model.id;
+                  const isSelected = effectiveValue === model.id;
                   
                   return (
                     <CommandItem
@@ -119,11 +128,23 @@ export function ModelSelector({
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                          <SiGoogle className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 group-data-[highlighted]:text-white dark:group-data-[highlighted]:text-foreground" />
+                          {model.id === 'auto' ? (
+                            <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 group-data-[highlighted]:text-white dark:group-data-[highlighted]:text-foreground" />
+                          ) : (
+                            <SiGooglegemini className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 group-data-[highlighted]:text-white dark:group-data-[highlighted]:text-foreground" />
+                          )}
                           <span className="font-medium text-xs sm:text-sm truncate group-data-[highlighted]:text-white dark:group-data-[highlighted]:text-foreground">
                             {model.name}
                           </span>
-                          {model.capabilities.speed && (
+                          {model.id === 'auto' && (
+                            <Badge 
+                              variant="outline" 
+                              className="text-[9px] sm:text-xs px-1.5 py-0 h-5 group-data-[highlighted]:text-white group-data-[highlighted]:border-white dark:group-data-[highlighted]:text-foreground dark:group-data-[highlighted]:border-foreground"
+                            >
+                              Smart
+                            </Badge>
+                          )}
+                          {model.capabilities.speed && model.id !== 'auto' && (
                             <Badge 
                               variant="outline" 
                               className="text-[9px] sm:text-xs px-1.5 py-0 h-5 group-data-[highlighted]:text-white group-data-[highlighted]:border-white dark:group-data-[highlighted]:text-foreground dark:group-data-[highlighted]:border-foreground"
@@ -165,8 +186,10 @@ export function ModelSelector({
             disabled={disabled}
           >
             <div className="flex items-center gap-2 min-w-0 flex-1">
-              {type === 'image' ? (
-                <SiGoogle className="h-4 w-4 shrink-0" />
+              {effectiveValue === 'auto' ? (
+                <Sparkles className="h-4 w-4 shrink-0" />
+              ) : type === 'image' ? (
+                <SiGooglegemini className="h-4 w-4 shrink-0" />
               ) : (
                 <Video className="h-4 w-4 shrink-0" />
               )}
@@ -192,13 +215,13 @@ export function ModelSelector({
           <Command className="rounded-lg">
             <CommandList className="max-h-[calc(80vh-3rem)] sm:max-h-[400px]">
               <CommandGroup>
-                {models.map((model) => {
-                  const modelCredits = model.calculateCredits({
+                {allModels.map((model) => {
+                  const modelCredits = model.id === 'auto' ? 0 : model.calculateCredits({
                     quality,
                     duration,
                     imageSize: imageSize || (quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K'),
                   });
-                  const isSelected = value === model.id;
+                  const isSelected = effectiveValue === model.id;
                   
                   return (
                     <CommandItem
@@ -213,11 +236,23 @@ export function ModelSelector({
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                          <SiGoogle className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 group-data-[highlighted]:text-white dark:group-data-[highlighted]:text-foreground" />
+                          {model.id === 'auto' ? (
+                            <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 group-data-[highlighted]:text-white dark:group-data-[highlighted]:text-foreground" />
+                          ) : (
+                            <SiGooglegemini className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 group-data-[highlighted]:text-white dark:group-data-[highlighted]:text-foreground" />
+                          )}
                           <span className="font-medium text-xs sm:text-sm truncate group-data-[highlighted]:text-white dark:group-data-[highlighted]:text-foreground">
                             {model.name}
                           </span>
-                          {model.capabilities.speed && (
+                          {model.id === 'auto' && (
+                            <Badge 
+                              variant="outline" 
+                              className="text-[9px] sm:text-xs px-1.5 py-0 h-5 group-data-[highlighted]:text-white group-data-[highlighted]:border-white dark:group-data-[highlighted]:text-foreground dark:group-data-[highlighted]:border-foreground"
+                            >
+                              Smart
+                            </Badge>
+                          )}
+                          {model.capabilities.speed && model.id !== 'auto' && (
                             <Badge 
                               variant="outline" 
                               className="text-[9px] sm:text-xs px-1.5 py-0 h-5 group-data-[highlighted]:text-white group-data-[highlighted]:border-white dark:group-data-[highlighted]:text-foreground dark:group-data-[highlighted]:border-foreground"
@@ -259,8 +294,10 @@ export function ModelSelector({
             disabled={disabled}
           >
             <div className="flex items-center gap-2 min-w-0 flex-1">
-              {type === 'image' ? (
-                <SiGoogle className="h-4 w-4 shrink-0" />
+              {effectiveValue === 'auto' ? (
+                <Sparkles className="h-4 w-4 shrink-0" />
+              ) : type === 'image' ? (
+                <SiGooglegemini className="h-4 w-4 shrink-0" />
               ) : (
                 <Video className="h-4 w-4 shrink-0" />
               )}
@@ -286,13 +323,13 @@ export function ModelSelector({
           <Command className="rounded-lg">
             <CommandList className="max-h-[calc(80vh-3rem)] sm:max-h-[500px]">
               <CommandGroup>
-                {models.map((model) => {
-                  const modelCredits = model.calculateCredits({
+                {allModels.map((model) => {
+                  const modelCredits = model.id === 'auto' ? 0 : model.calculateCredits({
                     quality,
                     duration,
                     imageSize: imageSize || (quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K'),
                   });
-                  const isSelected = value === model.id;
+                  const isSelected = effectiveValue === model.id;
                   const isDefault = model.id === defaultModel.id;
                   
                   return (
@@ -308,16 +345,28 @@ export function ModelSelector({
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <SiGoogle className="h-4 w-4 shrink-0 group-data-[highlighted]:text-white dark:group-data-[highlighted]:text-foreground" />
+                          {model.id === 'auto' ? (
+                            <Sparkles className="h-4 w-4 shrink-0 group-data-[highlighted]:text-white dark:group-data-[highlighted]:text-foreground" />
+                          ) : (
+                            <SiGooglegemini className="h-4 w-4 shrink-0 group-data-[highlighted]:text-white dark:group-data-[highlighted]:text-foreground" />
+                          )}
                           <span className="font-medium text-sm sm:text-base group-data-[highlighted]:text-white dark:group-data-[highlighted]:text-foreground">
                             {model.name}
                           </span>
-                          {model.capabilities.speed && (
+                          {model.id === 'auto' && (
+                            <Badge 
+                              variant="outline" 
+                              className="text-xs shrink-0 group-data-[highlighted]:text-white group-data-[highlighted]:border-white dark:group-data-[highlighted]:text-foreground dark:group-data-[highlighted]:border-foreground"
+                            >
+                              Smart
+                            </Badge>
+                          )}
+                          {model.capabilities.speed && model.id !== 'auto' && (
                             <Badge variant="outline" className="text-xs shrink-0 group-data-[highlighted]:text-white group-data-[highlighted]:border-white dark:group-data-[highlighted]:text-foreground dark:group-data-[highlighted]:border-foreground">
                               {model.capabilities.speed}
                             </Badge>
                           )}
-                          {isDefault && (
+                          {isDefault && model.id !== 'auto' && (
                             <Badge variant="outline" className="text-xs shrink-0 group-data-[highlighted]:text-white group-data-[highlighted]:border-white dark:group-data-[highlighted]:text-foreground dark:group-data-[highlighted]:border-foreground">
                               Default
                             </Badge>
