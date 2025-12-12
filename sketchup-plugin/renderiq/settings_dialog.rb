@@ -9,35 +9,41 @@ module Renderiq
       # Get current settings
       settings = get_settings
       
-      # Create dialog
-      options = {
-        :dialog_title => 'Renderiq Settings',
-        :preferences_key => 'RenderIQ_Settings',
-        :scrollable => true,
-        :resizable => true,
-        :width => 500,
-        :height => 600
-      }
-      
-      dlg = UI::WebDialog.new(options)
+      # Create modern dialog
+      dlg = UIHelper.create_dialog(
+        dialog_title: 'Renderiq Settings',
+        preferences_key: 'RenderIQ_Settings',
+        width: 600,
+        height: 700
+      )
       
       html = <<-HTML
-        <html>
+        <!DOCTYPE html>
+        <html lang="en">
         <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            .form-group { margin: 15px 0; }
-            label { display: block; margin-bottom: 5px; font-weight: bold; }
-            select, input { width: 100%; padding: 8px; box-sizing: border-box; }
-            .help-text { font-size: 12px; color: #666; margin-top: 5px; }
-            button { padding: 10px 20px; margin: 5px; cursor: pointer; }
-            .button-container { text-align: center; margin-top: 20px; }
-            .section { border-top: 1px solid #ddd; padding-top: 15px; margin-top: 15px; }
-            .section:first-child { border-top: none; }
+            #{UIHelper.modern_css}
+            .help-text {
+              font-size: 12px;
+              color: #666;
+              margin-top: 6px;
+              line-height: 1.4;
+            }
+            .help-box {
+              margin-top: 10px;
+              padding: 12px;
+              background: #f8f9ff;
+              border-radius: 8px;
+              border-left: 3px solid #667eea;
+            }
           </style>
         </head>
         <body>
-          <h2>Renderiq Settings</h2>
+          <div class="container">
+            <div class="card">
+              <h2>⚙️ Renderiq Settings</h2>
           
           <div class="section">
             <h3>Project Configuration</h3>
@@ -46,9 +52,9 @@ module Renderiq
               <input type="text" id="projectId" value="#{settings[:project_id] || ''}" placeholder="Enter project ID">
               <div class="help-text">Default project for renders (optional)</div>
             </div>
-            <div class="help-text" style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px;">
-              <strong>Note:</strong> Authentication is handled separately. Use the "Login" menu item to authenticate.
-            </div>
+              <div class="help-box">
+                <strong>Note:</strong> Authentication is handled separately. Use the "Login" menu item to authenticate.
+              </div>
           </div>
           
           <div class="section">
@@ -90,9 +96,9 @@ module Renderiq
             </div>
           </div>
           
-          <div class="button-container">
-            <button onclick="saveSettings()">Save Settings</button>
-            <button onclick="sketchup.close()">Cancel</button>
+              <button class="btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+              <button class="btn-secondary" onclick="sketchup.close()">Cancel</button>
+            </div>
           </div>
           
           <script>

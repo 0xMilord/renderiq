@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCachedUser } from '@/lib/services/auth-cache';
-import { RazorpayService } from '@/lib/services/razorpay.service';
+import { PaymentProviderFactory } from '@/lib/services/payment-provider.factory';
 import { logger } from '@/lib/utils/logger';
-import { checkDuplicatePayment, validatePaymentAmount } from '@/lib/utils/payment-security';
+import { checkDuplicatePayment } from '@/lib/utils/payment-security';
 import * as Sentry from '@sentry/nextjs';
 
 export async function POST(request: NextRequest) {
   try {
-    logger.log('🔐 API: Verifying Razorpay payment');
+    logger.log('🔐 API: Verifying payment');
 
     const { user } = await getCachedUser();
 
@@ -19,49 +19,70 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = body;
+    
+    // Support both Razorpay and Paddle verification
+    const { 
+      razorpay_order_id, 
+      razorpay_payment_id, 
+      razorpay_signature,
+      paddle_transaction_id,
+      provider 
+    } = body;
 
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+    // Determine provider from request or detect
+    let paymentProvider;
+    let verificationData: any;
+
+    if (razorpay_order_id && razorpay_payment_id && razorpay_signature) {
+      // Razorpay payment
+      paymentProvider = PaymentProviderFactory.getProviderByType('razorpay');
+      verificationData = {
+        orderId: razorpay_order_id,
+        paymentId: razorpay_payment_id,
+        signature: razorpay_signature,
+      };
+
+      // Check for duplicate payment (Razorpay)
+      const duplicateCheck = await checkDuplicatePayment(razorpay_order_id, razorpay_payment_id);
+      if (duplicateCheck.isDuplicate) {
+        logger.warn('⚠️ API: Duplicate payment attempt detected:', {
+          razorpayOrderId: razorpay_order_id,
+          razorpayPaymentId: razorpay_payment_id,
+          existingOrderId: duplicateCheck.existingOrderId,
+        });
+        
+        Sentry.captureMessage('Duplicate payment attempt detected', {
+          level: 'warning',
+          tags: {
+            payment_security: true,
+            duplicate_payment: true,
+          },
+          extra: {
+            razorpayOrderId: razorpay_order_id,
+            existingOrderId: duplicateCheck.existingOrderId,
+          },
+        });
+        
+        return NextResponse.json(
+          { success: false, error: 'This payment has already been processed' },
+          { status: 400 }
+        );
+      }
+    } else if (paddle_transaction_id) {
+      // Paddle payment
+      paymentProvider = PaymentProviderFactory.getProviderByType('paddle');
+      verificationData = {
+        transactionId: paddle_transaction_id,
+      };
+    } else {
       return NextResponse.json(
         { success: false, error: 'Missing payment verification data' },
         { status: 400 }
       );
     }
 
-    // Check for duplicate payment
-    const duplicateCheck = await checkDuplicatePayment(razorpay_order_id, razorpay_payment_id);
-    if (duplicateCheck.isDuplicate) {
-      logger.warn('⚠️ API: Duplicate payment attempt detected:', {
-        razorpayOrderId: razorpay_order_id,
-        razorpayPaymentId: razorpay_payment_id,
-        existingOrderId: duplicateCheck.existingOrderId,
-      });
-      
-      // Track duplicate payment attempts in Sentry
-      Sentry.captureMessage('Duplicate payment attempt detected', {
-        level: 'warning',
-        tags: {
-          payment_security: true,
-          duplicate_payment: true,
-        },
-        extra: {
-          razorpayOrderId: razorpay_order_id,
-          existingOrderId: duplicateCheck.existingOrderId,
-        },
-      });
-      
-      return NextResponse.json(
-        { success: false, error: 'This payment has already been processed' },
-        { status: 400 }
-      );
-    }
-
-    // Verify payment
-    const verifyResult = await RazorpayService.verifyPayment(
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature
-    );
+    // Verify payment using appropriate provider
+    const verifyResult = await paymentProvider.verifyPayment(verificationData);
 
     if (!verifyResult.success) {
       return NextResponse.json(
@@ -78,9 +99,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ FIXED: Credits, invoice, and receipt generation are already handled in RazorpayService.verifyPayment
-    // Do NOT add credits again here to prevent double credit addition
-
     logger.log('✅ API: Payment verified successfully');
 
     return NextResponse.json({
@@ -93,7 +111,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logger.error('❌ API: Error verifying payment:', error);
     
-    // Add Sentry context for payment verification errors
     Sentry.setContext('payment_verification', {
       error: error instanceof Error ? error.message : 'Unknown error',
     });
@@ -104,4 +121,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

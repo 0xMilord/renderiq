@@ -148,34 +148,28 @@ module Renderiq
     
     # Show login dialog
     def self.show_login_dialog
-      options = {
-        :dialog_title => 'Renderiq Login',
-        :preferences_key => 'RenderIQ_Login',
-        :scrollable => false,
-        :resizable => false,
-        :width => 400,
-        :height => 300
-      }
-      
-      dlg = UI::WebDialog.new(options)
+      dlg = UIHelper.create_dialog(
+        dialog_title: 'Renderiq Login',
+        preferences_key: 'RenderIQ_Login',
+        width: 450,
+        height: 450
+      )
       
       html = <<-HTML
-        <html>
+        <!DOCTYPE html>
+        <html lang="en">
         <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            .form-group { margin: 15px 0; }
-            label { display: block; margin-bottom: 5px; font-weight: bold; }
-            input { width: 100%; padding: 8px; box-sizing: border-box; }
-            button { padding: 10px 20px; margin: 5px; cursor: pointer; width: 100%; }
-            .button-container { margin-top: 20px; }
-            .error { color: red; font-size: 12px; margin-top: 5px; }
-            .link { color: #3498db; text-decoration: none; font-size: 12px; }
-            .link:hover { text-decoration: underline; }
+            #{UIHelper.modern_css}
           </style>
         </head>
         <body>
-          <h2>Login to Renderiq</h2>
+          <div class="container">
+            <div class="card">
+              <h2>🔐 Login to Renderiq</h2>
+              <p class="subtitle">Sign in to your Renderiq account</p>
           <div id="error" class="error" style="display: none;"></div>
           
           <div class="form-group">
@@ -188,13 +182,13 @@ module Renderiq
             <input type="password" id="password" placeholder="Enter your password">
           </div>
           
-          <div class="button-container">
-            <button onclick="login()">Login</button>
-            <div style="text-align: center; margin-top: 10px;">
-              <a href="https://renderiq.io/signup" target="_blank" class="link">Don't have an account? Sign up</a>
-            </div>
-            <div style="text-align: center; margin-top: 5px;">
-              <a href="https://renderiq.io/forgot-password" target="_blank" class="link">Forgot password?</a>
+              <button class="btn-primary" onclick="login()">🔓 Login</button>
+              <div style="text-align: center; margin-top: 16px;">
+                <a href="https://renderiq.io/signup" target="_blank" class="link">Don't have an account? Sign up</a>
+              </div>
+              <div style="text-align: center; margin-top: 8px;">
+                <a href="https://renderiq.io/forgot-password" target="_blank" class="link">Forgot password?</a>
+              </div>
             </div>
           </div>
           

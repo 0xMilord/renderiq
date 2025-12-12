@@ -76,13 +76,18 @@ export async function retryFetch(
         (error as any).responseBody = errorText;
         (error as any).errorJson = errorJson;
         
+        // Don't retry on 413 Payload Too Large - it won't succeed
+        if (response.status === 413) {
+          throw error;
+        }
+        
         // Check if we should retry
         if (shouldRetry) {
           if (!shouldRetry(error, attempt)) {
             throw error;
           }
         } else {
-          // Default: don't retry on HTTP errors
+          // Default: don't retry on HTTP errors (except network errors)
           throw error;
         }
       }
@@ -94,15 +99,23 @@ export async function retryFetch(
       logger.error(`❌ retryFetch: Attempt ${attempt} failed:`, lastError);
       
       // Check if we should retry
-      const shouldRetryError = shouldRetry 
-        ? shouldRetry(lastError, attempt)
-        : (
-            lastError.message.includes('aborted') || 
-            lastError.message.includes('timeout') ||
-            lastError.message.includes('network') ||
-            lastError.message.includes('Failed to fetch') ||
-            lastError.message.includes('ERR_')
-          );
+      // Don't retry on 413 Payload Too Large or other client errors (4xx)
+      const isClientError = lastError.message.includes('413') || 
+                           lastError.message.includes('Payload Too Large') ||
+                           lastError.message.includes('FUNCTION_PAYLOAD_TOO_LARGE') ||
+                           (lastError as any).status >= 400 && (lastError as any).status < 500;
+      
+      const shouldRetryError = !isClientError && (
+        shouldRetry 
+          ? shouldRetry(lastError, attempt)
+          : (
+              lastError.message.includes('aborted') || 
+              lastError.message.includes('timeout') ||
+              lastError.message.includes('network') ||
+              lastError.message.includes('Failed to fetch') ||
+              lastError.message.includes('ERR_')
+            )
+      );
       
       if (attempt < maxAttempts && shouldRetryError) {
         // Wait before retry (exponential backoff)

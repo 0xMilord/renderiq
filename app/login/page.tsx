@@ -27,10 +27,12 @@ export default function LoginPage() {
     setMounted(true);
   }, []);
 
-  // Redirect authenticated users to dashboard
+  // Redirect authenticated users - check for redirect parameter
   useEffect(() => {
     if (!authLoading && user) {
-      router.push('/dashboard');
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectTo = urlParams.get('redirect') || '/dashboard';
+      router.push(redirectTo);
     }
   }, [user, authLoading, router]);
 
@@ -58,7 +60,10 @@ export default function LoginPage() {
       if (error) {
         setError(error.message);
       } else {
-        router.push('/dashboard');
+        // Check for redirect parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectTo = urlParams.get('redirect') || '/dashboard';
+        router.push(redirectTo);
       }
     } catch (err) {
       setError('An unexpected error occurred');

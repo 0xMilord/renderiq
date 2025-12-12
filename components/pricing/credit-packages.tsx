@@ -53,7 +53,12 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
 
   // Convert all prices when currency or exchange rate changes
   useEffect(() => {
-    if (packages.length === 0 || currencyLoading || !exchangeRate) {
+    if (packages.length === 0) {
+      return;
+    }
+
+    // If currency is loading or exchange rate not ready, wait
+    if (currencyLoading || (currency === 'USD' && !exchangeRate)) {
       return;
     }
 
@@ -147,24 +152,6 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
       return;
     }
 
-    // Check if Razorpay key is configured first
-    const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-    if (!razorpayKey) {
-      toast.error('Payment gateway is not configured. Please contact support.');
-      console.error('NEXT_PUBLIC_RAZORPAY_KEY_ID is not set');
-      return;
-    }
-
-    // Check if Razorpay SDK is available
-    if (!Razorpay || typeof window === 'undefined') {
-      if (razorpayLoading) {
-        toast.info('Payment gateway is loading, please wait a moment...', { duration: 3000 });
-      } else {
-        toast.error('Payment gateway is not available. Please refresh the page.', { duration: 5000 });
-      }
-      return;
-    }
-
     try {
       setLoading(packageId);
       // Show processing dialog
@@ -178,7 +165,37 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
         throw new Error(orderResult.error || 'Failed to create order');
       }
 
-      const { orderId, amount, currency: orderCurrency } = orderResult.data;
+      const { orderId, amount, currency: orderCurrency, checkoutUrl } = orderResult.data;
+
+      // Check if this is a Paddle checkout (has checkoutUrl)
+      if (checkoutUrl) {
+        // Paddle hosted checkout - redirect to checkout URL
+        setProcessingDialog({ open: false, message: '' });
+        window.location.href = checkoutUrl;
+        return;
+      }
+
+      // Razorpay checkout - continue with existing flow
+      const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      if (!razorpayKey) {
+        toast.error('Payment gateway is not configured. Please contact support.');
+        console.error('NEXT_PUBLIC_RAZORPAY_KEY_ID is not set');
+        setLoading(null);
+        setProcessingDialog({ open: false, message: '' });
+        return;
+      }
+
+      // Check if Razorpay SDK is available
+      if (!Razorpay || typeof window === 'undefined') {
+        if (razorpayLoading) {
+          toast.info('Payment gateway is loading, please wait a moment...', { duration: 3000 });
+        } else {
+          toast.error('Payment gateway is not available. Please refresh the page.', { duration: 5000 });
+        }
+        setLoading(null);
+        setProcessingDialog({ open: false, message: '' });
+        return;
+      }
 
       // Get base URL for logo (use environment variable for production, fallback to window origin)
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 

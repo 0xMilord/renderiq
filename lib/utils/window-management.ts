@@ -82,3 +82,5 @@ export function isWindowManagementSupported(): boolean {
   return 'resizeTo' in window && 'moveTo' in window;
 }
 
+
+

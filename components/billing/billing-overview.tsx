@@ -124,6 +124,8 @@ export function BillingOverview() {
                 ? `Net Banking: ${subscription.paymentMethod.bank}`
                 : subscription.paymentMethod.method
                 ? subscription.paymentMethod.method.charAt(0).toUpperCase() + subscription.paymentMethod.method.slice(1)
+                : subscription.subscription?.paymentProvider 
+                ? `Managed by ${subscription.subscription.paymentProvider === 'paddle' ? 'Paddle' : 'Razorpay'}`
                 : 'Managed by Razorpay'}
             </p>
           </div>

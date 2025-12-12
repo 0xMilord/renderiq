@@ -41,3 +41,5 @@ export function isBadgeSupported(): boolean {
   return 'setAppBadge' in navigator && 'clearAppBadge' in navigator;
 }
 
+
+

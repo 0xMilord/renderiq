@@ -98,36 +98,35 @@ module Renderiq
         return
       end
       
-      # Create dialog
-      options = {
-        :dialog_title => 'Load Camera Position',
-        :preferences_key => 'RenderIQ_LoadCamera',
-        :scrollable => false,
-        :resizable => false,
-        :width => 300,
-        :height => 200
-      }
-      
-      dlg = UI::WebDialog.new(options)
+      # Create modern dialog
+      dlg = UIHelper.create_dialog(
+        dialog_title: 'Load Camera Position',
+        preferences_key: 'RenderIQ_LoadCamera',
+        width: 400,
+        height: 300
+      )
       
       html = <<-HTML
-        <html>
+        <!DOCTYPE html>
+        <html lang="en">
         <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            select { width: 100%; padding: 8px; margin: 10px 0; }
-            button { padding: 10px 20px; margin: 5px; cursor: pointer; }
-            .button-container { text-align: center; margin-top: 20px; }
+            #{UIHelper.modern_css}
           </style>
         </head>
         <body>
-          <h3>Select Camera Position</h3>
-          <select id="positionSelect">
-            #{positions.map { |name| "<option value=\"#{name}\">#{name}</option>" }.join}
-          </select>
-          <div class="button-container">
-            <button onclick="loadPosition()">Load</button>
-            <button onclick="sketchup.close()">Cancel</button>
+          <div class="container">
+            <div class="card">
+              <h2>📷 Load Camera Position</h2>
+              <p class="subtitle">Select a saved camera position to restore</p>
+              <select id="positionSelect" class="select">
+                #{positions.map { |name| "<option value=\"#{name}\">#{name}</option>" }.join}
+              </select>
+              <button class="btn-primary" onclick="loadPosition()">Load Position</button>
+              <button class="btn-secondary" onclick="sketchup.close()">Cancel</button>
+            </div>
           </div>
           <script>
             function loadPosition() {
@@ -161,41 +160,73 @@ module Renderiq
         return
       end
       
-      # Create dialog
-      options = {
-        :dialog_title => 'Manage Camera Positions',
-        :preferences_key => 'RenderIQ_ManageCameras',
-        :scrollable => true,
-        :resizable => true,
-        :width => 400,
-        :height => 400
-      }
-      
-      dlg = UI::WebDialog.new(options)
+      # Create modern dialog
+      dlg = UIHelper.create_dialog(
+        dialog_title: 'Manage Camera Positions',
+        preferences_key: 'RenderIQ_ManageCameras',
+        width: 500,
+        height: 500
+      )
       
       html = <<-HTML
-        <html>
+        <!DOCTYPE html>
+        <html lang="en">
         <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            .position-item { padding: 10px; border-bottom: 1px solid #ddd; }
-            .position-name { font-weight: bold; }
-            button { padding: 5px 10px; margin: 2px; cursor: pointer; }
+            #{UIHelper.modern_css}
+            .position-item {
+              padding: 16px;
+              border-bottom: 1px solid #eee;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
+            .position-item:last-child {
+              border-bottom: none;
+            }
+            .position-name {
+              font-weight: 600;
+              color: #333;
+              flex: 1;
+            }
+            .position-actions {
+              display: flex;
+              gap: 8px;
+            }
+            .position-actions button {
+              padding: 8px 16px;
+              margin: 0;
+              width: auto;
+              font-size: 13px;
+            }
+            #positionsList {
+              max-height: 350px;
+              overflow-y: auto;
+            }
           </style>
         </head>
         <body>
-          <h3>Saved Camera Positions</h3>
-          <div id="positionsList">
-            #{positions.map { |name| 
-              "<div class='position-item'>
-                <span class='position-name'>#{name}</span>
-                <button onclick='loadPosition(\"#{name}\")'>Load</button>
-                <button onclick='deletePosition(\"#{name}\")'>Delete</button>
-              </div>"
-            }.join}
-          </div>
-          <div style='text-align: center; margin-top: 20px;'>
-            <button onclick='sketchup.close()'>Close</button>
+          <div class="container">
+            <div class="card">
+              <h2>📷 Manage Camera Positions</h2>
+              <p class="subtitle">Load or delete saved camera positions</p>
+              <div id="positionsList">
+                #{positions.map { |name| 
+                  "<div class='position-item'>
+                    <span class='position-name'>#{name}</span>
+                    <div class='position-actions'>
+                      <button class='btn-primary' onclick='loadPosition(\"#{name}\")'>Load</button>
+                      <button class='btn-secondary' onclick='deletePosition(\"#{name}\")'>Delete</button>
+                    </div>
+                  </div>"
+                }.join}
+              </div>
+              <button class="btn-secondary" onclick="sketchup.close()" style="margin-top: 20px;">
+                Close
+              </button>
+            </div>
           </div>
           <script>
             function loadPosition(name) {

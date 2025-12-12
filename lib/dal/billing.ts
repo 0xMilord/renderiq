@@ -38,25 +38,40 @@ export class BillingDAL {
 
       logger.log('✅ BillingDAL: Subscription found:', result[0].plan?.name, 'Status:', result[0].subscription.status);
       
-      // ✅ OPTIMIZED: Get payment method in parallel (if subscription has razorpaySubscriptionId)
+      // ✅ OPTIMIZED: Get payment method in parallel (supports multiple providers)
       // This can run in parallel since it doesn't depend on the subscription query result
       let paymentMethod = null;
-      if (result[0].subscription.razorpaySubscriptionId) {
-        const [paymentOrder] = await db
-          .select()
-          .from(paymentOrders)
-          .where(
-            and(
-              eq(paymentOrders.userId, userId),
-              eq(paymentOrders.razorpaySubscriptionId, result[0].subscription.razorpaySubscriptionId),
-              eq(paymentOrders.status, 'completed')
-            )
-          )
-          .orderBy(desc(paymentOrders.createdAt))
-          .limit(1);
+      const subscription = result[0].subscription;
+      const provider = subscription.paymentProvider || 'razorpay';
+      
+      if (subscription.razorpaySubscriptionId || subscription.paddleSubscriptionId) {
+        const subscriptionId = provider === 'paddle' 
+          ? subscription.paddleSubscriptionId 
+          : subscription.razorpaySubscriptionId;
         
-        if (paymentOrder?.metadata?.paymentMethod) {
-          paymentMethod = paymentOrder.metadata.paymentMethod;
+        if (subscriptionId) {
+          const whereCondition = provider === 'paddle'
+            ? and(
+                eq(paymentOrders.userId, userId),
+                eq(paymentOrders.paddleSubscriptionId, subscriptionId),
+                eq(paymentOrders.status, 'completed')
+              )
+            : and(
+                eq(paymentOrders.userId, userId),
+                eq(paymentOrders.razorpaySubscriptionId, subscriptionId),
+                eq(paymentOrders.status, 'completed')
+              );
+          
+          const [paymentOrder] = await db
+            .select()
+            .from(paymentOrders)
+            .where(whereCondition)
+            .orderBy(desc(paymentOrders.createdAt))
+            .limit(1);
+          
+          if (paymentOrder?.metadata?.paymentMethod) {
+            paymentMethod = paymentOrder.metadata.paymentMethod;
+          }
         }
       }
       

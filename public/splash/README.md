@@ -48,3 +48,5 @@ npx pwa-asset-generator logo.png public/splash --splash-only --background "#1212
 
 ⚠️ **PLACEHOLDER** - Actual splash screen images need to be created and added to this directory.
 
+
+

@@ -10,11 +10,15 @@ unless file_loaded?(__FILE__)
   # Plugin directory
   plugin_dir = File.dirname(__FILE__)
   
-  # Load modules
+  # Load modules (ui_helper must be loaded first)
+  require File.join(plugin_dir, 'renderiq', 'ui_helper.rb')
+  require File.join(plugin_dir, 'renderiq', 'auth_manager.rb')
+  require File.join(plugin_dir, 'renderiq', 'credits_manager.rb')
   require File.join(plugin_dir, 'renderiq', 'camera_manager.rb')
   require File.join(plugin_dir, 'renderiq', 'screenshot_capture.rb')
   require File.join(plugin_dir, 'renderiq', 'api_client.rb')
   require File.join(plugin_dir, 'renderiq', 'settings_dialog.rb')
+  require File.join(plugin_dir, 'renderiq', 'main_dialog.rb')
   require File.join(plugin_dir, 'renderiq', 'render_dialog.rb')
   require File.join(plugin_dir, 'renderiq', 'utils.rb')
   

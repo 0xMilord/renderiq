@@ -78,48 +78,92 @@ module Renderiq
     def self.show_credits_dialog(access_token)
       credits_info = get_credits(access_token)
       
-      options = {
-        :dialog_title => 'Renderiq Credits',
-        :preferences_key => 'RenderIQ_Credits',
-        :scrollable => false,
-        :resizable => false,
-        :width => 400,
-        :height => 300
-      }
-      
-      dlg = UI::WebDialog.new(options)
+      dlg = UIHelper.create_dialog(
+        dialog_title: 'Renderiq Credits',
+        preferences_key: 'RenderIQ_Credits',
+        width: 500,
+        height: 450
+      )
       
       balance = credits_info[:success] ? credits_info[:balance] : 0
       is_low = balance < 5
       
       html = <<-HTML
-        <html>
+        <!DOCTYPE html>
+        <html lang="en">
         <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body { font-family: Arial, sans-serif; padding: 20px; text-align: center; }
-            .balance { font-size: 48px; font-weight: bold; color: #{is_low ? '#e74c3c' : '#27ae60'}; margin: 20px 0; }
-            .label { font-size: 14px; color: #666; margin-bottom: 10px; }
-            .warning { color: #e74c3c; font-size: 12px; margin: 10px 0; }
-            button { padding: 10px 20px; margin: 5px; cursor: pointer; }
-            .button-container { margin-top: 20px; }
-            .stats { margin-top: 20px; font-size: 12px; color: #666; }
+            #{UIHelper.modern_css}
+            body { text-align: center; }
+            .balance {
+              font-size: 64px;
+              font-weight: 700;
+              color: #{is_low ? '#e74c3c' : '#27ae60'};
+              margin: 20px 0;
+              line-height: 1;
+            }
+            .label {
+              font-size: 14px;
+              color: #666;
+              margin-bottom: 10px;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+            }
+            .warning {
+              color: #e74c3c;
+              font-size: 14px;
+              margin: 16px 0;
+              padding: 12px;
+              background: #ffeaea;
+              border-radius: 8px;
+            }
+            .stats {
+              margin-top: 24px;
+              font-size: 13px;
+              color: #666;
+              padding-top: 20px;
+              border-top: 1px solid #eee;
+            }
+            .stats div {
+              margin: 8px 0;
+            }
+            .button-group {
+              display: flex;
+              gap: 12px;
+              margin-top: 24px;
+            }
+            .button-group button {
+              flex: 1;
+            }
           </style>
         </head>
         <body>
-          <h2>Your Credits</h2>
-          <div class="label">Available Balance</div>
-          <div class="balance">#{balance}</div>
-          #{is_low ? '<div class="warning">⚠️ Low credits! Consider topping up.</div>' : ''}
-          
-          <div class="stats">
-            <div>Total Earned: #{credits_info[:total_earned] || 0}</div>
-            <div>Total Spent: #{credits_info[:total_spent] || 0}</div>
-          </div>
-          
-          <div class="button-container">
-            <button onclick="sketchup.callback('topup'); sketchup.close();">Top Up Credits</button>
-            <button onclick="sketchup.callback('refresh'); location.reload();">Refresh</button>
-            <button onclick="sketchup.close();">Close</button>
+          <div class="container">
+            <div class="card">
+              <h2>💎 Your Credits</h2>
+              <div class="label">Available Balance</div>
+              <div class="balance">#{balance}</div>
+              #{is_low ? '<div class="warning">⚠️ Low credits! Consider topping up.</div>' : ''}
+              
+              <div class="stats">
+                <div><strong>Total Earned:</strong> #{credits_info[:total_earned] || 0}</div>
+                <div><strong>Total Spent:</strong> #{credits_info[:total_spent] || 0}</div>
+              </div>
+              
+              <div class="button-group">
+                <button class="btn-primary" onclick="sketchup.callback('topup'); sketchup.close();">
+                  💰 Top Up
+                </button>
+                <button class="btn-secondary" onclick="sketchup.callback('refresh'); location.reload();">
+                  🔄 Refresh
+                </button>
+              </div>
+              <button class="btn-secondary" onclick="sketchup.close();" style="margin-top: 12px;">
+                Close
+              </button>
+            </div>
           </div>
         </body>
         </html>
@@ -144,39 +188,63 @@ module Renderiq
     def self.show_insufficient_credits_dialog(required, balance)
       shortfall = required - balance
       
-      options = {
-        :dialog_title => 'Insufficient Credits',
-        :preferences_key => 'RenderIQ_InsufficientCredits',
-        :scrollable => false,
-        :resizable => false,
-        :width => 400,
-        :height => 250
-      }
-      
-      dlg = UI::WebDialog.new(options)
+      dlg = UIHelper.create_dialog(
+        dialog_title: 'Insufficient Credits',
+        preferences_key: 'RenderIQ_InsufficientCredits',
+        width: 450,
+        height: 350,
+        resizable: false
+      )
       
       html = <<-HTML
-        <html>
+        <!DOCTYPE html>
+        <html lang="en">
         <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body { font-family: Arial, sans-serif; padding: 20px; text-align: center; }
-            .error { color: #e74c3c; font-size: 16px; font-weight: bold; margin: 20px 0; }
-            .info { font-size: 14px; color: #666; margin: 10px 0; }
-            button { padding: 10px 20px; margin: 5px; cursor: pointer; }
-            .button-container { margin-top: 20px; }
+            #{UIHelper.modern_css}
+            body { text-align: center; }
+            .error-box {
+              color: #e74c3c;
+              font-size: 20px;
+              font-weight: 700;
+              margin: 24px 0;
+              padding: 20px;
+              background: #ffeaea;
+              border-radius: 12px;
+            }
+            .info {
+              font-size: 15px;
+              color: #333;
+              margin: 16px 0;
+              line-height: 1.8;
+            }
+            .info strong {
+              color: #1a1a1a;
+              font-size: 18px;
+            }
           </style>
         </head>
         <body>
-          <div class="error">⚠️ Insufficient Credits</div>
-          <div class="info">
-            <div>Required: <strong>#{required}</strong> credits</div>
-            <div>Available: <strong>#{balance}</strong> credits</div>
-            <div style="margin-top: 10px;">You need <strong>#{shortfall}</strong> more credits to continue.</div>
-          </div>
-          
-          <div class="button-container">
-            <button onclick="sketchup.callback('topup'); sketchup.close();">Top Up Credits</button>
-            <button onclick="sketchup.close();">Cancel</button>
+          <div class="container">
+            <div class="card">
+              <div class="error-box">⚠️ Insufficient Credits</div>
+              <div class="info">
+                <div>Required: <strong>#{required}</strong> credits</div>
+                <div>Available: <strong>#{balance}</strong> credits</div>
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee;">
+                  You need <strong>#{shortfall}</strong> more credits to continue.
+                </div>
+              </div>
+              
+              <button class="btn-primary" onclick="sketchup.callback('topup'); sketchup.close();" style="margin-top: 24px;">
+                💰 Top Up Credits
+              </button>
+              <button class="btn-secondary" onclick="sketchup.close();" style="margin-top: 12px;">
+                Cancel
+              </button>
+            </div>
           </div>
         </body>
         </html>

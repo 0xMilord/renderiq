@@ -54,15 +54,23 @@ export const creditPackages = pgTable('credit_packages', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-// Payment orders for tracking Razorpay payments
+// Payment orders for tracking payments from all providers
 export const paymentOrders = pgTable('payment_orders', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   type: text('type', { enum: ['subscription', 'credit_package'] }).notNull(),
   referenceId: uuid('reference_id'), // plan_id or credit_package_id
+  paymentProvider: text('payment_provider', { enum: ['razorpay', 'paddle', 'lemonsqueezy'] }).default('razorpay').notNull(),
+  // Razorpay fields
   razorpayOrderId: text('razorpay_order_id').unique(),
   razorpayPaymentId: text('razorpay_payment_id'),
   razorpaySubscriptionId: text('razorpay_subscription_id'),
+  // Paddle fields
+  paddleTransactionId: text('paddle_transaction_id'),
+  paddleSubscriptionId: text('paddle_subscription_id'),
+  // LemonSqueezy fields
+  lemonsqueezyOrderId: text('lemonsqueezy_order_id'),
+  lemonsqueezySubscriptionId: text('lemonsqueezy_subscription_id'),
   amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
   currency: text('currency').default('INR').notNull(),
   status: text('status', { enum: ['pending', 'processing', 'completed', 'failed', 'cancelled'] }).default('pending').notNull(),
@@ -100,10 +108,19 @@ export const userSubscriptions = pgTable('user_subscriptions', {
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   planId: uuid('plan_id').references(() => subscriptionPlans.id).notNull(),
   status: text('status', { enum: ['active', 'canceled', 'past_due', 'unpaid', 'pending'] }).notNull(),
+  paymentProvider: text('payment_provider', { enum: ['razorpay', 'paddle', 'lemonsqueezy'] }).default('razorpay').notNull(),
+  // Stripe fields (legacy)
   stripeSubscriptionId: text('stripe_subscription_id').unique(),
   stripeCustomerId: text('stripe_customer_id'),
+  // Razorpay fields
   razorpaySubscriptionId: text('razorpay_subscription_id').unique(),
   razorpayCustomerId: text('razorpay_customer_id'),
+  // Paddle fields
+  paddleSubscriptionId: text('paddle_subscription_id').unique(),
+  paddleCustomerId: text('paddle_customer_id'),
+  // LemonSqueezy fields
+  lemonsqueezySubscriptionId: text('lemonsqueezy_subscription_id').unique(),
+  lemonsqueezyCustomerId: text('lemonsqueezy_customer_id'),
   currentPeriodStart: timestamp('current_period_start').notNull(),
   currentPeriodEnd: timestamp('current_period_end').notNull(),
   cancelAtPeriodEnd: boolean('cancel_at_period_end').default(false).notNull(),

@@ -51,8 +51,9 @@ capabilities:
 pricing_model: Freemium with subscription tiers
 free_credits: 10 credits for new users
 subscription_plans:
-- Starter: $29/month - 100 credits
-- Professional: $99/month - 500 credits
+- Starter: $7.99/month (₹799) - 100 credits
+- Pro: $24.99/month (₹2,499) - 400 credits
+- Enterprise: $64.99/month (₹6,499) - 1,200 credits
 - Enterprise: Custom pricing
 
 # API and Integration

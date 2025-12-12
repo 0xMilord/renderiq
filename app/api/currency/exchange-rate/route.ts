@@ -12,7 +12,7 @@ const BASE_CURRENCY = 'INR';
 function getFallbackRates(): Record<string, number> {
   // Current approximate rates (January 2025): 1 INR = X target currency
   return {
-    USD: 0.012,      // 1 INR = 0.012 USD (83 INR = 1 USD)
+    USD: 0.01,       // 1 INR = 0.01 USD (100 INR = 1 USD)
     EUR: 0.011,      // 1 INR = 0.011 EUR
     GBP: 0.0095,     // 1 INR = 0.0095 GBP
     CAD: 0.016,      // 1 INR = 0.016 CAD

@@ -26,47 +26,88 @@ module Renderiq
         end
       end
       
-      # Show capture options
-      options = {
-        :dialog_title => 'Renderiq - Capture & Render',
-        :preferences_key => 'RenderIQ_Main',
-        :scrollable => false,
-        :resizable => false,
-        :width => 400,
-        :height => 300
-      }
-      
-      dlg = UI::WebDialog.new(options)
+      # Create modern dialog using UIHelper
+      dlg = UIHelper.create_dialog(
+        dialog_title: 'Renderiq - Capture & Render',
+        preferences_key: 'RenderIQ_Main',
+        width: 600,
+        height: 500
+      )
       
       html = <<-HTML
-        <html>
+        <!DOCTYPE html>
+        <html lang="en">
         <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            .option { padding: 15px; border: 1px solid #ddd; margin: 10px 0; cursor: pointer; border-radius: 5px; }
-            .option:hover { background-color: #f5f5f5; }
-            .option-title { font-weight: bold; margin-bottom: 5px; }
-            .option-desc { font-size: 12px; color: #666; }
-            button { padding: 10px 20px; margin: 5px; cursor: pointer; width: 100%; }
-            .button-container { margin-top: 20px; }
+            #{UIHelper.modern_css}
+            .option {
+              padding: 20px;
+              border: 2px solid #e5e5e5;
+              margin: 16px 0;
+              cursor: pointer;
+              border-radius: 12px;
+              transition: all 0.2s;
+              background: white;
+            }
+            .option:hover {
+              border-color: #667eea;
+              background: #f8f9ff;
+              transform: translateY(-2px);
+              box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+            }
+            .option-title {
+              font-weight: 600;
+              margin-bottom: 6px;
+              color: #1a1a1a;
+              font-size: 16px;
+            }
+            .option-desc {
+              font-size: 13px;
+              color: #666;
+              line-height: 1.5;
+            }
+            .icon {
+              display: inline-block;
+              margin-right: 8px;
+              font-size: 18px;
+            }
           </style>
         </head>
         <body>
-          <h2>Capture & Render</h2>
-          <p>Choose an option:</p>
-          
-          <div class="option" onclick="sketchup.callback('capture_render'); sketchup.close();">
-            <div class="option-title">Capture Current View & Render</div>
-            <div class="option-desc">Capture the current view and generate a photorealistic render</div>
-          </div>
-          
-          <div class="option" onclick="sketchup.callback('open_settings'); sketchup.close();">
-            <div class="option-title">Settings</div>
-            <div class="option-desc">Configure render settings and API key</div>
-          </div>
-          
-          <div class="button-container">
-            <button onclick="sketchup.close();">Cancel</button>
+          <div class="container">
+            <div class="card">
+              <h2>🎨 Render with Renderiq</h2>
+              <p class="subtitle">Transform your SketchUp models into photorealistic renders</p>
+              
+              <div class="option" onclick="sketchup.callback('capture_render'); sketchup.close();">
+                <div class="option-title">
+                  <span class="icon">📸</span>
+                  Capture Current View & Render
+                </div>
+                <div class="option-desc">
+                  Capture the current view and generate a photorealistic AI render
+                </div>
+              </div>
+              
+              <div class="option" onclick="sketchup.callback('open_settings'); sketchup.close();">
+                <div class="option-title">
+                  <span class="icon">⚙️</span>
+                  Settings
+                </div>
+                <div class="option-desc">
+                  Configure render settings, quality, and API preferences
+                </div>
+              </div>
+              
+              <button class="btn-primary" onclick="sketchup.callback('capture_render'); sketchup.close();">
+                🚀 Start Rendering
+              </button>
+              <button class="btn-secondary" onclick="sketchup.close();">
+                Cancel
+              </button>
+            </div>
           </div>
         </body>
         </html>

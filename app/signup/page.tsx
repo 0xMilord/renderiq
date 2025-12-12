@@ -79,7 +79,9 @@ export default function SignupPage() {
     // If user is already verified, close dialog and redirect
     if (user.email_confirmed_at) {
       setShowVerifyDialog(false);
-      router.push('/dashboard');
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectTo = urlParams.get('redirect') || '/dashboard';
+      router.push(redirectTo);
       return;
     }
 
@@ -93,7 +95,9 @@ export default function SignupPage() {
         if (refreshedUser?.email_confirmed_at) {
           clearInterval(pollInterval);
           setShowVerifyDialog(false);
-          router.push('/dashboard');
+          const urlParams = new URLSearchParams(window.location.search);
+          const redirectTo = urlParams.get('redirect') || '/dashboard';
+          router.push(redirectTo);
         }
       } catch (error) {
         console.error('Error polling for email verification:', error);

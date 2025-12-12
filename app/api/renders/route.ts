@@ -62,6 +62,23 @@ export async function handleRenderRequest(request: NextRequest) {
 
     logger.log('🚀 Starting render generation API call');
     
+    // ✅ FIXED: Check request size before parsing to prevent 413 errors
+    const contentLength = request.headers.get('content-length');
+    if (contentLength) {
+      const sizeInBytes = parseInt(contentLength, 10);
+      const maxSizeBytes = 4.5 * 1024 * 1024; // 4.5MB (Vercel Hobby limit) - adjust for your plan
+      
+      if (sizeInBytes > maxSizeBytes) {
+        const sizeInMB = (sizeInBytes / (1024 * 1024)).toFixed(2);
+        logger.error(`❌ Request too large: ${sizeInMB}MB (max: ${(maxSizeBytes / (1024 * 1024)).toFixed(2)}MB)`);
+        return NextResponse.json({ 
+          success: false, 
+          error: `Request payload too large (${sizeInMB}MB). Maximum allowed size is ${(maxSizeBytes / (1024 * 1024)).toFixed(2)}MB. Please reduce image size or use image compression.`,
+          code: 'PAYLOAD_TOO_LARGE'
+        }, { status: 413 });
+      }
+    }
+    
     // ✅ FIXED: Wrap auth and formData parsing in try-catch to handle early errors
     // Support Bearer token auth for plugins
     try {
@@ -92,11 +109,23 @@ export async function handleRenderRequest(request: NextRequest) {
       }, { status: 401 });
     }
 
-    // ✅ FIXED: Wrap formData parsing in try-catch
+    // ✅ FIXED: Wrap formData parsing in try-catch with better error handling for 413
     let formData: FormData;
     try {
       formData = await request.formData();
-    } catch (formDataError) {
+    } catch (formDataError: any) {
+      const errorMessage = formDataError?.message || String(formDataError);
+      
+      // Handle 413 Payload Too Large specifically
+      if (errorMessage.includes('413') || errorMessage.includes('Payload Too Large') || errorMessage.includes('FUNCTION_PAYLOAD_TOO_LARGE')) {
+        logger.error('❌ Request payload too large (413):', errorMessage);
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Request payload too large. Maximum allowed size is 4.5MB. Please reduce image size or use image compression.',
+          code: 'PAYLOAD_TOO_LARGE'
+        }, { status: 413 });
+      }
+      
       logger.error('❌ FormData parsing error:', formDataError);
       return NextResponse.json({ 
         success: false, 

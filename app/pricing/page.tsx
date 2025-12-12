@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react';
 import { PricingPlans } from '@/components/pricing/pricing-plans';
 import { CreditPackages } from '@/components/pricing/credit-packages';
+import { CurrencyToggle } from '@/components/pricing/currency-toggle';
 import { getPricingPageDataAction } from '@/lib/actions/pricing.actions';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { resetCurrencyToINR } from '@/lib/utils/reset-currency-to-inr';
 import OptimizedBackground from '@/components/home/optimized-background';
 
 export default function PricingPage() {
@@ -17,8 +17,6 @@ export default function PricingPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Reset currency to INR on pricing page load (Razorpay default)
-    resetCurrencyToINR();
     loadData();
   }, []);
 
@@ -69,9 +67,15 @@ export default function PricingPage() {
       <div className="w-full px-4 sm:px-6 lg:px-8 pt-[calc(1rem+2.75rem+1.5rem+3rem)] pb-12 relative z-10">
         {/* Header - Full Width */}
         <div className="w-full text-center mb-12">
-          <h1 className="text-6xl font-bold tracking-tight mb-4">
-            Pricing
-          </h1>
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <h1 className="text-6xl font-bold tracking-tight">
+              Pricing
+            </h1>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Currency:</span>
+              <CurrencyToggle />
+            </div>
+          </div>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Choose a subscription plan for unlimited usage or purchase credits for pay-as-you-go.
             {userCredits && (

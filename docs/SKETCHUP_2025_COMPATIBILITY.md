@@ -292,3 +292,5 @@ If updating from older versions:
 
 The Renderiq SketchUp plugin is designed to be compatible with SketchUp 2020 through 2025+. By following these best practices and testing guidelines, the extension should work reliably across all supported versions.
 
+
+

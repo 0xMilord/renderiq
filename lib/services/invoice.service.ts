@@ -144,8 +144,12 @@ export class InvoiceService {
             type: paymentOrder.type,
             referenceId: paymentOrder.referenceId,
             referenceDetails,
+            // Provider-agnostic payment IDs
             razorpayOrderId: paymentOrder.razorpayOrderId,
             razorpayPaymentId: paymentOrder.razorpayPaymentId,
+            paddleTransactionId: paymentOrder.paddleTransactionId,
+            paddleSubscriptionId: paymentOrder.paddleSubscriptionId,
+            paymentProvider: paymentOrder.paymentProvider || 'razorpay',
             userEmail: user?.email,
             userName: user?.name,
           },

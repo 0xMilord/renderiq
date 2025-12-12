@@ -19,11 +19,13 @@ function PaymentSuccessContent() {
   const razorpayOrderId = searchParams.get('razorpay_order_id');
   const razorpaySubscriptionId = searchParams.get('razorpay_subscription_id');
   const razorpayPaymentId = searchParams.get('razorpay_payment_id');
+  const paddleTransactionId = searchParams.get('paddle_transaction_id');
+  const paddleSubscriptionId = searchParams.get('paddle_subscription_id');
   const verification = searchParams.get('verification');
 
   useEffect(() => {
-    // Allow access if we have at least one payment identifier
-    if (!paymentOrderId && !razorpayOrderId && !razorpaySubscriptionId && !razorpayPaymentId) {
+    // Allow access if we have at least one payment identifier (Razorpay or Paddle)
+    if (!paymentOrderId && !razorpayOrderId && !razorpaySubscriptionId && !razorpayPaymentId && !paddleTransactionId && !paddleSubscriptionId) {
       toast.error('Invalid payment information');
       router.push('/pricing');
       return;
@@ -173,6 +175,48 @@ function PaymentSuccessContent() {
           } else {
             setLoading(false);
           }
+        }
+      } else if (paddleTransactionId || paddleSubscriptionId) {
+        // Paddle payment - try to get payment order by transaction/subscription ID
+        const { getPaymentOrderBySubscriptionAction, getReceiptAction } = await import('@/lib/actions/payment.actions');
+        
+        // Try to find payment order by Paddle transaction/subscription ID
+        const { getPaymentHistoryAction } = await import('@/lib/actions/payment.actions');
+        const historyData = await getPaymentHistoryAction({ limit: 10 });
+        
+        if (historyData.success && historyData.data?.payments) {
+          const payment = historyData.data.payments.find((p: any) => 
+            p.paddleTransactionId === paddleTransactionId || 
+            p.paddleSubscriptionId === paddleSubscriptionId ||
+            (p.type === 'subscription' && p.status === 'completed' && p.paymentProvider === 'paddle')
+          );
+          
+          if (payment) {
+            setPaymentData(payment);
+            if (payment.id) {
+              const newUrl = new URL(window.location.href);
+              newUrl.searchParams.set('payment_order_id', payment.id);
+              window.history.replaceState({}, '', newUrl.toString());
+              
+              setLoading(false);
+              
+              getReceiptAction(payment.id)
+                .then(receiptData => {
+                  if (receiptData?.success && receiptData.data?.receiptUrl) {
+                    setReceiptUrl(receiptData.data.receiptUrl);
+                  }
+                })
+                .catch(err => console.error('Error fetching receipt:', err));
+            } else {
+              setLoading(false);
+            }
+          } else {
+            // Payment verified but order details not yet available - webhook will update
+            console.log('Paddle payment verified but order details not yet available. Webhook will update.');
+            setLoading(false);
+          }
+        } else {
+          setLoading(false);
         }
       } else if (razorpayOrderId || razorpayPaymentId) {
         // We only have Razorpay IDs but no payment order ID yet

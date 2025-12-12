@@ -252,6 +252,19 @@ const nextConfig: NextConfig = {
             key: 'Service-Worker-Allowed',
             value: '/',
           },
+          // ✅ FIXED: Add CORS headers for service worker registration
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET, OPTIONS',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'Content-Type',
+          },
         ],
       },
       {

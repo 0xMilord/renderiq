@@ -62,7 +62,12 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
 
   // Convert plan prices when currency or exchange rate changes
   useEffect(() => {
-    if (plans.length === 0 || currencyLoading || !exchangeRate) {
+    if (plans.length === 0) {
+      return;
+    }
+
+    // If currency is loading or exchange rate not ready, wait
+    if (currencyLoading || (currency === 'USD' && !exchangeRate)) {
       return;
     }
 
@@ -228,9 +233,10 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
-      toast.error('Please sign up or log in to subscribe');
+      toast.error('Please sign in to subscribe');
       setTimeout(() => {
-        window.location.href = `/signup?redirect=${encodeURIComponent(window.location.pathname)}`;
+        // Redirect to login with redirect parameter to come back to pricing page
+        window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
       }, 1500);
       return;
     }
@@ -293,15 +299,26 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
         } else {
           toast.error(result.error || 'Failed to create subscription');
         }
+        setLoading(null);
+        setProcessingDialog({ open: false, message: '' });
         return;
       }
 
-      // Check if Razorpay key is configured
+      // Check if this is a Paddle checkout (has checkoutUrl)
+      if (result.data?.checkoutUrl) {
+        // Paddle hosted checkout - redirect to checkout URL
+        setProcessingDialog({ open: false, message: '' });
+        window.location.href = result.data.checkoutUrl;
+        return;
+      }
+
+      // Razorpay checkout - continue with existing flow
       const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
       if (!razorpayKey) {
         toast.error('Payment gateway is not configured. Please contact support.');
         console.error('NEXT_PUBLIC_RAZORPAY_KEY_ID is not set');
         setLoading(null);
+        setProcessingDialog({ open: false, message: '' });
         return;
       }
 
@@ -313,6 +330,7 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
           toast.error('Payment gateway is not available. Please refresh the page.', { duration: 5000 });
         }
         setLoading(null);
+        setProcessingDialog({ open: false, message: '' });
         return;
       }
 
@@ -550,9 +568,29 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
           // Check if this is the user's current plan
           const isCurrentPlan = userSubscription?.subscription?.planId === currentPlan.id;
           const hasActiveSubscription = userSubscription?.subscription?.status === 'active';
-          const userPlanPrice = userSubscription?.plan ? parseFloat(userSubscription.plan.price) : 0;
-          const isUpgrade = hasActiveSubscription && !isCurrentPlan && currentPrice > userPlanPrice;
-          const isDowngrade = hasActiveSubscription && !isCurrentPlan && currentPrice < userPlanPrice;
+          
+          // Get user's current plan details for proper comparison
+          const userPlan = userSubscription?.plan;
+          const userPlanInterval = userPlan?.interval || 'month';
+          const userPlanBasePrice = userPlan ? parseFloat(userPlan.price) : 0;
+          
+          // Convert user's plan price to match the selected interval for comparison
+          // If user is on monthly and viewing annual, convert monthly to annual equivalent
+          // If user is on annual and viewing monthly, convert annual to monthly equivalent
+          let userPlanPriceForComparison = userPlanBasePrice;
+          if (userPlan && selectedInterval !== userPlanInterval) {
+            if (userPlanInterval === 'month' && selectedInterval === 'year') {
+              // User on monthly, viewing annual - convert monthly to annual (multiply by 12)
+              userPlanPriceForComparison = userPlanBasePrice * 12;
+            } else if (userPlanInterval === 'year' && selectedInterval === 'month') {
+              // User on annual, viewing monthly - convert annual to monthly (divide by 12)
+              userPlanPriceForComparison = userPlanBasePrice / 12;
+            }
+          }
+          
+          // Now compare prices on the same interval basis
+          const isUpgrade = hasActiveSubscription && !isCurrentPlan && currentPrice > userPlanPriceForComparison;
+          const isDowngrade = hasActiveSubscription && !isCurrentPlan && currentPrice < userPlanPriceForComparison;
           
           // Check if annual plan is available
           const hasAnnualOption = !!annualPlan;

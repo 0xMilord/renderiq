@@ -29,3 +29,5 @@ This directory contains PWA screenshots for installation prompts and app stores.
 
 ⚠️ **PLACEHOLDER** - Actual images need to be created and added to this directory.
 
+
+

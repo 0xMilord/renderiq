@@ -205,7 +205,7 @@ const faqs = [
       },
       {
         question: 'What are the subscription plans and pricing?',
-        answer: 'Renderiq offers flexible pricing: Free plan with 10 credits/month (3 projects, 5 renders per project), Starter plan at ₹119/month with 24 credits/month (10 projects, 10 renders per project), Pro plan at ₹499/month with 100 credits/month (unlimited projects and renders, video generation, API access), and Enterprise plan at ₹4,999/month with 1,000 credits/month (unlimited everything, team collaboration, dedicated support). Annual plans available with 20-25% savings. All plans include access to all 21 specialized tools and the Canvas Editor.',
+        answer: 'Renderiq offers flexible pricing: Free plan with 10 credits/month (3 projects, 5 renders per project), Starter plan at ₹799/month with 100 credits/month (10 projects, 10 renders per project), Pro plan at ₹2,499/month with 400 credits/month (unlimited projects and renders, video generation, API access), and Enterprise plan at ₹6,499/month with 1,200 credits/month (unlimited everything, team collaboration, dedicated support). Annual plans available with 20-25% savings. All plans include access to all 21 specialized tools and the Canvas Editor.',
       },
       {
         question: 'Can I cancel my subscription anytime? What happens to my credits?',

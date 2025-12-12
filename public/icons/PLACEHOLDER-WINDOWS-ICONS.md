@@ -26,3 +26,5 @@ Use your existing icon-512x512.png as source and resize to these dimensions.
 
 These icons are already referenced in manifest.json and will be used automatically once created.
 
+
+

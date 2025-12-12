@@ -8,33 +8,61 @@ module Renderiq
     # @param render_id [String] Render ID
     # @param access_token [String] Access token
     def self.show_progress(render_id, access_token)
-      options = {
-        :dialog_title => 'Rendering...',
-        :preferences_key => 'RenderIQ_Progress',
-        :scrollable => false,
-        :resizable => false,
-        :width => 400,
-        :height => 200
-      }
-      
-      dlg = UI::WebDialog.new(options)
+      dlg = UIHelper.create_dialog(
+        dialog_title: 'Rendering...',
+        preferences_key: 'RenderIQ_Progress',
+        width: 500,
+        height: 300,
+        resizable: false
+      )
       
       html = <<-HTML
-        <html>
+        <!DOCTYPE html>
+        <html lang="en">
         <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body { font-family: Arial, sans-serif; padding: 20px; text-align: center; }
-            .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
-            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-            #status { margin-top: 20px; }
-            button { padding: 10px 20px; margin: 10px; cursor: pointer; }
+            #{UIHelper.modern_css}
+            body { text-align: center; }
+            .spinner {
+              border: 4px solid #f3f3f3;
+              border-top: 4px solid #667eea;
+              border-radius: 50%;
+              width: 50px;
+              height: 50px;
+              animation: spin 1s linear infinite;
+              margin: 30px auto;
+            }
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+            #status {
+              margin-top: 20px;
+              font-size: 16px;
+              color: #666;
+            }
+            .render-id {
+              margin-top: 12px;
+              font-size: 12px;
+              color: #999;
+              font-family: monospace;
+            }
           </style>
         </head>
         <body>
-          <h3>Generating Render...</h3>
-          <div class="spinner"></div>
-          <div id="status">Processing your render...</div>
-          <button onclick="sketchup.callback('cancel_render'); sketchup.close();">Cancel</button>
+          <div class="container">
+            <div class="card">
+              <h2>⏳ Generating Render...</h2>
+              <div class="spinner"></div>
+              <div id="status">Processing your render...</div>
+              <div class="render-id">ID: #{render_id[0..8]}...</div>
+              <button class="btn-secondary" onclick="sketchup.callback('cancel_render'); sketchup.close();" style="margin-top: 24px;">
+                Cancel
+              </button>
+            </div>
+          </div>
         </body>
         </html>
       HTML
@@ -69,34 +97,57 @@ module Renderiq
     # Show render result
     # @param output_url [String] URL to rendered image
     def self.show_result(output_url)
-      options = {
-        :dialog_title => 'Render Complete',
-        :preferences_key => 'RenderIQ_Result',
-        :scrollable => true,
-        :resizable => true,
-        :width => 800,
-        :height => 600
-      }
-      
-      dlg = UI::WebDialog.new(options)
+      dlg = UIHelper.create_dialog(
+        dialog_title: 'Render Complete',
+        preferences_key: 'RenderIQ_Result',
+        width: 900,
+        height: 700
+      )
       
       html = <<-HTML
-        <html>
+        <!DOCTYPE html>
+        <html lang="en">
         <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body { font-family: Arial, sans-serif; padding: 20px; text-align: center; }
-            img { max-width: 100%; height: auto; border: 1px solid #ddd; }
-            button { padding: 10px 20px; margin: 10px; cursor: pointer; }
-            .button-container { margin-top: 20px; }
+            #{UIHelper.modern_css}
+            body { text-align: center; }
+            img {
+              max-width: 100%;
+              height: auto;
+              border-radius: 12px;
+              box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+              margin: 20px 0;
+            }
+            .button-group {
+              display: flex;
+              gap: 12px;
+              margin-top: 20px;
+            }
+            .button-group button {
+              flex: 1;
+            }
           </style>
         </head>
         <body>
-          <h3>Render Complete!</h3>
-          <img src="#{output_url}" alt="Rendered image">
-          <div class="button-container">
-            <button onclick="sketchup.callback('download_image', '#{output_url}');">Download Image</button>
-            <button onclick="sketchup.callback('open_in_browser', '#{output_url}');">Open in Browser</button>
-            <button onclick="sketchup.close();">Close</button>
+          <div class="container">
+            <div class="card">
+              <h2>✅ Render Complete!</h2>
+              <p class="subtitle">Your photorealistic render is ready</p>
+              <img src="#{output_url}" alt="Rendered image">
+              <div class="button-group">
+                <button class="btn-primary" onclick="sketchup.callback('download_image', '#{output_url}');">
+                  💾 Download
+                </button>
+                <button class="btn-secondary" onclick="sketchup.callback('open_in_browser', '#{output_url}');">
+                  🌐 Open in Browser
+                </button>
+              </div>
+              <button class="btn-secondary" onclick="sketchup.close();" style="margin-top: 12px;">
+                Close
+              </button>
+            </div>
           </div>
         </body>
         </html>

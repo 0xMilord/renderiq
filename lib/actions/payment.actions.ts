@@ -5,13 +5,16 @@ import { PaymentHistoryService } from '@/lib/services/payment-history.service';
 import { InvoiceService } from '@/lib/services/invoice.service';
 import { ReceiptService } from '@/lib/services/receipt.service';
 import { RazorpayService } from '@/lib/services/razorpay.service';
+import { PaymentProviderFactory } from '@/lib/services/payment-provider.factory';
 import { BillingDAL } from '@/lib/dal/billing';
 import { db } from '@/lib/db';
 import { paymentOrders, creditPackages, subscriptionPlans, userSubscriptions } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
 import { checkRateLimit } from '@/lib/utils/payment-security';
-import { convertCurrency, getRazorpayCurrencyCode, SUPPORTED_CURRENCIES } from '@/lib/utils/currency';
+import { convertCurrency } from '@/lib/utils/currency';
+import { detectUserCountry } from '@/lib/utils/country-detection';
+import { headers } from 'next/headers';
 
 export async function getPaymentHistoryAction(filters?: {
   type?: 'subscription' | 'credit_package';
@@ -97,7 +100,8 @@ export async function getInvoiceByNumberAction(invoiceNumber: string) {
 }
 
 /**
- * Create Razorpay order for credit package purchase
+ * Create payment order for credit package purchase
+ * Automatically routes to Razorpay (India) or Paddle (International)
  */
 export async function createPaymentOrderAction(
   creditPackageId: string,
@@ -117,10 +121,15 @@ export async function createPaymentOrderAction(
       return { success: false, error: 'Too many requests. Please try again later.' };
     }
 
-    // Validate currency
-    const finalCurrency = currency && SUPPORTED_CURRENCIES[currency]
-      ? getRazorpayCurrencyCode(currency)
-      : 'INR';
+    // Detect user country and get appropriate payment provider
+    const country = await detectUserCountry();
+    const provider = await PaymentProviderFactory.getProviderForUser(user.id);
+    
+    logger.log('🌍 PaymentActions: Using payment provider based on country:', { country, providerType: provider.getProviderType() });
+
+    // Simple currency logic: India → INR, Not India → USD
+    const isRazorpay = provider.getProviderType() === 'razorpay';
+    const finalCurrency = isRazorpay ? 'INR' : 'USD';
 
     // Get credit package details
     const [packageData] = await db
@@ -137,28 +146,15 @@ export async function createPaymentOrderAction(
       return { success: false, error: 'Credit package is not available' };
     }
 
-    // Convert price if currency is different
+    // Convert price: INR base prices → USD for international users
     let orderAmount = parseFloat(packageData.price);
-    if (finalCurrency !== 'INR' && packageData.currency === 'INR') {
-      // Convert from INR to target currency
-      orderAmount = await convertCurrency(orderAmount, finalCurrency);
-      
-      // Ensure minimum amount after conversion
-      const minimumAmounts: Record<string, number> = {
-        INR: 1.00, USD: 0.01, EUR: 0.01, GBP: 0.01, JPY: 1,
-        AUD: 0.01, CAD: 0.01, SGD: 0.01, AED: 0.01, SAR: 0.01,
-      };
-      const minimumAmount = minimumAmounts[finalCurrency] || 0.01;
-      
-      if (orderAmount < minimumAmount) {
-        logger.log(`⚠️ PaymentActions: Converted amount ${orderAmount} ${finalCurrency} is below minimum ${minimumAmount}, using INR instead`);
-        // Revert to INR if converted amount is too small
-        orderAmount = parseFloat(packageData.price);
-      }
+    if (!isRazorpay && packageData.currency === 'INR') {
+      // Convert INR to USD: 1 INR = 0.012 USD (83 INR = 1 USD)
+      orderAmount = await convertCurrency(orderAmount, 'USD');
     }
 
-    // Create Razorpay order
-    const result = await RazorpayService.createOrder(
+    // Create order using appropriate provider
+    const result = await provider.createOrder(
       user.id,
       creditPackageId,
       orderAmount,
@@ -200,10 +196,13 @@ export async function createPaymentSubscriptionAction(
       return { success: false, error: 'User email not found' };
     }
 
-    // Validate currency if provided
-    const finalCurrency = currency && SUPPORTED_CURRENCIES[currency]
-      ? getRazorpayCurrencyCode(currency)
-      : 'INR'; // Default to INR (plan currency)
+    // Detect user country and get appropriate payment provider
+    const country = await detectUserCountry();
+    const provider = await PaymentProviderFactory.getProviderForUser(user.id);
+    const isRazorpay = provider.getProviderType() === 'razorpay';
+
+    // Simple currency logic: India → INR, Not India → USD
+    const finalCurrency = isRazorpay ? 'INR' : 'USD';
 
     logger.log('📥 PaymentActions: Received subscription request:', {
       planId,
@@ -211,6 +210,8 @@ export async function createPaymentSubscriptionAction(
       userId: user.id,
       requestedCurrency: currency,
       finalCurrency,
+      country,
+      providerType: provider.getProviderType(),
     });
 
     // Check for existing subscription
@@ -254,25 +255,21 @@ export async function createPaymentSubscriptionAction(
       if (shouldUpgrade && isActive) {
         logger.log('🔄 PaymentActions: Upgrading/downgrading subscription - cancelling old one');
         
-        // Cancel old subscription in Razorpay
-        if (existingSubscription.subscription.razorpaySubscriptionId) {
+        // Get the provider for the existing subscription
+        const existingProviderType = existingSubscription.subscription.paymentProvider || 'razorpay';
+        const existingProvider = PaymentProviderFactory.getProviderByType(existingProviderType as any);
+        
+        // Cancel old subscription using appropriate provider
+        const subscriptionId = existingSubscription.subscription.razorpaySubscriptionId || 
+                              existingSubscription.subscription.paddleSubscriptionId ||
+                              existingSubscription.subscription.lemonsqueezySubscriptionId;
+        
+        if (subscriptionId) {
           try {
-            const Razorpay = require('razorpay');
-            const keyId = process.env.RAZORPAY_KEY_ID;
-            const keySecret = process.env.RAZORPAY_KEY_SECRET;
-            
-            if (keyId && keySecret) {
-              const razorpay = new Razorpay({
-                key_id: keyId,
-                key_secret: keySecret,
-              });
-              
-              // Cancel the old subscription in Razorpay
-              await razorpay.subscriptions.cancel(existingSubscription.subscription.razorpaySubscriptionId);
-              logger.log('✅ PaymentActions: Old subscription cancelled in Razorpay');
-            }
+            await existingProvider.cancelSubscription(subscriptionId);
+            logger.log(`✅ PaymentActions: Old subscription cancelled in ${existingProviderType}`);
           } catch (error: any) {
-            logger.warn('⚠️ PaymentActions: Could not cancel old subscription in Razorpay (may already be cancelled):', error.message);
+            logger.warn(`⚠️ PaymentActions: Could not cancel old subscription in ${existingProviderType} (may already be cancelled):`, error.message);
             // Continue with upgrade even if cancellation fails
           }
         }
@@ -303,36 +300,14 @@ export async function createPaymentSubscriptionAction(
       return { success: false, error: 'Subscription plan not found' };
     }
 
-    // Convert price if currency is different from plan currency
-    let convertedAmount = parseFloat(planData.price);
-    let displayCurrency = planData.currency;
-    
-    if (finalCurrency !== 'INR' && planData.currency === 'INR') {
-      // Convert from INR to target currency for display/reference
-      convertedAmount = await convertCurrency(parseFloat(planData.price), finalCurrency);
-      displayCurrency = finalCurrency;
-      
-      logger.log(`💱 PaymentActions: Converted subscription price: ${planData.price} ${planData.currency} → ${convertedAmount.toFixed(2)} ${finalCurrency}`);
-      
-      // Note: Razorpay subscriptions use the plan's currency (INR), but we store converted amount for reference
-    }
+    // Convert price: INR base prices → USD for international users
+    // Note: This is for display/reference only, actual payment uses provider's currency
 
-    // Create subscription
-    // Note: Razorpay subscriptions use the plan's pre-configured currency (INR)
-    // The converted amount is stored in metadata for reference
-    const result = await RazorpayService.createSubscription(
+    // Create subscription using appropriate provider
+    const result = await provider.createSubscription(
       user.id,
       planId,
-      {
-        name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
-        email: user.email,
-      },
-      {
-        requestedCurrency: finalCurrency,
-        convertedAmount: finalCurrency !== planData.currency ? convertedAmount : undefined,
-        originalAmount: parseFloat(planData.price),
-        originalCurrency: planData.currency,
-      }
+      finalCurrency
     );
 
     if (!result.success) {
