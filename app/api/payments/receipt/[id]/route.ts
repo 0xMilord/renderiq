@@ -127,7 +127,7 @@ export async function GET(
         // Force download by using attachment and proper filename encoding
         const encodedFileName = encodeURIComponent(fileName);
         
-        const pdfResponse = new NextResponse(pdfBuffer, {
+        const pdfDownloadResponse = new NextResponse(pdfBuffer, {
           headers: {
             'Content-Type': 'application/pdf',
             'Content-Disposition': `attachment; filename="${fileName}"; filename*=UTF-8''${encodedFileName}`,
@@ -137,7 +137,7 @@ export async function GET(
             'Expires': '0',
           },
         });
-        return withCORS(pdfResponse, request);
+        return withCORS(pdfDownloadResponse, request);
       } catch (error) {
         logger.error('❌ API: Error streaming PDF:', error);
         const streamErrorResponse = NextResponse.json(

@@ -165,9 +165,8 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-c8": "^0.33.0",
-    "@vitest/coverage-istanbul": "^4.0.15",
-    "@vitest/coverage-v8": "^2.1.8",
-    "@vitest/ui": "^2.1.9",
+    "@vitest/coverage-v8": "4.0.15",
+    "@vitest/ui": "4.0.15",
     "autoprefixer": "^10.4.21",
     "baseline-browser-mapping": "^2.8.32",
     "concurrently": "^9.1.2",
@@ -183,7 +182,7 @@
     "tailwindcss": "^3.4.18",
     "tsx": "^4.19.2",
     "typescript": "^5",
-    "vitest": "^2.1.9",
+    "vitest": "4.0.15",
     "workbox-webpack-plugin": "^7.4.0"
   }
 }

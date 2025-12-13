@@ -147,7 +147,6 @@ export const POST = withAuthenticatedApiRoute(
       const useFullPipeline = process.env.ENABLE_FULL_VIDEO_PIPELINE === 'true' || 
                                request.nextUrl.searchParams.get('fullPipeline') === 'true';
       
-      let result: any;
       let optimizedPrompt = prompt;
       let selectedModel = model;
 

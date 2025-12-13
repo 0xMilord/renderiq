@@ -4536,7 +4536,8 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       {/* Fullscreen Image Dialog - Supports both render images and uploaded images */}
       {isFullscreen && (currentRender || fullscreenImageUrl) && (
         <div 
-          className="fixed inset-0 z-50 bg-black flex items-center justify-center"
+          data-slot="fullscreen-chat-overlay"
+          className="fixed inset-0 z-[10000] bg-black flex items-center justify-center"
           onClick={() => {
             setIsFullscreen(false);
             setFullscreenImageUrl(null);

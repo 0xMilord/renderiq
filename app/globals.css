@@ -289,6 +289,63 @@
   z-index: 10001 !important;
 }
 
+/* ✅ FIXED: Ensure fullscreen chat bubble appears above tldraw toolbars */
+/* Fullscreen image dialog in unified chat interface needs high z-index */
+/* Match dialog z-index to ensure consistent layering above tldraw */
+[data-slot="fullscreen-chat-overlay"] {
+  z-index: 10000 !important;
+}
+
+/* ✅ FIXED: Ensure dropdowns, selects, popovers, and other UI components appear above tldraw toolbars */
+/* These components use Radix Portal which renders to body, so they need high z-index */
+/* tldraw toolbars use z-index up to ~1000, so these components need higher */
+[data-slot="dropdown-menu-content"],
+[data-slot="dropdown-menu-sub-content"] {
+  z-index: 10000 !important;
+}
+
+[data-slot="select-content"] {
+  z-index: 10000 !important;
+}
+
+[data-slot="popover-content"] {
+  z-index: 10000 !important;
+}
+
+[data-slot="context-menu-content"],
+[data-slot="context-menu-sub-content"] {
+  z-index: 10000 !important;
+}
+
+[data-slot="menubar-content"],
+[data-slot="menubar-sub-content"] {
+  z-index: 10000 !important;
+}
+
+[data-slot="hover-card-content"] {
+  z-index: 10000 !important;
+}
+
+[data-slot="tooltip-content"] {
+  z-index: 10000 !important;
+}
+
+[data-slot="sheet-overlay"] {
+  z-index: 10000 !important;
+}
+
+[data-slot="sheet-content"] {
+  z-index: 10001 !important;
+}
+
+[data-slot="alert-dialog-overlay"] {
+  z-index: 10000 !important;
+}
+
+[data-slot="alert-dialog-content"] {
+  z-index: 10001 !important;
+}
+
 /* Ensure tldraw toolbars and UI elements stay below dialogs */
 /* Target all possible tldraw UI classes with high specificity */
 div[class*="tlui-toolbar"],
