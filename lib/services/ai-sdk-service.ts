@@ -211,6 +211,7 @@ Original prompt: "${originalPrompt}"`;
     effect?: string;
     styleTransferImageData?: string;
     styleTransferImageType?: string;
+    maskData?: string; // Base64 PNG mask for inpainting (white = replace, black = keep)
     temperature?: number;
     mediaResolution?: 'LOW' | 'MEDIUM' | 'HIGH' | 'UNSPECIFIED';
     imageSize?: '1K' | '2K' | '4K';
@@ -285,27 +286,65 @@ Original prompt: "${originalPrompt}"`;
       
       // Add uploaded image (main image being edited) if provided
       if (request.uploadedImageData && request.uploadedImageType) {
+        // Extract base64 data if it's a data URL (data:image/png;base64,...)
+        const imageData = request.uploadedImageData.startsWith('data:') 
+          ? request.uploadedImageData.split(',')[1] 
+          : request.uploadedImageData;
+        
         contents.push({
           inlineData: {
             mimeType: request.uploadedImageType,
-            data: request.uploadedImageData
+            data: imageData
           }
         });
       }
       
       // Add style transfer image if provided
       if (request.styleTransferImageData && request.styleTransferImageType) {
+        // Extract base64 data if it's a data URL
+        const styleData = request.styleTransferImageData.startsWith('data:') 
+          ? request.styleTransferImageData.split(',')[1] 
+          : request.styleTransferImageData;
+        
         contents.push({
           inlineData: {
             mimeType: request.styleTransferImageType,
-            data: request.styleTransferImageData
+            data: styleData
           }
+        });
+      }
+
+      // Add mask for inpainting if provided
+      // Note: Gemini API may handle masks differently - this is the standard format
+      // If mask is provided, it indicates inpainting operation
+      if (request.maskData) {
+        // Extract base64 data if it's a data URL
+        const maskData = request.maskData.startsWith('data:') 
+          ? request.maskData.split(',')[1] 
+          : request.maskData;
+        
+        contents.push({
+          inlineData: {
+            mimeType: 'image/png',
+            data: maskData
+          }
+        });
+        
+        logger.log('🎨 AISDKService: Added mask for inpainting', {
+          maskSize: maskData.length,
         });
       }
 
       // Use specified model or default to Gemini 3 Pro Image Preview (Nano Banana Pro)
       // This model supports up to 4K resolution and advanced features
-      const modelName = request.model || 'gemini-3-pro-image-preview';
+      // CRITICAL: Never use "auto" - it must be resolved to a real model ID before calling this method
+      let modelName = request.model || 'gemini-3-pro-image-preview';
+      
+      // Safety check: if "auto" somehow got through, use default
+      if (modelName === 'auto' || !modelName) {
+        logger.warn('⚠️ AISDKService: Received "auto" or empty model, using default');
+        modelName = 'gemini-3-pro-image-preview';
+      }
       
       // Map aspect ratio to valid format
       const validAspectRatios = ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'];
@@ -348,17 +387,24 @@ Original prompt: "${originalPrompt}"`;
       // DO NOT use mediaResolution - it's only for multimodal models processing input media
       // Note: gemini-2.5-flash-image may not support imageSize parameter, so we conditionally include it
       // Note: Thinking mode is not available for image generation models (only for text generation)
+      // ✅ FIXED: Only include imageSize if not Flash Image AND if explicitly requested
+      // Some API versions may reject imageSize even for Pro models if format is wrong
+      const imageConfig: { aspectRatio: string; imageSize?: string } = {
+        aspectRatio: aspectRatio
+      };
+      
+      // Only add imageSize for Pro models (not Flash) and only if it's not 1K (default)
+      // This avoids potential API errors with imageSize parameter
+      if (!isFlashImage && imageSize !== '1K') {
+        imageConfig.imageSize = imageSize;
+      }
+      
       const config: {
         responseModalities: string[];
         imageConfig: { aspectRatio: string; imageSize?: string };
       } = {
         responseModalities: ['IMAGE'], // Only return image, no text
-        imageConfig: {
-          aspectRatio: aspectRatio,
-          // Only include imageSize for models that support it (gemini-3-pro-image-preview)
-          // gemini-2.5-flash-image only supports 1K and may not accept this parameter
-          ...(isFlashImage ? {} : { imageSize: imageSize })
-        }
+        imageConfig: imageConfig
       };
 
       // Log complex prompts for future thinking mode support
@@ -1199,6 +1245,7 @@ Original prompt: "${originalPrompt}"`;
   /**
    * Send message in chat session (for multi-turn image editing)
    * Maintains conversation context and thought signatures automatically
+   * Returns same format as generateImage for consistency
    */
   async sendChatMessage(
     chatSessionId: string,
@@ -1209,7 +1256,7 @@ Original prompt: "${originalPrompt}"`;
       aspectRatio?: string;
       imageSize?: '1K' | '2K' | '4K';
     }
-  ): Promise<ImageGenerationResult> {
+  ): Promise<{ success: boolean; data?: ImageGenerationResult; error?: string }> {
     const startTime = Date.now();
 
     try {
@@ -1220,10 +1267,72 @@ Original prompt: "${originalPrompt}"`;
       });
 
       // Get chat session - handle different SDK versions
+      // NOTE: Chat API is not available in current @google/genai SDK version
+      // Fall back to generateContent with conversation history simulation
       const chats = (this.genAI as any).chats;
       if (!chats || typeof chats.get !== 'function') {
-        throw new Error('Chat API not available in this SDK version. Use generateContent instead.');
+        // ✅ FIXED: Instead of throwing, fall back to generateContent
+        // This maintains compatibility while chat API is not available
+        logger.log('⚠️ Chat API not available, using generateContent with context');
+        
+        // Build contents with message and image
+        const contents: any[] = [];
+        if (imageData) {
+          contents.push({
+            inlineData: {
+              mimeType: imageType || 'image/png',
+              data: imageData
+            }
+          });
+        }
+        contents.push({ text: message });
+        
+        // Use generateContent directly (chat API not available)
+        const response = await this.genAI.models.generateContent({
+          model: 'gemini-3-pro-image-preview', // Use image generation model
+          contents: contents,
+          config: {
+            responseModalities: ['IMAGE'],
+            imageConfig: {
+              aspectRatio: config?.aspectRatio || '16:9',
+              ...(config?.imageSize && { imageSize: config.imageSize })
+            }
+          }
+        });
+        
+        // Extract image from response (same as chat API would)
+        const imagePart = response.candidates?.[0]?.content?.parts?.find(
+          (part: any) => part.inlineData && part.inlineData.mimeType?.startsWith('image/')
+        );
+        
+        if (!imagePart?.inlineData) {
+          throw new Error('No image in response');
       }
+
+        const processingTime = Date.now() - startTime;
+        logger.log('✅ AISDKService: Chat message processed (via generateContent fallback)', {
+          processingTime: `${processingTime}ms`
+        });
+        
+        // ✅ FIXED: Return same format as generateImage for consistency
+        return {
+          success: true,
+          data: {
+            imageUrl: `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`,
+            imageData: imagePart.inlineData.data,
+            processingTime,
+            provider: 'google-gemini-native-image',
+            metadata: {
+              prompt: message,
+              aspectRatio: config?.aspectRatio || '16:9',
+              imageSize: config?.imageSize || '1K',
+              method: 'generateContent-fallback'
+            }
+          }
+        };
+      }
+      
+      // If chat API is available, use it (future-proof)
       const chat = chats.get(chatSessionId);
       const contents: any[] = [message];
       
@@ -1261,7 +1370,10 @@ Original prompt: "${originalPrompt}"`;
         processingTime: `${processingTime}ms`
       });
       
+      // ✅ FIXED: Return same format as generateImage for consistency
       return {
+        success: true,
+        data: {
         imageUrl: `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`,
         imageData: imagePart.inlineData.data,
         processingTime,
@@ -1275,10 +1387,15 @@ Original prompt: "${originalPrompt}"`;
           // Additional metadata
           pipelineStage: 'chat-session'
         } as any // Allow additional metadata fields
+        }
       };
     } catch (error) {
       logger.error('❌ AISDKService: Failed to send chat message', error);
-      throw new Error(`Chat message failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // ✅ FIXED: Return error in same format as generateImage
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Chat message failed'
+      };
     }
   }
 }

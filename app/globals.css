@@ -274,3 +274,144 @@
 .animate-shimmer {
   animation: shimmer 2s infinite;
 }
+
+/* Tldraw Theme Customization - Align with Renderiq color scheme */
+/* Override tldraw's default blue theme to match our green primary color */
+
+/* ✅ FIXED: Ensure UI dialogs appear above tldraw toolbars */
+/* Dialogs use Radix Portal which renders to body, so they need high z-index */
+/* tldraw toolbars use z-index up to ~1000, so dialogs need higher */
+[data-slot="dialog-overlay"] {
+  z-index: 10000 !important;
+}
+
+[data-slot="dialog-content"] {
+  z-index: 10001 !important;
+}
+
+/* Ensure tldraw toolbars and UI elements stay below dialogs */
+/* Target all possible tldraw UI classes with high specificity */
+div[class*="tlui-toolbar"],
+div[class*="tlui-menu"],
+div[class*="tlui-context-menu"],
+div[class*="tlui-menu-container"],
+div[class*="tlui-popover"],
+div[class*="tlui-panel"],
+div[class*="tlui-dialog"] {
+  z-index: 9999 !important;
+}
+
+/* Ensure tldraw overlays stay below dialogs */
+div[class*="tlui-overlay"] {
+  z-index: 9998 !important;
+}
+
+/* Override any inline z-index styles from tldraw */
+div[class*="tlui-"][style*="z-index"] {
+  z-index: 9999 !important;
+}
+
+:root {
+  /* Light mode - Map to our app's color variables */
+  --tl-color-background: hsl(var(--background));
+  --tl-color-panel: hsl(var(--card));
+  --tl-color-text: hsl(var(--foreground));
+  --tl-color-text-2: hsl(var(--muted-foreground));
+  --tl-color-selection-stroke: hsl(var(--primary));
+  --tl-color-selection-fill: hsl(var(--primary) / 0.1);
+  --tl-color-hovered: hsl(var(--accent) / 0.1);
+  --tl-color-selected: hsl(var(--primary) / 0.15);
+  --tl-color-border: hsl(var(--border));
+  --tl-color-input: hsl(var(--input));
+  --tl-color-input-border: hsl(var(--border));
+  --tl-color-icon: hsl(var(--foreground));
+  --tl-color-icon-active: hsl(var(--primary));
+  --tl-color-icon-disabled: hsl(var(--muted-foreground));
+  --tl-color-button: hsl(var(--primary));
+  --tl-color-button-text: hsl(var(--primary-foreground));
+  --tl-color-button-hover: hsl(var(--primary) / 0.9);
+  --tl-color-menu: hsl(var(--popover));
+  --tl-color-menu-text: hsl(var(--popover-foreground));
+  --tl-color-menu-hover: hsl(var(--accent) / 0.1);
+  --tl-color-menu-selected: hsl(var(--primary) / 0.15);
+  --tl-color-menu-divider: hsl(var(--border));
+  --tl-color-toolbar: hsl(var(--card));
+  --tl-color-toolbar-text: hsl(var(--foreground));
+  --tl-color-grid: hsl(var(--border) / 0.3);
+  --tl-color-handle: hsl(var(--primary));
+  --tl-color-handle-fill: hsl(var(--background));
+  --tl-color-handle-stroke: hsl(var(--primary));
+  --tl-color-overlay: hsl(var(--background) / 0.8);
+  --tl-color-minimap-background: hsl(var(--card));
+  --tl-color-minimap-viewport: hsl(var(--primary) / 0.2);
+  --tl-color-minimap-viewport-border: hsl(var(--primary));
+  --tl-color-cursor: hsl(var(--primary));
+  --tl-color-cursor-text: hsl(var(--primary-foreground));
+  --tl-color-laser: hsl(var(--primary));
+  --tl-color-hint: hsl(var(--primary) / 0.8);
+  --tl-color-snap-lines: hsl(var(--primary));
+  --tl-color-bounds: hsl(var(--primary));
+  --tl-color-bounds-bg: hsl(var(--primary) / 0.05);
+  --tl-color-bounds-handle: hsl(var(--primary));
+  --tl-color-bounds-handle-fill: hsl(var(--background));
+  --tl-color-bounds-handle-stroke: hsl(var(--primary));
+  --tl-color-zoom: hsl(var(--foreground));
+  --tl-color-zoom-bg: hsl(var(--background) / 0.8);
+  --tl-color-focus: hsl(var(--ring));
+  --tl-color-focus-border: hsl(var(--ring));
+}
+
+.dark {
+  /* Dark mode - Map to our app's dark theme colors */
+  --tl-color-background: hsl(var(--background));
+  --tl-color-panel: hsl(var(--card));
+  --tl-color-text: hsl(var(--foreground));
+  --tl-color-text-2: hsl(var(--muted-foreground));
+  --tl-color-selection-stroke: hsl(var(--primary));
+  --tl-color-selection-fill: hsl(var(--primary) / 0.15);
+  --tl-color-hovered: hsl(var(--accent) / 0.15);
+  --tl-color-selected: hsl(var(--primary) / 0.2);
+  --tl-color-border: hsl(var(--border));
+  --tl-color-input: hsl(var(--input));
+  --tl-color-input-border: hsl(var(--border));
+  --tl-color-icon: hsl(var(--foreground));
+  --tl-color-icon-active: hsl(var(--primary));
+  --tl-color-icon-disabled: hsl(var(--muted-foreground));
+  --tl-color-button: hsl(var(--primary));
+  --tl-color-button-text: hsl(var(--primary-foreground));
+  --tl-color-button-hover: hsl(var(--primary) / 0.9);
+  --tl-color-menu: hsl(var(--popover));
+  --tl-color-menu-text: hsl(var(--popover-foreground));
+  --tl-color-menu-hover: hsl(var(--accent) / 0.15);
+  --tl-color-menu-selected: hsl(var(--primary) / 0.2);
+  --tl-color-menu-divider: hsl(var(--border));
+  --tl-color-toolbar: hsl(var(--card));
+  --tl-color-toolbar-text: hsl(var(--foreground));
+  --tl-color-grid: hsl(var(--border) / 0.2);
+  --tl-color-handle: hsl(var(--primary));
+  --tl-color-handle-fill: hsl(var(--background));
+  --tl-color-handle-stroke: hsl(var(--primary));
+  --tl-color-overlay: hsl(var(--background) / 0.9);
+  --tl-color-minimap-background: hsl(var(--card));
+  --tl-color-minimap-viewport: hsl(var(--primary) / 0.25);
+  --tl-color-minimap-viewport-border: hsl(var(--primary));
+  --tl-color-cursor: hsl(var(--primary));
+  --tl-color-cursor-text: hsl(var(--primary-foreground));
+  --tl-color-laser: hsl(var(--primary));
+  --tl-color-hint: hsl(var(--primary) / 0.9);
+  --tl-color-snap-lines: hsl(var(--primary));
+  --tl-color-bounds: hsl(var(--primary));
+  --tl-color-bounds-bg: hsl(var(--primary) / 0.1);
+  --tl-color-bounds-handle: hsl(var(--primary));
+  --tl-color-bounds-handle-fill: hsl(var(--background));
+  --tl-color-bounds-handle-stroke: hsl(var(--primary));
+  --tl-color-zoom: hsl(var(--foreground));
+  --tl-color-zoom-bg: hsl(var(--background) / 0.9);
+  --tl-color-focus: hsl(var(--ring));
+  --tl-color-focus-border: hsl(var(--ring));
+}
+
+/* Ensure tldraw uses our color scheme */
+.tldraw {
+  color-scheme: light dark;
+}

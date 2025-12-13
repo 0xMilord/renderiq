@@ -42,6 +42,10 @@ export interface RenderWithContext extends Render {
 // Chain with renders
 export interface RenderChainWithRenders extends RenderChain {
   renders: Render[];
+  // ✅ Multi-turn chat session tracking (aligned with MULTI_TURN_IMAGE_EDITING_ALIGNMENT.md)
+  googleChatSessionId?: string | null;
+  chatSessionCreatedAt?: Date | null;
+  lastChatTurn?: number | null;
 }
 
 // Enhanced prompt

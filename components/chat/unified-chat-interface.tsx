@@ -17,8 +17,6 @@ import {
   Send, 
   Image as ImageIcon, 
   Video,
-  Download, 
-  Share2,
   Loader2,
   Sparkles,
   Upload,
@@ -59,7 +57,8 @@ import { useUpscaling } from '@/lib/hooks/use-upscaling';
 import { useImageGeneration, useVideoGeneration } from '@/lib/hooks/use-ai-sdk';
 import { ModelSelector } from '@/components/ui/model-selector';
 import { ModelId, getModelConfig, getDefaultModel, modelSupportsQuality, getMaxQuality, getSupportedResolutions } from '@/lib/config/models';
-import { useVersionContext } from '@/lib/hooks/use-version-context';
+import { buildUnifiedContextAction } from '@/lib/actions/centralized-context.actions';
+import type { UnifiedContext } from '@/lib/types/context';
 import { UploadModal } from './upload-modal';
 import { GalleryModal } from './gallery-modal';
 import { ProjectRulesModal } from './project-rules-modal';
@@ -78,6 +77,11 @@ import type { RenderChainWithRenders } from '@/lib/types/render-chain';
 import Image from 'next/image';
 import { shouldUseRegularImg } from '@/lib/utils/storage-url';
 import { handleImageErrorWithFallback, isCDNUrl } from '@/lib/utils/cdn-fallback';
+import { RenderiqCanvas, type VariantGenerationConfig } from '@/components/canvas/renderiq-canvas';
+import { buildVariantBatchRequests } from '@/lib/utils/variant-prompt-builder';
+import { buildDrawingBatchRequests } from '@/lib/utils/drawing-prompt-builder';
+import type { DrawingGenerationConfig } from '@/components/canvas/generate-drawing-dialog';
+import type { ImageToVideoConfig } from '@/components/canvas/image-to-video-dialog';
 
 import { getRenderiqMessage } from '@/lib/utils/renderiq-messages';
 import { useLocalStorageMessages } from '@/lib/hooks/use-local-storage-messages';
@@ -239,6 +243,8 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   const hasProcessingRendersRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const userSelectedRenderIdRef = useRef<string | null>(null);
+  // ✅ FIXED: Store selected render IDs from canvas for reference
+  const canvasSelectedRenderIdsRef = useRef<string[]>([]);
   const recentGenerationRef = useRef<{ timestamp: number; renderId?: string; render?: Render } | null>(null);
   
   // ✅ FIXED: Window visibility handling - prevent re-initialization on tab switch
@@ -347,7 +353,6 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   useDynamicTitle(undefined, projectName, chainName);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenImageUrl, setFullscreenImageUrl] = useState<string | null>(null);
-  const [beforeAfterView, setBeforeAfterView] = useState<'before' | 'after'>('after');
   
   // Fixed aspect ratio for better quality
   const aspectRatio = DEFAULT_ASPECT_RATIO;
@@ -468,12 +473,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     }
   }, [selectedImageModel, isVideoMode, quality]);
 
-  // ✅ FIXED: Reset before/after view (consolidated with other UI effects)
-  useEffect(() => {
-    setBeforeAfterView('after');
-  }, [currentRender?.id]);
-  
-  // Find previous render for before/after comparison
+  // Find previous render for reference (if needed for other features)
   // ✅ FIX: Also check currentRender's referenceRenderId as fallback
   const previousRender = useMemo(() => {
     if (!currentRender || currentRender.type === 'video') return null;
@@ -516,9 +516,9 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   useWakeLock(isGenerating || isImageGenerating || isVideoGenerating);
   
   // Version context hook
-  const { parsePrompt } = useVersionContext();
+  // ✅ CENTRALIZED: Using CentralizedContextService as single source of truth
 
-  // ✅ FIXED: Progress based on actual render status from DB, not local state
+  // ✅ FIXED: Progress based on actual render status from DB, with batch support
   // Derive progress from render status in chain.renders
   const progressFromStatus = useMemo(() => {
     // Check if we have any processing renders
@@ -526,10 +526,37 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       r.status === 'processing' || r.status === 'pending'
     ) || [];
     
+    const completedRenders = chain?.renders?.filter(r => 
+      r.status === 'completed' && r.outputUrl
+    ) || [];
+    
     if (processingRenders.length > 0) {
-      // Show progress based on render status
-      // If render exists in DB, show 50-90% (processing)
-      // If render is completed, show 100%
+      // ✅ FIXED: For batch operations, calculate progress based on completion ratio
+      // If we have multiple processing renders, it's likely a batch operation
+      const totalRenders = processingRenders.length + completedRenders.length;
+      
+      if (totalRenders > 1) {
+        // Batch operation: progress = (completed / total) * 100
+        // Add 10% base + (completed ratio * 80%) + (processing status * 10%)
+        const completedRatio = completedRenders.length / totalRenders;
+        const baseProgress = 10; // Initial 10%
+        const completionProgress = completedRatio * 80; // 80% for completion
+        const statusProgress = processingRenders.some(r => r.status === 'processing') ? 10 : 5; // 10% if processing, 5% if pending
+        
+        const calculatedProgress = Math.min(baseProgress + completionProgress + statusProgress, 100);
+        
+        logger.log('📊 Progress calculation (batch):', {
+          totalRenders,
+          completedRenders: completedRenders.length,
+          processingRenders: processingRenders.length,
+          completedRatio,
+          calculatedProgress,
+        });
+        
+        return Math.round(calculatedProgress);
+      }
+      
+      // Single render: show progress based on render status
       const latestProcessing = processingRenders[processingRenders.length - 1];
       if (latestProcessing.status === 'completed') {
         return 100;
@@ -1002,6 +1029,71 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     hasProcessingRendersRef.current = hasProcessing;
   }, [chain?.renders, isGenerating, isImageGenerating, isVideoGenerating, isRecovering]);
 
+  // ✅ FIXED: Update variant messages as renders complete
+  // Use ref to track messages to avoid dependency issues
+  const messagesRefForVariants = useRef(messages);
+  useEffect(() => {
+    messagesRefForVariants.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
+    if (!chain?.renders || messagesRefForVariants.current.length === 0) return;
+
+    const currentMessages = messagesRefForVariants.current;
+
+    // Find messages with variant renders that are still generating
+    const variantMessages = currentMessages.filter(msg => 
+      msg.type === 'assistant' && 
+      msg.render && 
+      msg.isGenerating &&
+      msg.render.id
+    );
+
+    if (variantMessages.length === 0) return;
+
+    let hasUpdates = false;
+    const updatedMessages = currentMessages.map(msg => {
+      if (!msg.render?.id) return msg;
+
+      // Find corresponding render in chain
+      const chainRender = chain.renders.find(r => r.id === msg.render.id);
+      
+      if (!chainRender) return msg;
+
+      // Check if render is now completed
+      const isNowCompleted = chainRender.status === 'completed' && chainRender.outputUrl;
+      const wasGenerating = msg.isGenerating;
+
+      if (isNowCompleted && wasGenerating) {
+        hasUpdates = true;
+        logger.log('✅ Variant completed, updating message', {
+          renderId: chainRender.id,
+          outputUrl: chainRender.outputUrl?.substring(0, 50),
+        });
+
+        return {
+          ...msg,
+          content: msg.content.replace('...', ''), // Remove ellipsis
+          isGenerating: false,
+          render: {
+            ...msg.render,
+            outputUrl: chainRender.outputUrl,
+            status: 'completed',
+          } as Render,
+        };
+      }
+
+      return msg;
+    });
+
+    if (hasUpdates) {
+      logger.log('🔄 Updating variant messages with completed renders', {
+        updatedCount: updatedMessages.filter(m => !m.isGenerating && m.render?.outputUrl).length,
+      });
+      setMessagesWithRef(updatedMessages);
+    }
+  }, [chain?.renders]); // ✅ FIXED: Only depend on chain.renders, not messages
+
   // localStorage save is now handled by useLocalStorageMessages hook
 
   const scrollToBottom = () => {
@@ -1181,6 +1273,415 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     setMentionSearchTerm('');
   };
 
+  // Handle variant generation from canvas
+  const handleGenerateVariants = async (config: VariantGenerationConfig, selectedRenderIds: string[]) => {
+    if (selectedRenderIds.length === 0 || isGenerating || isImageGenerating || isVideoGenerating) return;
+
+    // Check credits BEFORE proceeding
+    const requiredCredits = getCreditsCost() * config.variantCount;
+    if (credits && credits.balance < requiredCredits) {
+      setIsLowBalanceModalOpen(true);
+      return;
+    }
+
+    logger.log('🎨 Generating variants from canvas selection', {
+      variantCount: config.variantCount,
+      variantType: config.variantType,
+      selectedRenderIds,
+    });
+
+    // Use first selected render as reference
+    const referenceRenderId = selectedRenderIds[0];
+    
+    // Get base prompt from reference render or use default
+    const referenceRender = chain?.renders.find(r => r.id === referenceRenderId);
+    const basePrompt = referenceRender?.prompt || inputValue || 'Generate architectural variant';
+
+    // Build batch requests for variants
+    const batchRequests = buildVariantBatchRequests(basePrompt, config);
+
+    try {
+      // Set generating state
+      setIsGenerating(true);
+
+      // Create FormData with batch requests
+      const formData = createRenderFormData({
+        prompt: `Generate ${config.variantCount} variants`,
+        quality,
+        aspectRatio,
+        type: 'image',
+        projectId: projectId || '',
+        chainId,
+        referenceRenderId,
+        isPublic,
+        environment,
+        effect,
+        temperature,
+        model: selectedImageModel || undefined,
+      });
+
+      // Add batch API flags
+      formData.append('useBatchAPI', 'true');
+      formData.append('batchRequests', JSON.stringify(batchRequests));
+      formData.append('variantCount', config.variantCount.toString());
+      formData.append('variantType', config.variantType);
+      if (config.viewType) formData.append('viewType', config.viewType);
+      if (config.cameraAngles !== undefined) formData.append('cameraAngles', config.cameraAngles.toString());
+      if (config.lightingVariation !== undefined) formData.append('lightingVariation', config.lightingVariation.toString());
+      if (config.rotationCoverage !== undefined) formData.append('rotationCoverage', config.rotationCoverage.toString());
+
+      // Call API
+      const apiUrl = typeof window !== 'undefined' 
+        ? `${window.location.origin}/api/renders`
+        : '/api/renders';
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate variants');
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to generate variants');
+      }
+
+      logger.log('✅ Variants generated successfully', {
+        variantCount: config.variantCount,
+        batchResults: result.data,
+      });
+
+      // ✅ FIXED: Track pending render IDs for polling
+      const pendingRenderIds: string[] = [];
+      const completedRenderIds: string[] = [];
+
+      // Add message to chat
+      if (Array.isArray(result.data)) {
+        // Batch results - create messages for each variant with correct status
+        const variantMessages: Message[] = result.data.map((item: any, idx: number) => {
+          const renderId = item.renderId;
+          const isCompleted = item.status === 'completed' && item.outputUrl;
+          
+          if (isCompleted) {
+            completedRenderIds.push(renderId);
+          } else {
+            pendingRenderIds.push(renderId);
+          }
+
+          return {
+          id: `variant-${Date.now()}-${idx}`,
+          type: 'assistant' as const,
+            content: isCompleted 
+              ? `Generated variant ${idx + 1} of ${config.variantCount}`
+              : `Generating variant ${idx + 1} of ${config.variantCount}...`,
+          timestamp: new Date(),
+          render: {
+              id: renderId,
+              outputUrl: item.outputUrl || null,
+              status: isCompleted ? 'completed' : (item.status || 'processing'),
+          } as Render,
+            isGenerating: !isCompleted,
+          };
+        });
+
+        setMessagesWithRef([...messagesRef.current, ...variantMessages]);
+
+        // ✅ FIXED: Track pending renders for polling
+        if (pendingRenderIds.length > 0) {
+          recentGenerationRef.current = {
+            renderId: pendingRenderIds[0], // Track first pending render
+            timestamp: Date.now(),
+            render: {
+              id: pendingRenderIds[0],
+              status: 'processing',
+            } as Render,
+          };
+          
+          logger.log('🔄 Variants: Tracking pending renders for polling', {
+            pendingCount: pendingRenderIds.length,
+            completedCount: completedRenderIds.length,
+            pendingRenderIds,
+          });
+        }
+
+        // ✅ FIXED: Trigger immediate refresh to sync with database
+        // Use multiple staggered refreshes to ensure we catch all renders
+        const refreshDelays = [500, 2000, 5000, 10000];
+        refreshDelays.forEach((delay, index) => {
+          setTimeout(() => {
+            logger.log(`🔄 Variants: Refresh attempt ${index + 1}/${refreshDelays.length} for render sync`, {
+              delay,
+              pendingCount: pendingRenderIds.length,
+            });
+            throttledRefresh();
+          }, delay);
+        });
+
+        // ✅ FIXED: If all are already completed, trigger single refresh
+        if (pendingRenderIds.length === 0 && completedRenderIds.length > 0) {
+          logger.log('✅ Variants: All renders already completed, triggering refresh');
+          throttledRefresh();
+        }
+      }
+
+      logger.log('✅ Variants generation initiated', {
+        totalVariants: config.variantCount,
+        pendingCount: pendingRenderIds.length,
+        completedCount: completedRenderIds.length,
+      });
+    } catch (error) {
+      logger.error('❌ Failed to generate variants:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to generate variants');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // Handle drawing generation from canvas
+  const handleGenerateDrawing = async (config: DrawingGenerationConfig, selectedRenderIds: string[]) => {
+    if (selectedRenderIds.length === 0 || isGenerating || isImageGenerating || isVideoGenerating) return;
+
+    const totalDrawings = config.selectedFloorPlans.size + config.selectedElevationSides.size + config.selectedSectionCuts.size;
+    if (totalDrawings === 0) {
+      toast.error('Please select at least one drawing type');
+      return;
+    }
+
+    // Check credits (estimated 5 credits per drawing)
+    const baseCreditsPerDrawing = 5;
+    const qualityMultiplier = quality === 'high' ? 2 : quality === 'ultra' ? 3 : 1;
+    const requiredCredits = totalDrawings * baseCreditsPerDrawing * qualityMultiplier;
+    if (credits && credits.balance < requiredCredits) {
+      setIsLowBalanceModalOpen(true);
+      return;
+    }
+
+    logger.log('🎨 Generating drawings from canvas selection', {
+      totalDrawings,
+      config,
+      selectedRenderIds,
+    });
+
+    // Use first selected render as reference
+    const referenceRenderId = selectedRenderIds[0];
+    
+    try {
+      setIsGenerating(true);
+
+      // Build batch requests
+      const batchRequests = buildDrawingBatchRequests(config);
+
+      // Create FormData
+      const formData = createRenderFormData({
+        prompt: `Generate ${totalDrawings} CAD drawings`,
+        quality,
+        aspectRatio,
+        type: 'image',
+        projectId: projectId || '',
+        chainId,
+        referenceRenderId,
+        isPublic,
+        environment,
+        effect: 'technical', // Use technical style for CAD drawings
+        temperature,
+        model: selectedImageModel || undefined,
+      });
+
+      // Add batch API flags
+      formData.append('useBatchAPI', 'true');
+      formData.append('batchRequests', JSON.stringify(batchRequests));
+      formData.append('includeText', config.includeText.toString());
+      formData.append('style', config.style);
+      formData.append('selectedFloorPlans', JSON.stringify(Array.from(config.selectedFloorPlans)));
+      formData.append('selectedElevationSides', JSON.stringify(Array.from(config.selectedElevationSides)));
+      formData.append('selectedSectionCuts', JSON.stringify(Array.from(config.selectedSectionCuts)));
+
+      // Call API
+      const apiUrl = typeof window !== 'undefined' 
+        ? `${window.location.origin}/api/renders`
+        : '/api/renders';
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate drawings');
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to generate drawings');
+      }
+
+      logger.log('✅ Drawings generated successfully', {
+        totalDrawings,
+        batchResults: result.data,
+      });
+
+      // Add message to chat
+      if (Array.isArray(result.data)) {
+        const drawingMessages: Message[] = result.data.map((item: any, idx: number) => ({
+          id: `drawing-${Date.now()}-${idx}`,
+          type: 'assistant' as const,
+          content: `Generated drawing ${idx + 1} of ${totalDrawings}`,
+          timestamp: new Date(),
+          render: {
+            id: item.renderId,
+            outputUrl: item.outputUrl,
+            status: 'completed' as const,
+          } as Render,
+          isGenerating: false,
+        }));
+
+        setMessagesWithRef([...messagesRef.current, ...drawingMessages]);
+      }
+
+      // Refresh chain
+      logger.log('✅ Drawing generation completed, chain will refresh automatically');
+    } catch (error) {
+      logger.error('❌ Failed to generate drawings:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to generate drawings');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // Handle image to video generation from canvas
+  const handleImageToVideo = async (config: ImageToVideoConfig, selectedRenderIds: string[]) => {
+    if (selectedRenderIds.length === 0 || isGenerating || isImageGenerating || isVideoGenerating) return;
+
+    // Check credits (video costs more)
+    const videoCreditsCost = config.quality === 'ultra' ? 50 : config.quality === 'high' ? 30 : 20;
+    if (credits && credits.balance < videoCreditsCost) {
+      setIsLowBalanceModalOpen(true);
+      return;
+    }
+
+    logger.log('🎬 Generating video from canvas selection', {
+      config,
+      selectedRenderIds,
+    });
+
+    // Use first selected render as reference
+    const referenceRenderId = selectedRenderIds[0];
+    const referenceRender = chain?.renders.find(r => r.id === referenceRenderId);
+    
+    if (!referenceRender?.outputUrl) {
+      toast.error('Selected render image not found');
+      return;
+    }
+
+    try {
+      setIsGenerating(true);
+
+      // ✅ FIXED: Convert CDN URL to direct GCS URL to avoid CORS issues
+      const { cdnToDirectGCS, isCDNUrl } = await import('@/lib/utils/cdn-fallback');
+      const fetchUrl = isCDNUrl(referenceRender.outputUrl) 
+        ? cdnToDirectGCS(referenceRender.outputUrl) 
+        : referenceRender.outputUrl;
+      
+      logger.log('🔄 handleImageToVideo: Fetching image', { 
+        original: referenceRender.outputUrl, 
+        fetchUrl,
+        isCDN: isCDNUrl(referenceRender.outputUrl)
+      });
+      
+      // Fetch the reference image
+      const imageResponse = await fetch(fetchUrl);
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`);
+      }
+      const imageBlob = await imageResponse.blob();
+      const imageArrayBuffer = await imageBlob.arrayBuffer();
+      // Convert ArrayBuffer to base64 in browser (not Node.js Buffer)
+      const bytes = new Uint8Array(imageArrayBuffer);
+      const binary = bytes.reduce((acc, byte) => acc + String.fromCharCode(byte), '');
+      const imageBase64 = btoa(binary);
+
+      // Build video prompt (similar to render-to-video)
+      const cameraPathConfigs: Record<string, { description: string }> = {
+        'zoom': { description: 'zoom camera movement with smooth zoom in or out' },
+        'pan': { description: 'pan camera movement with horizontal or vertical panning' },
+        'orbit': { description: 'orbit camera movement circling around the subject' },
+        'fly-through': { description: 'fly-through camera movement moving through the space' },
+        'arc': { description: 'arc camera movement with curved path' },
+      };
+
+      const videoPrompt = `Animate this architectural render with ${cameraPathConfigs[config.cameraPathStyle].description}, using ${config.focalLength === 'as-per-render' ? 'focal length as per the original render' : config.focalLength} focal length, applying ${config.sceneType} scene characteristics, to create a professional walkthrough video.`;
+
+      // Create FormData for video API
+      const formData = new FormData();
+      formData.append('prompt', videoPrompt);
+      formData.append('duration', config.duration.toString());
+      formData.append('aspectRatio', config.aspectRatio);
+      formData.append('generationType', 'image-to-video');
+      formData.append('projectId', projectId || '');
+      if (chainId) formData.append('chainId', chainId);
+      if (referenceRenderId) formData.append('referenceRenderId', referenceRenderId);
+      
+      // Add image as uploadedImage (video API expects this for image-to-video)
+      const imageFile = new File([imageBlob], 'reference.png', { type: 'image/png' });
+      formData.append('uploadedImage', imageFile);
+
+      // Call video API
+      const apiUrl = typeof window !== 'undefined' 
+        ? `${window.location.origin}/api/video`
+        : '/api/video';
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate video');
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to generate video');
+      }
+
+      logger.log('✅ Video generated successfully', {
+        videoId: result.data?.renderId,
+      });
+
+      // Add message to chat
+      const videoMessage: Message = {
+        id: `video-${Date.now()}`,
+        type: 'video',
+        content: 'Generated video from image',
+        timestamp: new Date(),
+        render: result.data?.renderId ? {
+          id: result.data.renderId,
+          outputUrl: result.data?.outputUrl || '',
+          status: 'completed',
+        } as Render : undefined,
+        isGenerating: false,
+      };
+
+      setMessagesWithRef([...messagesRef.current, videoMessage]);
+
+      // Refresh chain
+      logger.log('✅ Video generation completed, chain will refresh automatically');
+    } catch (error) {
+      logger.error('❌ Failed to generate video:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to generate video');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isGenerating || isImageGenerating || isVideoGenerating) return;
@@ -1199,94 +1700,91 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
 
     logger.log('🔍 Processing message with potential mentions:', inputValue);
 
-    // Parse the prompt for version mentions and extract context
-    let versionContext = undefined;
+    // ✅ CENTRALIZED: Use CentralizedContextService as single source of truth
+    const hasNewUploadedImage = !!(uploadedFile && previewUrl);
+    const canvasSelectedRenderIds = canvasSelectedRenderIdsRef.current.length > 0 
+      ? [...canvasSelectedRenderIdsRef.current] 
+      : undefined;
+    
+    // Clear canvas selection after capturing (will be used by service)
+    if (canvasSelectedRenderIds) {
+      canvasSelectedRenderIdsRef.current = [];
+    }
+
+    // Build unified context using CentralizedContextService
+    const contextResult = await buildUnifiedContextAction({
+      prompt: inputValue,
+      chainId: chainId || undefined,
+      projectId: projectId || undefined,
+      canvasSelectedRenderIds,
+      useVersionContext: inputValue.includes('@'), // Parse @mentions if present
+      useContextPrompt: true, // Enhance with chain context
+      usePipelineMemory: true, // Load pipeline memory
+    });
+
+    let unifiedContext: UnifiedContext | undefined;
     let finalPrompt = inputValue;
     let referenceRenderId: string | undefined = undefined;
+    let versionContext = undefined;
 
-    // Check if the prompt contains mentions
-    const hasNewUploadedImage = uploadedFile && previewUrl;
-    
-    if (inputValue.includes('@')) {
-      logger.log('🔍 Prompt contains mentions, parsing version context...');
+    if (contextResult.success && contextResult.data) {
+      unifiedContext = contextResult.data;
       
-      const parsedPrompt = await parsePrompt(inputValue, projectId, chainId);
+      // Get final prompt from unified context (client-side helper)
+      // Priority: Context prompt > Version context > Original prompt
+      if (unifiedContext.contextPrompt?.enhancedPrompt) {
+        finalPrompt = unifiedContext.contextPrompt.enhancedPrompt;
+      } else if (unifiedContext.versionContext?.parsedPrompt?.userIntent) {
+        finalPrompt = unifiedContext.versionContext.parsedPrompt.userIntent;
+      }
       
-      if (parsedPrompt) {
-        logger.log('✅ Parsed prompt:', {
-          userIntent: parsedPrompt.userIntent,
-          mentionsCount: parsedPrompt.mentionedVersions.length,
-          hasMentions: parsedPrompt.hasMentions
-        });
+      // Get reference render ID using centralized logic (client-side helper)
+      // Priority: Canvas selection > Reference render > Mentioned version > Latest in chain
+      if (unifiedContext.canvasContext?.selectedRenderIds?.length > 0) {
+        referenceRenderId = unifiedContext.canvasContext.selectedRenderIds[0];
+      } else if (unifiedContext.referenceRender?.id) {
+        referenceRenderId = unifiedContext.referenceRender.id;
+      } else if (!hasNewUploadedImage && unifiedContext.versionContext?.mentionedVersions?.length > 0) {
+        const mentionedVersionWithRender = unifiedContext.versionContext.mentionedVersions
+          .find(v => v.renderId);
+        if (mentionedVersionWithRender?.renderId) {
+          referenceRenderId = mentionedVersionWithRender.renderId;
+        }
+      } else if (!hasNewUploadedImage && chain?.renders && chain.renders.length > 0) {
+        const completedRenders = chain.renders.filter(render => render.status === 'completed');
+        const latestCompletedRender = completedRenders
+          .sort((a, b) => (b.chainPosition || 0) - (a.chainPosition || 0))[0];
+        if (latestCompletedRender) {
+          referenceRenderId = latestCompletedRender.id;
+        }
+      }
 
-        if (parsedPrompt.hasMentions) {
-          // Use the version context for generation
-          versionContext = {
-            userIntent: parsedPrompt.userIntent,
-            mentionedVersions: parsedPrompt.mentionedVersions.map(mv => ({
-              renderId: mv.renderId,
-              context: mv.context ? {
-                prompt: mv.context.prompt,
-                settings: mv.context.settings,
-                imageData: mv.context.imageData,
-                metadata: mv.context.metadata
-              } : undefined
-            }))
-          };
-
-          // Create contextual prompt for better AI understanding
-          const versionContextService = await import('@/lib/services/version-context');
-          const service = versionContextService.VersionContextService.getInstance();
-          const contextualPrompt = service.createContextualPrompt(parsedPrompt);
-          finalPrompt = contextualPrompt;
-
-          // Use the most recent mentioned version as reference ONLY if no new image is uploaded
-          // If user uploads a new image, mentions are for style/material reference, not image reference
-          if (!hasNewUploadedImage) {
-            const mentionedVersionWithRender = parsedPrompt.mentionedVersions
-              .find(v => v.renderId);
-            if (mentionedVersionWithRender?.renderId) {
-              referenceRenderId = mentionedVersionWithRender.renderId;
-              logger.log('🔗 Using mentioned version as reference render:', referenceRenderId);
+      // Extract version context for API (backward compatibility)
+      if (unifiedContext.versionContext) {
+        versionContext = {
+          userIntent: unifiedContext.versionContext.parsedPrompt.userIntent,
+          mentionedVersions: unifiedContext.versionContext.mentionedVersions.map(v => ({
+            renderId: v.renderId,
+            context: {
+              prompt: v.prompt,
+              settings: v.settings,
+              imageData: v.imageData,
+              metadata: v.metadata
             }
-          } else {
-            logger.log('🆕 New image uploaded with mentions - mentions used for style/material reference only');
-          }
+          }))
+        };
+      }
 
-          logger.log('🎯 Using version context:', {
-            finalPrompt: finalPrompt.substring(0, 100) + '...',
-            referenceRenderId,
-            hasNewImage: hasNewUploadedImage,
-            mentionedVersionsCount: versionContext.mentionedVersions.length
-          });
-        }
-      } else {
-        logger.log('⚠️ Failed to parse prompt, falling back to original');
-      }
+      logger.log('✅ CentralizedContextService: Unified context built', {
+        finalPrompt: finalPrompt.substring(0, 100) + '...',
+        referenceRenderId,
+        hasVersionContext: !!unifiedContext.versionContext,
+        hasContextPrompt: !!unifiedContext.contextPrompt,
+        hasPipelineMemory: !!unifiedContext.pipelineMemory,
+        hasCanvasContext: !!unifiedContext.canvasContext
+      });
     } else {
-      // No mentions, use smart reference logic
-      // CRITICAL: If user uploads a NEW image, don't use reference render (fresh start)
-      // Only use reference render for iterative edits when NO new image is uploaded
-      if (hasNewUploadedImage) {
-        // User uploaded a new image - this is a fresh start, don't use reference render
-        logger.log('🆕 New image uploaded - using fresh context (no reference render)');
-        referenceRenderId = undefined;
-      } else {
-        // No new image uploaded - use reference render for iterative editing
-        if (chain && chain.renders && chain.renders.length > 0) {
-          const completedRenders = chain.renders.filter(render => render.status === 'completed');
-          const latestCompletedRender = completedRenders
-            .sort((a, b) => (b.chainPosition || 0) - (a.chainPosition || 0))[0];
-          
-          if (latestCompletedRender) {
-            referenceRenderId = latestCompletedRender.id;
-            logger.log('🔗 Using latest completed render from chain as reference for iterative edit:', referenceRenderId);
-          }
-        } else if (currentRender && currentRender.status === 'completed') {
-          referenceRenderId = currentRender.id;
-          logger.log('🔗 Using currentRender as fallback reference:', referenceRenderId);
-        }
-      }
+      logger.warn('⚠️ CentralizedContextService: Failed to build context, using original prompt', contextResult.error);
     }
 
     // Create user message with image context
@@ -1463,6 +1961,13 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
               lastError = error instanceof Error ? error : new Error(String(error));
               logger.error(`❌ Chat: Fetch attempt ${attempt} failed:`, lastError);
               
+              // ✅ FIX: Check for limit errors immediately - don't retry on limit errors
+              const errorWithJson = lastError as any;
+              if (errorWithJson.errorJson?.limitReached) {
+                // Limit error - don't retry, throw immediately so it's caught by outer catch
+                throw lastError;
+              }
+              
               // If it's a network error and we have attempts left, retry
               const isNetworkError = lastError.message.includes('aborted') || 
                                     lastError.message.includes('timeout') ||
@@ -1489,8 +1994,21 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
           // ✅ FIXED: Check if error contains limit error info from retryFetch
           // retryFetch attaches errorJson to the error object when API returns error status
           const errorWithJson = error as any;
+          logger.log('🔍 Chat: Checking error for limit info', {
+            hasErrorJson: !!errorWithJson.errorJson,
+            limitReached: errorWithJson.errorJson?.limitReached,
+            errorMessage: errorWithJson.message,
+            status: errorWithJson.status
+          });
+          
           if (errorWithJson.errorJson?.limitReached) {
             // Extract limit error info and show dialog
+            logger.log('⚠️ Chat: Limit reached, opening dialog', {
+              limitType: errorWithJson.errorJson.limitType,
+              current: errorWithJson.errorJson.current,
+              limit: errorWithJson.errorJson.limit,
+              planName: errorWithJson.errorJson.planName
+            });
             openLimitDialog({
               limitType: errorWithJson.errorJson.limitType || 'credits',
               current: errorWithJson.errorJson.current || 0,
@@ -1539,7 +2057,14 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
           apiError = apiResult.error || 'Image generation failed';
           
           // ✅ CHECK: Handle limit errors - show limit dialog instead of generic error
+          // This handles cases where the API returns OK status but with limitReached in the JSON
           if (apiResult.limitReached) {
+            logger.log('⚠️ Chat: Limit reached in API result, opening dialog', {
+              limitType: apiResult.limitType,
+              current: apiResult.current,
+              limit: apiResult.limit,
+              planName: apiResult.planName
+            });
             openLimitDialog({
               limitType: apiResult.limitType || 'credits',
               current: apiResult.current || 0,
@@ -1548,6 +2073,8 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
               message: apiError,
             });
             // Don't show error toast for limit errors - dialog handles it
+            setIsGenerating(false);
+            setProgress(0);
             return; // Exit early - don't proceed with error handling
           }
           
@@ -1707,8 +2234,21 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       // ✅ FIXED: Check if error contains limit error info from retryFetch
       // retryFetch attaches errorJson to the error object when API returns error status
       const errorWithJson = error as any;
+      logger.log('🔍 Chat: Checking outer catch error for limit info', {
+        hasErrorJson: !!errorWithJson.errorJson,
+        limitReached: errorWithJson.errorJson?.limitReached,
+        errorMessage: errorWithJson.message,
+        status: errorWithJson.status
+      });
+      
       if (errorWithJson.errorJson?.limitReached) {
         // Extract limit error info and show dialog
+        logger.log('⚠️ Chat: Limit reached in outer catch, opening dialog', {
+          limitType: errorWithJson.errorJson.limitType,
+          current: errorWithJson.errorJson.current,
+          limit: errorWithJson.errorJson.limit,
+          planName: errorWithJson.errorJson.planName
+        });
         openLimitDialog({
           limitType: errorWithJson.errorJson.limitType || 'credits',
           current: errorWithJson.errorJson.current || 0,
@@ -1785,92 +2325,6 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   };
 
 
-  const handleDownload = async () => {
-    if (!currentRender?.outputUrl) return;
-    
-    const outputUrl = currentRender.outputUrl;
-    const fileExtension = currentRender.type === 'video' ? 'mp4' : 'png';
-    const fileName = `render-${currentRender.id}.${fileExtension}`;
-    
-    // Check if URL is same-origin (download attribute works)
-    let isSameOrigin = false;
-    try {
-      const url = new URL(outputUrl, window.location.href);
-      isSameOrigin = url.origin === window.location.origin;
-    } catch (urlError) {
-      // Invalid URL format, treat as cross-origin and try fetch
-      console.warn('Invalid URL format, attempting fetch:', urlError);
-    }
-    
-    if (isSameOrigin) {
-      // Same-origin: Use direct download link (fastest)
-      const link = document.createElement('a');
-      link.href = outputUrl;
-      link.download = fileName;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast.success('Download started');
-    } else {
-      // Cross-origin: Try fetch first, fallback to opening in new tab
-      try {
-        const response = await fetch(outputUrl);
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-        const blob = await response.blob();
-        const blobUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = fileName;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(blobUrl);
-        toast.success('Download started');
-      } catch (fetchError) {
-        // CORS error or other fetch failure: Open in new tab
-        console.warn('Download fetch failed (likely CORS), opening in new tab:', fetchError);
-        window.open(outputUrl, '_blank');
-        toast.info('Opened in new tab. Right-click and "Save As" to download.');
-      }
-    }
-  };
-
-  const handleShare = async () => {
-    if (navigator.share && currentRender?.outputUrl) {
-      try {
-        await navigator.share({
-          title: `AI Render - ${currentRender.prompt}`,
-          text: `Check out this AI-generated ${currentRender.type}: ${currentRender.prompt}`,
-          url: currentRender.outputUrl,
-        });
-      } catch (error) {
-        console.error('Error sharing:', error);
-      }
-    } else {
-      navigator.clipboard.writeText(currentRender?.outputUrl || '');
-    }
-  };
-
-  const handleUpscale = async (scale: 2 | 4 | 10) => {
-    if (!currentRender?.outputUrl) return;
-    
-    // Get aspect ratio from current render settings or default
-    const renderAspectRatio = currentRender.settings?.aspectRatio || aspectRatio;
-    
-    await upscaleImage({
-      imageUrl: currentRender.outputUrl,
-      scale,
-      quality: 'high',
-      projectId: projectId || '',
-      chainId: chainId || undefined,
-      referenceRenderId: currentRender.id || undefined,
-      aspectRatio: renderAspectRatio
-    });
-  };
   
   // Track processed upscaling results to avoid duplicates
   const processedUpscaleResultsRef = useRef<Set<string>>(new Set());
@@ -2901,7 +3355,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
             )}
             
             <div>
-              {/* Video Mode Badge, Model Selector, and Private/Public Toggle - Above prompt box */}
+              {/* Video Mode Badge - Above prompt box */}
               <div className="flex items-center justify-between gap-1.5 sm:gap-2 mb-1.5 flex-wrap">
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
                   {isVideoMode && (
@@ -2911,90 +3365,6 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                       <span className="xs:hidden">Video</span>
                     </Badge>
                   )}
-                  {/* Model Selector - Responsive container */}
-                  <div className="flex-1 min-w-0 max-w-full border border-muted-foreground/20 rounded-md h-7 sm:h-8 flex items-center">
-                    <ModelSelector
-                      type={isVideoMode ? 'video' : 'image'}
-                      value={(isVideoMode ? selectedVideoModel : selectedImageModel) as ModelId | undefined}
-                      onValueChange={(modelId) => {
-                        if (isVideoMode) {
-                          setSelectedVideoModel(modelId);
-                        } else {
-                          setSelectedImageModel(modelId);
-                          // Auto-adjust quality if current quality is not supported (skip for "auto" mode)
-                          if (modelId !== 'auto') {
-                            const modelConfig = getModelConfig(modelId);
-                            if (modelConfig && modelConfig.type === 'image') {
-                              if (!modelSupportsQuality(modelId, quality as 'standard' | 'high' | 'ultra')) {
-                                const maxQuality = getMaxQuality(modelId);
-                                setQuality(maxQuality);
-                                toast.info(`Quality adjusted to ${maxQuality} (maximum supported by selected model)`);
-                              }
-                            }
-                          }
-                        }
-                      }}
-                      quality={quality as 'standard' | 'high' | 'ultra'}
-                      duration={videoDuration}
-                      imageSize={quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K'}
-                      variant="minimal"
-                      showCredits={false}
-                      className="w-full"
-                    />
-                  </div>
-                  {/* Gallery and Builder Buttons - Same column as Model Selector */}
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openPromptGallery()}
-                      className="h-7 sm:h-8 px-2 text-[10px] sm:text-xs border border-muted-foreground/20 hover:border-transparent active:border-transparent focus-visible:border-transparent"
-                      disabled={isGenerating}
-                    >
-                      <BookOpen className="h-3 w-3 mr-1" />
-                      Prompts
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openPromptBuilder()}
-                      className="h-7 sm:h-8 px-2 text-[10px] sm:text-xs border border-muted-foreground/20 hover:border-transparent active:border-transparent focus-visible:border-transparent"
-                      disabled={isGenerating}
-                    >
-                      <Wand2 className="h-3 w-3 mr-1" />
-                      Builder
-                    </Button>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 border border-muted-foreground/20 rounded-md px-2 h-7 sm:h-8">
-                  <Label htmlFor="privacy-toggle" className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 sm:gap-1.5 cursor-pointer">
-                    {isPublic ? (
-                      <>
-                        <Globe className="h-3 w-3 shrink-0" />
-                        <span className="hidden sm:inline">Public</span>
-                      </>
-                    ) : (
-                      <>
-                        <Lock className="h-3 w-3 shrink-0" />
-                        <span className="hidden sm:inline">Private</span>
-                      </>
-                    )}
-                  </Label>
-                  <Switch
-                    id="privacy-toggle"
-                    checked={!isPublic}
-                    onCheckedChange={(checked) => {
-                      if (!isPro && checked) {
-                        // Free user trying to make private - show upgrade dialog
-                        setIsUpgradeDialogOpen(true);
-                      } else {
-                        // Pro user or making public - allow toggle
-                        setIsPublic(!checked);
-                      }
-                    }}
-                    disabled={!isPro && !isPublic} // Free users can't turn off public
-                    className="shrink-0"
-                  />
                 </div>
               </div>
               
@@ -3646,77 +4016,6 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
               </div>
             </div>
 
-            {/* Credit Usage, Get Pro, and Project Rules - Show for all users */}
-            <>
-              <div className="border-t border-border my-2" />
-              <div className="flex gap-1.5 mt-2">
-                {/* Credit Usage - 50% space */}
-                <div className={cn(
-                  "flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-md border h-6 sm:h-7 flex-[2]",
-                  credits && credits.balance < getCreditsCost()
-                    ? "bg-destructive/10 border-destructive/50 animate-pulse"
-                    : credits && credits.balance < getCreditsCost() * 2
-                    ? "bg-yellow-500/10 border-yellow-500/50"
-                    : "bg-muted/50 border-border"
-                )}>
-                  {credits && credits.balance < getCreditsCost() ? (
-                    <>
-                      <FaExclamationCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
-                      <div className="text-[11px] sm:text-sm text-center leading-tight">
-                        <span className="text-destructive font-semibold">{getCreditsCost()}</span>
-                        <span className="text-muted-foreground"> needed / </span>
-                        <span className="text-destructive font-semibold">{credits.balance}</span>
-                        <span className="text-muted-foreground"> left</span>
-                      </div>
-                    </>
-                  ) : credits && credits.balance < getCreditsCost() * 2 ? (
-                    <>
-                      <FaExclamationTriangle className="h-3.5 w-3.5 text-yellow-500 flex-shrink-0" />
-                      <div className="text-[11px] sm:text-sm text-center leading-tight">
-                        <span className="text-yellow-600 dark:text-yellow-500 font-semibold">{getCreditsCost()}</span>
-                        <span className="text-muted-foreground"> needed / </span>
-                        <span className="text-yellow-600 dark:text-yellow-500 font-semibold">{credits.balance}</span>
-                        <span className="text-muted-foreground"> left</span>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <FaCheckCircle className="h-3.5 w-3.5 text-green-600 dark:text-green-500 flex-shrink-0" />
-                      <div className="text-[11px] sm:text-sm text-muted-foreground text-center font-medium leading-tight">
-                        {getCreditsCost()} credit{getCreditsCost() !== 1 ? 's' : ''}
-                      </div>
-                    </>
-                  )}
-                </div>
-                {/* Get Pro - 25% space (only show for non-Pro users) */}
-                {!isPro && (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="h-6 sm:h-7 text-[10px] sm:text-xs px-2 flex-1"
-                    onClick={() => window.open('/pricing', '_blank')}
-                  >
-                    Get Pro
-                  </Button>
-                )}
-                {/* Project Rules - 25% space */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={cn("h-6 sm:h-7 text-[10px] sm:text-xs px-2", !isPro ? "flex-1" : "flex-[2]")}
-                  onClick={() => setIsProjectRulesModalOpen(true)}
-                  title="Project Rules"
-                >
-                  <FileText className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-0.5 sm:mr-1" />
-                  <span>Rules</span>
-                  {projectRules && projectRules.length > 0 && (
-                    <span className="ml-0.5 sm:ml-1 px-1 py-0.5 bg-primary/10 text-primary rounded text-[8px] sm:text-[9px] font-medium">
-                      {projectRules.length}
-                    </span>
-                  )}
-                </Button>
-              </div>
-            </>
           </div>
         </div>
       </div>
@@ -3728,532 +4027,303 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         // Mobile: show/hide based on mobileView - ONLY show in output area, never in chat
         mobileView === 'render' ? 'flex' : 'hidden lg:flex'
       )}>
-        {/* Header with Toolbar - ONLY in output area, never in chat */}
-        <div className="border-b border-border shrink-0 z-10">
-          <div className="px-4 py-1.5 h-11 flex items-center">
-            {/* Toolbar - Only show when there's a render AND we're in output area (not chat) */}
-            {currentRender && (() => {
-              // ✅ SIMPLIFIED: Always use index in completed renders array for version number
-              // Get the latest data from chain.renders to ensure we have the correct data
-              const renderWithLatestData = getRenderById(chain?.renders, currentRender.id) || currentRender;
-              const versionNumber = getVersionNumber(renderWithLatestData, chain?.renders) || 1;
-              
-              // Debug logging
-              if (process.env.NODE_ENV === 'development') {
-                logger.log('🔍 UnifiedChatInterface: Displaying render', {
-                  renderId: renderWithLatestData.id,
-                  chainPosition: renderWithLatestData.chainPosition,
-                  versionNumber,
-                  latestRenderChainPosition: latestRender?.chainPosition,
-                  latestRenderVersion: getVersionNumber(latestRender, chain?.renders),
-                  completedRendersCount: completedRenders.length
-                });
-              }
-              
-              return (
-                <div className="flex items-center gap-3 w-full">
-                  {/* Sidebar Toggle Button - Only show on desktop when sidebar is visible */}
-                  {mobileView !== 'render' && (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSidebarCollapsed(!isSidebarCollapsed)}
-                        className="h-7 w-7 p-0 shrink-0 hidden lg:flex"
-                        title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                      >
-                        {isSidebarCollapsed ? (
-                          <PanelRight className="h-3 w-3" />
-                        ) : (
-                          <PanelLeft className="h-3 w-3" />
-                        )}
-                      </Button>
-                      
-                      {/* Separator */}
-                      <div className="h-4 w-px bg-border shrink-0 hidden lg:block"></div>
-                    </>
+        {/* Top Header with Model Selector, Project Rules, Credit Usage, Get Pro */}
+        <div className="border-b border-border shrink-0 z-10 bg-background">
+          <div className="px-3 sm:px-4 py-2 flex items-center gap-2 sm:gap-3 flex-wrap">
+            {/* Sidebar Toggle Button - Only show on desktop when sidebar is visible */}
+            {mobileView !== 'render' && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSidebarCollapsed(!isSidebarCollapsed)}
+                  className="h-7 w-7 p-0 shrink-0 hidden lg:flex"
+                  title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                >
+                  {isSidebarCollapsed ? (
+                    <PanelRight className="h-3 w-3" />
+                  ) : (
+                    <PanelLeft className="h-3 w-3" />
                   )}
-                  
-                  {/* Version Control Dropdown */}
-                  {messages.some(m => m.render) && (
-                    <Select 
-                      value={currentRender?.id} 
-                      onValueChange={(value) => {
-                        // ✅ SIMPLIFIED: Get render from chain.renders (single source of truth)
-                        const render = getRenderById(chain?.renders, value);
-                        if (render) {
-                          userSelectedRenderIdRef.current = render.id;
-                          setCurrentRender(render);
+                </Button>
+                <div className="h-4 w-px bg-border shrink-0 hidden lg:block"></div>
+              </>
+            )}
+            
+            {/* Model Selector */}
+            <div className="flex-1 min-w-[120px] max-w-[200px] border border-muted-foreground/20 rounded-md h-7 sm:h-8 flex items-center">
+              <ModelSelector
+                type={isVideoMode ? 'video' : 'image'}
+                value={(isVideoMode ? selectedVideoModel : selectedImageModel) as ModelId | undefined}
+                onValueChange={(modelId) => {
+                  if (isVideoMode) {
+                    setSelectedVideoModel(modelId);
+                  } else {
+                    setSelectedImageModel(modelId);
+                    // Auto-adjust quality if current quality is not supported (skip for "auto" mode)
+                    if (modelId !== 'auto') {
+                      const modelConfig = getModelConfig(modelId);
+                      if (modelConfig && modelConfig.type === 'image') {
+                        if (!modelSupportsQuality(modelId, quality as 'standard' | 'high' | 'ultra')) {
+                          const maxQuality = getMaxQuality(modelId);
+                          setQuality(maxQuality);
+                          toast.info(`Quality adjusted to ${maxQuality} (maximum supported by selected model)`);
                         }
-                      }}
-                    >
-                      <SelectTrigger className="h-7 px-2 text-[10px] sm:text-xs w-auto min-w-[50px] sm:min-w-[100px] shrink-0">
-                        <SelectValue>
-                          {/* Mobile: Show v1, v2 | Desktop: Show Version 1, Version 2 */}
-                          <span className="sm:hidden">v{versionNumber}</span>
-                          <span className="hidden sm:inline">Version {versionNumber}</span>
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {/* ✅ SIMPLIFIED: Use completedRenders directly (already sorted by chainPosition) */}
-                        {completedRenders.map((render, index) => {
-                          const versionNumber = getVersionNumber(render, chain?.renders) || (index + 1);
-                          // Find corresponding message for content
-                          const message = messages.find(m => m.render?.id === render.id);
-                          return (
-                            <SelectItem key={render.id} value={render.id} className="text-xs">
-                              {/* Mobile: Show v1, v2 | Desktop: Show full text */}
-                              <span className="sm:hidden">v{versionNumber}</span>
-                              <span className="hidden sm:inline">
-                                Version {versionNumber} - {message?.content?.substring(0, 30) || render.prompt.substring(0, 30)}...
-                              </span>
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  
-                  {/* Separator */}
-                  <div className="h-4 w-px bg-border shrink-0"></div>
-                  
-                  {/* Tools - Icon-only buttons as square on mobile */}
-                  <div className="flex items-center gap-1.5 sm:gap-2 flex-1">
-                    {/* Upscale */}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="h-7 w-7 sm:h-7 sm:w-auto sm:px-2 text-[10px] p-0 flex items-center justify-center gap-0 sm:gap-1.5 shrink-0"
-                          disabled={isUpscaling}
-                        >
-                          {isUpscaling ? (
-                            <>
-                              <RefreshCw className="h-3 w-3 animate-spin shrink-0" />
-                              <span className="hidden sm:inline">Upscaling...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Zap className="h-3 w-3 shrink-0" />
-                              <span className="hidden sm:inline">Upscale</span>
-                            </>
-                          )}
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start">
-                        <DropdownMenuItem onClick={() => handleUpscale(2)} disabled={isUpscaling}>
-                          2x
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleUpscale(4)} disabled={isUpscaling}>
-                          4x
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleUpscale(10)} disabled={isUpscaling}>
-                          10x
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                    {/* Convert to Video */}
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={async () => {
-                        if (!currentRender?.outputUrl) return;
-                        
-                        try {
-                          // Fetch the image and convert to File
-                          const response = await fetch(currentRender.outputUrl);
-                          const blob = await response.blob();
-                          const file = new File([blob], `image-to-video-${Date.now()}.png`, { type: 'image/png' });
-                          
-                          // Set as uploaded file
-                          setUploadedFile(file);
-                          // previewUrl is automatically managed by useObjectURL hook
-                          
-                          // Enable video mode
-                          setIsVideoMode(true);
-                          
-                          // Set a default prompt if input is empty
-                          if (!inputValue.trim()) {
-                            setInputValue('Animate this image with smooth, cinematic motion');
-                          }
-                          
-                          // Focus the input
-                          setTimeout(() => {
-                            textareaRef.current?.focus();
-                          }, 100);
-                          
-                          toast.success('Image loaded for video generation! Add your animation prompt and click send.');
-                        } catch (error) {
-                          logger.error('Failed to load image for video conversion:', error);
-                          toast.error('Failed to load image. Please try again.');
-                        }
-                      }} 
-                      className="h-7 w-7 sm:h-7 sm:w-auto sm:px-2 text-[10px] p-0 flex items-center justify-center gap-0 sm:gap-1.5 shrink-0" 
-                      disabled={!currentRender || currentRender.type === 'video' || isGenerating}
-                      title="Convert to Video"
-                    >
-                      <Video className="h-3 w-3 shrink-0" />
-                      <span className="hidden sm:inline">Video</span>
-                    </Button>
-                    {/* Download */}
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleDownload} 
-                      className="h-7 w-7 sm:h-7 sm:w-auto sm:px-2 text-[10px] p-0 flex items-center justify-center gap-0 sm:gap-1.5 shrink-0"
-                      title="Download"
-                    >
-                      <Download className="h-3 w-3 shrink-0" />
-                      <span className="hidden sm:inline">Download</span>
-                    </Button>
-                    {/* Share */}
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleShare} 
-                      className="h-7 w-7 sm:h-7 sm:w-auto sm:px-2 text-[10px] p-0 flex items-center justify-center gap-0 sm:gap-1.5 shrink-0"
-                      title="Share"
-                    >
-                      <Share2 className="h-3 w-3 shrink-0" />
-                      <span className="hidden sm:inline">Share</span>
-                    </Button>
-                    {/* Before/After Toggle - Show when there's uploaded image OR when no upload but previous version exists */}
-                    {/* ✅ FIX: Check both renderWithLatestData AND currentRender for uploadedImageUrl */}
-                    {currentRender && currentRender.type === 'image' && renderWithLatestData && (
-                      ((renderWithLatestData.uploadedImageUrl || currentRender.uploadedImageUrl) || 
-                       (!renderWithLatestData.uploadedImageUrl && !currentRender.uploadedImageUrl && previousRender && previousRender.outputUrl)) && (
-                        <div className="flex items-center gap-1 h-7 px-2 sm:px-3 border border-input bg-background rounded-md flex-1">
-                          <Button
-                            variant={beforeAfterView === 'before' ? 'default' : 'ghost'}
-                            size="sm"
-                            onClick={() => setBeforeAfterView('before')}
-                            className="h-5 sm:h-6 px-2 sm:px-3 text-[10px] sm:text-xs flex-1"
-                            title="Before"
-                          >
-                            Before
-                          </Button>
-                          <div className="h-3 w-px bg-border"></div>
-                          <Button
-                            variant={beforeAfterView === 'after' ? 'default' : 'ghost'}
-                            size="sm"
-                            onClick={() => setBeforeAfterView('after')}
-                            className="h-5 sm:h-6 px-2 sm:px-3 text-[10px] sm:text-xs flex-1"
-                            title="After"
-                          >
-                            After
-                          </Button>
-                        </div>
-                      )
-                    )}
+                      }
+                    }
+                  }
+                }}
+                quality={quality as 'standard' | 'high' | 'ultra'}
+                duration={videoDuration}
+                imageSize={quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K'}
+                variant="minimal"
+                showCredits={false}
+                className="w-full"
+              />
+            </div>
+            
+            {/* Separator */}
+            <div className="h-4 w-px bg-border shrink-0"></div>
+            
+            {/* Project Rules */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 sm:h-8 text-[10px] sm:text-xs px-2 sm:px-3 shrink-0"
+              onClick={() => setIsProjectRulesModalOpen(true)}
+              title="Project Rules"
+            >
+              <FileText className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
+              <span>Rules</span>
+              {projectRules && projectRules.length > 0 && (
+                <span className="ml-1 px-1 py-0.5 bg-primary/10 text-primary rounded text-[8px] sm:text-[9px] font-medium">
+                  {projectRules.length}
+                </span>
+              )}
+            </Button>
+            
+            {/* Get Pro - Only show for non-Pro users */}
+            {!isPro && (
+              <Button
+                variant="default"
+                size="sm"
+                className="h-7 sm:h-8 text-[10px] sm:text-xs px-2 sm:px-3 shrink-0"
+                onClick={() => window.open('/pricing', '_blank')}
+              >
+                Get Pro
+              </Button>
+            )}
+            
+            {/* Separator */}
+            <div className="h-4 w-px bg-border shrink-0"></div>
+            
+            {/* Prompt Builder and Library Buttons */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => openPromptGallery()}
+              className="h-7 sm:h-8 px-2 text-[10px] sm:text-xs shrink-0"
+              disabled={isGenerating}
+              title="Prompt Library"
+            >
+              <BookOpen className="h-3 w-3 mr-1" />
+              <span className="hidden sm:inline">Library</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => openPromptBuilder()}
+              className="h-7 sm:h-8 px-2 text-[10px] sm:text-xs shrink-0"
+              disabled={isGenerating}
+              title="Prompt Builder"
+            >
+              <Wand2 className="h-3 w-3 mr-1" />
+              <span className="hidden sm:inline">Builder</span>
+            </Button>
+            
+            {/* Separator */}
+            <div className="h-4 w-px bg-border shrink-0"></div>
+            
+            {/* Public/Private Toggle */}
+            <div className="flex items-center gap-1.5 px-2 shrink-0">
+              <Label htmlFor="privacy-toggle-header" className="text-[10px] sm:text-xs flex items-center gap-1 cursor-pointer">
+                {isPublic ? (
+                  <>
+                    <Globe className="h-3 w-3 shrink-0" />
+                    <span className="hidden sm:inline">Public</span>
+                  </>
+                ) : (
+                  <>
+                    <Lock className="h-3 w-3 shrink-0" />
+                    <span className="hidden sm:inline">Private</span>
+                  </>
+                )}
+              </Label>
+              <Switch
+                id="privacy-toggle-header"
+                checked={!isPublic}
+                onCheckedChange={(checked) => {
+                  if (!isPro && checked) {
+                    // Free users trying to make private - show upgrade dialog
+                    setIsUpgradeDialogOpen(true);
+                  } else {
+                    setIsPublic(!checked);
+                  }
+                }}
+                disabled={!isPro && !isPublic} // Free users can't turn off public
+                className="shrink-0"
+              />
+            </div>
+            
+            {/* Separator */}
+            <div className="h-4 w-px bg-border shrink-0"></div>
+            
+            {/* Credit Usage */}
+            <div className={cn(
+              "flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-md border h-7 sm:h-8 shrink-0",
+              credits && credits.balance < getCreditsCost()
+                ? "bg-destructive/10 border-destructive/50 animate-pulse"
+                : credits && credits.balance < getCreditsCost() * 2
+                ? "bg-yellow-500/10 border-yellow-500/50"
+                : "bg-muted/50 border-border"
+            )}>
+              {credits && credits.balance < getCreditsCost() ? (
+                <>
+                  <FaExclamationCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
+                  <div className="text-[11px] sm:text-sm text-center leading-tight">
+                    <span className="text-destructive font-semibold">{getCreditsCost()}</span>
+                    <span className="text-muted-foreground"> / </span>
+                    <span className="text-destructive font-semibold">{credits.balance}</span>
                   </div>
-                </div>
-              );
-            })()}
+                </>
+              ) : credits && credits.balance < getCreditsCost() * 2 ? (
+                <>
+                  <FaExclamationTriangle className="h-3.5 w-3.5 text-yellow-500 flex-shrink-0" />
+                  <div className="text-[11px] sm:text-sm text-center leading-tight">
+                    <span className="text-yellow-600 dark:text-yellow-500 font-semibold">{getCreditsCost()}</span>
+                    <span className="text-muted-foreground"> / </span>
+                    <span className="text-yellow-600 dark:text-yellow-500 font-semibold">{credits.balance}</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <FaCheckCircle className="h-3.5 w-3.5 text-green-600 dark:text-green-500 flex-shrink-0" />
+                  <div className="text-[11px] sm:text-sm text-muted-foreground text-center font-medium leading-tight">
+                    {getCreditsCost()} credit{getCreditsCost() !== 1 ? 's' : ''}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
         {/* Render Content */}
         <div className="flex-1 p-1 sm:p-2 overflow-hidden min-h-0">
             <div className="h-full w-full flex flex-col lg:flex-row items-center justify-center overflow-hidden">
               <div className="flex-1 overflow-hidden w-full h-full min-w-0 min-h-0">
-              {isGenerating || isImageGenerating || isVideoGenerating ? (
+                {/* Canvas always visible - works like Figma, shows generating frame on canvas when generating */}
                 <Card className="w-full h-full py-0 gap-0 overflow-hidden">
                   <CardContent className="p-0 h-full overflow-hidden">
                     <div className="h-full w-full flex flex-col overflow-hidden">
-                      {/* Loading Display */}
-                      <div className="flex-1 bg-muted rounded-t-lg overflow-hidden relative min-h-[200px] sm:min-h-[300px] min-w-0">
-                        <div className="w-full h-full flex items-center justify-center relative p-1 overflow-hidden min-w-0">
-                          <div className="text-center space-y-3 sm:space-y-6">
-                            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
-                              <RefreshCw className="h-6 w-6 sm:h-8 sm:w-8 text-primary animate-spin" />
-                            </div>
-                            
-                            <div className="w-48 sm:w-64 space-y-2">
-                              <div className="flex justify-between text-xs sm:text-sm text-muted-foreground">
-                                <span>Progress</span>
-                                <span>{Math.round(Math.min(progress, 100))}%</span>
-                              </div>
-                              <Progress value={Math.min(progress, 100)} className="h-1.5 sm:h-2" />
-                              {/* Pipeline Stage Events */}
-                              {stageEvents.length > 0 && (
-                                <div className="mt-2 space-y-1">
-                                  {stageEvents.map((event, idx) => (
-                                    <div key={idx} className="flex items-center gap-2 text-xs text-muted-foreground">
-                                      <div className={`w-1.5 h-1.5 rounded-full ${
-                                        event.status === 'success' ? 'bg-green-500' : 'bg-red-500'
-                                      }`} />
-                                      <span className="capitalize">{event.stage.replace(/_/g, ' ')}</span>
-                                      <span className="ml-auto text-[10px]">{(event.durationMs / 1000).toFixed(1)}s</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : currentRender ? (
-                <Card className="w-full h-full py-0 gap-0 overflow-hidden">
-                  <CardContent className="p-0 h-full overflow-hidden">
-                    <div className="h-full w-full flex flex-col overflow-hidden">
-                      {/* Image/Video Display */}
-                      <div className="flex-1 bg-muted rounded-t-lg overflow-hidden relative min-h-[200px] sm:min-h-[300px] min-w-0">
-                        <div className="w-full h-full flex items-center justify-center relative p-0 overflow-hidden min-w-0">
+                      {/* Canvas - Always visible, allows free work without AI */}
+                      <div className="flex-1 bg-background overflow-hidden relative min-h-[200px] sm:min-h-[300px] min-w-0">
                         {renderWithLatestData?.type === 'video' ? (
-                          <video
-                            src={renderWithLatestData.outputUrl || ''}
-                            className="w-full h-full object-contain cursor-pointer"
-                            controls
-                            loop
-                            muted
-                            playsInline
-                            onClick={() => setIsFullscreen(true)}
-                            onLoadStart={() => {
-                              logger.log('🖼️ [MAIN RENDER DEBUG] Video loading', {
-                                renderId: renderWithLatestData.id,
-                                outputUrl: renderWithLatestData.outputUrl?.substring(0, 50) + '...'
-                              });
+                          // Keep video display for video renders (canvas doesn't support video yet)
+                          <div className="w-full h-full flex items-center justify-center relative p-0 overflow-hidden min-w-0">
+                            <video
+                              src={renderWithLatestData.outputUrl || ''}
+                              className="w-full h-full object-contain cursor-pointer"
+                              controls
+                              loop
+                              muted
+                              playsInline
+                              onClick={() => setIsFullscreen(true)}
+                              onLoadStart={() => {
+                                logger.log('🖼️ [MAIN RENDER DEBUG] Video loading', {
+                                  renderId: renderWithLatestData.id,
+                                  outputUrl: renderWithLatestData.outputUrl?.substring(0, 50) + '...'
+                                });
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          // Canvas always visible - works like Figma, users can freely work without AI
+                          // When generating, a frame appears on the canvas showing "Generating your render..."
+                          <RenderiqCanvas
+                            currentRender={renderWithLatestData || null}
+                            chainId={chainId}
+                            chainRenders={chain?.renders || []} // Pass all chain renders to load onto canvas
+                            onRenderAdded={(newRender) => {
+                              // Handle new render added to canvas
+                              if (onRenderComplete) {
+                                onRenderComplete(newRender);
+                              }
                             }}
+                            isGenerating={isGenerating || isImageGenerating || isVideoGenerating}
+                            generatingPrompt={inputValue}
+                            onGenerateFromSelection={(prompt, selectedRenderIds) => {
+                              // ✅ FIXED: Store selected render IDs from canvas for reference
+                              // Use the first selected render ID as reference for generation
+                              canvasSelectedRenderIdsRef.current = selectedRenderIds;
+                              logger.log('🎨 Canvas selection sync:', {
+                                selectedRenderIds,
+                                prompt: prompt || inputValue,
+                                willUseAsReference: selectedRenderIds.length > 0 ? selectedRenderIds[0] : 'none'
+                              });
+                              // Set input value and trigger generation
+                              setInputValue(prompt || inputValue);
+                              // Small delay to ensure input is set, then trigger send
+                              setTimeout(() => {
+                                handleSendMessage();
+                              }, 100);
+                            }}
+                            onGenerateVariants={(config, selectedRenderIds) => {
+                              // Handle variant generation with batch API
+                              handleGenerateVariants(config, selectedRenderIds);
+                            }}
+                            onGenerateDrawing={(config, selectedRenderIds) => {
+                              // Handle drawing generation with batch API
+                              handleGenerateDrawing(config, selectedRenderIds);
+                            }}
+                            onImageToVideo={(config, selectedRenderIds) => {
+                              // Handle image to video generation
+                              handleImageToVideo(config, selectedRenderIds);
+                            }}
+                            className="w-full h-full"
                           />
-                        ) : renderWithLatestData && ((renderWithLatestData.uploadedImageUrl || currentRender.uploadedImageUrl) || (previousRender && previousRender.outputUrl)) ? (
-                          // Before/After Comparison - Show uploaded vs rendered OR previous version vs current
-                          <div className="w-full h-full">
-                              {beforeAfterView === 'before' ? (
-                                <div className="w-full h-full flex items-center justify-center relative">
-                                  {/* Show uploaded image if available, otherwise show previous version */}
-                                  {renderWithLatestData.uploadedImageUrl ? (
-                                    // Before = Uploaded Image
-                                    shouldUseRegularImg(renderWithLatestData.uploadedImageUrl) ? (
-                                      <img
-                                        src={renderWithLatestData.uploadedImageUrl}
-                                        alt="Uploaded image"
-                                        className="absolute inset-0 w-full h-full object-contain cursor-pointer"
-                                        onClick={() => setIsFullscreen(true)}
-                                        onError={(e) => {
-                                          const img = e.target as HTMLImageElement;
-                                          const originalUrl = renderWithLatestData.uploadedImageUrl;
-                                          logger.error('🖼️ [MAIN RENDER DEBUG] Uploaded image load error', {
-                                            originalUrl: originalUrl?.substring(0, 50) + '...'
-                                          });
-                                          const fallbackUrl = handleImageErrorWithFallback(originalUrl || '', e);
-                                          if (fallbackUrl && fallbackUrl !== '/placeholder-image.jpg') {
-                                            img.src = fallbackUrl;
-                                          } else {
-                                            img.src = '/placeholder-image.jpg';
-                                          }
-                                        }}
-                                      />
-                                    ) : (
-                                      <Image
-                                        src={renderWithLatestData.uploadedImageUrl || '/placeholder-image.jpg'}
-                                        alt="Uploaded image"
-                                        fill
-                                        className="object-contain cursor-pointer"
-                                        sizes="100vw"
-                                        onClick={() => setIsFullscreen(true)}
-                                        onError={(e) => {
-                                          logger.error('🖼️ [MAIN RENDER DEBUG] Uploaded Next.js Image load error', {
-                                            uploadedImageUrl: renderWithLatestData.uploadedImageUrl?.substring(0, 50) + '...'
-                                          });
-                                        }}
-                                      />
-                                    )
-                                  ) : previousRender && previousRender.outputUrl ? (
-                                    // Before = Previous Version (only when no uploaded image)
-                                    shouldUseRegularImg(previousRender.outputUrl) ? (
-                                      <img
-                                        src={previousRender.outputUrl}
-                                        alt="Previous render"
-                                        className="absolute inset-0 w-full h-full object-contain cursor-pointer"
-                                        onClick={() => setIsFullscreen(true)}
-                                        onError={(e) => {
-                                          const img = e.target as HTMLImageElement;
-                                          const originalUrl = previousRender.outputUrl;
-                                          logger.error('🖼️ [MAIN RENDER DEBUG] Previous image load error', {
-                                            originalUrl: originalUrl?.substring(0, 50) + '...'
-                                          });
-                                          const fallbackUrl = handleImageErrorWithFallback(originalUrl || '', e);
-                                          if (fallbackUrl && fallbackUrl !== '/placeholder-image.jpg') {
-                                            img.src = fallbackUrl;
-                                          } else {
-                                            img.src = '/placeholder-image.jpg';
-                                          }
-                                        }}
-                                      />
-                                    ) : (
-                                      <Image
-                                        src={previousRender.outputUrl || '/placeholder-image.jpg'}
-                                        alt="Previous render"
-                                        fill
-                                        className="object-contain cursor-pointer"
-                                        sizes="100vw"
-                                        onClick={() => setIsFullscreen(true)}
-                                        onError={(e) => {
-                                          logger.error('🖼️ [MAIN RENDER DEBUG] Previous Next.js Image load error', {
-                                            outputUrl: previousRender.outputUrl?.substring(0, 50) + '...'
-                                          });
-                                        }}
-                                      />
-                                    )
-                                  ) : null}
-                                  {/* Fullscreen Toggle */}
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setIsFullscreen(true)}
-                                    className="absolute top-2 sm:top-4 right-2 sm:right-4 bg-black/50 hover:bg-black/70 text-white h-7 w-7 sm:h-auto sm:w-auto sm:px-3"
-                                  >
-                                    <Maximize className="h-3 w-3 sm:h-4 sm:w-4" />
-                                  </Button>
+                        )}
+                      </div>
+                      
+                      {/* Pipeline Stage Events & Progress - Show below canvas when generating */}
+                      {(isGenerating || isImageGenerating || isVideoGenerating) && (
+                        <div className="p-2 border-t border-border bg-background flex-shrink-0">
+                          <div className="w-full space-y-2">
+                            <div className="flex justify-between text-xs sm:text-sm text-muted-foreground">
+                              <span>Progress</span>
+                              <span>{Math.round(Math.min(progress, 100))}%</span>
+                            </div>
+                            <Progress value={Math.min(progress, 100)} className="h-1.5 sm:h-2" />
+                            {/* Pipeline Stage Events */}
+                            {stageEvents.length > 0 && (
+                              <div className="mt-2 space-y-1">
+                                <div className="text-xs font-medium text-muted-foreground mb-1">
+                                  Pipeline Stages
                                 </div>
-                              ) : (
-                              <div className="w-full h-full flex items-center justify-center relative">
-                                {shouldUseRegularImg(renderWithLatestData.outputUrl || '') ? (
-                                  <img
-                                    src={renderWithLatestData.outputUrl || ''}
-                                    alt={renderWithLatestData.prompt}
-                                    className="absolute inset-0 w-full h-full object-contain cursor-pointer"
-                                    onClick={() => setIsFullscreen(true)}
-                                    onLoad={() => {
-                                      logger.log('🖼️ [MAIN RENDER DEBUG] Image loaded successfully', {
-                                        renderId: renderWithLatestData.id,
-                                        version: displayVersion,
-                                        outputUrl: renderWithLatestData.outputUrl?.substring(0, 50) + '...'
-                                      });
-                                    }}
-                                    onError={(e) => {
-                                      const img = e.target as HTMLImageElement;
-                                      const originalUrl = renderWithLatestData.outputUrl;
-                                      logger.error('🖼️ [MAIN RENDER DEBUG] Image load error', {
-                                        renderId: renderWithLatestData.id,
-                                        version: displayVersion,
-                                        originalUrl: originalUrl?.substring(0, 50) + '...'
-                                      });
-                                      const fallbackUrl = handleImageErrorWithFallback(originalUrl || '', e);
-                                      if (fallbackUrl && fallbackUrl !== '/placeholder-image.jpg') {
-                                        logger.log('🖼️ [MAIN RENDER DEBUG] Trying fallback URL', {
-                                          fallbackUrl: fallbackUrl.substring(0, 50) + '...'
-                                        });
-                                        img.src = fallbackUrl;
-                                      } else {
-                                        img.src = '/placeholder-image.jpg';
-                                      }
-                                    }}
-                                  />
-                                ) : (
-                                  <Image
-                                    src={renderWithLatestData.outputUrl || '/placeholder-image.jpg'}
-                                    alt={renderWithLatestData.prompt}
-                                    fill
-                                    className="object-contain cursor-pointer"
-                                    sizes="100vw"
-                                    onClick={() => setIsFullscreen(true)}
-                                    onLoad={() => {
-                                      logger.log('🖼️ [MAIN RENDER DEBUG] Next.js Image loaded successfully', {
-                                        renderId: renderWithLatestData.id,
-                                        version: displayVersion
-                                      });
-                                    }}
-                                    onError={(e) => {
-                                      logger.error('🖼️ [MAIN RENDER DEBUG] Next.js Image load error', {
-                                        renderId: renderWithLatestData.id,
-                                        version: displayVersion,
-                                        outputUrl: renderWithLatestData.outputUrl?.substring(0, 50) + '...'
-                                      });
-                                    }}
-                                  />
-                                )}
-                                {/* Fullscreen Toggle */}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setIsFullscreen(true)}
-                                  className="absolute top-2 sm:top-4 right-2 sm:right-4 bg-black/50 hover:bg-black/70 text-white h-7 w-7 sm:h-auto sm:w-auto sm:px-3"
-                                >
-                                  <Maximize className="h-3 w-3 sm:h-4 sm:w-4" />
-                                </Button>
+                                {stageEvents.map((event, idx) => (
+                                  <div key={idx} className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <div className={`w-1.5 h-1.5 rounded-full ${
+                                      event.status === 'success' ? 'bg-green-500' : 'bg-red-500'
+                                    }`} />
+                                    <span className="capitalize flex-1">{event.stage.replace(/_/g, ' ')}</span>
+                                    <span className="text-[10px] text-muted-foreground/70">{(event.durationMs / 1000).toFixed(1)}s</span>
+                                  </div>
+                                ))}
                               </div>
                             )}
                           </div>
-                        ) : renderWithLatestData ? (
-                          <>
-                            {/* Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking */}
-                            {shouldUseRegularImg(renderWithLatestData.outputUrl || '') ? (
-                              <img
-                                src={renderWithLatestData.outputUrl || ''}
-                                alt={renderWithLatestData.prompt}
-                                className="absolute inset-0 w-full h-full object-contain cursor-pointer"
-                                onClick={() => setIsFullscreen(true)}
-                                onLoad={() => {
-                                  logger.log('🖼️ [MAIN RENDER DEBUG] Image loaded successfully', {
-                                    renderId: renderWithLatestData.id,
-                                    version: displayVersion,
-                                    outputUrl: renderWithLatestData.outputUrl?.substring(0, 50) + '...'
-                                  });
-                                }}
-                                onError={(e) => {
-                                  const img = e.target as HTMLImageElement;
-                                  const originalUrl = renderWithLatestData.outputUrl;
-                                  logger.error('🖼️ [MAIN RENDER DEBUG] Image load error', {
-                                    renderId: renderWithLatestData.id,
-                                    version: displayVersion,
-                                    originalUrl: originalUrl?.substring(0, 50) + '...'
-                                  });
-                                  
-                                  // Try CDN fallback to direct GCS URL
-                                  const fallbackUrl = handleImageErrorWithFallback(originalUrl || '', e);
-                                  if (fallbackUrl && fallbackUrl !== '/placeholder-image.jpg') {
-                                    logger.log('🖼️ [MAIN RENDER DEBUG] Trying fallback URL', {
-                                      fallbackUrl: fallbackUrl.substring(0, 50) + '...'
-                                    });
-                                    img.src = fallbackUrl;
-                                  } else {
-                                    // No fallback available, use placeholder
-                                    img.src = '/placeholder-image.jpg';
-                                  }
-                                }}
-                              />
-                            ) : (
-                              <Image
-                                src={renderWithLatestData.outputUrl || '/placeholder-image.jpg'}
-                                alt={renderWithLatestData.prompt}
-                                fill
-                                className="object-contain cursor-pointer"
-                                sizes="100vw"
-                                onClick={() => setIsFullscreen(true)}
-                                onLoad={() => {
-                                  logger.log('🖼️ [MAIN RENDER DEBUG] Next.js Image loaded successfully', {
-                                    renderId: renderWithLatestData.id,
-                                    version: displayVersion
-                                  });
-                                }}
-                                onError={(e) => {
-                                  logger.error('🖼️ [MAIN RENDER DEBUG] Next.js Image load error', {
-                                    renderId: renderWithLatestData.id,
-                                    version: displayVersion,
-                                    outputUrl: renderWithLatestData.outputUrl?.substring(0, 50) + '...'
-                                  });
-                                }}
-                              />
-                            )}
-                            {/* Fullscreen Toggle */}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setIsFullscreen(true)}
-                              className="absolute top-2 sm:top-4 right-2 sm:right-4 bg-black/50 hover:bg-black/70 text-white h-7 w-7 sm:h-auto sm:w-auto sm:px-3"
-                            >
-                              <Maximize className="h-3 w-3 sm:h-4 sm:w-4" />
-                            </Button>
-                          </>
-                        ) : null}
                         </div>
-                      </div>
+                      )}
 
-                      {/* Pipeline Stage Events - Show below image */}
+                      {/* Pipeline Stage Events - Show below canvas */}
                       {stageEvents.length > 0 && (
                         <div className="p-2 border-t border-border bg-background flex-shrink-0">
                           <div className="space-y-1">
@@ -4307,20 +4377,29 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                           </div>
                         </div>
                       )}
+
+                      {/* Pipeline Stage Events - Show when NOT generating (completed renders) */}
+                      {!(isGenerating || isImageGenerating || isVideoGenerating) && stageEvents.length > 0 && (
+                        <div className="p-2 border-t border-border bg-background flex-shrink-0">
+                          <div className="space-y-1">
+                            <div className="text-xs font-medium text-muted-foreground mb-1">
+                              Pipeline Stages
+                            </div>
+                            {stageEvents.map((event, idx) => (
+                              <div key={idx} className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <div className={`w-1.5 h-1.5 rounded-full ${
+                                  event.status === 'success' ? 'bg-green-500' : 'bg-red-500'
+                                }`} />
+                                <span className="capitalize flex-1">{event.stage.replace(/_/g, ' ')}</span>
+                                <span className="text-[10px] text-muted-foreground/70">{(event.durationMs / 1000).toFixed(1)}s</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
-              ) : (
-                <div className="text-center p-4">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-muted rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                    <Wand2 className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-sm sm:text-base lg:text-lg font-semibold mb-2">Ready to Generate</h3>
-                  <p className="text-xs sm:text-sm text-muted-foreground">
-                    Describe your vision to create amazing renders
-                  </p>
-                </div>
-              )}
               </div>
               
              </div>

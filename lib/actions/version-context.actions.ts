@@ -1,11 +1,17 @@
 'use server';
 
-import { VersionContextService, type ParsedPrompt, type VersionContext } from '@/lib/services/version-context';
-import { getUserRenders } from './user-renders.actions';
-import { getRenderChain } from './projects.actions';
+// ✅ DEPRECATED: Use CentralizedContextService instead
+// This file is kept for backward compatibility but redirects to CentralizedContextService
+import { CentralizedContextService, type UnifiedContext } from '@/lib/services/centralized-context-service';
+import { buildUnifiedContextAction } from './centralized-context.actions';
+import type { ParsedPrompt, VersionContext } from '@/lib/services/version-context';
 import { getCachedUser } from '@/lib/services/auth-cache';
 import { logger } from '@/lib/utils/logger';
 
+/**
+ * @deprecated Use buildUnifiedContextAction from centralized-context.actions.ts instead
+ * This function is kept for backward compatibility
+ */
 export async function parsePromptWithMentions(
   prompt: string,
   projectId?: string,
@@ -21,33 +27,42 @@ export async function parsePromptWithMentions(
       };
     }
 
-    // ✅ OPTIMIZED: Parallelize user renders and chain renders fetch when chainId is provided
-    const [userRendersResult, chainResult] = await Promise.all([
-      getUserRenders(projectId, 50),
-      chainId ? getRenderChain(chainId) : Promise.resolve({ success: false, data: null })
-    ]);
+    // ✅ CENTRALIZED: Use CentralizedContextService
+    const contextResult = await buildUnifiedContextAction({
+      prompt,
+      chainId,
+      projectId,
+      useVersionContext: prompt.includes('@'),
+      useContextPrompt: false,
+      usePipelineMemory: false,
+    });
 
-    if (!userRendersResult.success) {
+    if (!contextResult.success || !contextResult.data) {
       return {
         success: false,
-        error: userRendersResult.error || 'Failed to get user renders',
+        error: contextResult.error || 'Failed to build unified context',
       };
     }
 
-    // Get chain renders if chainId was provided and fetch was successful
-    let chainRenders = undefined;
-    if (chainId && chainResult.success && chainResult.data) {
-      chainRenders = chainResult.data.renders;
+    // Extract ParsedPrompt from UnifiedContext for backward compatibility
+    const unifiedContext = contextResult.data;
+    if (unifiedContext.versionContext) {
+      return {
+        success: true,
+        data: unifiedContext.versionContext.parsedPrompt,
+      };
     }
 
-    const versionContextService = VersionContextService.getInstance();
-    const result = await versionContextService.parsePromptWithMentions(
-      prompt,
-      userRendersResult.data || [],
-      chainRenders
-    );
-
-    return result;
+    // No mentions found
+    return {
+      success: true,
+      data: {
+        originalPrompt: prompt,
+        userIntent: prompt,
+        mentionedVersions: [],
+        hasMentions: false,
+      },
+    };
 
   } catch (error) {
     logger.error('Failed to parse prompt with mentions:', error);
@@ -58,6 +73,10 @@ export async function parsePromptWithMentions(
   }
 }
 
+/**
+ * @deprecated Use buildUnifiedContextAction from centralized-context.actions.ts instead
+ * This function is kept for backward compatibility
+ */
 export async function getVersionContext(renderId: string): Promise<{ success: boolean; data?: VersionContext; error?: string }> {
   try {
     const { user } = await getCachedUser();
@@ -69,19 +88,41 @@ export async function getVersionContext(renderId: string): Promise<{ success: bo
       };
     }
 
-    // Get the render
-    const { getUserRenderById } = await import('./user-renders.actions');
-    const renderResult = await getUserRenderById(renderId);
-    
-    if (!renderResult.success || !renderResult.data) {
+    // ✅ CENTRALIZED: Use CentralizedContextService
+    const contextResult = await buildUnifiedContextAction({
+      prompt: '',
+      referenceRenderId: renderId,
+      useVersionContext: false,
+      useContextPrompt: false,
+      usePipelineMemory: false,
+    });
+
+    if (!contextResult.success || !contextResult.data?.referenceRender) {
       return {
         success: false,
-        error: renderResult.error || 'Render not found',
+        error: 'Render not found',
       };
     }
 
-    const versionContextService = VersionContextService.getInstance();
-    const context = await versionContextService['getVersionContext'](renderResult.data);
+    // Extract VersionContext from UnifiedContext for backward compatibility
+    const render = contextResult.data.referenceRender;
+    const context: VersionContext = {
+      renderId: render.id,
+      prompt: render.prompt || '',
+      settings: render.settings || {},
+      outputUrl: render.outputUrl || '',
+      type: render.type,
+      createdAt: render.createdAt,
+      chainPosition: render.chainPosition || undefined,
+      metadata: {
+        processingTime: render.processingTime,
+        provider: 'unknown',
+        quality: render.settings?.quality || 'standard',
+        style: render.settings?.style || 'realistic',
+        aspectRatio: render.settings?.aspectRatio || '16:9',
+        imageType: render.settings?.imageType || '3d-mass'
+      }
+    };
 
     return {
       success: true,

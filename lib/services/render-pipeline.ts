@@ -41,6 +41,16 @@ export interface RenderPipelineRequest {
   };
   // Optional: Force model selection (overrides routing)
   forceModel?: ImageModelId;
+  // NEW: Mask-based inpainting (for canvas mask tool)
+  maskData?: string; // Base64 PNG mask (white = replace, black = keep)
+  maskType?: 'inpaint' | 'outpaint' | 'replace';
+  inpaintingPrompt?: string; // Specific prompt for masked region
+  // NEW: Canvas context (optional)
+  canvasContext?: {
+    layers?: string[]; // Array of render IDs in layer order
+    selectedLayer?: string;
+    viewport?: { x: number; y: number; zoom: number };
+  };
 }
 
 export interface RenderPipelineResult {
@@ -221,7 +231,8 @@ export class RenderPipeline {
       logger.log('🎨 RenderPipeline: Stage 5 (Image Generation) starting', {
         model: selectedModel,
         imageSize,
-        promptLength: optimizedPrompt.length
+        promptLength: optimizedPrompt.length,
+        hasChainId: !!request.chainId
       });
 
       const stage5Start = Date.now();
@@ -231,18 +242,73 @@ export class RenderPipeline {
       const effect = request.toolContext?.toolSettings?.style || request.toolContext?.toolSettings?.effect;
       const environment = request.toolContext?.toolSettings?.environment;
       
-      const generationResult = await this.aiService.generateImage({
-        prompt: optimizedPrompt,
-        aspectRatio: request.aspectRatio,
-        uploadedImageData: request.referenceImageData,
-        uploadedImageType: request.referenceImageType,
-        styleTransferImageData: request.styleReferenceData,
-        styleTransferImageType: request.styleReferenceType,
-        model: selectedModel,
-        imageSize: imageSize,
-        effect: effect, // Pass effect to preserve output style (CAD vs photorealistic)
-        environment: environment, // Pass environment if specified
-      });
+      // For inpainting: use inpainting prompt if provided, otherwise use optimized prompt
+      const finalPrompt = request.inpaintingPrompt || optimizedPrompt;
+      
+      // ✅ MULTI-TURN CHAT API: Use chat session for iterative edits (if chainId provided)
+      // This provides automatic context preservation and faster iterative edits
+      // Aligned with MULTI_TURN_IMAGE_EDITING_ALIGNMENT.md
+      let generationResult: { success: boolean; data?: any; error?: string } | undefined;
+      const hasReferenceImage = !!request.referenceImageData;
+      let shouldUseChat = request.chainId && hasReferenceImage; // Use chat if chain exists and has reference
+      
+      if (shouldUseChat) {
+        try {
+          const { ChatSessionManager } = await import('./chat-session-manager');
+          logger.log('💬 RenderPipeline: Using chat API for multi-turn editing', {
+            chainId: request.chainId
+          });
+          
+          // Get or create chat session
+          const chatSessionId = await ChatSessionManager.getOrCreateChatSession(
+            request.chainId,
+            selectedModel,
+            {
+              aspectRatio: request.aspectRatio,
+              imageSize
+            }
+          );
+
+          // Send message in chat session (Google maintains conversation history automatically)
+          generationResult = await this.aiService.sendChatMessage(
+            chatSessionId,
+            finalPrompt,
+            request.referenceImageData,
+            request.referenceImageType,
+            {
+              aspectRatio: request.aspectRatio,
+              imageSize
+            }
+          );
+
+          // Update chain's last chat turn
+          await ChatSessionManager.incrementChatTurn(request.chainId);
+          
+          logger.log('✅ RenderPipeline: Chat API generation completed');
+        } catch (chatError) {
+          logger.error('⚠️ RenderPipeline: Chat API failed, falling back to generateImage()', chatError);
+          // Fall through to regular generateImage() call
+          shouldUseChat = false;
+          generationResult = undefined;
+        }
+      }
+      
+      // Use regular generateImage() if chat API not used or failed
+      if (!generationResult) {
+        generationResult = await this.aiService.generateImage({
+          prompt: finalPrompt,
+          aspectRatio: request.aspectRatio,
+          uploadedImageData: request.referenceImageData,
+          uploadedImageType: request.referenceImageType,
+          styleTransferImageData: request.styleReferenceData,
+          styleTransferImageType: request.styleReferenceType,
+          maskData: request.maskData, // Pass mask for inpainting
+          model: selectedModel,
+          imageSize: imageSize,
+          effect: effect, // Pass effect to preserve output style (CAD vs photorealistic)
+          environment: environment, // Pass environment if specified
+        });
+      }
 
       if (!generationResult.success || !generationResult.data) {
         recordStage('image_generation', 'failed', stage5Start);

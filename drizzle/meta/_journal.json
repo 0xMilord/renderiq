@@ -71,6 +71,13 @@
       "when": 1765297891120,
       "tag": "0009_nappy_titania",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1765560284236,
+      "tag": "0010_milky_darkhawk",
+      "breakpoints": true
     }
   ]
 }

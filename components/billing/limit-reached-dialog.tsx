@@ -41,6 +41,8 @@ export function LimitReachedDialog({
         return `You've reached your project limit of ${limit} ${limit === 1 ? 'project' : 'projects'}. Upgrade to create more projects or manage your existing projects.`;
       case 'renders_per_project':
         return `You've reached your render limit of ${limit} ${limit === 1 ? 'render' : 'renders'} per project. Upgrade to create more renders or start a new project.`;
+      case 'renders_per_chain':
+        return `You've reached your render limit of ${limit} ${limit === 1 ? 'render' : 'renders'} in this chain. Upgrade to create more renders or start a new chain.`;
       case 'credits':
         return `You've run out of credits. Upgrade to get more credits or purchase a credit package.`;
       case 'quality':
@@ -122,7 +124,7 @@ export function LimitReachedDialog({
             </Button>
 
             {/* Secondary CTA: Manage */}
-            {(limitType === 'projects' || limitType === 'renders_per_project') && (
+            {(limitType === 'projects' || limitType === 'renders_per_project' || limitType === 'renders_per_chain') && (
               <Button
                 onClick={handleManage}
                 variant="outline"

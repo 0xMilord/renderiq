@@ -218,6 +218,10 @@ export const renderChains = pgTable('render_chains', {
   projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }).notNull(),
   name: text('name').notNull(),
   description: text('description'),
+  // ✅ Multi-turn chat session tracking (aligned with MULTI_TURN_IMAGE_EDITING_ALIGNMENT.md)
+  googleChatSessionId: text('google_chat_session_id'), // Google Chat Session ID for multi-turn editing
+  chatSessionCreatedAt: timestamp('chat_session_created_at'), // When chat session was created
+  lastChatTurn: integer('last_chat_turn').default(0), // Last conversation turn number
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -273,6 +277,28 @@ export const renders = pgTable('renders', {
     previousPrompts?: string[];
     userFeedback?: string;
     chainEvolution?: string;
+    // NEW: tldraw render canvas state (separate from node editor canvas)
+    tldrawCanvasState?: {
+      version: string; // tldraw document version
+      canvasData?: any; // tldraw serialized state (TLStoreSnapshot)
+      layers?: Array<{
+        id: string;
+        name: string;
+        visible: boolean;
+        locked: boolean;
+        opacity: number;
+        renderId: string; // Reference to render.id
+        order: number;
+      }>;
+      masks?: Array<{
+        id: string;
+        renderId: string; // Which render this mask applies to
+        maskData: string; // Base64 PNG mask
+        prompt: string; // Inpainting prompt
+        createdAt: string;
+        applied?: boolean;
+      }>;
+    };
   }>(),
   thumbnailUrl: text('thumbnail_url'),
   // Uploaded image fields
@@ -287,6 +313,14 @@ export const renders = pgTable('renders', {
     pluginVersion?: string;
     userAgent?: string;
     callbackUrl?: string;
+    // NEW: tldraw render canvas metadata (separate from node editor canvas)
+    tldrawCanvas?: {
+      canvasId?: string;
+      toolVersion?: string;
+      lastModified?: string;
+      zoomLevel?: number;
+      viewport?: { x: number; y: number; zoom: number };
+    };
     [key: string]: any;
   }>(),
   createdAt: timestamp('created_at').defaultNow().notNull(),

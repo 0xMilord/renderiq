@@ -6,7 +6,7 @@ import { projects, renders } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
 
-export type LimitType = 'projects' | 'renders_per_project' | 'credits' | 'quality' | 'video' | 'api';
+export type LimitType = 'projects' | 'renders_per_project' | 'renders_per_chain' | 'credits' | 'quality' | 'video' | 'api';
 
 export interface LimitCheckResult {
   allowed: boolean;
@@ -111,37 +111,52 @@ export class PlanLimitsService {
   /**
    * Check if user can create a render in a project
    * ✅ OPTIMIZED: Use SQL COUNT instead of fetching all renders
+   * ✅ FIXED: Now counts per chain if chainId is provided, otherwise per project
    */
-  static async checkRenderLimit(userId: string, projectId: string): Promise<LimitCheckResult> {
+  static async checkRenderLimit(userId: string, projectId: string, chainId?: string | null): Promise<LimitCheckResult> {
     const limits = await this.getUserPlanLimits(userId);
     
-    // Unlimited renders per project
+    // Unlimited renders per project/chain
     if (limits.maxRendersPerProject === null) {
       return {
         allowed: true,
-        limitType: 'renders_per_project',
+        limitType: chainId ? 'renders_per_chain' : 'renders_per_project',
         current: 0,
         limit: null,
         planName: limits.planName,
       };
     }
 
-    // ✅ OPTIMIZED: Use SQL COUNT instead of fetching all renders (much faster)
-    const [result] = await db
-      .select({ count: sql<number>`COUNT(*)::int` })
-      .from(renders)
-      .where(eq(renders.projectId, projectId));
-    const currentCount = result.count;
+    // ✅ FIXED: Count renders per chain if chainId provided, otherwise per project
+    let currentCount: number;
+    if (chainId) {
+      // Count renders in this specific chain
+      const [result] = await db
+        .select({ count: sql<number>`COUNT(*)::int` })
+        .from(renders)
+        .where(and(
+          eq(renders.projectId, projectId),
+          eq(renders.chainId, chainId)
+        ));
+      currentCount = result.count;
+    } else {
+      // Count renders in entire project (fallback for backward compatibility)
+      const [result] = await db
+        .select({ count: sql<number>`COUNT(*)::int` })
+        .from(renders)
+        .where(eq(renders.projectId, projectId));
+      currentCount = result.count;
+    }
 
     const allowed = currentCount < limits.maxRendersPerProject;
 
     return {
       allowed,
-      limitType: 'renders_per_project',
+      limitType: chainId ? 'renders_per_chain' : 'renders_per_project',
       current: currentCount,
       limit: limits.maxRendersPerProject,
       planName: limits.planName,
-      error: allowed ? undefined : `You've reached the limit of ${limits.maxRendersPerProject} renders per project. Upgrade to create more renders.`,
+      error: allowed ? undefined : `You've reached the limit of ${limits.maxRendersPerProject} renders per ${chainId ? 'chain' : 'project'}. Upgrade to create more renders.`,
     };
   }
 

@@ -1,7 +1,11 @@
 'use client';
 
+/**
+ * @deprecated Use buildUnifiedContextAction from centralized-context.actions.ts instead
+ * This hook is kept for backward compatibility but uses CentralizedContextService internally
+ */
 import { useState } from 'react';
-import { parsePromptWithMentions } from '@/lib/actions/version-context.actions';
+import { buildUnifiedContextAction } from '@/lib/actions/centralized-context.actions';
 import type { ParsedPrompt } from '@/lib/services/version-context';
 
 export function useVersionContext() {
@@ -17,13 +21,26 @@ export function useVersionContext() {
       setLoading(true);
       setError(null);
 
-      const result = await parsePromptWithMentions(prompt, projectId, chainId);
+      // ✅ CENTRALIZED: Use CentralizedContextService
+      const contextResult = await buildUnifiedContextAction({
+        prompt,
+        chainId,
+        projectId,
+        useVersionContext: prompt.includes('@'),
+        useContextPrompt: false,
+        usePipelineMemory: false,
+      });
       
-      if (result.success && result.data) {
-        return result.data;
+      if (contextResult.success && contextResult.data?.versionContext) {
+        return contextResult.data.versionContext.parsedPrompt;
       } else {
-        setError(result.error || 'Failed to parse prompt');
-        return null;
+        // No mentions found - return empty ParsedPrompt
+        return {
+          originalPrompt: prompt,
+          userIntent: prompt,
+          mentionedVersions: [],
+          hasMentions: false,
+        };
       }
 
     } catch (err) {
