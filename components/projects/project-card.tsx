@@ -28,6 +28,8 @@ import type { Project } from '@/lib/db/schema';
 import { EditProjectModal } from './edit-project-modal';
 import { DeleteProjectDialog } from './delete-project-dialog';
 import { DuplicateProjectModal } from './duplicate-project-modal';
+import { TldrawSnapshotImage } from '@/components/canvas/tldraw-snapshot-image';
+import type { TLStoreSnapshot } from '@tldraw/tldraw';
 
 interface LatestRender {
   id: string;
@@ -35,6 +37,12 @@ interface LatestRender {
   status: string;
   type: 'image' | 'video';
   createdAt: Date;
+}
+
+interface ChainWithSnapshot {
+  id: string;
+  projectId: string;
+  snapshot?: any; // TLStoreSnapshot from latest render's contextData
 }
 
 interface ProjectCardProps {
@@ -49,6 +57,7 @@ interface ProjectCardProps {
   onSelect?: (project: Project) => void;
   viewUrl?: string; // Custom view URL, defaults to /dashboard/projects/{slug}
   chains?: Array<{ id: string; projectId: string }>; // Optional chains to find first chain for "Continue on Chat"
+  chainsWithSnapshots?: ChainWithSnapshot[]; // ✅ NEW: Chains with their tldraw snapshots for display
   imageAspect?: 'square' | 'video'; // Override image aspect (e.g., 16:9 in sidebar)
 }
 
@@ -61,6 +70,7 @@ function ProjectCardComponent({
   onSelect,
   viewUrl,
   chains,
+  chainsWithSnapshots,
   imageAspect,
 }: ProjectCardProps) {
   // Default view URL to dashboard, but allow override
@@ -149,6 +159,58 @@ function ProjectCardComponent({
   const aspectClass = resolvedAspect === 'video' ? 'aspect-video' : 'aspect-square';
 
   const renderImageGrid = () => {
+    // ✅ PRIORITY: Show chain snapshots if available (multiple chains = multiple snapshots)
+    if (chainsWithSnapshots && chainsWithSnapshots.length > 0) {
+      const chainsWithValidSnapshots = chainsWithSnapshots.filter(c => c.snapshot);
+      
+      if (chainsWithValidSnapshots.length > 0) {
+        const maxDisplaySnapshots = 4;
+        const snapshotsToShow = chainsWithValidSnapshots.slice(0, maxDisplaySnapshots);
+        const remainingCount = chainsWithSnapshots.length - snapshotsToShow.length;
+
+        // 1 snapshot: full width
+        if (snapshotsToShow.length === 1) {
+          return (
+            <div className="w-full h-full rounded-md overflow-hidden">
+              <TldrawSnapshotImage
+                snapshot={snapshotsToShow[0].snapshot}
+                width={400}
+                height={225}
+                format="png"
+                className="w-full h-full"
+              />
+            </div>
+          );
+        }
+
+        // 2+ snapshots: grid layout
+        return (
+          <div className="grid grid-cols-2 gap-1 w-full h-full rounded-md overflow-hidden">
+            {snapshotsToShow.map((chain, index) => (
+              <div key={chain.id} className="relative bg-muted rounded-md overflow-hidden w-full h-full">
+                <TldrawSnapshotImage
+                  snapshot={chain.snapshot}
+                  width={200}
+                  height={112}
+                  format="png"
+                  className="w-full h-full"
+                />
+                {/* Show +N overlay on the 4th snapshot if there are more chains */}
+                {index === 3 && remainingCount > 0 && (
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                    <span className="text-white text-xs font-medium">
+                      +{remainingCount}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        );
+      }
+    }
+
+    // Fallback: Show render images if no chain snapshots available
     // Filter out failed renders (should already be filtered in DAL, but double-check)
     const validRenders = latestRenders.filter(r => r.status !== 'failed' && r.outputUrl);
     

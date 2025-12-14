@@ -7,7 +7,7 @@
 
 ## 🎉 Implementation Summary
 
-All 7 stages of the Technical Moat Pipeline have been implemented and integrated into the Renderiq codebase. The system now uses cost-effective AI models for intelligent processing, with expensive models reserved only for final generation.
+All 7 stages of the Technical Moat Pipeline have been implemented and integrated into the Renderiq codebase. Additionally, a **Prompt Refinement stage** has been added as a "detour" for system-generated prompts. The system now uses cost-effective AI models for intelligent processing, with expensive models reserved only for final generation.
 
 ---
 
@@ -83,6 +83,24 @@ All 7 stages of the Technical Moat Pipeline have been implemented and integrated
 - **Cost**: ~$0.001 per image
 - **Note**: Only runs for high/ultra quality (can be skipped for standard)
 
+### **Stage 8: Prompt Refinement** ✅ (NEW - Detour Stage)
+**File**: `lib/services/prompt-refinement.ts`
+
+- **Purpose**: Analyzes system-generated prompts and reference images to create refined prompts
+- **Flow**: 
+  1. System generates a prompt (from tools, templates, etc.)
+  2. AI analyzes what the prompt wants vs what the image contains
+  3. AI "thinks" about gaps, conflicts, and opportunities
+  4. AI creates a refined prompt that better aligns prompt intent with image content
+  5. Refined prompt is sent to final generation
+- **When Enabled**: 
+  - Automatically for tool-generated prompts (`sourcePlatform === 'tools'`)
+  - Via `?refinePrompt=true` query param
+  - Via `ENABLE_PROMPT_REFINEMENT=true` env var
+- Uses Gemini 2.5 Flash Vision with structured outputs
+- **Cost**: ~$0.001-0.002 per request (depending on images)
+- **Note**: This is a "detour" stage that adds AI reasoning before final generation
+
 ---
 
 ## 🚀 Render Pipeline Orchestrator
@@ -116,13 +134,15 @@ const result = await RenderPipeline.generateRender({
 - **Full Pipeline**: Enabled via `ENABLE_FULL_PIPELINE=true` env var or `?fullPipeline=true` query param
 - **Simple Optimization**: Always enabled (Stage 3 - SimplePromptOptimizer)
 - **Model Routing**: Always enabled (Stage 4)
+- **Prompt Refinement**: Enabled for tool-generated prompts or via `?refinePrompt=true` (Stage 8)
 - **Memory Extraction**: Enabled for high/ultra quality (Stage 7)
 
 **Flow**:
 1. Check if full pipeline is enabled
 2. If yes → Use `RenderPipeline.generateRender()` (all 7 stages)
 3. If no → Use simple optimization + model routing (stages 3-4)
-4. Extract memory after generation (if high/ultra quality)
+4. **NEW**: If tool-generated prompt → Apply prompt refinement (Stage 8)
+5. Extract memory after generation (if high/ultra quality)
 
 ### **Video API Route** ✅
 **File**: `app/api/video/route.ts`
@@ -201,6 +221,9 @@ const result = await RenderPipeline.generateRender({
 # Enable full pipeline (all 7 stages)
 ENABLE_FULL_PIPELINE=true
 
+# Enable prompt refinement (Stage 8 - for system-generated prompts)
+ENABLE_PROMPT_REFINEMENT=true
+
 # Default: false (uses simple optimization + model routing)
 ```
 
@@ -209,6 +232,9 @@ ENABLE_FULL_PIPELINE=true
 ```
 # Enable full pipeline for specific request
 GET /api/renders?fullPipeline=true
+
+# Enable prompt refinement for specific request
+GET /api/renders?refinePrompt=true
 ```
 
 ### **Skip Stages**
@@ -236,6 +262,7 @@ lib/services/
 ├── model-router.ts              # Stage 4: Model selection
 ├── image-validator.ts           # Stage 6: Image validation
 ├── pipeline-memory.ts           # Stage 7: Memory extraction
+├── prompt-refinement.ts         # Stage 8: Prompt refinement (detour for system prompts)
 ├── render-pipeline.ts           # Orchestrator (all stages)
 └── ai-sdk-service.ts            # Enhanced with new methods
 

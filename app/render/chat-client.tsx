@@ -1098,6 +1098,35 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
                         createdAt: r.createdAt
                       }));
 
+                    // ✅ Extract chain snapshots from latest render's contextData
+                    const chainsWithSnapshots = projectChains.map(chain => {
+                      const renders = chain.renders || [];
+                      if (renders.length === 0) {
+                        return { id: chain.id, projectId: chain.projectId, snapshot: null };
+                      }
+
+                      // Get latest render (highest chainPosition, or most recent if no position)
+                      const latestRender = renders
+                        .sort((a, b) => {
+                          const posA = (a as any).chainPosition ?? -1;
+                          const posB = (b as any).chainPosition ?? -1;
+                          if (posA !== posB) return posB - posA;
+                          const dateA = new Date((a as any).createdAt).getTime();
+                          const dateB = new Date((b as any).createdAt).getTime();
+                          return dateB - dateA;
+                        })[0];
+
+                      const contextData = (latestRender as any).contextData;
+                      const canvasState = contextData?.tldrawCanvasState;
+                      const snapshot = canvasState?.canvasData;
+
+                      return {
+                        id: chain.id,
+                        projectId: chain.projectId,
+                        snapshot: snapshot || null,
+                      };
+                    });
+
                     return (
                       <ProjectCard
                         key={project.id}
@@ -1108,6 +1137,7 @@ export function ChatPageClient({ initialProjects, initialChains, initialProjectS
                         }}
                         imageAspect="video"
                         chains={chains.map(c => ({ id: c.id, projectId: c.projectId }))}
+                        chainsWithSnapshots={chainsWithSnapshots}
                         viewMode={viewMode}
                         onEdit={() => router.refresh()}
                         onDuplicate={() => router.refresh()}

@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { RenderChainsDAL } from '@/lib/dal/render-chains';
 import { setupTestDB, teardownTestDB, createTestUser, createTestProject, createTestRenderChain, createTestRender, getTestDB } from '../../fixtures/database';
-import { renderChains, renders } from '@/lib/db/schema';
+import { renderChains, renders, projects } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 describe('RenderChainsDAL', () => {
@@ -25,6 +25,13 @@ describe('RenderChainsDAL', () => {
 
   describe('create', () => {
     it('should create a new render chain', async () => {
+      // Verify project exists before creating chain
+      const db = getTestDB();
+      const verifyProject = await db.select().from(projects).where(eq(projects.id, testProject.id)).limit(1);
+      if (verifyProject.length === 0) {
+        throw new Error(`Project ${testProject.id} does not exist in database. Test setup failed.`);
+      }
+      
       const chainData = {
         projectId: testProject.id,
         name: 'Test Chain',

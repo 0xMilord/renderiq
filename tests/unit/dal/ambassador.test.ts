@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { AmbassadorDAL } from '@/lib/dal/ambassador';
 import { setupTestDB, teardownTestDB, createTestUser, getTestDB } from '../../fixtures/database';
-import { ambassadors, ambassadorLinks, ambassadorReferrals } from '@/lib/db/schema';
+import { ambassadors, ambassadorLinks, ambassadorReferrals, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 describe('AmbassadorDAL', () => {
@@ -23,6 +23,13 @@ describe('AmbassadorDAL', () => {
 
   describe('createApplication', () => {
     it('should create ambassador application with code', async () => {
+      // Verify user exists in database before creating ambassador
+      const db = getTestDB();
+      const verifyUser = await db.select().from(users).where(eq(users.id, testUser.id)).limit(1);
+      if (verifyUser.length === 0) {
+        throw new Error(`User ${testUser.id} does not exist in database. Test setup failed.`);
+      }
+      
       const code = 'TEST123';
       const applicationData = {
         socialMedia: 'instagram',
@@ -140,14 +147,17 @@ describe('AmbassadorDAL', () => {
         applicationData: {},
       }).returning();
 
+      const { randomUUID } = await import('crypto');
+      const adminUser = await createTestUser({ id: randomUUID() });
+      
       const updated = await AmbassadorDAL.updateAmbassadorStatus(
         ambassador.id,
         'approved',
-        'admin-id'
+        adminUser.id
       );
 
       expect(updated.status).toBe('approved');
-      expect(updated.approvedBy).toBe('admin-id');
+      expect(updated.approvedBy).toBe(adminUser.id);
       expect(updated.approvedAt).toBeInstanceOf(Date);
     });
 
@@ -290,6 +300,13 @@ describe('AmbassadorDAL', () => {
   describe('trackReferral', () => {
     it('should track referral and update stats', async () => {
       const db = getTestDB();
+      
+      // Verify user exists
+      const verifyUser = await db.select().from(users).where(eq(users.id, testUser.id)).limit(1);
+      if (verifyUser.length === 0) {
+        throw new Error(`User ${testUser.id} does not exist in database. Test setup failed.`);
+      }
+      
       const [ambassador] = await db.insert(ambassadors).values({
         userId: testUser.id,
         code: 'TEST123',
@@ -298,7 +315,19 @@ describe('AmbassadorDAL', () => {
         totalReferrals: 0,
       }).returning();
 
+      // Verify ambassador was created
+      const verifyAmbassador = await db.select().from(ambassadors).where(eq(ambassadors.id, ambassador.id)).limit(1);
+      if (verifyAmbassador.length === 0) {
+        throw new Error(`Ambassador ${ambassador.id} was not created.`);
+      }
+
       const referredUser = await createTestUser();
+      
+      // Verify referred user exists
+      const verifyReferredUser = await db.select().from(users).where(eq(users.id, referredUser.id)).limit(1);
+      if (verifyReferredUser.length === 0) {
+        throw new Error(`Referred user ${referredUser.id} does not exist in database.`);
+      }
 
       const referral = await AmbassadorDAL.trackReferral(
         ambassador.id,
@@ -318,6 +347,13 @@ describe('AmbassadorDAL', () => {
 
     it('should track referral with link id', async () => {
       const db = getTestDB();
+      
+      // Verify user exists
+      const verifyUser = await db.select().from(users).where(eq(users.id, testUser.id)).limit(1);
+      if (verifyUser.length === 0) {
+        throw new Error(`User ${testUser.id} does not exist in database. Test setup failed.`);
+      }
+      
       const [ambassador] = await db.insert(ambassadors).values({
         userId: testUser.id,
         code: 'TEST123',
@@ -325,6 +361,12 @@ describe('AmbassadorDAL', () => {
         applicationData: {},
         totalReferrals: 0,
       }).returning();
+
+      // Verify ambassador was created
+      const verifyAmbassador = await db.select().from(ambassadors).where(eq(ambassadors.id, ambassador.id)).limit(1);
+      if (verifyAmbassador.length === 0) {
+        throw new Error(`Ambassador ${ambassador.id} was not created.`);
+      }
 
       const [link] = await db.insert(ambassadorLinks).values({
         ambassadorId: ambassador.id,
@@ -334,6 +376,12 @@ describe('AmbassadorDAL', () => {
       }).returning();
 
       const referredUser = await createTestUser();
+      
+      // Verify referred user exists
+      const verifyReferredUser = await db.select().from(users).where(eq(users.id, referredUser.id)).limit(1);
+      if (verifyReferredUser.length === 0) {
+        throw new Error(`Referred user ${referredUser.id} does not exist in database.`);
+      }
 
       const referral = await AmbassadorDAL.trackReferral(
         ambassador.id,
@@ -353,6 +401,13 @@ describe('AmbassadorDAL', () => {
   describe('getReferrals', () => {
     it('should return referrals for ambassador', async () => {
       const db = getTestDB();
+      
+      // Verify user exists
+      const verifyUser = await db.select().from(users).where(eq(users.id, testUser.id)).limit(1);
+      if (verifyUser.length === 0) {
+        throw new Error(`User ${testUser.id} does not exist in database. Test setup failed.`);
+      }
+      
       const [ambassador] = await db.insert(ambassadors).values({
         userId: testUser.id,
         code: 'TEST123',
@@ -360,7 +415,20 @@ describe('AmbassadorDAL', () => {
         applicationData: {},
       }).returning();
 
+      // Verify ambassador was created
+      const verifyAmbassador = await db.select().from(ambassadors).where(eq(ambassadors.id, ambassador.id)).limit(1);
+      if (verifyAmbassador.length === 0) {
+        throw new Error(`Ambassador ${ambassador.id} was not created.`);
+      }
+
       const referredUser = await createTestUser();
+      
+      // Verify referred user exists
+      const verifyReferredUser = await db.select().from(users).where(eq(users.id, referredUser.id)).limit(1);
+      if (verifyReferredUser.length === 0) {
+        throw new Error(`Referred user ${referredUser.id} does not exist in database.`);
+      }
+      
       await db.insert(ambassadorReferrals).values({
         ambassadorId: ambassador.id,
         referredUserId: referredUser.id,
@@ -376,6 +444,13 @@ describe('AmbassadorDAL', () => {
 
     it('should filter referrals by status', async () => {
       const db = getTestDB();
+      
+      // Verify user exists
+      const verifyUser = await db.select().from(users).where(eq(users.id, testUser.id)).limit(1);
+      if (verifyUser.length === 0) {
+        throw new Error(`User ${testUser.id} does not exist in database. Test setup failed.`);
+      }
+      
       const [ambassador] = await db.insert(ambassadors).values({
         userId: testUser.id,
         code: 'TEST123',
@@ -383,8 +458,22 @@ describe('AmbassadorDAL', () => {
         applicationData: {},
       }).returning();
 
+      // Verify ambassador was created
+      const verifyAmbassador = await db.select().from(ambassadors).where(eq(ambassadors.id, ambassador.id)).limit(1);
+      if (verifyAmbassador.length === 0) {
+        throw new Error(`Ambassador ${ambassador.id} was not created.`);
+      }
+
       const user1 = await createTestUser();
       const user2 = await createTestUser();
+      
+      // Verify users exist
+      const verifyUser1 = await db.select().from(users).where(eq(users.id, user1.id)).limit(1);
+      const verifyUser2 = await db.select().from(users).where(eq(users.id, user2.id)).limit(1);
+      if (verifyUser1.length === 0 || verifyUser2.length === 0) {
+        throw new Error(`Test users were not created properly.`);
+      }
+      
       await db.insert(ambassadorReferrals).values([
         {
           ambassadorId: ambassador.id,

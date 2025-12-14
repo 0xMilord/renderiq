@@ -30,6 +30,8 @@ import { DeleteChainDialog } from './delete-chain-dialog';
 import { deleteRenderChain } from '@/lib/actions/projects.actions';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { TldrawSnapshotImage } from '@/components/canvas/tldraw-snapshot-image';
+import type { TLStoreSnapshot } from '@tldraw/tldraw';
 
 interface ChainCardProps {
   chain: RenderChain & { 
@@ -62,6 +64,26 @@ function ChainCardComponent({
   const renders = chain.renders || [];
   const validRenders = renders.filter(r => r.status !== 'failed' && r.outputUrl);
 
+  // ✅ Get tldraw snapshot from latest render's contextData
+  const chainSnapshot = React.useMemo(() => {
+    if (!renders || renders.length === 0) return null;
+    
+    // Get latest render (highest chainPosition, or most recent if no position)
+    const latestRender = renders
+      .sort((a, b) => {
+        const posA = (a as any).chainPosition ?? -1;
+        const posB = (b as any).chainPosition ?? -1;
+        if (posA !== posB) return posB - posA;
+        const dateA = new Date((a as any).createdAt).getTime();
+        const dateB = new Date((b as any).createdAt).getTime();
+        return dateB - dateA;
+      })[0];
+
+    const contextData = (latestRender as any).contextData;
+    const canvasState = contextData?.tldrawCanvasState;
+    return canvasState?.canvasData as TLStoreSnapshot | null | undefined;
+  }, [renders]);
+
   // Get projectSlug from projects array if not provided
   const effectiveProjectSlug = React.useMemo(() => {
     if (projectSlug) return projectSlug;
@@ -86,6 +108,22 @@ function ChainCardComponent({
   };
 
   const renderImageGrid = () => {
+    // ✅ PRIORITY: Show tldraw snapshot if available (Figma-style preview)
+    if (chainSnapshot) {
+      return (
+        <div className="w-full h-32 sm:h-40 flex items-center justify-center bg-muted rounded-md overflow-hidden border border-border">
+          <TldrawSnapshotImage
+            snapshot={chainSnapshot}
+            width={400}
+            height={160}
+            format="png"
+            className="w-full h-full"
+          />
+        </div>
+      );
+    }
+
+    // Fallback: Show render images if no snapshot available
     if (validRenders.length === 0) {
       return (
         <div className="w-full py-4 flex items-center justify-center bg-muted rounded">

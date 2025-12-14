@@ -1287,6 +1287,56 @@ export async function handleRenderRequest(request: NextRequest) {
           logger.log('🎨 Generating from scratch (no image input)');
         }
 
+        // 🧠 PROMPT REFINEMENT: Analyze system-generated prompt + image and refine before generation
+        // This is a "thinking" stage that improves quality by aligning prompt intent with image content
+        // Enabled for tool-generated prompts (system-generated) or when refinement is explicitly requested
+        const shouldRefinePrompt = metadata?.sourcePlatform === 'tools' || 
+                                   request.nextUrl.searchParams.get('refinePrompt') === 'true' ||
+                                   process.env.ENABLE_PROMPT_REFINEMENT === 'true';
+        
+        if (shouldRefinePrompt && contextualPrompt) {
+          try {
+            logger.log('🧠 PromptRefinement: Refining system-generated prompt', {
+              originalLength: contextualPrompt.length,
+              hasReferenceImage: !!imageDataToUse,
+              hasStyleReference: !!styleTransferImageData
+            });
+            
+            const { PromptRefinementService } = await import('@/lib/services/prompt-refinement');
+            
+            // Build tool context for refinement
+            const meta = metadata as any;
+            const toolContext = (metadata?.sourcePlatform === 'tools' || imageType) ? {
+              toolId: meta?.toolId || imageType || 'unknown',
+              toolName: meta?.toolName || imageType || 'Unknown Tool',
+              quality: quality,
+              aspectRatio: aspectRatio,
+              ...(meta?.toolSettings || {})
+            } : {
+              quality: quality,
+              aspectRatio: aspectRatio
+            };
+            
+            // Refine the prompt
+            contextualPrompt = await PromptRefinementService.refinePrompt(
+              contextualPrompt,
+              imageDataToUse || undefined,
+              imageTypeToUse || undefined,
+              styleTransferImageData || undefined,
+              styleTransferImageType || undefined,
+              toolContext
+            );
+            
+            logger.log('✅ PromptRefinement: Prompt refined successfully', {
+              refinedLength: contextualPrompt.length,
+              improvement: contextualPrompt.length > (finalPrompt.length * 0.9) // At least 90% of original length
+            });
+          } catch (error) {
+            logger.error('⚠️ PromptRefinement: Failed, using original prompt', error);
+            // Continue with original contextualPrompt if refinement fails
+          }
+        }
+
         // ✅ MULTI-TURN CHAT API: Check if we should use chat API for iterative edits
         // This provides 20-30% faster iterative edits and better context preservation
         // Aligned with MULTI_TURN_IMAGE_EDITING_ALIGNMENT.md

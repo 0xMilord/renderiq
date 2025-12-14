@@ -6,10 +6,40 @@
  * that use the database connection
  */
 
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+
+// Try to load .env.test file if it exists
+try {
+  const envTestPath = resolve(process.cwd(), '.env.test');
+  const envTestContent = readFileSync(envTestPath, 'utf-8');
+  
+  envTestContent.split('\n').forEach(line => {
+    const trimmedLine = line.trim();
+    if (trimmedLine && !trimmedLine.startsWith('#')) {
+      const [key, ...valueParts] = trimmedLine.split('=');
+      if (key && valueParts.length > 0) {
+        const value = valueParts.join('=').trim();
+        // Remove quotes if present
+        const cleanValue = value.replace(/^["']|["']$/g, '');
+        if (!process.env[key.trim()]) {
+          process.env[key.trim()] = cleanValue;
+        }
+      }
+    }
+  });
+} catch (error) {
+  // .env.test file doesn't exist, use defaults
+  console.warn('⚠️  .env.test file not found, using default test environment variables');
+  console.warn('   Create .env.test file (see .env.test.example) for custom configuration');
+}
+
 // Set test environment variables FIRST (before any imports)
 process.env.NODE_ENV = 'test';
 if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5432/renderiq_test';
+  console.warn('⚠️  DATABASE_URL not set, using default: postgresql://postgres:****@localhost:5432/renderiq_test');
+  console.warn('   Create .env.test file with your database credentials');
 }
 
 // Set other required test environment variables

@@ -6,7 +6,12 @@ import { handleCORSPreflight, withCORS } from '@/lib/middleware/cors';
 /**
  * Manifest route handler
  * Serves PWA manifest with proper CORS headers
+ * 
+ * ✅ FIXED: Marked as dynamic to allow CORS header handling
+ * The manifest needs to be dynamic because it uses request.headers for CORS
  */
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   // Handle CORS preflight
   const preflight = handleCORSPreflight(request, {

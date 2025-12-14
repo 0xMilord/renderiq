@@ -852,55 +852,55 @@ export function RenderiqCanvas({
 
   return (
     <>
-      <div 
-        ref={containerRef} 
-        className={cn('w-full h-full relative', className)}
-      >
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-50">
-            <div className="text-sm text-muted-foreground">Loading canvas...</div>
-          </div>
-        )}
+    <div 
+      ref={containerRef} 
+      className={cn('w-full h-full relative', className)}
+    >
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-50">
+          <div className="text-sm text-muted-foreground">Loading canvas...</div>
+        </div>
+      )}
 
-        <Tldraw
-          onMount={(editorInstance) => {
-            setEditor(editorInstance);
-            
-            // Set initial theme based on app theme (not system)
-            // Use setTimeout to ensure editor is fully initialized
-            setTimeout(() => {
-              if (mounted) {
-                const tldrawColorScheme = isDarkMode ? 'dark' : 'light';
-                editorInstance.user.updateUserPreferences({ 
-                  colorScheme: tldrawColorScheme 
-                });
-                logger.log('🎨 RenderiqCanvas: Initial theme set', {
-                  tldrawColorScheme,
-                  appTheme: theme,
-                  resolvedTheme,
-                  isDarkMode
-                });
-              }
-            }, 0);
-            
-            logger.log('✅ RenderiqCanvas: tldraw editor mounted', {
-              theme: isDarkMode ? 'dark' : 'light',
-              appTheme: theme,
-              resolvedTheme,
-              isMobile,
-              hasAssetUrls: !!assetUrls,
-              hasLicenseKey: !!licenseKey,
-            });
-          }}
-          inferDarkMode={false}
-          forceMobile={isMobile}
-          persistenceKey={chainId ? `renderiq-canvas-${chainId}` : undefined}
-          assetUrls={assetUrls}
-          licenseKey={licenseKey}
-          components={components}
-          tools={[LassoSelectTool]}
-          overrides={uiOverrides}
-        />
+      <Tldraw
+        onMount={(editorInstance) => {
+          setEditor(editorInstance);
+          
+          // Set initial theme based on app theme (not system)
+          // Use setTimeout to ensure editor is fully initialized
+          setTimeout(() => {
+            if (mounted) {
+              const tldrawColorScheme = isDarkMode ? 'dark' : 'light';
+              editorInstance.user.updateUserPreferences({ 
+                colorScheme: tldrawColorScheme 
+              });
+              logger.log('🎨 RenderiqCanvas: Initial theme set', {
+                tldrawColorScheme,
+                appTheme: theme,
+                resolvedTheme,
+                isDarkMode
+              });
+            }
+          }, 0);
+          
+          logger.log('✅ RenderiqCanvas: tldraw editor mounted', {
+            theme: isDarkMode ? 'dark' : 'light',
+            appTheme: theme,
+            resolvedTheme,
+            isMobile,
+            hasAssetUrls: !!assetUrls,
+            hasLicenseKey: !!licenseKey,
+          });
+        }}
+        inferDarkMode={false}
+        forceMobile={isMobile}
+        persistenceKey={chainId ? `renderiq-canvas-${chainId}` : undefined}
+        assetUrls={assetUrls}
+        licenseKey={licenseKey}
+        components={components}
+        tools={[LassoSelectTool]}
+        overrides={uiOverrides}
+      />
       </div>
 
       {/* ✅ FIXED: Dialogs rendered outside canvas container to avoid stacking context issues */}

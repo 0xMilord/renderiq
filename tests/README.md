@@ -36,13 +36,47 @@ tests/
    ```
 
 2. **Set up test database:**
-   - Create a test database: `createdb renderiq_test`
-   - Copy `.env.test.example` to `.env.test`
-   - Update `DATABASE_URL` in `.env.test` with your test database credentials
+   
+   **Option A: Using local PostgreSQL**
+   ```bash
+   # Create test database
+   createdb renderiq_test
+   
+   # Or using psql:
+   psql -U postgres -c "CREATE DATABASE renderiq_test;"
+   ```
+   
+   **Option B: Using Docker**
+   ```bash
+   # Start PostgreSQL in Docker
+   docker run --name renderiq-test-db \
+     -e POSTGRES_PASSWORD=postgres \
+     -e POSTGRES_DB=renderiq_test \
+     -p 5432:5432 \
+     -d postgres:15
+   ```
 
-3. **Run migrations:**
+3. **Configure test environment:**
+   ```bash
+   # Copy example env file
+   cp .env.test.example .env.test
+   
+   # Edit .env.test with your database credentials
+   # Default: postgresql://postgres:postgres@localhost:5432/renderiq_test
+   ```
+
+4. **Run migrations:**
    ```bash
    npm run db:migrate
+   ```
+
+5. **Verify database connection:**
+   ```bash
+   # Test PostgreSQL connection
+   pg_isready -h localhost -p 5432
+   
+   # Or test with psql
+   psql -U postgres -d renderiq_test -c "SELECT 1;"
    ```
 
 ## Running Tests
