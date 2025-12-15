@@ -11,12 +11,16 @@ import { Card, CardContent } from '@/components/ui/card';
 import { logger } from '@/lib/utils/logger';
 import type { Project } from '@/lib/db/schema';
 import type { RenderChainWithRenders } from '@/lib/types/render-chain';
+import { useProjectChainStore } from '@/lib/stores/project-chain-store';
 
 export default function ProjectChainPage() {
   const params = useParams();
   const router = useRouter();
   const projectSlug = params.projectSlug as string;
   const chainId = params.chainId as string;
+  
+  // ✅ Get store actions for syncing chain updates
+  const { updateChain } = useProjectChainStore();
   
   // ✅ OPTIMIZED: Combined state for parallel loading
   const [project, setProject] = useState<Project | null>(null);
@@ -75,8 +79,16 @@ export default function ProjectChainPage() {
         }
 
         if (chainResult.success && chainResult.data) {
-          setChain(chainResult.data);
-          logger.log('✅ ProjectChainPage: Chain loaded', { chainId: chainResult.data.id });
+          const loadedChain = chainResult.data;
+          setChain(loadedChain);
+          
+          // ✅ NEW: Sync initial chain load to Zustand store
+          updateChain(chainId, loadedChain);
+          
+          logger.log('✅ ProjectChainPage: Chain loaded and synced to store', { 
+            chainId: loadedChain.id,
+            renderCount: loadedChain.renders?.length || 0
+          });
         } else {
           const errorMsg = chainResult.error || 'Failed to load chain';
           logger.error('❌ ProjectChainPage: Failed to load chain', { error: errorMsg, chainId });
@@ -168,13 +180,21 @@ export default function ProjectChainPage() {
     try {
       const chainResult = await getRenderChain(chainId);
       if (chainResult.success && chainResult.data) {
-        setChain(chainResult.data);
+        const updatedChain = chainResult.data;
+        setChain(updatedChain);
+        
+        // ✅ NEW: Sync chain update to Zustand store
+        updateChain(chainId, updatedChain);
+        logger.log('✅ ProjectChainPage: Chain synced to store', {
+          chainId,
+          renderCount: updatedChain.renders?.length || 0
+        });
       }
     } catch (err) {
       logger.error('❌ ProjectChainPage: Error fetching chain:', err);
       // Don't show error to user for polling failures
     }
-  }, [chainId]); // ✅ CRITICAL: Removed user dependency - auth is already verified
+  }, [chainId, updateChain]); // ✅ CRITICAL: Removed user dependency - auth is already verified
 
   // ✅ REMOVED: Duplicate initialize() call
   // AuthProvider already calls initialize(), no need to call it here

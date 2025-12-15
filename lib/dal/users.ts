@@ -75,10 +75,10 @@ export class UsersDAL {
 
   static async getActiveUserCount(): Promise<number> {
     const result = await db
-      .select({ count: sql<number>`COUNT(*)` })
+      .select({ count: sql<number>`COUNT(*)::int` })
       .from(users)
       .where(eq(users.isActive, true));
-    return result[0]?.count || 0;
+    return Number(result[0]?.count || 0);
   }
 
   // ✅ OPTIMIZED: Batch operation for getting multiple users by IDs

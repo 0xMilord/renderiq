@@ -8,6 +8,7 @@ import { UsersDAL } from '@/lib/dal/users';
 import { setupTestDB, teardownTestDB, createTestUser, getTestDB } from '../../fixtures/database';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
 
 describe('UsersDAL', () => {
   beforeEach(async () => {
@@ -20,8 +21,9 @@ describe('UsersDAL', () => {
 
   describe('create', () => {
     it('should create a new user', async () => {
+      const userId = randomUUID();
       const userData = {
-        id: 'test-user-id',
+        id: userId,
         email: 'newuser@example.com',
         name: 'New User',
         isActive: true,
@@ -38,8 +40,9 @@ describe('UsersDAL', () => {
     });
 
     it('should create user with all optional fields', async () => {
+      const userId = randomUUID();
       const userData = {
-        id: 'test-user-id-2',
+        id: userId,
         email: 'fulluser@example.com',
         name: 'Full User',
         avatar: 'https://example.com/avatar.jpg',
@@ -138,8 +141,9 @@ describe('UsersDAL', () => {
 
   describe('upsert', () => {
     it('should create user if not exists', async () => {
+      const userId = randomUUID();
       const userData = {
-        id: 'upsert-user-id',
+        id: userId,
         email: 'upsert@example.com',
         name: 'Upsert User',
         isActive: true,
@@ -170,8 +174,9 @@ describe('UsersDAL', () => {
     });
 
     it('should handle concurrent upserts', async () => {
+      const userId = randomUUID();
       const userData = {
-        id: 'concurrent-user-id',
+        id: userId,
         email: 'concurrent@example.com',
         name: 'Concurrent User',
         isActive: true,

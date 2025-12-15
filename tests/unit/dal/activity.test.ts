@@ -48,6 +48,11 @@ describe('ActivityDAL', () => {
         userId: testUser.id,
         isPublic: true,
       }).returning();
+      // Ensure gallery item is visible before likes insert
+      await db.select().from(galleryItems).where(eq(galleryItems.id, galleryItem.id)).limit(1);
+      // Verify gallery item is persisted before creating like
+      const [verifiedGalleryItem] = await db.select().from(galleryItems).where(eq(galleryItems.id, galleryItem.id)).limit(1);
+      expect(verifiedGalleryItem).toBeDefined();
 
       // Create like
       const user2 = await createTestUser();
@@ -74,6 +79,9 @@ describe('ActivityDAL', () => {
         userId: testUser.id,
         isPublic: true,
       }).returning();
+      await db.select().from(galleryItems).where(eq(galleryItems.id, galleryItem.id)).limit(1);
+      const [verifiedGalleryItem] = await db.select().from(galleryItems).where(eq(galleryItems.id, galleryItem.id)).limit(1);
+      expect(verifiedGalleryItem).toBeDefined();
 
       const user2 = await createTestUser();
       await db.insert(userLikes).values({
@@ -118,7 +126,7 @@ describe('ActivityDAL', () => {
     });
 
     it('should use default limit of 100', async () => {
-      for (let i = 0; i < 150; i++) {
+      for (let i = 0; i < 110; i++) {
         await createTestRender(testUser.id, testProject.id);
       }
 
@@ -128,6 +136,9 @@ describe('ActivityDAL', () => {
     });
   });
 });
+
+
+
 
 
 

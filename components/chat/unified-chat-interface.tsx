@@ -108,6 +108,7 @@ import { useChatStore, type Message as ChatMessage } from '@/lib/stores/chat-sto
 import { useChatSettingsStore } from '@/lib/stores/chat-settings-store';
 import { useUIPreferencesStore } from '@/lib/stores/ui-preferences-store';
 import { useModalStore } from '@/lib/stores/modal-store';
+import { useProjectChainStore } from '@/lib/stores/project-chain-store';
 
 // Message type is now imported from chat-store
 type Message = ChatMessage;
@@ -320,6 +321,13 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   const currentRender = useChatStore((state) => state.currentRender);
   const isGenerating = useChatStore((state) => state.isGenerating);
   const progress = useChatStore((state) => state.progress);
+  
+  // ✅ NEW: Get chainId and chain from store (primary source, props as fallback)
+  const { selectedChainId, chains: storeChains } = useProjectChainStore();
+  // Use store values as primary, fallback to props for backward compatibility
+  const effectiveChainId = selectedChainId || chainId;
+  const effectiveChain = storeChains.find(c => c.id === effectiveChainId) || chain;
+  const effectiveChainRenders = effectiveChain?.renders || [];
   
   // Get actions from store
   const setMessages = useChatStore((state) => state.setMessages);
@@ -735,8 +743,23 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       // Keep local messages that don't have renders yet (generating state)
       for (const prevMsg of prevMessages) {
         if (prevMsg.isGenerating || !prevMsg.render) {
-          // Keep generating messages or user messages without renders
-          mergedMessages.push(prevMsg);
+          // Check if this generating message's render is now complete
+          if (prevMsg.render?.id) {
+            const chainMsg = chainMessageMap.get(prevMsg.render.id);
+            if (chainMsg && chainMsg.render?.status === 'completed') {
+              // ✅ FIXED: Update message to clear isGenerating flag
+              mergedMessages.push({
+                ...chainMsg,
+                isGenerating: false
+              });
+            } else {
+              // Still generating, keep as is
+              mergedMessages.push(prevMsg);
+            }
+          } else {
+            // User message without render, keep as is
+            mergedMessages.push(prevMsg);
+          }
         } else if (prevMsg.render?.id) {
           // Update with latest render data from chain
           const chainMsg = chainMessageMap.get(prevMsg.render.id);
@@ -1027,7 +1050,23 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     ) || isGenerating || isImageGenerating || isVideoGenerating || isRecovering;
     
     hasProcessingRendersRef.current = hasProcessing;
-  }, [chain?.renders, isGenerating, isImageGenerating, isVideoGenerating, isRecovering]);
+    
+    // ✅ NEW: Clear isGenerating when all renders are complete
+    if (isGenerating && !isImageGenerating && !isVideoGenerating && !isRecovering) {
+      const hasProcessingRenders = chain?.renders?.some(r => 
+        r.status === 'processing' || r.status === 'pending'
+      ) || false;
+      
+      if (!hasProcessingRenders) {
+        // All renders are complete, clear generating state
+        logger.log('✅ Clearing isGenerating - all renders complete', {
+          totalRenders: chain?.renders?.length || 0,
+          completedRenders: chain?.renders?.filter(r => r.status === 'completed').length || 0
+        });
+        setIsGenerating(false);
+      }
+    }
+  }, [chain?.renders, isGenerating, isImageGenerating, isVideoGenerating, isRecovering, setIsGenerating]);
 
   // ✅ FIXED: Update variant messages as renders complete
   // Use ref to track messages to avoid dependency issues
@@ -1434,11 +1473,21 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         pendingCount: pendingRenderIds.length,
         completedCount: completedRenderIds.length,
       });
+      
+      // ✅ FIXED: Only clear isGenerating if all renders are already completed
+      // Otherwise, polling will clear it when all renders complete
+      if (pendingRenderIds.length === 0) {
+        setIsGenerating(false);
+      } else {
+        // Keep isGenerating true - polling will clear it when all renders complete
+        logger.log('🔄 Variants: Keeping isGenerating=true, waiting for renders to complete', {
+          pendingCount: pendingRenderIds.length
+        });
+      }
     } catch (error) {
       logger.error('❌ Failed to generate variants:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to generate variants');
-    } finally {
-      setIsGenerating(false);
+      setIsGenerating(false); // Only clear on error
     }
   };
 
@@ -4250,8 +4299,8 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                           // When generating, a frame appears on the canvas showing "Generating your render..."
                           <RenderiqCanvas
                             currentRender={renderWithLatestData || null}
-                            chainId={chainId}
-                            chainRenders={chain?.renders || []} // Pass all chain renders to load onto canvas
+                            chainId={effectiveChainId}
+                            chainRenders={effectiveChainRenders} // ✅ Use store values instead of props
                             onRenderAdded={(newRender) => {
                               // Handle new render added to canvas
                               if (onRenderComplete) {

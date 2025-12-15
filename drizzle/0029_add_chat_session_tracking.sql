@@ -19,3 +19,7 @@ COMMENT ON COLUMN render_chains.google_chat_session_id IS 'Google Chat Session I
 COMMENT ON COLUMN render_chains.chat_session_created_at IS 'Timestamp when the chat session was created for this chain.';
 COMMENT ON COLUMN render_chains.last_chat_turn IS 'Last conversation turn number in the chat session. Incremented with each iterative edit.';
 
+
+
+
+

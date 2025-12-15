@@ -12,6 +12,8 @@ import { useRenderiqCanvas } from '@/lib/hooks/use-renderiq-canvas';
 import type { Render } from '@/lib/types/render';
 import { logger } from '@/lib/utils/logger';
 import { cn } from '@/lib/utils';
+import { useProjectChainStore } from '@/lib/stores/project-chain-store';
+import { useChatStore } from '@/lib/stores/chat-store';
 import { LassoSelectTool } from './lasso-select-tool';
 import { LassoSelectSvgComponent } from './lasso-overlay';
 import { ContextualToolbar } from './contextual-toolbar';
@@ -100,9 +102,20 @@ export function RenderiqCanvas({
   const { theme, resolvedTheme, systemTheme } = useTheme();
   const isMobile = useIsMobile();
   const [mounted, setMounted] = useState(false);
+  
+  // ✅ NEW: Get chainId and currentRender from stores (primary source, props as fallback)
+  const { selectedChainId, chains } = useProjectChainStore();
+  const storeCurrentRender = useChatStore((state) => state.currentRender);
+  const storeChain = chains.find(c => c.id === selectedChainId);
+  
+  // Use store values as primary, fallback to props for backward compatibility
+  const effectiveChainId = selectedChainId || chainId;
+  const effectiveCurrentRender = storeCurrentRender || currentRender;
+  const effectiveChainRenders = storeChain?.renders || chainRenders;
+  
   const { editor, setEditor, isLoading } = useRenderiqCanvas({
-    chainId,
-    currentRenderId: currentRender?.id,
+    chainId: effectiveChainId,
+    currentRenderId: effectiveCurrentRender?.id,
     autoSave: true,
   });
 
@@ -499,11 +512,11 @@ export function RenderiqCanvas({
 
   // Load chain renders onto canvas incrementally (only new ones)
   useEffect(() => {
-    if (!editor || chainRenders.length === 0) return;
+    if (!editor || effectiveChainRenders.length === 0) return;
 
     const loadChainRenders = async () => {
       // Filter to only completed renders with output URLs
-      const completedRenders = chainRenders.filter(
+      const completedRenders = effectiveChainRenders.filter(
         (r) => r.status === 'completed' && r.outputUrl && r.type === 'image'
       );
 
@@ -514,7 +527,7 @@ export function RenderiqCanvas({
 
       if (newRenders.length === 0) {
         logger.log('🔄 RenderiqCanvas: No new renders to add', {
-        totalRenders: chainRenders.length,
+        totalRenders: effectiveChainRenders.length,
         completedRenders: completedRenders.length,
           alreadyAdded: addedRenderIdsRef.current.size,
         });
@@ -522,7 +535,7 @@ export function RenderiqCanvas({
       }
 
       logger.log('🔄 RenderiqCanvas: Loading new renders onto canvas', {
-        totalRenders: chainRenders.length,
+        totalRenders: effectiveChainRenders.length,
         completedRenders: completedRenders.length,
         newRenders: newRenders.length,
         alreadyAdded: addedRenderIdsRef.current.size,
@@ -596,7 +609,7 @@ export function RenderiqCanvas({
           } else {
             // Calculate label from version number
             const { getVersionNumber } = await import('@/lib/utils/chain-helpers');
-            const versionNumber = getVersionNumber(render, chainRenders);
+            const versionNumber = getVersionNumber(render, effectiveChainRenders);
             if (versionNumber) {
               frameName = `Version ${versionNumber}`;
             } else {
@@ -694,26 +707,26 @@ export function RenderiqCanvas({
     };
 
     loadChainRenders();
-  }, [chainRenders, editor]);
+  }, [effectiveChainRenders, editor]);
 
   // Add render image to canvas when render completes (for new renders)
   useEffect(() => {
-    if (!currentRender?.outputUrl || !editor) return;
+    if (!effectiveCurrentRender?.outputUrl || !editor) return;
 
     // Skip if already in chainRenders (will be loaded by chain renders effect)
-    const alreadyInChain = chainRenders.some((r) => r.id === currentRender.id);
+    const alreadyInChain = effectiveChainRenders.some((r) => r.id === effectiveCurrentRender.id);
     if (alreadyInChain) return;
 
     // Create async function to handle image loading and asset creation
     const addImageToCanvas = async () => {
       try {
-        const shapeId = createShapeId(`render-${currentRender.id}`);
+        const shapeId = createShapeId(`render-${effectiveCurrentRender.id}`);
         
         // Check if image already exists on canvas
         const existingShape = editor.getShape(shapeId);
         if (existingShape) {
           logger.log('🔄 RenderiqCanvas: Render already on canvas', {
-            renderId: currentRender.id,
+            renderId: effectiveCurrentRender.id,
           });
           return;
         }
@@ -739,7 +752,7 @@ export function RenderiqCanvas({
               // Try without CORS if anonymous fails
               if (img.crossOrigin === 'anonymous') {
                 img.crossOrigin = null as any;
-                img.src = currentRender.outputUrl!;
+                img.src = effectiveCurrentRender.outputUrl!;
               } else {
                 reject(error);
               }
@@ -773,13 +786,13 @@ export function RenderiqCanvas({
               props: {
                 w: imgWidth,
                 h: imgHeight,
-                name: `render-${currentRender.id}`,
-                src: currentRender.outputUrl!,
+                name: `render-${effectiveCurrentRender.id}`,
+                src: effectiveCurrentRender.outputUrl!,
                 mimeType: 'image/png',
                 isAnimated: false,
               },
               meta: {
-                renderId: currentRender.id, // Store render ID in meta for reference
+                renderId: effectiveCurrentRender.id, // Store render ID in meta for reference
               },
             },
           ]);
@@ -797,8 +810,8 @@ export function RenderiqCanvas({
                 assetId: assetId,
               },
               meta: {
-                renderId: currentRender.id,
-                renderType: currentRender.type,
+                renderId: effectiveCurrentRender.id,
+                renderType: effectiveCurrentRender.type,
               },
             },
           ]);
@@ -838,7 +851,7 @@ export function RenderiqCanvas({
         }
 
         logger.log('✅ RenderiqCanvas: Added render to canvas', {
-          renderId: currentRender.id,
+          renderId: effectiveCurrentRender.id,
           shapeId,
         });
       } catch (error) {
@@ -848,7 +861,7 @@ export function RenderiqCanvas({
 
     // Call async function
     addImageToCanvas();
-  }, [currentRender?.id, currentRender?.outputUrl, currentRender?.type, editor]);
+  }, [effectiveCurrentRender?.id, effectiveCurrentRender?.outputUrl, effectiveCurrentRender?.type, editor]);
 
   return (
     <>
@@ -945,9 +958,9 @@ export function RenderiqCanvas({
         open={upscaleDialogOpen}
         onOpenChange={setUpscaleDialogOpen}
         selectedRenderIds={selectedRenderIdsForUpscale}
-        chainRenders={chainRenders}
-        projectId={chainRenders[0]?.projectId || undefined}
-        chainId={chainId}
+        chainRenders={effectiveChainRenders}
+        projectId={effectiveChainRenders[0]?.projectId || undefined}
+        chainId={effectiveChainId}
         onUpscaleComplete={(render) => {
           if (onRenderAdded) {
             onRenderAdded(render);

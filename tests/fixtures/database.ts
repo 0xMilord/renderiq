@@ -315,7 +315,9 @@ export async function createTestUser(data?: Partial<NewUser>) {
     throw new Error(`Invalid UUID format: ${data.id}. Must be a valid UUID.`);
   }
   
-  const email = data?.email || `test-${timestamp}@example.com`;
+  // Always generate a unique email to avoid collisions in batch inserts
+  const uniqueSuffix = randomUUID();
+  const email = data?.email || `test-${timestamp}-${uniqueSuffix}@example.com`;
   const name = data?.name || 'Test User';
   const isActive = data?.isActive !== undefined ? data.isActive : true;
   const emailVerified = data?.emailVerified !== undefined ? data.emailVerified : true;
@@ -425,16 +427,16 @@ export async function createTestProject(userId: string, data?: Partial<NewProjec
   const timestamp = Date.now();
   
   // Verify user exists before creating project
-  // Use a small retry loop in case of transaction timing issues
+  // Use a retry loop in case of remote DB latency/transaction timing
   let user;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 10; attempt++) {
     user = await db.select().from(schema.users).where(eq(schema.users.id, userId)).limit(1);
     if (user.length > 0) {
       break;
     }
     // Small delay to allow transaction to commit
-    if (attempt < 2) {
-      await new Promise(resolve => setTimeout(resolve, 10));
+    if (attempt < 9) {
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
   }
   
@@ -459,6 +461,21 @@ export async function createTestProject(userId: string, data?: Partial<NewProjec
   
   if (!project) {
     throw new Error('Failed to create test project - no project returned from insert');
+  }
+
+  // Verify project is persisted and visible
+  let verifiedProject;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    verifiedProject = await db.select().from(schema.projects).where(eq(schema.projects.id, project.id)).limit(1);
+    if (verifiedProject.length > 0) {
+      break;
+    }
+    if (attempt < 9) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+  }
+  if (!verifiedProject || verifiedProject.length === 0) {
+    throw new Error(`Project insert appeared to succeed but project ${project.id} not visible after retries.`);
   }
   
   return project;
@@ -491,14 +508,14 @@ export async function createTestRender(
   
   // Verify project exists before creating render
   let project;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 10; attempt++) {
     project = await db.select().from(schema.projects).where(eq(schema.projects.id, projectId)).limit(1);
     if (project.length > 0) {
       break;
     }
     // Small delay to allow transaction to commit
-    if (attempt < 2) {
-      await new Promise(resolve => setTimeout(resolve, 10));
+    if (attempt < 9) {
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
   }
   
@@ -509,22 +526,50 @@ export async function createTestRender(
     );
   }
   
-  const [render] = await db.insert(schema.renders).values({
-    userId,
-    projectId,
-    type: 'image',
-    prompt: 'Test prompt',
-    status: 'completed',
-    settings: {
-      style: 'photorealistic',
-      quality: 'high',
-      aspectRatio: '16:9',
-    },
-    ...data,
-  }).returning();
+  let render;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      [render] = await db.insert(schema.renders).values({
+        userId,
+        projectId,
+        type: 'image',
+        prompt: 'Test prompt',
+        status: 'completed',
+        settings: {
+          style: 'photorealistic',
+          quality: 'high',
+          aspectRatio: '16:9',
+        },
+        ...data,
+      }).returning();
+      break;
+    } catch (err: any) {
+      if (err?.code === '23503' && attempt < 2) {
+        // FK violation, wait and retry after rechecking project
+        await new Promise(resolve => setTimeout(resolve, 50));
+        continue;
+      }
+      throw err;
+    }
+  }
   
   if (!render) {
     throw new Error('Failed to create test render - no render returned from insert');
+  }
+
+  // Verify render is persisted
+  let verifiedRender;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    verifiedRender = await db.select().from(schema.renders).where(eq(schema.renders.id, render.id)).limit(1);
+    if (verifiedRender.length > 0) {
+      break;
+    }
+    if (attempt < 9) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+  }
+  if (!verifiedRender || verifiedRender.length === 0) {
+    throw new Error(`Render insert appeared to succeed but render ${render.id} not visible after retries.`);
   }
   
   return render;
