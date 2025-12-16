@@ -40,7 +40,8 @@ import {
   Wand2,
   FileText,
   BookOpen,
-  CheckCircle
+  CheckCircle,
+  AtSign
 } from 'lucide-react';
 import { 
   FaCheckCircle,
@@ -109,6 +110,15 @@ import { useChatSettingsStore } from '@/lib/stores/chat-settings-store';
 import { useUIPreferencesStore } from '@/lib/stores/ui-preferences-store';
 import { useModalStore } from '@/lib/stores/modal-store';
 import { useProjectChainStore } from '@/lib/stores/project-chain-store';
+import { useCanvasStore } from '@/lib/stores/canvas-store';
+import { analyzeRouting, type RoutingDecision } from '@/lib/utils/agent-routing';
+import { RenderiqChatHistory } from '@/components/agent/RenderiqChatHistory';
+import { RenderiqTodoList } from '@/components/agent/RenderiqTodoList';
+import { RenderiqContextItemTag } from '@/components/agent/RenderiqContextItemTag';
+import { RenderiqSelectionTag } from '@/components/agent/RenderiqSelectionTag';
+import { convertTldrawShapeToSimpleShape } from '@/agent-kit/shared/format/convertTldrawShapeToSimpleShape';
+import { react } from 'tldraw';
+import { saveChatMessage } from '@/lib/utils/save-chat-message';
 
 // Message type is now imported from chat-store
 type Message = ChatMessage;
@@ -328,6 +338,55 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   const effectiveChainId = selectedChainId || chainId;
   const effectiveChain = storeChains.find(c => c.id === effectiveChainId) || chain;
   const effectiveChainRenders = effectiveChain?.renders || [];
+  
+  // ✅ NEW: Get agent from canvas store for smart routing and UI
+  const agent = useCanvasStore((state) => state.agent);
+  
+  // Agent context state - use useState with manual subscription to avoid conditional hooks
+  const [agentContextItems, setAgentContextItems] = useState<any[]>([]);
+  const [agentSelectedShapes, setAgentSelectedShapes] = useState<any[]>([]);
+  const [isAgentContextToolActive, setIsAgentContextToolActive] = useState(false);
+  
+  // Subscribe to agent state changes when agent exists
+  useEffect(() => {
+    if (!agent) {
+      setAgentContextItems([]);
+      setAgentSelectedShapes([]);
+      setIsAgentContextToolActive(false);
+      return;
+    }
+    
+    // Subscribe to context items changes
+    const unsubscribeContext = react('agent-context-items-unified', () => {
+      const items = agent.$contextItems.get();
+      setAgentContextItems(items);
+    });
+    
+    // Subscribe to selected shapes changes
+    const unsubscribeShapes = react('agent-selected-shapes-unified', () => {
+      const shapes = agent.editor.getSelectedShapes();
+      setAgentSelectedShapes(shapes);
+    });
+    
+    // Subscribe to context tool active state
+    const unsubscribeTool = react('agent-context-tool-unified', () => {
+      const tool = agent.editor.getCurrentTool();
+      const isActive = tool.id === 'target-shape' || tool.id === 'target-area';
+      setIsAgentContextToolActive(isActive);
+    });
+    
+    // Initial values
+    setAgentContextItems(agent.$contextItems.get());
+    setAgentSelectedShapes(agent.editor.getSelectedShapes());
+    const initialTool = agent.editor.getCurrentTool();
+    setIsAgentContextToolActive(initialTool.id === 'target-shape' || initialTool.id === 'target-area');
+    
+    return () => {
+      unsubscribeContext();
+      unsubscribeShapes();
+      unsubscribeTool();
+    };
+  }, [agent]);
   
   // Get actions from store
   const setMessages = useChatStore((state) => state.setMessages);
@@ -754,7 +813,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
               });
             } else {
               // Still generating, keep as is
-              mergedMessages.push(prevMsg);
+          mergedMessages.push(prevMsg);
             }
           } else {
             // User message without render, keep as is
@@ -1732,13 +1791,117 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     }
   };
 
+  // Store routing decision for use in render completion
+  const routingDecisionRef = useRef<RoutingDecision | null>(null);
+
   const handleSendMessage = async () => {
-    if (!inputValue.trim() || isGenerating || isImageGenerating || isVideoGenerating) return;
+    // ✅ NEW: Also check if agent is generating
+    const isAgentGenerating = agent?.isGenerating() || false;
+    if (!inputValue.trim() || isGenerating || isImageGenerating || isVideoGenerating || isAgentGenerating) return;
+
+    // ✅ NEW: Smart routing - analyze input to decide between agent, image gen, or hybrid
+    const routingDecision = analyzeRouting(inputValue);
+    routingDecisionRef.current = routingDecision; // Store for later use
+    logger.log('🤖 Smart Routing Decision', {
+      mode: routingDecision.mode,
+      confidence: routingDecision.confidence,
+      reasoning: routingDecision.reasoning,
+    });
+
+    // Handle agent mode
+    if (routingDecision.mode === 'agent' && agent) {
+      const agentPrompt = routingDecision.agentPrompt || inputValue;
+      
+      // Add user message
+      const agentUserMessage: Message = {
+        id: `user-${Date.now()}`,
+        type: 'user',
+        content: inputValue,
+        timestamp: new Date(),
+      };
+      addMessage(agentUserMessage);
+      
+      // ✅ NEW: Save agent chat message to database
+      if (effectiveChainId && projectId) {
+        saveChatMessage({
+          chainId: effectiveChainId,
+          projectId,
+          messageType: 'agent',
+          contentType: 'prompt',
+          content: inputValue,
+        });
+      }
+
+      setInputValue('');
+      setIsGenerating(true);
+
+      try {
+        // Get context items and selected shapes from agent
+        const contextItems = agent.$contextItems.get();
+        agent.$contextItems.set([]); // Clear after getting
+        
+        const selectedShapes = agent.editor
+          .getSelectedShapes()
+          .map((shape) => {
+            const { convertTldrawShapeToSimpleShape } = require('@/agent-kit/shared/format/convertTldrawShapeToSimpleShape');
+            return convertTldrawShapeToSimpleShape(agent.editor, shape);
+          });
+
+        await agent.prompt({
+          message: agentPrompt,
+          contextItems,
+          bounds: agent.editor.getViewportPageBounds(),
+          selectedShapes,
+          type: 'user',
+        });
+        logger.log('✅ Agent: Request completed');
+      } catch (error) {
+        logger.error('❌ Agent: Request failed', error);
+        toast.error(error instanceof Error ? error.message : 'Agent request failed');
+      } finally {
+        setIsGenerating(false);
+      }
+      return;
+    }
+
+    // Handle "generate-and-place" mode
+    if (routingDecision.mode === 'generate-and-place' && agent) {
+      // This mode will generate image first, then agent will place it
+      // The canvas auto-places renders, but we can enhance with agent placement
+      logger.log('🎨 Generate-and-Place: Will generate image and place on canvas');
+      // Continue to image generation flow below
+    }
+
+    // Handle hybrid mode (both agent and image gen)
+    // For hybrid, we'll start agent in background and continue with image gen
+    // The effectivePrompt will be set to imageGenPrompt for the image gen flow
 
     // ✅ FIXED: Define renderStyle and generationType early so they're accessible throughout the function
     // Use effect as style, or 'realistic' as default (matches createRenderFormData)
     const renderStyle = effect && effect !== 'none' ? effect : 'realistic';
     const generationType = isVideoMode ? 'video' : 'image';
+
+    // For hybrid or generate-and-place mode, use the image gen prompt
+    const effectivePrompt = (routingDecision.mode === 'hybrid' && routingDecision.imageGenPrompt)
+      ? routingDecision.imageGenPrompt
+      : (routingDecision.mode === 'generate-and-place' && routingDecision.imageGenPrompt)
+      ? routingDecision.imageGenPrompt
+      : inputValue;
+    
+    // Start agent in background for hybrid mode (non-blocking)
+    if (routingDecision.mode === 'hybrid' && agent && routingDecision.agentPrompt) {
+      agent.prompt({ message: routingDecision.agentPrompt }).catch((error) => {
+        logger.warn('⚠️ Hybrid: Agent part failed (non-blocking)', error);
+      });
+    }
+    
+    // For generate-and-place, schedule agent to place render after generation
+    // (The canvas will auto-place, but agent can enhance with layout/organization)
+    if (routingDecision.mode === 'generate-and-place' && agent && routingDecision.agentPrompt) {
+      // Store a flag to trigger agent placement after render completes
+      // This will be handled in the render completion callback
+      logger.log('🎨 Generate-and-Place: Agent will enhance placement after generation');
+    }
 
     // Check credits BEFORE proceeding
     const requiredCredits = getCreditsCost();
@@ -1747,7 +1910,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       return;
     }
 
-    logger.log('🔍 Processing message with potential mentions:', inputValue);
+    logger.log('🔍 Processing message with potential mentions:', effectivePrompt);
 
     // ✅ CENTRALIZED: Use CentralizedContextService as single source of truth
     const hasNewUploadedImage = !!(uploadedFile && previewUrl);
@@ -1762,17 +1925,17 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
 
     // Build unified context using CentralizedContextService
     const contextResult = await buildUnifiedContextAction({
-      prompt: inputValue,
+      prompt: effectivePrompt, // Use effective prompt (may be from hybrid routing)
       chainId: chainId || undefined,
       projectId: projectId || undefined,
       canvasSelectedRenderIds,
-      useVersionContext: inputValue.includes('@'), // Parse @mentions if present
+      useVersionContext: effectivePrompt.includes('@'), // Parse @mentions if present
       useContextPrompt: true, // Enhance with chain context
       usePipelineMemory: true, // Load pipeline memory
     });
 
     let unifiedContext: UnifiedContext | undefined;
-    let finalPrompt = inputValue;
+    let finalPrompt = effectivePrompt; // Start with effective prompt from routing
     let referenceRenderId: string | undefined = undefined;
     let versionContext = undefined;
 
@@ -1780,11 +1943,13 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       unifiedContext = contextResult.data;
       
       // Get final prompt from unified context (client-side helper)
-      // Priority: Context prompt > Version context > Original prompt
+      // Priority: Context prompt > Version context > Effective prompt (from routing) > Original prompt
       if (unifiedContext.contextPrompt?.enhancedPrompt) {
         finalPrompt = unifiedContext.contextPrompt.enhancedPrompt;
       } else if (unifiedContext.versionContext?.parsedPrompt?.userIntent) {
         finalPrompt = unifiedContext.versionContext.parsedPrompt.userIntent;
+      } else {
+        finalPrompt = effectivePrompt; // Use effective prompt from routing
       }
       
       // Get reference render ID using centralized logic (client-side helper)
@@ -1836,22 +2001,42 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       logger.warn('⚠️ CentralizedContextService: Failed to build context, using original prompt', contextResult.error);
     }
 
-    // Create user message with image context
-    const userMessage: Message = {
-      id: `user-${crypto.randomUUID()}`,
-      type: 'user',
-      content: inputValue, // Keep original input for display
-      timestamp: new Date(),
-      uploadedImage: uploadedFile && previewUrl ? {
-        file: uploadedFile,
-        previewUrl: previewUrl
-      } : undefined,
-      referenceRenderId: referenceRenderId
-    };
+    // Create user message with image context (only if not already added in agent mode)
+    // Declare userMessage outside if block so it's accessible later
+    let userMessage: Message | null = null;
+    
+    if (routingDecision.mode !== 'agent') {
+      userMessage = {
+        id: `user-${crypto.randomUUID()}`,
+        type: 'user',
+        content: inputValue, // Keep original input for display
+        timestamp: new Date(),
+        uploadedImage: uploadedFile && previewUrl ? {
+          file: uploadedFile,
+          previewUrl: previewUrl
+        } : undefined,
+        referenceRenderId: referenceRenderId
+      };
 
-    addMessage(userMessage);
-    const currentPrompt = inputValue;
-    setInputValue('');
+      addMessage(userMessage);
+      
+      // ✅ NEW: Save render chat message to database
+      if (effectiveChainId && projectId) {
+        saveChatMessage({
+          chainId: effectiveChainId,
+          projectId,
+          messageType: 'render',
+          contentType: 'user',
+          content: userMessage.content,
+          uploadedImageUrl: userMessage.uploadedImage?.persistedUrl || userMessage.uploadedImage?.previewUrl,
+          renderId: referenceRenderId,
+        });
+      }
+      
+      setInputValue('');
+    }
+    
+    const currentPrompt = effectivePrompt; // Use effective prompt for image generation
     
     // ✅ PRESERVE: Store uploaded image URL before clearing file (needed for before/after tab)
     const preservedUploadedImageUrl = uploadedFile && previewUrl ? previewUrl : null;
@@ -1896,7 +2081,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
        logger.log('🎯 Chat: Sending generation request with parameters:', {
          aspectRatio,
          type: generationType,
-         hasUploadedImage: !!userMessage.uploadedImage?.file,
+         hasUploadedImage: !!(userMessage?.uploadedImage?.file),
          isVideoMode
        });
 
@@ -1909,14 +2094,14 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
        let styleTransferBase64: string | null = null;
        
        // Pre-process images to base64 (needed for retry logic)
-       if (userMessage.uploadedImage?.file) {
+       if (userMessage?.uploadedImage?.file) {
          const reader = new FileReader();
          uploadedImageBase64 = await new Promise<string>((resolve) => {
            reader.onload = (e) => {
              const result = e.target?.result as string;
              resolve(result.split(',')[1]); // Remove data:image/...;base64, prefix
            };
-           reader.readAsDataURL(userMessage.uploadedImage!.file!);
+           reader.readAsDataURL(userMessage!.uploadedImage!.file!);
          });
        }
        
@@ -1954,7 +2139,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
              : undefined,
            videoLastFrame: isVideoMode ? videoLastFrame : undefined,
            uploadedImageBase64,
-           uploadedImageType: userMessage.uploadedImage?.file?.type,
+           uploadedImageType: userMessage?.uploadedImage?.file?.type,
            // ✅ FIX CORS: Pass gallery image URL (fetched server-side to avoid CORS)
            uploadedImageUrl: galleryImageUrl || undefined,
            styleTransferBase64,
@@ -1970,7 +2155,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         logger.log('🚀 Chat: Sending render request', {
           url: apiUrl,
           type: generationType,
-          hasImage: !!userMessage.uploadedImage?.file,
+          hasImage: !!(userMessage?.uploadedImage?.file),
           hasKeyframes: videoKeyframes.length > 0
         });
         
@@ -2217,6 +2402,19 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         setCurrentRender(newRender);
         onRenderComplete?.(newRender);
         
+        // Handle "generate-and-place" mode - enhance placement with agent
+        if (routingDecisionRef.current?.mode === 'generate-and-place' && agent && newRender.outputUrl) {
+          // Canvas will auto-place, but agent can enhance with organization/layout
+          agent.prompt({
+            message: `The image "${finalPrompt.substring(0, 50)}..." has been generated and placed on the canvas. Please organize it nicely with any other renders, add labels if helpful, and ensure good layout.`,
+            type: 'user',
+          }).catch((error) => {
+            logger.warn('⚠️ Generate-and-Place: Agent enhancement failed (non-blocking)', error);
+          });
+          // Clear ref after use
+          routingDecisionRef.current = null;
+        }
+        
         // Track render completed
         const duration = Date.now() - startTime;
         trackRenderCompleted(generationType, renderStyle, quality, duration);
@@ -2242,6 +2440,18 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
           isGenerating: false,
           render: newRender
         });
+        
+        // ✅ NEW: Save assistant message with render to database
+        if (effectiveChainId && projectId) {
+          saveChatMessage({
+            chainId: effectiveChainId,
+            projectId,
+            messageType: 'render',
+            contentType: isVideoMode ? 'video' : 'assistant',
+            content: '',
+            renderId: newRender.id,
+          });
+        }
         messagesRef.current = messages.map(msg =>
           msg.id === assistantMessage.id
             ? { ...msg, content: '', isGenerating: false, render: newRender }
@@ -2890,8 +3100,17 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
           )}
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-1 sm:p-1 space-y-1 sm:space-y-1 min-h-0">
+        {/* Messages - Unified interface (no tabs) */}
+        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+          {/* Show agent todo list at top if agent is active and has todos */}
+          {agent && agent.$todoList.get().length > 0 && (
+            <div className="border-b border-border shrink-0">
+              <RenderiqTodoList agent={agent} />
+            </div>
+          )}
+          
+          {/* Messages area */}
+          <div className="flex-1 overflow-y-auto p-1 sm:p-1 space-y-1 sm:space-y-1 min-h-0 m-0">
           {messages.length === 0 ? (
             <div className="max-w-4xl mx-auto p-4 sm:p-2 space-y-2">
               {/* Header */}
@@ -3364,6 +3583,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
               })()
             )}
           <div ref={messagesEndRef} />
+          </div>
         </div>
 
         {/* Input Area */}
@@ -3419,6 +3639,74 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
               
               <div className="flex gap-1 sm:gap-2">
                 <div className="relative flex-1 flex flex-col">
+                  {/* Agent Context Tools - Show when agent is available */}
+                  {agent && (
+                    <>
+                      {/* Context Selection Tools */}
+                      {(agentSelectedShapes.length > 0 || agentContextItems.length > 0) && (
+                        <div className="flex flex-wrap gap-1.5 mb-1.5">
+                          {agentSelectedShapes.length > 0 && (
+                            <RenderiqSelectionTag onClick={() => agent.editor.selectNone()} />
+                          )}
+                          {agentContextItems.map((item, i) => (
+                            <RenderiqContextItemTag
+                              key={`context-item-${i}`}
+                              editor={agent.editor}
+                              onClick={() => agent.removeFromContext(item)}
+                              item={item}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      
+                      {/* Context Tool Selector */}
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <Select
+                          value={isAgentContextToolActive ? 'active' : ' '}
+                          onValueChange={(value) => {
+                            const ADD_CONTEXT_ACTIONS = [
+                              {
+                                name: 'Pick Shapes',
+                                onSelect: (editor: any) => {
+                                  editor.setCurrentTool('target-shape');
+                                  editor.focus();
+                                },
+                              },
+                              {
+                                name: 'Pick Area',
+                                onSelect: (editor: any) => {
+                                  editor.setCurrentTool('target-area');
+                                  editor.focus();
+                                },
+                              },
+                              {
+                                name: ' ',
+                                onSelect: (editor: any) => {
+                                  const currentTool = editor.getCurrentTool();
+                                  if (currentTool.id === 'target-area' || currentTool.id === 'target-shape') {
+                                    editor.setCurrentTool('select');
+                                  }
+                                },
+                              },
+                            ];
+                            const action = ADD_CONTEXT_ACTIONS.find((action) => action.name === value);
+                            if (action) action.onSelect(agent.editor);
+                          }}
+                        >
+                          <SelectTrigger className="h-7 w-[140px] text-xs">
+                            <AtSign className="h-3 w-3 mr-1" />
+                            <SelectValue placeholder="Add Context" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Pick Shapes">Pick Shapes</SelectItem>
+                            <SelectItem value="Pick Area">Pick Area</SelectItem>
+                            <SelectItem value=" ">Cancel</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </>
+                  )}
+                  
                   {/* Detected Mentions - Inside textarea container */}
                   {inputValue.includes('@') && (
                     <div className="flex flex-wrap gap-1 mb-1.5">
@@ -4067,7 +4355,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
 
           </div>
         </div>
-      </div>
+        </div>
 
       {/* Render Output Area - 3/4 width on desktop */}
       <div className={cn(

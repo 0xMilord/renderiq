@@ -244,14 +244,14 @@ export function useRenderiqCanvas(options: UseRenderiqCanvasOptions = {}) {
     // source: 'user' filters to user-initiated changes (not remote)
     const unsubscribe = editor.store.listen(
       () => {
-        // Debounce auto-save
-        if (autoSaveTimerRef.current) {
-          clearTimeout(autoSaveTimerRef.current);
-        }
+      // Debounce auto-save
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
 
-        autoSaveTimerRef.current = setTimeout(() => {
-          saveCanvasState();
-        }, autoSaveInterval);
+      autoSaveTimerRef.current = setTimeout(() => {
+        saveCanvasState();
+      }, autoSaveInterval);
       },
       { scope: 'document', source: 'user' } // ✅ Per tldraw docs: listen to document changes from user
     );

@@ -1,10 +1,8 @@
-import { AnthropicProvider, AnthropicProviderOptions, createAnthropic } from '@ai-sdk/anthropic'
 import {
 	createGoogleGenerativeAI,
 	GoogleGenerativeAIProvider,
 	GoogleGenerativeAIProviderOptions,
 } from '@ai-sdk/google'
-import { createOpenAI, OpenAIProvider } from '@ai-sdk/openai'
 import { LanguageModel, streamText } from 'ai'
 import { AgentAction } from '../../shared/types/AgentAction'
 import { AgentPrompt } from '../../shared/types/AgentPrompt'
@@ -17,13 +15,9 @@ import { getModelName } from '../prompt/getModelName'
 import { closeAndParseJson } from './closeAndParseJson'
 
 export class AgentService {
-	openai: OpenAIProvider
-	anthropic: AnthropicProvider
 	google: GoogleGenerativeAIProvider
 
 	constructor(env: Environment) {
-		this.openai = createOpenAI({ apiKey: env.OPENAI_API_KEY })
-		this.anthropic = createAnthropic({ apiKey: env.ANTHROPIC_API_KEY })
 		this.google = createGoogleGenerativeAI({ apiKey: env.GOOGLE_API_KEY })
 	}
 
@@ -55,7 +49,9 @@ async function* streamActions(
 		throw new Error('Model is a string, not a LanguageModel')
 	}
 
-	const geminiThinkingBudget = model.modelId === 'gemini-2.5-pro' ? 128 : 0
+	// ✅ UPDATED: Thinking budget for Gemini models
+	const geminiThinkingBudget = model.modelId === 'gemini-2.5-pro' ? 128 : 
+	                             model.modelId === 'gemini-2.5-flash' ? 64 : 0
 
 	const messages = buildMessages(prompt)
 	const systemPrompt = buildSystemPrompt(prompt)
@@ -72,9 +68,6 @@ async function* streamActions(
 			maxOutputTokens: 8192,
 			temperature: 0,
 			providerOptions: {
-				anthropic: {
-					thinking: { type: 'disabled' },
-				} satisfies AnthropicProviderOptions,
 				google: {
 					thinkingConfig: { thinkingBudget: geminiThinkingBudget },
 				} satisfies GoogleGenerativeAIProviderOptions,
@@ -85,8 +78,7 @@ async function* streamActions(
 			},
 		})
 
-		const canForceResponseStart =
-			model.provider === 'anthropic.messages' || model.provider === 'google.generative-ai'
+		const canForceResponseStart = model.provider === 'google.generative-ai'
 		let buffer = canForceResponseStart ? '{"actions": [{"_type":' : ''
 		let cursor = 0
 		let maybeIncompleteAction: AgentAction | null = null

@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { TLStoreSnapshot } from '@tldraw/tldraw';
 import { getSnapshot } from '@tldraw/tldraw';
+import type { TldrawAgent } from '@/agent-kit/client/agent/TldrawAgent';
 import { logger } from '@/lib/utils/logger';
 
 // Type for tldraw snapshot (getSnapshot returns { document, session })
@@ -19,6 +20,9 @@ interface CanvasStoreState {
   currentRenderId: string | null;
   currentSnapshot: TldrawSnapshot | null;
   
+  // ✅ NEW: Agent instance for cross-component access
+  agent: TldrawAgent | null;
+  
   // Actions
   setChainSnapshot: (chainId: string, snapshot: TldrawSnapshot) => void;
   setRenderSnapshot: (renderId: string, snapshot: TldrawSnapshot) => void;
@@ -28,6 +32,7 @@ interface CanvasStoreState {
   clearCanvas: () => void;
   clearChainSnapshot: (chainId: string) => void;
   clearRenderSnapshot: (renderId: string) => void;
+  setAgent: (agent: TldrawAgent | null) => void;
 }
 
 export const useCanvasStore = create<CanvasStoreState>()(
@@ -38,6 +43,7 @@ export const useCanvasStore = create<CanvasStoreState>()(
       currentChainId: null,
       currentRenderId: null,
       currentSnapshot: null,
+      agent: null,
       
       setChainSnapshot: (chainId, snapshot) => {
         logger.log('🎨 CanvasStore: Setting chain snapshot', { chainId });
@@ -108,12 +114,18 @@ export const useCanvasStore = create<CanvasStoreState>()(
           };
         });
       },
+      
+      setAgent: (agent) => {
+        logger.log('🤖 CanvasStore: Setting agent', { hasAgent: !!agent });
+        set({ agent });
+      },
     }),
     {
       name: 'canvas-storage',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         // Persist snapshots for offline support
+        // Note: agent is NOT persisted (ephemeral, tied to editor instance)
         chainSnapshots: state.chainSnapshots,
         renderSnapshots: state.renderSnapshots,
         currentChainId: state.currentChainId,

@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
   // Set output file tracing root to silence warning about multiple lockfiles
   outputFileTracingRoot: process.cwd(),
   
+  // Server components external packages - these won't be bundled, use node_modules directly
+  serverExternalPackages: ['@ai-sdk/google', 'ai'],
+  
   // Generate build ID for Sentry release tracking
   generateBuildId: async () => {
     // Use Vercel's commit SHA if available, otherwise use timestamp
@@ -109,6 +112,26 @@ const nextConfig: NextConfig = {
     if (!isServer) {
       config.externals.push('pdfkit');
     }
+    
+    // Fix module resolution for @ai-sdk packages and ai package
+    if (isServer) {
+      config.resolve = config.resolve || {};
+      config.resolve.alias = {
+        ...config.resolve.alias,
+      };
+      
+      // Try to resolve packages for better module resolution
+      try {
+        const googlePath = require.resolve('@ai-sdk/google');
+        const aiPath = require.resolve('ai');
+        config.resolve.alias['@ai-sdk/google'] = googlePath;
+        config.resolve.alias['ai'] = aiPath;
+      } catch (e) {
+        // If resolution fails, webpack will try to find them in node_modules
+        // serverExternalPackages will handle externalization
+      }
+    }
+    
     return config;
   },
   images: {

@@ -9,6 +9,7 @@ import type { TLAssetId } from '@tldraw/tlschema';
 import { useTheme } from 'next-themes';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useRenderiqCanvas } from '@/lib/hooks/use-renderiq-canvas';
+import { useRenderiqAgent } from '@/lib/hooks/use-renderiq-agent';
 import type { Render } from '@/lib/types/render';
 import { logger } from '@/lib/utils/logger';
 import { cn } from '@/lib/utils';
@@ -22,6 +23,8 @@ import { GenerateVariantsDialog, type VariantGenerationConfig as VariantConfig }
 import { GenerateDrawingDialog, type DrawingGenerationConfig } from './generate-drawing-dialog';
 import { ImageToVideoDialog, type ImageToVideoConfig } from './image-to-video-dialog';
 import { UpscaleDialog } from './upscale-dialog';
+import { ContextHighlights } from '@/agent-kit/client/components/highlights/ContextHighlights';
+import { GoToAgentButton } from '@/agent-kit/client/components/GoToAgentButton';
 
 // Customize tldraw's default color palette to match Renderiq's green theme
 // This must be done outside React lifecycle (at module level) before component renders
@@ -117,6 +120,18 @@ export function RenderiqCanvas({
     chainId: effectiveChainId,
     currentRenderId: effectiveCurrentRender?.id,
     autoSave: true,
+  });
+
+  // ✅ NEW: Get projectId from chain
+  const effectiveProjectId = storeChain?.projectId || null;
+  
+  // ✅ NEW: Initialize agent for canvas manipulation
+  const { agent, isAgentGenerating } = useRenderiqAgent({
+    editor,
+    chainId: effectiveChainId,
+    projectId: effectiveProjectId,
+    currentRender: effectiveCurrentRender,
+    enabled: true,
   });
 
   // Detect theme changes and mount state
@@ -447,23 +462,27 @@ export function RenderiqCanvas({
       </>
     ),
     InFrontOfTheCanvas: () => (
-      <ContextualToolbar 
-        onGenerate={onGenerateFromSelection}
-        onOpenVariantsDialog={(selectedRenderIds) => {
-          setSelectedRenderIdsForVariants(selectedRenderIds);
-          setVariantsDialogOpen(true);
-        }}
-        onOpenUpscaleDialog={(selectedRenderIds) => {
-          setSelectedRenderIdsForUpscale(selectedRenderIds);
-          setUpscaleDialogOpen(true);
-        }}
-        onOpenVideoDialog={(selectedRenderIds) => {
-          setSelectedRenderIdsForVideo(selectedRenderIds);
-          setVideoDialogOpen(true);
-        }}
-      />
+      <>
+        <ContextualToolbar 
+          onGenerate={onGenerateFromSelection}
+          onOpenVariantsDialog={(selectedRenderIds) => {
+            setSelectedRenderIdsForVariants(selectedRenderIds);
+            setVariantsDialogOpen(true);
+          }}
+          onOpenUpscaleDialog={(selectedRenderIds) => {
+            setSelectedRenderIdsForUpscale(selectedRenderIds);
+            setUpscaleDialogOpen(true);
+          }}
+          onOpenVideoDialog={(selectedRenderIds) => {
+            setSelectedRenderIdsForVideo(selectedRenderIds);
+            setVideoDialogOpen(true);
+          }}
+        />
+        {agent && <ContextHighlights agent={agent} />}
+        {agent && <GoToAgentButton agent={agent} />}
+      </>
     ),
-  }), [onGenerateFromSelection, onGenerateVariants, onImageToVideo]);
+  }), [onGenerateFromSelection, onGenerateVariants, onImageToVideo, agent]);
 
   // Show generating frame on canvas when generating
   useEffect(() => {

@@ -226,6 +226,36 @@ export const renderChains = pgTable('render_chains', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// Unified chat messages table - stores both render chat and agent chat messages
+export const chatMessages = pgTable('chat_messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  chainId: uuid('chain_id').references(() => renderChains.id, { onDelete: 'cascade' }).notNull(),
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  // Message type: 'render' for render chat, 'agent' for agent chat
+  messageType: text('message_type', { enum: ['render', 'agent'] }).notNull(),
+  // Content type: 'user', 'assistant', 'video', 'action', 'prompt', etc.
+  contentType: text('content_type', { enum: ['user', 'assistant', 'video', 'action', 'prompt', 'think', 'message'] }).notNull(),
+  content: text('content').notNull(),
+  // Optional render reference (for render chat messages)
+  renderId: uuid('render_id').references((): any => renders.id, { onDelete: 'set null' }),
+  // Optional agent action data (for agent chat messages)
+  agentActionData: jsonb('agent_action_data').$type<{
+    actionType?: string;
+    intent?: string;
+    diff?: any;
+    acceptance?: 'pending' | 'accepted' | 'rejected';
+  }>(),
+  // Optional uploaded image reference
+  uploadedImageUrl: text('uploaded_image_url'),
+  uploadedImageKey: text('uploaded_image_key'),
+  // Message position in chain (for ordering)
+  position: integer('position').notNull(),
+  timestamp: timestamp('timestamp').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 // Project rules table - rules that apply to each chain
 export const projectRules = pgTable('project_rules', {
   id: uuid('id').primaryKey().defaultRandom(),
