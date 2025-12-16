@@ -185,47 +185,6 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
       });
   }, [groupedPlans, cardBillingInterval]);
 
-  // Collect all unique features from all plans for comparison table (use monthly plans for comparison)
-  const allFeatures = useMemo(() => {
-    const featureSet = new Set<string>();
-    Object.values(groupedPlans).forEach((group) => {
-      const plan = group.monthly || group.annual;
-      if (plan && plan.features && Array.isArray(plan.features)) {
-        plan.features.forEach((feature: string) => featureSet.add(feature));
-      }
-    });
-    // Add limits as separate features
-    featureSet.add('Max Projects');
-    featureSet.add('Renders per Project');
-    return Array.from(featureSet).sort();
-  }, [groupedPlans]);
-
-  // Helper to get feature value for a plan
-  const getPlanFeatureValue = (plan: any, feature: string): string | boolean => {
-    // Check if it's a regular feature
-    if (plan.features && Array.isArray(plan.features)) {
-      if (plan.features.includes(feature)) {
-        return true;
-      }
-    }
-    
-    // Handle special features
-    if (feature === 'Max Projects') {
-      if (plan.maxProjects === null || plan.maxProjects === undefined) {
-        return 'Unlimited';
-      }
-      return plan.maxProjects.toString();
-    }
-    
-    if (feature === 'Renders per Project') {
-      if (plan.maxRendersPerProject === null || plan.maxRendersPerProject === undefined) {
-        return 'Unlimited';
-      }
-      return plan.maxRendersPerProject.toString();
-    }
-    
-    return false;
-  };
 
   const handleSubscribe = async (planId: string) => {
     // Check if user is authenticated
@@ -535,14 +494,9 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
 
   return (
     <div className="space-y-4">
-      {/* Section Header */}
-      <div className="text-left">
-        <h2 className="text-xl font-bold mb-1">Subscription Plans</h2>
-        <p className="text-xs text-muted-foreground">For unlimited usage and full feature access</p>
-      </div>
 
-      {/* Plans Grid - Always 4 columns on laptops and up */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Plans Grid - 1 column, 4 rows layout */}
+      <div className="grid grid-cols-1 gap-4">
         {filteredPlans.map((plan) => {
           const Icon = planIcons[plan.name.toLowerCase().replace(/\s+annual$/, '').replace(' ', '-')] || Zap;
           const planBaseName = plan.name.replace(/\s+Annual$/, '').toLowerCase();
@@ -741,51 +695,6 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
         })}
       </div>
 
-      {/* Features Comparison Table - Show monthly plans for comparison */}
-      {Object.keys(groupedPlans).length > 0 && allFeatures.length > 0 && (
-        <div className="mt-8">
-          <h2 className="text-lg font-bold mb-4 text-center">Feature Comparison</h2>
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full border-collapse bg-card text-xs">
-              <thead>
-                <tr className="border-b border-border bg-muted/50">
-                  <th className="text-left px-3 py-2 font-semibold sticky left-0 bg-muted/50 z-10">Feature</th>
-                  {Object.entries(groupedPlans).map(([baseName, group]) => {
-                    const displayName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
-                    return (
-                      <th key={baseName} className="text-center px-2 py-2 font-semibold min-w-[100px]">
-                        {displayName}
-                      </th>
-                    );
-                  })}
-                </tr>
-              </thead>
-              <tbody>
-                {allFeatures.map((feature, index) => (
-                  <tr key={index} className="border-b border-border hover:bg-muted/30 transition-colors">
-                    <td className="px-3 py-2 text-foreground font-medium sticky left-0 bg-card z-10">{feature}</td>
-                    {Object.values(groupedPlans).map((group, idx) => {
-                      const plan = group.monthly || group.annual;
-                      const featureValue = getPlanFeatureValue(plan, feature);
-                      return (
-                        <td key={idx} className="px-2 py-2 text-center">
-                          {featureValue === true ? (
-                            <Check className="h-4 w-4 text-green-500 mx-auto" />
-                          ) : typeof featureValue === 'string' ? (
-                            <span className="font-medium text-foreground">{featureValue}</span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* Razorpay Modal Styling */}
       {typeof window !== 'undefined' && (

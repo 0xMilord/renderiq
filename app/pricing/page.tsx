@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { PricingPlans } from '@/components/pricing/pricing-plans';
 import { CreditPackages } from '@/components/pricing/credit-packages';
+import { FeatureComparison } from '@/components/pricing/feature-comparison';
 import { CurrencyToggle } from '@/components/pricing/currency-toggle';
 import { getPricingPageDataAction } from '@/lib/actions/pricing.actions';
 import { Loader2 } from 'lucide-react';
@@ -89,21 +90,28 @@ export default function PricingPage() {
         {/* Main Content Section - Full Width */}
         <div className="w-full">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            {/* Left Column: Subscription Plans (3/4 width) */}
+            {/* Left Column: Credit Packages (3/4 width) - 4 columns, 2 rows format */}
             <div className="lg:col-span-3 order-1">
-              <PricingPlans plans={plans} userCredits={userCredits} userSubscription={userSubscription} />
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold mb-1">Pay As You Go</h2>
+                <p className="text-sm text-muted-foreground">
+                  Purchase credits for flexible usage
+                </p>
+              </div>
+              <CreditPackages packages={creditPackages} userCredits={userCredits} onPurchaseComplete={loadData} />
+              <FeatureComparison plans={plans} />
             </div>
 
-            {/* Right Column: Credit Packages (1/4 width) */}
+            {/* Right Column: Subscription Plans (1/4 width) */}
             <div className="lg:col-span-1 order-2">
               <div className="lg:sticky lg:top-24">
-                <div className="text-right mb-6">
-                  <h2 className="text-xl font-bold mb-1">Pay As You Go</h2>
+                <div className="mb-6">
+                  <h2 className="text-xl font-bold mb-1">Subscription Plans</h2>
                   <p className="text-xs text-muted-foreground">
-                    Purchase credits for flexible usage
+                    Unlimited usage with monthly or annual billing
                   </p>
                 </div>
-                <CreditPackages packages={creditPackages} userCredits={userCredits} onPurchaseComplete={loadData} />
+                <PricingPlans plans={plans} userCredits={userCredits} userSubscription={userSubscription} />
               </div>
             </div>
           </div>

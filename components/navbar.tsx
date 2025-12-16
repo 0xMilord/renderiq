@@ -350,10 +350,10 @@ export function Navbar() {
                               <Link
                                 key={tool.id}
                                 href={`/${tool.slug}`}
-                                className="flex flex-col items-center justify-center gap-2 p-3 rounded-lg border border-transparent hover:bg-primary/20 hover:border-primary transition-all group"
+                                className="flex flex-row items-center justify-start gap-2 p-2 rounded-lg border border-transparent hover:bg-primary/20 hover:border-primary transition-all group"
                                 onClick={() => setIsOpen(false)}
                               >
-                                <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors overflow-hidden">
+                                <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors overflow-hidden shrink-0">
                                   <img 
                                     src={iconPath} 
                                     alt={tool.name}
@@ -364,7 +364,7 @@ export function Navbar() {
                                     }}
                                   />
                                 </div>
-                                <span className="text-xs text-center text-muted-foreground group-hover:text-foreground transition-colors leading-tight line-clamp-2">
+                                <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors leading-tight truncate min-w-0 flex-1">
                                   {tool.name}
                                 </span>
                               </Link>

@@ -203,7 +203,7 @@ export default function GalleryPage() {
       
       {/* Header with Title, Description, Sidebar Button in Same Row */}
       <header className="fixed top-[var(--navbar-height)] left-0 right-0 z-40 border-b border-border bg-background/80 backdrop-blur-sm">
-        <div className="container mx-auto px-4">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           {/* Main Header Row: Sidebar Button + Title/Description + Sort */}
           <div className="h-14 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
@@ -461,7 +461,7 @@ export default function GalleryPage() {
       {/* Content - Dynamic padding based on filter badges */}
       <section 
         ref={containerRef}
-        className="container mx-auto px-4 py-8" 
+        className="w-full px-4 sm:px-6 lg:px-8 py-8" 
         style={{
           paddingTop: activeFilterCount > 0
             ? 'calc(var(--navbar-height) + 3.5rem + 3rem + 1.5rem)' // Header + filter badges + spacing

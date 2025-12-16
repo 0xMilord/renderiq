@@ -403,8 +403,8 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
         const sortedPackages = [...packages].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
         
         return (
-          <div className="grid grid-cols-2 gap-4">
-            {sortedPackages.map((pkg) => {
+          <div className="grid grid-cols-4 gap-4">
+            {sortedPackages.slice(0, 8).map((pkg) => {
               const totalCredits = pkg.credits + (pkg.bonusCredits || 0);
               // Use pricePerCredit from database if available, otherwise calculate
               const pricePerCredit = pkg.pricePerCredit ? parseFloat(pkg.pricePerCredit.toString()) : (parseFloat(pkg.price) / totalCredits);
