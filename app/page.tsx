@@ -115,7 +115,7 @@ export default async function Home() {
   const avatarData = latestUsers.map(user => {
     // Generate profile URL from user name (slugified)
     const profileUrl = user.name 
-      ? `/${user.name.toLowerCase().replace(/\s+/g, '-')}` 
+      ? `/u/${user.name.toLowerCase().replace(/\s+/g, '-')}` 
       : undefined;
     
     return {

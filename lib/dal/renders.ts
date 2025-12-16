@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { renders, renderChains, galleryItems, users, userLikes, toolExecutions, tools, userSubscriptions, subscriptionPlans } from '@/lib/db/schema';
-import { eq, and, desc, sql, inArray, ne, or, like, isNotNull } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, inArray, ne, or, like, isNotNull } from 'drizzle-orm';
 import { ContextData, CreateRenderWithChainData } from '@/lib/types/render-chain';
 import { logger } from '@/lib/utils/logger';
 
@@ -351,7 +351,7 @@ export class RendersDAL {
     limit = 20, 
     offset = 0,
     options?: {
-      sortBy?: 'newest' | 'oldest' | 'most_liked' | 'most_viewed' | 'trending';
+      sortBy?: { field: 'date' | 'likes' | 'views' | 'trending'; direction: 'asc' | 'desc' };
       filters?: {
         style?: string[];
         quality?: string[];
@@ -420,25 +420,27 @@ export class RendersDAL {
       );
     }
     
-    // Build ORDER BY based on sort option
+    // Build ORDER BY based on sort option with direction
+    const sortConfig = options?.sortBy || { field: 'date', direction: 'desc' };
+    const { field, direction } = sortConfig;
+    const orderFn = direction === 'asc' ? asc : desc;
+    
     let orderByClause;
-    switch (options?.sortBy || 'newest') {
-      case 'oldest':
-        orderByClause = renders.createdAt;
+    switch (field) {
+      case 'likes':
+        orderByClause = orderFn(galleryItems.likes);
         break;
-      case 'most_liked':
-        orderByClause = desc(galleryItems.likes);
-        break;
-      case 'most_viewed':
-        orderByClause = desc(galleryItems.views);
+      case 'views':
+        orderByClause = orderFn(galleryItems.views);
         break;
       case 'trending':
         // Trending = combination of likes, views, and recency
+        // Always descending for trending (higher score = more trending)
         orderByClause = desc(sql`${galleryItems.likes} * 2 + ${galleryItems.views} + EXTRACT(EPOCH FROM (NOW() - ${renders.createdAt})) / 86400`);
         break;
-      case 'newest':
+      case 'date':
       default:
-        orderByClause = desc(renders.createdAt);
+        orderByClause = orderFn(renders.createdAt);
         break;
     }
     

@@ -93,6 +93,7 @@ import { useWakeLock } from '@/lib/hooks/use-wake-lock';
 import { useDynamicTitle } from '@/lib/hooks/use-dynamic-title';
 import { retryFetch } from '@/lib/utils/retry-fetch';
 import { convertRendersToMessages, convertRenderToMessages } from '@/lib/utils/render-to-messages';
+import { mergeMessagesWithRenders, shouldPreserveMessages } from '@/lib/utils/merge-messages';
 import { trackRenderStarted, trackRenderCompleted, trackRenderFailed, trackRenderCreditsCost } from '@/lib/utils/sentry-metrics';
 import {
   POLLING_INTERVAL,
@@ -111,14 +112,8 @@ import { useUIPreferencesStore } from '@/lib/stores/ui-preferences-store';
 import { useModalStore } from '@/lib/stores/modal-store';
 import { useProjectChainStore } from '@/lib/stores/project-chain-store';
 import { useCanvasStore } from '@/lib/stores/canvas-store';
-import { analyzeRouting, type RoutingDecision } from '@/lib/utils/agent-routing';
-import { RenderiqChatHistory } from '@/components/agent/RenderiqChatHistory';
-import { RenderiqTodoList } from '@/components/agent/RenderiqTodoList';
-import { RenderiqContextItemTag } from '@/components/agent/RenderiqContextItemTag';
-import { RenderiqSelectionTag } from '@/components/agent/RenderiqSelectionTag';
-import { convertTldrawShapeToSimpleShape } from '@/agent-kit/shared/format/convertTldrawShapeToSimpleShape';
-import { react } from 'tldraw';
 import { saveChatMessage } from '@/lib/utils/save-chat-message';
+import { loadChatMessages, mergeChatMessages } from '@/lib/utils/load-chat-messages';
 
 // Message type is now imported from chat-store
 type Message = ChatMessage;
@@ -226,6 +221,13 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   projects = [],
   chains = []
 }: UnifiedChatInterfaceProps) {
+  // ✅ FIX: Ensure we're on the client side (prevent SSR errors)
+  const [isMounted, setIsMounted] = useState(false);
+  
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  
   const router = useRouter();
   
   // React 19: Track initialization per chainId to prevent re-initialization
@@ -339,55 +341,6 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   const effectiveChain = storeChains.find(c => c.id === effectiveChainId) || chain;
   const effectiveChainRenders = effectiveChain?.renders || [];
   
-  // ✅ NEW: Get agent from canvas store for smart routing and UI
-  const agent = useCanvasStore((state) => state.agent);
-  
-  // Agent context state - use useState with manual subscription to avoid conditional hooks
-  const [agentContextItems, setAgentContextItems] = useState<any[]>([]);
-  const [agentSelectedShapes, setAgentSelectedShapes] = useState<any[]>([]);
-  const [isAgentContextToolActive, setIsAgentContextToolActive] = useState(false);
-  
-  // Subscribe to agent state changes when agent exists
-  useEffect(() => {
-    if (!agent) {
-      setAgentContextItems([]);
-      setAgentSelectedShapes([]);
-      setIsAgentContextToolActive(false);
-      return;
-    }
-    
-    // Subscribe to context items changes
-    const unsubscribeContext = react('agent-context-items-unified', () => {
-      const items = agent.$contextItems.get();
-      setAgentContextItems(items);
-    });
-    
-    // Subscribe to selected shapes changes
-    const unsubscribeShapes = react('agent-selected-shapes-unified', () => {
-      const shapes = agent.editor.getSelectedShapes();
-      setAgentSelectedShapes(shapes);
-    });
-    
-    // Subscribe to context tool active state
-    const unsubscribeTool = react('agent-context-tool-unified', () => {
-      const tool = agent.editor.getCurrentTool();
-      const isActive = tool.id === 'target-shape' || tool.id === 'target-area';
-      setIsAgentContextToolActive(isActive);
-    });
-    
-    // Initial values
-    setAgentContextItems(agent.$contextItems.get());
-    setAgentSelectedShapes(agent.editor.getSelectedShapes());
-    const initialTool = agent.editor.getCurrentTool();
-    setIsAgentContextToolActive(initialTool.id === 'target-shape' || initialTool.id === 'target-area');
-    
-    return () => {
-      unsubscribeContext();
-      unsubscribeShapes();
-      unsubscribeTool();
-    };
-  }, [agent]);
-  
   // Get actions from store
   const setMessages = useChatStore((state) => state.setMessages);
   const addMessage = useChatStore((state) => state.addMessage);
@@ -400,12 +353,11 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   const clearMessages = useChatStore((state) => state.clearMessages);
   const resetChat = useChatStore((state) => state.resetChat);
   
-  // Wrapper for setMessages to maintain ref sync (backward compatibility)
+  // ✅ REFACTORED: Simplified message update - React 19 best practice: use store directly
   const setMessagesWithRef = useCallback((updater: Message[] | ((prev: Message[]) => Message[])) => {
     const currentMessages = useChatStore.getState().messages;
     const newMessages = typeof updater === 'function' ? updater(currentMessages) : updater;
     setMessages(newMessages);
-    messagesRef.current = newMessages; // Keep ref in sync
   }, [setMessages]);
   
   // Wrapper for setCurrentRender to support function updater (backward compatibility)
@@ -495,18 +447,13 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   // Mobile view state - toggle between chat and render
   const [mobileView, setMobileView] = useState<'chat' | 'render'>('chat');
   
-  // Version carousel state
-  const [carouselScrollPosition, setCarouselScrollPosition] = useState(0);
-  const [mobileCarouselScrollPosition, setMobileCarouselScrollPosition] = useState(0);
   // ✅ MIGRATED: Using UI Preferences Store for sidebar state
   const { isSidebarCollapsed, setSidebarCollapsed } = useUIPreferencesStore();
-  const carouselRef = useRef<HTMLDivElement>(null);
-  const mobileCarouselRef = useRef<HTMLDivElement>(null);
   
   // Refs (messagesEndRef, hasProcessingRendersRef, userSelectedRenderIdRef, lastRefreshTimeRef declared above)
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const messagesRef = useRef<Message[]>([]); // Track messages via ref
+  // ✅ REMOVED: messagesRef - using Zustand store directly for React 19 best practices
   
   // ✅ FIXED: Memoize hooks to prevent excessive re-renders
   // Only re-fetch when chainId or profile.id actually changes
@@ -581,9 +528,6 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   // Screen Wake Lock - Keep screen on during render generation
   // Must be after isImageGenerating and isVideoGenerating are defined
   useWakeLock(isGenerating || isImageGenerating || isVideoGenerating);
-  
-  // Version context hook
-  // ✅ CENTRALIZED: Using CentralizedContextService as single source of truth
 
   // ✅ FIXED: Progress based on actual render status from DB, with batch support
   // Derive progress from render status in chain.renders
@@ -684,9 +628,9 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   // ✅ Extract stage events from render metadata when render is loaded
   useEffect(() => {
     if (renderWithLatestData && renderWithLatestData.status === 'completed') {
-      // Try to extract stage events from metadata or contextData
-      const metadata = (renderWithLatestData as any).metadata;
-      const contextData = (renderWithLatestData as any).contextData;
+      // ✅ FIXED: Proper type handling for render metadata
+      const metadata = renderWithLatestData.metadata as Record<string, unknown> | undefined;
+      const contextData = renderWithLatestData.contextData as Record<string, unknown> | undefined;
       
       if (metadata?.stageEvents && Array.isArray(metadata.stageEvents)) {
         setStageEvents(metadata.stageEvents);
@@ -707,6 +651,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   }, [chain?.renders]);
 
   // ✅ FIXED: Initialize messages when chainId changes (with visibility check and generation check)
+  // ✅ NEW: Load messages from database and merge with chain.renders
   useEffect(() => {
     const currentChainId = chainId || chain?.id;
     
@@ -721,17 +666,38 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       return;
     }
 
+    if (!currentChainId || !projectId) {
+      logger.log('⚠️ UnifiedChatInterface: Missing chainId or projectId, skipping initialization');
+      return;
+    }
+
     logger.log('🔍 UnifiedChatInterface: Initializing chain data', {
       chainId: currentChainId,
+      projectId,
       rendersCount: chain?.renders?.length || 0
     });
     
-    const storedMessages = restoreMessages();
+    // Load messages from chain.renders (chat_messages API removed)
+    let isMounted = true;
     
-    if (chainMessages) {
-      setMessagesWithRef(chainMessages);
-      messagesRef.current = chainMessages;
-      saveMessages(chainMessages);
+    loadChatMessages(currentChainId, projectId)
+      .then((dbMessages) => {
+        if (!isMounted) return;
+        
+        // Merge database messages with render messages (dbMessages is now always empty)
+        const renderMessages = chainMessages || [];
+        const mergedMessages = mergeChatMessages(dbMessages, renderMessages);
+        
+        logger.log('✅ UnifiedChatInterface: Loaded and merged messages', {
+          dbCount: dbMessages.length,
+          renderCount: renderMessages.length,
+          mergedCount: mergedMessages.length,
+          sortedByTimestamp: true,
+        });
+        
+        // Set merged messages (sorted by timestamp - oldest first, newest at bottom)
+        setMessagesWithRef(mergedMessages);
+        saveMessages(mergedMessages);
       
       // Set latest render on initialization
       if (latestRender) {
@@ -744,6 +710,25 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         userSelectedRenderIdRef.current = null;
       } else {
         logger.log('⚠️ UnifiedChatInterface: No latest render found on initialization');
+        }
+        
+        initializedChainIdRef.current = currentChainId;
+      })
+      .catch((error) => {
+        if (!isMounted) return;
+        
+        logger.error('❌ UnifiedChatInterface: Failed to load messages from database, falling back to localStorage', error);
+        
+        // Fallback to localStorage and chain.renders
+        const storedMessages = restoreMessages();
+        
+        if (chainMessages) {
+          setMessagesWithRef(chainMessages);
+          saveMessages(chainMessages);
+          
+          if (latestRender) {
+            setCurrentRender(latestRender);
+            userSelectedRenderIdRef.current = null;
       }
     } else if (storedMessages) {
       setMessagesWithRef(storedMessages);
@@ -753,7 +738,12 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     }
     
     initializedChainIdRef.current = currentChainId;
-  }, [chainId, chainMessages, latestRender, isGenerating, isImageGenerating, isVideoGenerating, isRecovering]);
+      });
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [chainId, projectId, chainMessages, latestRender, isGenerating, isImageGenerating, isVideoGenerating, isRecovering, chain?.renders]);
 
   // ✅ FIXED: Update messages when chain.renders changes (consolidated with currentRender update)
   // This is now handled in the combined chain.renders effect below
@@ -772,160 +762,124 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     });
   }, [currentRender?.id, chain?.renders]);
 
-  // ✅ FIXED: Consolidated chain.renders updates - merge instead of replace to preserve local messages
+  /**
+   * Effect: Syncs messages with chain.renders updates.
+   * Preserves user messages without renders and generating messages.
+   * Uses shared merge function to eliminate duplication.
+   * 
+   * ✅ CRITICAL: Always reads latest messages from store to avoid stale closures
+   */
   useEffect(() => {
+    // ✅ FIX: Always get latest messages from store, not from closure
+    const currentMessages = useChatStore.getState().messages;
+    
+    // ✅ CRITICAL: If we have user messages without renders, always preserve them
+    const hasUserMessagesWithoutRenders = currentMessages.some(m => m.type === 'user' && !m.render);
+    if (hasUserMessagesWithoutRenders) {
+      logger.log('✅ Chat: User messages without renders detected, ensuring preservation', {
+        count: currentMessages.filter(m => m.type === 'user' && !m.render).length
+      });
+    }
+    
     if (!chain?.renders) {
       if (chain?.renders?.length === 0) {
-        // Only clear if we're not generating
-        if (!isGenerating && !isImageGenerating && !isVideoGenerating) {
+        // ✅ CRITICAL FIX: Only clear if we're not generating AND no user messages exist
+        if (!shouldPreserveMessages(currentMessages, isGenerating, isImageGenerating, isVideoGenerating)) {
           setCurrentRender(null);
           setMessagesWithRef([]);
-          messagesRef.current = [];
         }
       }
       return;
     }
     
-    // ✅ CRITICAL FIX: Don't reset messages if we're currently generating
-    // During generation, we have local messages (user + generating assistant) that aren't in chain.renders yet
     const isCurrentlyGenerating = isGenerating || isImageGenerating || isVideoGenerating || isRecovering;
+    const recentGen = recentGenerationRef.current;
+    const hasRecentGeneration = recentGen && (Date.now() - recentGen.timestamp < 60000);
     
-    if (isCurrentlyGenerating) {
-      // Only update existing messages with latest render data, don't replace
-      const newMessagesFromChain = convertRendersToMessages(chain.renders);
+    let mergedMessages: Message[];
+    
+    if (isCurrentlyGenerating || hasUserMessagesWithoutRenders) {
+      // ✅ CRITICAL: When generating OR when we have user messages, preserve ALL messages
+      // This ensures user messages appear immediately and aren't lost
+      mergedMessages = mergeMessagesWithRenders(currentMessages, chain.renders, {
+        preserveGenerating: isCurrentlyGenerating
+      });
       
-      // Merge: keep local generating messages, update completed renders
-      const prevMessages = messages;
-      const mergedMessages: Message[] = [];
-      const chainMessageMap = new Map(newMessagesFromChain.map(m => [m.render?.id, m]));
-      
-      // Keep local messages that don't have renders yet (generating state)
-      for (const prevMsg of prevMessages) {
-        if (prevMsg.isGenerating || !prevMsg.render) {
-          // Check if this generating message's render is now complete
-          if (prevMsg.render?.id) {
-            const chainMsg = chainMessageMap.get(prevMsg.render.id);
-            if (chainMsg && chainMsg.render?.status === 'completed') {
-              // ✅ FIXED: Update message to clear isGenerating flag
-              mergedMessages.push({
-                ...chainMsg,
-                isGenerating: false
-              });
-            } else {
-              // Still generating, keep as is
-          mergedMessages.push(prevMsg);
-            }
-          } else {
-            // User message without render, keep as is
-            mergedMessages.push(prevMsg);
-          }
-        } else if (prevMsg.render?.id) {
-          // Update with latest render data from chain
-          const chainMsg = chainMessageMap.get(prevMsg.render.id);
-          if (chainMsg) {
-            mergedMessages.push(chainMsg);
-          } else {
-            // Render was removed, keep old message
-            mergedMessages.push(prevMsg);
-          }
-        } else {
-          mergedMessages.push(prevMsg);
+      // ✅ SAFEGUARD: Ensure all user messages without renders are preserved
+      const userMessagesWithoutRenders = currentMessages.filter(m => m.type === 'user' && !m.render);
+      for (const userMsg of userMessagesWithoutRenders) {
+        if (!mergedMessages.some(m => m.id === userMsg.id)) {
+          logger.log('⚠️ Merge: Re-adding user message that was lost during merge', {
+            id: userMsg.id,
+            content: userMsg.content.substring(0, 50)
+          });
+          mergedMessages.push(userMsg);
         }
       }
-      
-      // Add any new renders from chain that aren't in local messages
-      for (const chainMsg of newMessagesFromChain) {
-        if (chainMsg.render && !mergedMessages.some(m => m.render?.id === chainMsg.render?.id)) {
-          mergedMessages.push(chainMsg);
-        }
-      }
-      
-      setMessagesWithRef(mergedMessages);
-      messagesRef.current = mergedMessages;
-      saveMessages(mergedMessages);
-    } else {
-      // Not generating - check if we have a recent generation that might not be in DB yet
-      const recentGen = recentGenerationRef.current;
-      // ✅ FIXED: Increased grace period to 60 seconds for production (network delays, DB replication)
-      const hasRecentGeneration = recentGen && (Date.now() - recentGen.timestamp < 60000); // 60 seconds
-      
-      if (hasRecentGeneration && recentGen.renderId) {
-        // Check if the recent generation render is now in the database
+    } else if (hasRecentGeneration && recentGen.renderId) {
         const renderInDB = chain.renders.find(r => r.id === recentGen.renderId);
         
         if (!renderInDB || renderInDB.status !== 'completed') {
-          // Recent generation not in DB yet or not completed - merge to preserve local render
+        // Preserve recent generation until DB sync
           logger.log('🔄 Chat: Preserving local render until DB sync', {
             renderId: recentGen.renderId,
             inDB: !!renderInDB,
-            status: renderInDB?.status,
-            timeSinceGeneration: Date.now() - recentGen.timestamp
-          });
-          
-          const newMessagesFromChain = convertRendersToMessages(chain.renders);
-          const prevMessages = messages;
-          const mergedMessages: Message[] = [];
-          const chainMessageMap = new Map(newMessagesFromChain.map(m => [m.render?.id, m]));
-          
-          // Keep local messages with the recent generation render
-          for (const prevMsg of prevMessages) {
-            if (prevMsg.render?.id === recentGen.renderId) {
-              // ✅ FIXED: Use stored render from ref if available, otherwise use message render
-              const renderToUse = recentGen.render || prevMsg.render;
-              mergedMessages.push({
-                ...prevMsg,
-                render: renderToUse
-              });
-            } else if (prevMsg.render?.id) {
-              // Update with latest render data from chain
-              const chainMsg = chainMessageMap.get(prevMsg.render.id);
-              if (chainMsg) {
-                mergedMessages.push(chainMsg);
+          status: renderInDB?.status
+        });
+        
+        mergedMessages = mergeMessagesWithRenders(currentMessages, chain.renders, {
+          recentGenerationId: recentGen.renderId,
+          recentGenerationRender: recentGen.render
+        });
               } else {
-                // Render was removed, keep old message
-                mergedMessages.push(prevMsg);
+        // Render now in DB - use chain as source of truth
+        logger.log('✅ Chat: Render now in DB, switching to DB source', {
+          renderId: recentGen.renderId
+        });
+        recentGenerationRef.current = null;
+        mergedMessages = mergeMessagesWithRenders(currentMessages, chain.renders);
               }
             } else {
-              mergedMessages.push(prevMsg);
-            }
-          }
-          
-          // Add any new renders from chain that aren't in local messages
-          for (const chainMsg of newMessagesFromChain) {
-            if (chainMsg.render && !mergedMessages.some(m => m.render?.id === chainMsg.render?.id)) {
-              mergedMessages.push(chainMsg);
-            }
-          }
-          
+      // No recent generation - merge preserving user messages without renders
+      if (recentGen && !hasRecentGeneration) {
+        logger.log('⏰ Chat: Recent generation grace period expired');
+        recentGenerationRef.current = null;
+      }
+      
+      mergedMessages = mergeMessagesWithRenders(currentMessages, chain.renders);
+      
+      // ✅ SAFEGUARD: Always ensure user messages without renders are preserved
+      const userMessagesWithoutRenders = currentMessages.filter(m => m.type === 'user' && !m.render);
+      for (const userMsg of userMessagesWithoutRenders) {
+        if (!mergedMessages.some(m => m.id === userMsg.id)) {
+          logger.log('⚠️ Merge: Re-adding user message that was lost during non-generating merge', {
+            id: userMsg.id,
+            content: userMsg.content.substring(0, 50)
+          });
+          mergedMessages.push(userMsg);
+        }
+      }
+    }
+    
+    // ✅ CRITICAL: Only update if messages actually changed to prevent infinite loops
+    // Compare message IDs and counts to detect changes efficiently
+    const currentIds = currentMessages.map(m => m.id).sort().join(',');
+    const mergedIds = mergedMessages.map(m => m.id).sort().join(',');
+    const messagesChanged = currentIds !== mergedIds || currentMessages.length !== mergedMessages.length;
+    
+    if (messagesChanged) {
+      logger.log('🔄 Chat: Messages changed, updating', {
+        currentCount: currentMessages.length,
+        mergedCount: mergedMessages.length,
+        userMessagesWithoutRenders: currentMessages.filter(m => m.type === 'user' && !m.render).length,
+        mergedUserMessagesWithoutRenders: mergedMessages.filter(m => m.type === 'user' && !m.render).length
+      });
           setMessagesWithRef(mergedMessages);
-          messagesRef.current = mergedMessages;
           saveMessages(mergedMessages);
         } else {
-          // Render is now in DB - safe to replace with chain.renders (single source of truth)
-          logger.log('✅ Chat: Render now in DB, switching to DB source', {
-            renderId: recentGen.renderId,
-            status: renderInDB.status
-          });
-          recentGenerationRef.current = null; // Clear tracking since it's now in DB
-          const newMessages = convertRendersToMessages(chain.renders);
-          setMessagesWithRef(newMessages);
-          messagesRef.current = newMessages;
-          saveMessages(newMessages);
-        }
-      } else {
-        // No recent generation - safe to replace with chain.renders (single source of truth)
-        if (recentGen && !hasRecentGeneration) {
-          logger.log('⏰ Chat: Recent generation grace period expired, clearing ref', {
-            renderId: recentGen.renderId,
-            timeSinceGeneration: Date.now() - recentGen.timestamp
-          });
-          recentGenerationRef.current = null;
-        }
-        const newMessages = convertRendersToMessages(chain.renders);
-        setMessagesWithRef(newMessages);
-        messagesRef.current = newMessages;
-        saveMessages(newMessages);
-      }
+      logger.log('✅ Chat: Messages unchanged, skipping update', {
+        count: currentMessages.length
+      });
     }
     
     // Update currentRender
@@ -988,7 +942,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       
       return latestRender || prevRender;
     });
-  }, [chain?.renders, latestRender, isGenerating, isImageGenerating, isVideoGenerating, isRecovering]);
+  }, [chain?.renders, latestRender, isGenerating, isImageGenerating, isVideoGenerating, isRecovering, messages.length]); // ✅ FIX: Include messages.length to detect when new messages are added
 
   // ✅ FIXED: Throttled refresh function to prevent excessive calls
   const refreshThrottleMs = 3000; // Minimum 3 seconds between refreshes
@@ -1127,17 +1081,11 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     }
   }, [chain?.renders, isGenerating, isImageGenerating, isVideoGenerating, isRecovering, setIsGenerating]);
 
-  // ✅ FIXED: Update variant messages as renders complete
-  // Use ref to track messages to avoid dependency issues
-  const messagesRefForVariants = useRef(messages);
+  // ✅ REFACTORED: Update variant messages as renders complete - using store directly
   useEffect(() => {
-    messagesRefForVariants.current = messages;
-  }, [messages]);
+    if (!chain?.renders || messages.length === 0) return;
 
-  useEffect(() => {
-    if (!chain?.renders || messagesRefForVariants.current.length === 0) return;
-
-    const currentMessages = messagesRefForVariants.current;
+    const currentMessages = messages;
 
     // Find messages with variant renders that are still generating
     const variantMessages = currentMessages.filter(msg => 
@@ -1461,7 +1409,12 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       // Add message to chat
       if (Array.isArray(result.data)) {
         // Batch results - create messages for each variant with correct status
-        const variantMessages: Message[] = result.data.map((item: any, idx: number) => {
+        interface VariantResult {
+          renderId: string;
+          status: string;
+          outputUrl?: string | null;
+        }
+        const variantMessages: Message[] = (result.data as VariantResult[]).map((item, idx: number) => {
           const renderId = item.renderId;
           const isCompleted = item.status === 'completed' && item.outputUrl;
           
@@ -1487,7 +1440,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
           };
         });
 
-        setMessagesWithRef([...messagesRef.current, ...variantMessages]);
+        setMessagesWithRef([...messages, ...variantMessages]);
 
         // ✅ FIXED: Track pending renders for polling
         if (pendingRenderIds.length > 0) {
@@ -1637,7 +1590,12 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
 
       // Add message to chat
       if (Array.isArray(result.data)) {
-        const drawingMessages: Message[] = result.data.map((item: any, idx: number) => ({
+        interface DrawingResult {
+          renderId: string;
+          outputUrl?: string | null;
+          status?: string;
+        }
+        const drawingMessages: Message[] = (result.data as DrawingResult[]).map((item, idx: number) => ({
           id: `drawing-${Date.now()}-${idx}`,
           type: 'assistant' as const,
           content: `Generated drawing ${idx + 1} of ${totalDrawings}`,
@@ -1650,7 +1608,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
           isGenerating: false,
         }));
 
-        setMessagesWithRef([...messagesRef.current, ...drawingMessages]);
+        setMessagesWithRef([...messages, ...drawingMessages]);
       }
 
       // Refresh chain
@@ -1779,7 +1737,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         isGenerating: false,
       };
 
-      setMessagesWithRef([...messagesRef.current, videoMessage]);
+      setMessagesWithRef([...messages, videoMessage]);
 
       // Refresh chain
       logger.log('✅ Video generation completed, chain will refresh automatically');
@@ -1792,116 +1750,15 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
   };
 
   // Store routing decision for use in render completion
-  const routingDecisionRef = useRef<RoutingDecision | null>(null);
-
   const handleSendMessage = async () => {
-    // ✅ NEW: Also check if agent is generating
-    const isAgentGenerating = agent?.isGenerating() || false;
-    if (!inputValue.trim() || isGenerating || isImageGenerating || isVideoGenerating || isAgentGenerating) return;
-
-    // ✅ NEW: Smart routing - analyze input to decide between agent, image gen, or hybrid
-    const routingDecision = analyzeRouting(inputValue);
-    routingDecisionRef.current = routingDecision; // Store for later use
-    logger.log('🤖 Smart Routing Decision', {
-      mode: routingDecision.mode,
-      confidence: routingDecision.confidence,
-      reasoning: routingDecision.reasoning,
-    });
-
-    // Handle agent mode
-    if (routingDecision.mode === 'agent' && agent) {
-      const agentPrompt = routingDecision.agentPrompt || inputValue;
-      
-      // Add user message
-      const agentUserMessage: Message = {
-        id: `user-${Date.now()}`,
-        type: 'user',
-        content: inputValue,
-        timestamp: new Date(),
-      };
-      addMessage(agentUserMessage);
-      
-      // ✅ NEW: Save agent chat message to database
-      if (effectiveChainId && projectId) {
-        saveChatMessage({
-          chainId: effectiveChainId,
-          projectId,
-          messageType: 'agent',
-          contentType: 'prompt',
-          content: inputValue,
-        });
-      }
-
-      setInputValue('');
-      setIsGenerating(true);
-
-      try {
-        // Get context items and selected shapes from agent
-        const contextItems = agent.$contextItems.get();
-        agent.$contextItems.set([]); // Clear after getting
-        
-        const selectedShapes = agent.editor
-          .getSelectedShapes()
-          .map((shape) => {
-            const { convertTldrawShapeToSimpleShape } = require('@/agent-kit/shared/format/convertTldrawShapeToSimpleShape');
-            return convertTldrawShapeToSimpleShape(agent.editor, shape);
-          });
-
-        await agent.prompt({
-          message: agentPrompt,
-          contextItems,
-          bounds: agent.editor.getViewportPageBounds(),
-          selectedShapes,
-          type: 'user',
-        });
-        logger.log('✅ Agent: Request completed');
-      } catch (error) {
-        logger.error('❌ Agent: Request failed', error);
-        toast.error(error instanceof Error ? error.message : 'Agent request failed');
-      } finally {
-        setIsGenerating(false);
-      }
-      return;
-    }
-
-    // Handle "generate-and-place" mode
-    if (routingDecision.mode === 'generate-and-place' && agent) {
-      // This mode will generate image first, then agent will place it
-      // The canvas auto-places renders, but we can enhance with agent placement
-      logger.log('🎨 Generate-and-Place: Will generate image and place on canvas');
-      // Continue to image generation flow below
-    }
-
-    // Handle hybrid mode (both agent and image gen)
-    // For hybrid, we'll start agent in background and continue with image gen
-    // The effectivePrompt will be set to imageGenPrompt for the image gen flow
+    if (!inputValue.trim() || isGenerating || isImageGenerating || isVideoGenerating) return;
 
     // ✅ FIXED: Define renderStyle and generationType early so they're accessible throughout the function
     // Use effect as style, or 'realistic' as default (matches createRenderFormData)
     const renderStyle = effect && effect !== 'none' ? effect : 'realistic';
     const generationType = isVideoMode ? 'video' : 'image';
 
-    // For hybrid or generate-and-place mode, use the image gen prompt
-    const effectivePrompt = (routingDecision.mode === 'hybrid' && routingDecision.imageGenPrompt)
-      ? routingDecision.imageGenPrompt
-      : (routingDecision.mode === 'generate-and-place' && routingDecision.imageGenPrompt)
-      ? routingDecision.imageGenPrompt
-      : inputValue;
-    
-    // Start agent in background for hybrid mode (non-blocking)
-    if (routingDecision.mode === 'hybrid' && agent && routingDecision.agentPrompt) {
-      agent.prompt({ message: routingDecision.agentPrompt }).catch((error) => {
-        logger.warn('⚠️ Hybrid: Agent part failed (non-blocking)', error);
-      });
-    }
-    
-    // For generate-and-place, schedule agent to place render after generation
-    // (The canvas will auto-place, but agent can enhance with layout/organization)
-    if (routingDecision.mode === 'generate-and-place' && agent && routingDecision.agentPrompt) {
-      // Store a flag to trigger agent placement after render completes
-      // This will be handled in the render completion callback
-      logger.log('🎨 Generate-and-Place: Agent will enhance placement after generation');
-    }
+    const effectivePrompt = inputValue;
 
     // Check credits BEFORE proceeding
     const requiredCredits = getCreditsCost();
@@ -2001,11 +1858,11 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       logger.warn('⚠️ CentralizedContextService: Failed to build context, using original prompt', contextResult.error);
     }
 
-    // Create user message with image context (only if not already added in agent mode)
+    // Create user message with image context
     // Declare userMessage outside if block so it's accessible later
     let userMessage: Message | null = null;
     
-    if (routingDecision.mode !== 'agent') {
+    {
       userMessage = {
         id: `user-${crypto.randomUUID()}`,
         type: 'user',
@@ -2020,8 +1877,13 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
 
       addMessage(userMessage);
       
-      // ✅ NEW: Save render chat message to database
-      if (effectiveChainId && projectId) {
+      // ✅ FIX: Force immediate scroll to show new message
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }, 0);
+      
+      // ✅ NEW: Save render chat message to database (only if content is not empty)
+      if (effectiveChainId && projectId && userMessage.content?.trim()) {
         saveChatMessage({
           chainId: effectiveChainId,
           projectId,
@@ -2030,6 +1892,9 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
           content: userMessage.content,
           uploadedImageUrl: userMessage.uploadedImage?.persistedUrl || userMessage.uploadedImage?.previewUrl,
           renderId: referenceRenderId,
+        }).catch((error) => {
+          // Log but don't block UI - message is already displayed
+          logger.error('Failed to save user message to database', error);
         });
       }
       
@@ -2161,7 +2026,26 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         
         // Use retryFetch utility with FormData recreation for each attempt
         let response: Response | null = null;
-        let apiResult: any = null;
+        interface ApiResult {
+          success?: boolean;
+          data?: Render & { renderId?: string; provider?: string; id?: string };
+          error?: string;
+          errorJson?: {
+            limitReached?: boolean;
+            limitType?: string;
+            current?: number;
+            limit?: number;
+            planName?: string;
+            error?: string;
+          };
+          // Limit properties can also be at top level from API
+          limitReached?: boolean;
+          limitType?: string;
+          current?: number;
+          limit?: number;
+          planName?: string;
+        }
+        let apiResult: ApiResult | null = null;
         
         try {
           // Retry logic: recreate FormData for each attempt
@@ -2196,7 +2080,16 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
               logger.error(`❌ Chat: Fetch attempt ${attempt} failed:`, lastError);
               
               // ✅ FIX: Check for limit errors immediately - don't retry on limit errors
-              const errorWithJson = lastError as any;
+              interface ErrorWithJson extends Error {
+                errorJson?: {
+                  limitReached?: boolean;
+                  limitType?: string;
+                  current?: number;
+                  limit?: number;
+                  planName?: string;
+                };
+              }
+              const errorWithJson = lastError as ErrorWithJson;
               if (errorWithJson.errorJson?.limitReached) {
                 // Limit error - don't retry, throw immediately so it's caught by outer catch
                 throw lastError;
@@ -2227,7 +2120,18 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         } catch (error) {
           // ✅ FIXED: Check if error contains limit error info from retryFetch
           // retryFetch attaches errorJson to the error object when API returns error status
-          const errorWithJson = error as any;
+          interface ErrorWithJson extends Error {
+            errorJson?: {
+              limitReached?: boolean;
+              limitType?: string;
+              current?: number;
+              limit?: number;
+              planName?: string;
+              error?: string;
+            };
+            status?: number;
+          }
+          const errorWithJson = error as ErrorWithJson;
           logger.log('🔍 Chat: Checking error for limit info', {
             hasErrorJson: !!errorWithJson.errorJson,
             limitReached: errorWithJson.errorJson?.limitReached,
@@ -2244,7 +2148,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
               planName: errorWithJson.errorJson.planName
             });
             openLimitDialog({
-              limitType: errorWithJson.errorJson.limitType || 'credits',
+              limitType: (errorWithJson.errorJson.limitType as LimitType) || 'credits',
               current: errorWithJson.errorJson.current || 0,
               limit: errorWithJson.errorJson.limit ?? null,
               planName: errorWithJson.errorJson.planName || 'Free',
@@ -2280,7 +2184,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
             data: {
               outputUrl: apiResult.data.outputUrl || '',
               processingTime: apiResult.data.processingTime || 0,
-              provider: apiResult.data.provider || 'google-generative-ai',
+              provider: (apiResult.data as Render & { provider?: string }).provider || 'google-generative-ai',
               uploadedImageUrl: apiResult.data.uploadedImageUrl || null,
               uploadedImageKey: apiResult.data.uploadedImageKey || null,
               uploadedImageId: apiResult.data.uploadedImageId || null
@@ -2300,7 +2204,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
               planName: apiResult.planName
             });
             openLimitDialog({
-              limitType: apiResult.limitType || 'credits',
+              limitType: (apiResult.limitType as LimitType) || 'credits',
               current: apiResult.current || 0,
               limit: apiResult.limit ?? null,
               planName: apiResult.planName || 'Free',
@@ -2402,19 +2306,6 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
         setCurrentRender(newRender);
         onRenderComplete?.(newRender);
         
-        // Handle "generate-and-place" mode - enhance placement with agent
-        if (routingDecisionRef.current?.mode === 'generate-and-place' && agent && newRender.outputUrl) {
-          // Canvas will auto-place, but agent can enhance with organization/layout
-          agent.prompt({
-            message: `The image "${finalPrompt.substring(0, 50)}..." has been generated and placed on the canvas. Please organize it nicely with any other renders, add labels if helpful, and ensure good layout.`,
-            type: 'user',
-          }).catch((error) => {
-            logger.warn('⚠️ Generate-and-Place: Agent enhancement failed (non-blocking)', error);
-          });
-          // Clear ref after use
-          routingDecisionRef.current = null;
-        }
-        
         // Track render completed
         const duration = Date.now() - startTime;
         trackRenderCompleted(generationType, renderStyle, quality, duration);
@@ -2441,6 +2332,11 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
           render: newRender
         });
         
+        // ✅ FIX: Force immediate scroll to show new render
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }, 100);
+        
         // ✅ NEW: Save assistant message with render to database
         if (effectiveChainId && projectId) {
           saveChatMessage({
@@ -2448,15 +2344,14 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
             projectId,
             messageType: 'render',
             contentType: isVideoMode ? 'video' : 'assistant',
-            content: '',
+            content: '', // Empty content is allowed for assistant messages with renders
             renderId: newRender.id,
+          }).catch((error) => {
+            // Log but don't block UI - message is already displayed
+            logger.error('Failed to save assistant message to database', error);
           });
         }
-        messagesRef.current = messages.map(msg =>
-          msg.id === assistantMessage.id
-            ? { ...msg, content: '', isGenerating: false, render: newRender }
-            : msg
-        );
+        // ✅ REMOVED: messagesRef sync - store is source of truth
         
         // ✅ FIXED: Trigger immediate refresh to sync with database
         // Use multiple staggered refreshes to ensure we catch the render in production
@@ -2670,7 +2565,15 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
     }
   }, [upscalingResult, projectId, chainId, currentRender, aspectRatio, onRenderComplete]);
 
-
+  // ✅ FIX: Early return AFTER all hooks are declared (prevents Rules of Hooks violation)
+  // Don't render until mounted (prevents SSR hydration mismatches)
+  if (!isMounted) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-muted-foreground">Loading chat...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
@@ -2735,142 +2638,6 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
             />
           </div>
         </div>
-        
-        {/* Version Carousel - Mobile */}
-        {messages.some(m => m.render && (m.render.type === 'image' || m.render.type === 'video')) && (
-          <div className="relative px-4 py-2 border-t border-border">
-            <div className="flex items-center gap-2">
-              <Button
-                variant={mobileCarouselScrollPosition > 0 ? "ghost" : "outline"}
-                size="sm"
-                className="h-8 w-8 p-0 shrink-0"
-                disabled={mobileCarouselScrollPosition <= 0}
-                onClick={() => {
-                  if (mobileCarouselRef.current && mobileCarouselScrollPosition > 0) {
-                    mobileCarouselRef.current.scrollBy({ left: -320, behavior: 'smooth' });
-                  }
-                }}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div
-                ref={mobileCarouselRef}
-                className="flex-1 overflow-x-auto scroll-smooth [&::-webkit-scrollbar]:hidden"
-                onScroll={(e) => {
-                  setMobileCarouselScrollPosition(e.currentTarget.scrollLeft);
-                }}
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-              >
-                <div className="flex gap-2">
-                  {/* ✅ SIMPLIFIED: Use completedRenders directly (already sorted by chainPosition) */}
-                  {(() => {
-                    const carouselRenders = completedRenders.filter(r => r.type === 'image' || r.type === 'video');
-                    logger.log('🖼️ [CAROUSEL DEBUG] Rendering carousel thumbnails', {
-                      totalCompleted: completedRenders.length,
-                      carouselRendersCount: carouselRenders.length,
-                      currentRenderId: currentRender?.id,
-                      currentRenderVersion: getVersionNumber(currentRender, chain?.renders),
-                      carouselRenders: carouselRenders.map((r, idx) => ({
-                        index: idx,
-                        id: r.id,
-                        chainPosition: r.chainPosition,
-                        version: getVersionNumber(r, chain?.renders),
-                        isSelected: r.id === currentRender?.id,
-                        outputUrl: r.outputUrl?.substring(0, 30) + '...'
-                      }))
-                    });
-                    return carouselRenders.map((render, index) => {
-                      const versionNumber = getVersionNumber(render, chain?.renders) || (index + 1);
-                      const isSelected = currentRender?.id === render.id;
-                      return (
-                      <div
-                        key={render.id}
-                        className={cn(
-                          "relative w-8 h-8 rounded border-2 cursor-pointer transition-all shrink-0 overflow-hidden",
-                          isSelected
-                            ? "border-primary ring-2 ring-primary/20"
-                            : "border-border hover:border-primary/50"
-                        )}
-                        onClick={() => {
-                          logger.log('🖼️ [CAROUSEL DEBUG] Thumbnail clicked', {
-                            renderId: render.id,
-                            chainPosition: render.chainPosition,
-                            version: versionNumber,
-                            previousCurrentRenderId: currentRender?.id,
-                            previousCurrentRenderVersion: getVersionNumber(currentRender, chain?.renders)
-                          });
-                          // ✅ SIMPLIFIED: Use render directly from completedRenders
-                          userSelectedRenderIdRef.current = render.id;
-                          setCurrentRender(render);
-                        }}
-                      >
-                        {render.type === 'video' ? (
-                          render.outputUrl ? (
-                            <video
-                              src={render.outputUrl}
-                              className="w-full h-full object-cover"
-                              muted
-                              playsInline
-                            />
-                          ) : (
-                            <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                              <Video className="h-4 w-4 text-muted-foreground" />
-                            </div>
-                          )
-                        ) : render.outputUrl ? (
-                          shouldUseRegularImg(render.outputUrl) ? (
-                            <img
-                              src={render.outputUrl}
-                              alt={`Version ${versionNumber}`}
-                              className="absolute inset-0 w-full h-full object-cover"
-                              onError={(e) => {
-                                const img = e.target as HTMLImageElement;
-                                const fallbackUrl = handleImageErrorWithFallback(render.outputUrl!, e);
-                                if (fallbackUrl && fallbackUrl !== '/placeholder-image.jpg') {
-                                  img.src = fallbackUrl;
-                                } else {
-                                  img.src = '/placeholder-image.jpg';
-                                }
-                              }}
-                            />
-                          ) : (
-                            <Image
-                              src={render.outputUrl}
-                              alt={`Version ${versionNumber}`}
-                              fill
-                              className="object-cover"
-                            />
-                          )
-                        ) : (
-                          <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                            <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                        )}
-                      </div>
-                      );
-                    });
-                  })()}
-                </div>
-              </div>
-              <Button
-                variant={mobileCarouselRef.current && mobileCarouselScrollPosition < (mobileCarouselRef.current.scrollWidth - mobileCarouselRef.current.clientWidth - 10) ? "ghost" : "outline"}
-                size="sm"
-                className="h-8 w-8 p-0 shrink-0"
-                disabled={mobileCarouselRef.current ? mobileCarouselScrollPosition >= (mobileCarouselRef.current.scrollWidth - mobileCarouselRef.current.clientWidth - 10) : true}
-                onClick={() => {
-                  if (mobileCarouselRef.current) {
-                    const canScroll = mobileCarouselScrollPosition < (mobileCarouselRef.current.scrollWidth - mobileCarouselRef.current.clientWidth - 10);
-                    if (canScroll) {
-                      mobileCarouselRef.current.scrollBy({ left: 320, behavior: 'smooth' });
-                    }
-                  }
-                }}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Render Area - Responsive width */}
@@ -2974,142 +2741,12 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
               </div>
             </div>
           </div>
-          
-          {/* Version Carousel - Desktop */}
-          {messages.some(m => m.render && (m.render.type === 'image' || m.render.type === 'video')) && (
-            <div className="relative px-4 py-2 border-t border-border">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={carouselScrollPosition > 0 ? "ghost" : "outline"}
-                  size="sm"
-                  className="h-8 w-8 p-0 shrink-0"
-                  disabled={carouselScrollPosition <= 0}
-                  onClick={() => {
-                    if (carouselRef.current && carouselScrollPosition > 0) {
-                      carouselRef.current.scrollBy({ left: -320, behavior: 'smooth' });
-                    }
-                  }}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <div
-                  ref={carouselRef}
-                  className="flex-1 overflow-x-auto scroll-smooth [&::-webkit-scrollbar]:hidden"
-                  onScroll={(e) => {
-                    setCarouselScrollPosition(e.currentTarget.scrollLeft);
-                  }}
-                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                >
-                  <div className="flex gap-2">
-                    {messages
-                      .filter(m => m.render && (m.render.type === 'image' || m.render.type === 'video'))
-                      // ✅ FIXED: Sort by chainPosition to ensure correct order
-                      .sort((a, b) => {
-                        const aPos = a.render?.chainPosition ?? -1;
-                        const bPos = b.render?.chainPosition ?? -1;
-                        return aPos - bPos;
-                      })
-                      .map((message, index) => (
-                        <div
-                          key={message.id}
-                          className={cn(
-                            "relative w-8 h-8 rounded border-2 cursor-pointer transition-all shrink-0 overflow-hidden",
-                            currentRender?.id === message.render?.id
-                              ? "border-primary ring-2 ring-primary/20"
-                              : "border-border hover:border-primary/50"
-                          )}
-                          onClick={() => {
-                            // ✅ SIMPLIFIED: Get render from chain.renders (single source of truth)
-                            const render = getRenderById(chain?.renders, message.render!.id) || message.render!;
-                            userSelectedRenderIdRef.current = render.id;
-                            setCurrentRender(render);
-                          }}
-                        >
-                          {message.render!.type === 'video' ? (
-                            <video
-                              src={message.render!.outputUrl}
-                              className="w-full h-full object-cover"
-                              muted
-                              playsInline
-                            />
-                          ) : message.render!.outputUrl ? (
-                            // Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking
-                          shouldUseRegularImg(message.render!.outputUrl) ? (
-                            <img
-                              src={message.render!.outputUrl}
-                              alt={`Version ${getVersionNumber(message.render, chain?.renders) || index + 1}`}
-                              className="absolute inset-0 w-full h-full object-cover"
-                              onError={(e) => {
-                                const img = e.target as HTMLImageElement;
-                                const originalUrl = message.render!.outputUrl;
-                                console.error('Image load error:', originalUrl);
-                                logger.error('Failed to load image:', originalUrl);
-                                
-                                // Try CDN fallback to direct GCS URL
-                                const fallbackUrl = handleImageErrorWithFallback(originalUrl, e);
-                                if (fallbackUrl && fallbackUrl !== '/placeholder-image.jpg') {
-                                  console.log('Trying fallback to direct GCS URL:', fallbackUrl);
-                                  img.src = fallbackUrl;
-                                } else {
-                                  // No fallback available, use placeholder
-                                  img.src = '/placeholder-image.jpg';
-                                }
-                              }}
-                            />
-                            ) : (
-                              <Image
-                                src={message.render!.outputUrl}
-                                alt={`Version ${getVersionNumber(message.render, chain?.renders) || index + 1}`}
-                                fill
-                                className="object-cover"
-                                onError={(e) => {
-                                  console.error('Image load error:', message.render!.outputUrl);
-                                  logger.error('Failed to load image:', message.render!.outputUrl);
-                                  // Note: Next.js Image component doesn't support dynamic src changes
-                                  // Fallback is handled by using regular img tags for CDN URLs
-                                }}
-                              />
-                            )
-                          ) : (
-                            <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                              <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                  </div>
-                </div>
-                <Button
-                  variant={carouselRef.current && carouselScrollPosition < (carouselRef.current.scrollWidth - carouselRef.current.clientWidth - 10) ? "ghost" : "outline"}
-                  size="sm"
-                  className="h-8 w-8 p-0 shrink-0"
-                  disabled={carouselRef.current ? carouselScrollPosition >= (carouselRef.current.scrollWidth - carouselRef.current.clientWidth - 10) : true}
-                  onClick={() => {
-                    if (carouselRef.current) {
-                      const canScroll = carouselScrollPosition < (carouselRef.current.scrollWidth - carouselRef.current.clientWidth - 10);
-                      if (canScroll) {
-                        carouselRef.current.scrollBy({ left: 320, behavior: 'smooth' });
-                      }
-                    }
-                  }}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Messages - Unified interface (no tabs) */}
         <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-          {/* Show agent todo list at top if agent is active and has todos */}
-          {agent && agent.$todoList.get().length > 0 && (
-            <div className="border-b border-border shrink-0">
-              <RenderiqTodoList agent={agent} />
-            </div>
-          )}
-          
-          {/* Messages area */}
+          <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
+            {/* Messages area */}
           <div className="flex-1 overflow-y-auto p-1 sm:p-1 space-y-1 sm:space-y-1 min-h-0 m-0">
           {messages.length === 0 ? (
             <div className="max-w-4xl mx-auto p-4 sm:p-2 space-y-2">
@@ -3272,11 +2909,23 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
             </div>
             ) : (
               (() => {
+                const userMessages = messages.filter(m => m.type === 'user');
+                const assistantMessages = messages.filter(m => m.type === 'assistant');
+                
                 logger.log('🎨 UnifiedChatInterface: Rendering messages list', {
                   totalMessages: messages.length,
-                  userMessages: messages.filter(m => m.type === 'user').length,
-                  assistantMessages: messages.filter(m => m.type === 'assistant').length,
+                  userMessages: userMessages.length,
+                  assistantMessages: assistantMessages.length,
                   messageIds: messages.map(m => ({ id: m.id, type: m.type, hasRender: !!m.render })),
+                  userMessageDetails: userMessages.map(m => ({
+                    id: m.id,
+                    type: m.type,
+                    content: m.content?.substring(0, 50) || '(empty)',
+                    hasContent: !!m.content && m.content.length > 0,
+                    hasRender: !!m.render,
+                    referenceRenderId: m.referenceRenderId,
+                    timestamp: m.timestamp
+                  })),
                   allMessageDetails: messages.map(m => ({
                     id: m.id,
                     type: m.type,
@@ -3288,6 +2937,23 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                     timestamp: m.timestamp
                   }))
                 });
+                
+                // ✅ DEBUG: Warn if user messages exist but might not render
+                if (userMessages.length > 0) {
+                  logger.log('✅ UnifiedChatInterface: User messages found, should render', {
+                    count: userMessages.length,
+                    firstUserMessage: {
+                      id: userMessages[0].id,
+                      content: userMessages[0].content?.substring(0, 50) || '(empty)',
+                      hasContent: !!userMessages[0].content && userMessages[0].content.length > 0,
+                    }
+                  });
+                } else {
+                  logger.warn('⚠️ UnifiedChatInterface: NO USER MESSAGES FOUND in messages array!', {
+                    totalMessages: messages.length,
+                    assistantMessages: assistantMessages.length,
+                  });
+                }
                 
                 if (messages.length === 0) {
                   logger.warn('⚠️ UnifiedChatInterface: Messages array is EMPTY - nothing to render!');
@@ -3348,11 +3014,18 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                   {message.type === 'user' ? (
                     <div className="flex items-start justify-between gap-2 group">
                       <div className="flex-1">
+                        {/* ✅ FIX: Ensure user message content is displayed, even if empty */}
+                        {message.content && message.content.trim() ? (
                         <TruncatedMessage 
                           content={message.content} 
                           className="text-xs sm:text-sm" 
                           maxLines={4}
                         />
+                        ) : (
+                          <p className="text-xs sm:text-sm italic text-muted-foreground">
+                            (Empty message)
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button
@@ -3440,7 +3113,8 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                     </div>
                   )}
                   
-                  {message.isGenerating && (
+                  {/* Show image generation placeholder if message has render */}
+                  {message.isGenerating && message.render && (
                     <div className="mt-3 space-y-3">
                       {/* Image skeleton with proper aspect ratio */}
                       <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-muted via-muted/80 to-muted animate-pulse">
@@ -3463,6 +3137,21 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                       <div className="mb-1 flex items-center justify-between">
                         <span className="text-[10px] sm:text-xs text-muted-foreground">Version {getVersionNumber(message.render, chain?.renders) || index + 1}</span>
                       </div>
+                      {/* Display thought signatures if available */}
+                      {message.render.metadata?.thoughtSummaries && message.render.metadata.thoughtSummaries.length > 0 && (
+                        <div className="mb-2 p-2 bg-muted/50 border border-border rounded-md">
+                          <div className="flex items-start gap-2">
+                            <span className="text-[10px] text-muted-foreground font-medium">💭 Thinking:</span>
+                            <div className="flex-1 space-y-1">
+                              {message.render.metadata.thoughtSummaries.map((thought, idx) => (
+                                <p key={idx} className="text-[10px] text-muted-foreground leading-tight">
+                                  {thought}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       <div className="relative w-full max-w-full aspect-video rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity bg-muted animate-in fade-in-0 zoom-in-95 duration-500 group"
                         onClick={(e) => {
                           // Open fullscreen on click
@@ -3534,8 +3223,13 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                               onError={(e) => {
                                 const img = e.target as HTMLImageElement;
                                 const originalUrl = message.render.outputUrl;
-                                console.error('Image load error:', originalUrl);
-                                logger.error('Failed to load image:', originalUrl);
+                                console.error('Image load/decode error:', originalUrl);
+                                logger.error('Failed to load/decode image:', originalUrl);
+                                
+                                // Prevent infinite error loop
+                                if (img.src.includes('placeholder-image.jpg')) {
+                                  return;
+                                }
                                 
                                 // Try CDN fallback to direct GCS URL
                                 const fallbackUrl = handleImageErrorWithFallback(originalUrl, e);
@@ -3545,7 +3239,13 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                                 } else {
                                   // No fallback available, use placeholder
                                   img.src = '/placeholder-image.jpg';
+                                  img.onerror = null; // Prevent infinite loop
                                 }
+                              }}
+                              onLoad={(e) => {
+                                // Clear any error state on successful load
+                                const img = e.target as HTMLImageElement;
+                                img.style.opacity = '1';
                               }}
                             />
                           ) : message.render.outputUrl ? (
@@ -3583,6 +3283,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
               })()
             )}
           <div ref={messagesEndRef} />
+            </div>
           </div>
         </div>
 
@@ -3639,74 +3340,6 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
               
               <div className="flex gap-1 sm:gap-2">
                 <div className="relative flex-1 flex flex-col">
-                  {/* Agent Context Tools - Show when agent is available */}
-                  {agent && (
-                    <>
-                      {/* Context Selection Tools */}
-                      {(agentSelectedShapes.length > 0 || agentContextItems.length > 0) && (
-                        <div className="flex flex-wrap gap-1.5 mb-1.5">
-                          {agentSelectedShapes.length > 0 && (
-                            <RenderiqSelectionTag onClick={() => agent.editor.selectNone()} />
-                          )}
-                          {agentContextItems.map((item, i) => (
-                            <RenderiqContextItemTag
-                              key={`context-item-${i}`}
-                              editor={agent.editor}
-                              onClick={() => agent.removeFromContext(item)}
-                              item={item}
-                            />
-                          ))}
-                        </div>
-                      )}
-                      
-                      {/* Context Tool Selector */}
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <Select
-                          value={isAgentContextToolActive ? 'active' : ' '}
-                          onValueChange={(value) => {
-                            const ADD_CONTEXT_ACTIONS = [
-                              {
-                                name: 'Pick Shapes',
-                                onSelect: (editor: any) => {
-                                  editor.setCurrentTool('target-shape');
-                                  editor.focus();
-                                },
-                              },
-                              {
-                                name: 'Pick Area',
-                                onSelect: (editor: any) => {
-                                  editor.setCurrentTool('target-area');
-                                  editor.focus();
-                                },
-                              },
-                              {
-                                name: ' ',
-                                onSelect: (editor: any) => {
-                                  const currentTool = editor.getCurrentTool();
-                                  if (currentTool.id === 'target-area' || currentTool.id === 'target-shape') {
-                                    editor.setCurrentTool('select');
-                                  }
-                                },
-                              },
-                            ];
-                            const action = ADD_CONTEXT_ACTIONS.find((action) => action.name === value);
-                            if (action) action.onSelect(agent.editor);
-                          }}
-                        >
-                          <SelectTrigger className="h-7 w-[140px] text-xs">
-                            <AtSign className="h-3 w-3 mr-1" />
-                            <SelectValue placeholder="Add Context" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Pick Shapes">Pick Shapes</SelectItem>
-                            <SelectItem value="Pick Area">Pick Area</SelectItem>
-                            <SelectItem value=" ">Cancel</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </>
-                  )}
-                  
                   {/* Detected Mentions - Inside textarea container */}
                   {inputValue.includes('@') && (
                     <div className="flex flex-wrap gap-1 mb-1.5">
@@ -4366,7 +3999,9 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       )}>
         {/* Top Header with Model Selector, Project Rules, Credit Usage, Get Pro */}
         <div className="border-b border-border shrink-0 z-10 bg-background">
-          <div className="px-3 sm:px-4 py-2 flex items-center gap-2 sm:gap-3 flex-wrap">
+          <div className="px-3 sm:px-4 py-2 flex items-center justify-between gap-2 sm:gap-3">
+            {/* Left Section: Sidebar Toggle, Buttons spread out */}
+            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
             {/* Sidebar Toggle Button - Only show on desktop when sidebar is visible */}
             {mobileView !== 'render' && (
               <>
@@ -4387,41 +4022,8 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
               </>
             )}
             
-            {/* Model Selector */}
-            <div className="flex-1 min-w-[120px] max-w-[200px] border border-muted-foreground/20 rounded-md h-7 sm:h-8 flex items-center">
-              <ModelSelector
-                type={isVideoMode ? 'video' : 'image'}
-                value={(isVideoMode ? selectedVideoModel : selectedImageModel) as ModelId | undefined}
-                onValueChange={(modelId) => {
-                  if (isVideoMode) {
-                    setSelectedVideoModel(modelId);
-                  } else {
-                    setSelectedImageModel(modelId);
-                    // Auto-adjust quality if current quality is not supported (skip for "auto" mode)
-                    if (modelId !== 'auto') {
-                      const modelConfig = getModelConfig(modelId);
-                      if (modelConfig && modelConfig.type === 'image') {
-                        if (!modelSupportsQuality(modelId, quality as 'standard' | 'high' | 'ultra')) {
-                          const maxQuality = getMaxQuality(modelId);
-                          setQuality(maxQuality);
-                          toast.info(`Quality adjusted to ${maxQuality} (maximum supported by selected model)`);
-                        }
-                      }
-                    }
-                  }
-                }}
-                quality={quality as 'standard' | 'high' | 'ultra'}
-                duration={videoDuration}
-                imageSize={quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K'}
-                variant="minimal"
-                showCredits={false}
-                className="w-full"
-              />
-            </div>
-            
-            {/* Separator */}
-            <div className="h-4 w-px bg-border shrink-0"></div>
-            
+              {/* Buttons spread out across available width */}
+              <div className="flex items-center gap-2 sm:gap-3 flex-1 justify-between min-w-0">
             {/* Project Rules */}
             <Button
               variant="outline"
@@ -4438,21 +4040,6 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                 </span>
               )}
             </Button>
-            
-            {/* Get Pro - Only show for non-Pro users */}
-            {!isPro && (
-              <Button
-                variant="default"
-                size="sm"
-                className="h-7 sm:h-8 text-[10px] sm:text-xs px-2 sm:px-3 shrink-0"
-                onClick={() => window.open('/pricing', '_blank')}
-              >
-                Get Pro
-              </Button>
-            )}
-            
-            {/* Separator */}
-            <div className="h-4 w-px bg-border shrink-0"></div>
             
             {/* Prompt Builder and Library Buttons */}
             <Button
@@ -4478,9 +4065,47 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
               <span className="hidden sm:inline">Builder</span>
             </Button>
             
-            {/* Separator */}
-            <div className="h-4 w-px bg-border shrink-0"></div>
+                {/* Credit Usage */}
+                <div className={cn(
+                  "flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-md border h-7 sm:h-8 shrink-0",
+                  credits && credits.balance < getCreditsCost()
+                    ? "bg-destructive/10 border-destructive/50 animate-pulse"
+                    : credits && credits.balance < getCreditsCost() * 2
+                    ? "bg-yellow-500/10 border-yellow-500/50"
+                    : "bg-muted/50 border-border"
+                )}>
+                  {credits && credits.balance < getCreditsCost() ? (
+                    <>
+                      <FaExclamationCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
+                      <div className="text-[11px] sm:text-sm text-center leading-tight">
+                        <span className="text-destructive font-semibold">{getCreditsCost()}</span>
+                        <span className="text-muted-foreground"> / </span>
+                        <span className="text-destructive font-semibold">{credits.balance}</span>
+                      </div>
+                    </>
+                  ) : credits && credits.balance < getCreditsCost() * 2 ? (
+                    <>
+                      <FaExclamationTriangle className="h-3.5 w-3.5 text-yellow-500 flex-shrink-0" />
+                      <div className="text-[11px] sm:text-sm text-center leading-tight">
+                        <span className="text-yellow-600 dark:text-yellow-500 font-semibold">{getCreditsCost()}</span>
+                        <span className="text-muted-foreground"> / </span>
+                        <span className="text-yellow-600 dark:text-yellow-500 font-semibold">{credits.balance}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <FaCheckCircle className="h-3.5 w-3.5 text-green-600 dark:text-green-500 flex-shrink-0" />
+                      <div className="text-[11px] sm:text-sm text-muted-foreground text-center font-medium leading-tight">
+                        {getCreditsCost()} credit{getCreditsCost() !== 1 ? 's' : ''}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
             
+            {/* Right Section: Model Selector (extreme right) */}
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/* Public/Private Toggle */}
             <div className="flex items-center gap-1.5 px-2 shrink-0">
               <Label htmlFor="privacy-toggle-header" className="text-[10px] sm:text-xs flex items-center gap-1 cursor-pointer">
@@ -4515,41 +4140,49 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
             {/* Separator */}
             <div className="h-4 w-px bg-border shrink-0"></div>
             
-            {/* Credit Usage */}
-            <div className={cn(
-              "flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-md border h-7 sm:h-8 shrink-0",
-              credits && credits.balance < getCreditsCost()
-                ? "bg-destructive/10 border-destructive/50 animate-pulse"
-                : credits && credits.balance < getCreditsCost() * 2
-                ? "bg-yellow-500/10 border-yellow-500/50"
-                : "bg-muted/50 border-border"
-            )}>
-              {credits && credits.balance < getCreditsCost() ? (
-                <>
-                  <FaExclamationCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
-                  <div className="text-[11px] sm:text-sm text-center leading-tight">
-                    <span className="text-destructive font-semibold">{getCreditsCost()}</span>
-                    <span className="text-muted-foreground"> / </span>
-                    <span className="text-destructive font-semibold">{credits.balance}</span>
-                  </div>
-                </>
-              ) : credits && credits.balance < getCreditsCost() * 2 ? (
-                <>
-                  <FaExclamationTriangle className="h-3.5 w-3.5 text-yellow-500 flex-shrink-0" />
-                  <div className="text-[11px] sm:text-sm text-center leading-tight">
-                    <span className="text-yellow-600 dark:text-yellow-500 font-semibold">{getCreditsCost()}</span>
-                    <span className="text-muted-foreground"> / </span>
-                    <span className="text-yellow-600 dark:text-yellow-500 font-semibold">{credits.balance}</span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <FaCheckCircle className="h-3.5 w-3.5 text-green-600 dark:text-green-500 flex-shrink-0" />
-                  <div className="text-[11px] sm:text-sm text-muted-foreground text-center font-medium leading-tight">
-                    {getCreditsCost()} credit{getCreditsCost() !== 1 ? 's' : ''}
-                  </div>
-                </>
+              {/* Get Pro - Only show for non-Pro users */}
+              {!isPro && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="h-7 sm:h-8 text-[10px] sm:text-xs px-2 sm:px-3 shrink-0"
+                  onClick={() => window.open('/pricing', '_blank')}
+                >
+                  Get Pro
+                </Button>
               )}
+              
+              {/* Model Selector - Extreme Right */}
+              <div className="min-w-[120px] max-w-[200px] border border-muted-foreground/20 rounded-md h-7 sm:h-8 flex items-center shrink-0">
+                <ModelSelector
+                  type={isVideoMode ? 'video' : 'image'}
+                  value={(isVideoMode ? selectedVideoModel : selectedImageModel) as ModelId | undefined}
+                  onValueChange={(modelId) => {
+                    if (isVideoMode) {
+                      setSelectedVideoModel(modelId);
+                    } else {
+                      setSelectedImageModel(modelId);
+                      // Auto-adjust quality if current quality is not supported (skip for "auto" mode)
+                      if (modelId !== 'auto') {
+                        const modelConfig = getModelConfig(modelId);
+                        if (modelConfig && modelConfig.type === 'image') {
+                          if (!modelSupportsQuality(modelId, quality as 'standard' | 'high' | 'ultra')) {
+                            const maxQuality = getMaxQuality(modelId);
+                            setQuality(maxQuality);
+                            toast.info(`Quality adjusted to ${maxQuality} (maximum supported by selected model)`);
+                          }
+                        }
+                      }
+                    }
+                  }}
+                  quality={quality as 'standard' | 'high' | 'ultra'}
+                  duration={videoDuration}
+                  imageSize={quality === 'ultra' ? '4K' : quality === 'high' ? '2K' : '1K'}
+                  variant="minimal"
+                  showCredits={false}
+                  className="w-full"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -4874,7 +4507,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
       {isFullscreen && (currentRender || fullscreenImageUrl) && (
         <div 
           data-slot="fullscreen-chat-overlay"
-          className="fixed inset-0 z-[10000] bg-black flex items-center justify-center"
+          className="fixed inset-0 bg-black flex items-center justify-center"
           onClick={() => {
             setIsFullscreen(false);
             setFullscreenImageUrl(null);

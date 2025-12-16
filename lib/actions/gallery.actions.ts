@@ -14,7 +14,7 @@ export async function getPublicGallery(
   page = 1, 
   limit = 20,
   options?: {
-    sortBy?: 'newest' | 'oldest' | 'most_liked' | 'most_viewed' | 'trending';
+    sortBy?: SortOption;
     filters?: {
       style?: string[];
       quality?: string[];
@@ -27,7 +27,7 @@ export async function getPublicGallery(
   try {
     const offset = (page - 1) * limit;
     const items = await RendersDAL.getPublicGallery(limit, offset, {
-      sortBy: options?.sortBy || 'newest',
+      sortBy: options?.sortBy || { field: 'date', direction: 'desc' },
       filters: options?.filters,
       searchQuery: options?.searchQuery,
     });

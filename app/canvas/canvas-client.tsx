@@ -439,7 +439,7 @@ export function CanvasPageClient({ initialProjects }: CanvasPageClientProps) {
       </aside>
 
       {/* Main Content Area */}
-      <main className="grid grid-rows-[auto_1fr] h-full overflow-hidden min-w-0">
+      <main className="flex flex-col h-full overflow-hidden min-w-0">
         {/* Header */}
         <header className="px-4 border-b h-16 flex items-center justify-between shrink-0 gap-3">
           <div className="min-w-0 flex-1 overflow-hidden flex items-center gap-3">
@@ -501,7 +501,7 @@ export function CanvasPageClient({ initialProjects }: CanvasPageClientProps) {
         </header>
 
         {/* Content Area */}
-        <section className="overflow-y-auto w-full min-h-0">
+        <section className="flex-1 overflow-y-auto w-full min-h-0">
           {selectedProjectId ? (
             <div className="p-4 sm:p-6">
               {filesLoading ? (

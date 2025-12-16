@@ -177,7 +177,7 @@ export function Footer() {
               {getAllTools().map((tool) => (
                 <Link
                   key={tool.id}
-                  href={`/apps/${tool.slug}`}
+                  href={`/${tool.slug}`}
                   className="text-muted-foreground hover:text-primary transition-colors"
                 >
                   {tool.name}

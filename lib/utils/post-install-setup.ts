@@ -39,8 +39,11 @@ function updateWindowTitle(): void {
     title = 'Gallery - Renderiq';
   } else if (pathname.startsWith('/project/')) {
     title = 'Project - Renderiq';
-  } else if (pathname.startsWith('/apps/')) {
+  } else if (pathname.startsWith('/apps')) {
     title = 'Apps - Renderiq';
+  } else if (pathname !== '/' && !pathname.startsWith('/dashboard') && !pathname.startsWith('/api') && !pathname.startsWith('/_next') && !pathname.startsWith('/u/') && !pathname.startsWith('/gallery') && !pathname.startsWith('/pricing') && !pathname.startsWith('/use-cases') && !pathname.startsWith('/render') && !pathname.startsWith('/canvas') && !pathname.startsWith('/project') && !pathname.startsWith('/login') && !pathname.startsWith('/signup') && !pathname.startsWith('/auth') && !pathname.startsWith('/blog') && !pathname.startsWith('/docs') && !pathname.startsWith('/about') && !pathname.startsWith('/contact') && !pathname.startsWith('/privacy') && !pathname.startsWith('/terms')) {
+    // This might be a tool slug at root level
+    title = 'Tool - Renderiq';
   } else if (pathname.startsWith('/pricing')) {
     title = 'Pricing - Renderiq';
   }

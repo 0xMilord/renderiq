@@ -43,7 +43,7 @@ export function RelatedTools({ toolSlugs, title = "Related Tools", description }
             return (
               <Link 
                 key={tool.id} 
-                href={isOnline ? `/apps/${tool.slug}` : '#'}
+                href={isOnline ? `/${tool.slug}` : '#'}
                 onClick={(e) => {
                   if (!isOnline) {
                     e.preventDefault();

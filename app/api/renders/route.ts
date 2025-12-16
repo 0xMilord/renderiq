@@ -1672,6 +1672,114 @@ export async function handleRenderRequest(request: NextRequest) {
       // Update render with output URL
       await RendersDAL.updateOutput(render.id, uploadResult.url, uploadResult.key, 'completed', Math.round(result.data.processingTime));
 
+      // ✅ FIXED: Link tool execution to render if this is a tool-generated render
+      // Check if render platform is 'tools' or has tool metadata
+      if (render.platform === 'tools' || (metadata as any)?.sourcePlatform === 'tools' || imageType) {
+        try {
+          const { ToolsDAL, ToolsService } = await import('@/lib/dal/tools');
+          const { ToolsService: ToolsServiceInstance } = await import('@/lib/services/tools.service');
+          
+          // Try to find tool by imageType or metadata toolId
+          let toolId: string | null = null;
+          if (imageType) {
+            // Try to find tool by slug (imageType is often the tool slug)
+            const tools = await ToolsServiceInstance.getActiveTools();
+            const tool = tools.find(t => t.slug === imageType || t.name.toLowerCase().replace(/\s+/g, '-') === imageType);
+            if (tool) {
+              toolId = tool.id;
+            }
+          } else if ((metadata as any)?.toolId) {
+            // Try to find tool by toolId from metadata
+            const tools = await ToolsServiceInstance.getActiveTools();
+            const tool = tools.find(t => t.id === (metadata as any).toolId || t.slug === (metadata as any).toolId);
+            if (tool) {
+              toolId = tool.id;
+            }
+          }
+          
+          if (toolId) {
+            // Find pending/processing tool execution for this tool/project/user that doesn't have outputRenderId yet
+            const executions = await ToolsDAL.getExecutionsByTool(toolId, user.id, 10);
+            const pendingExecution = executions.find(
+              exec => 
+                exec.projectId === projectId &&
+                exec.userId === user.id && 
+                !exec.outputRenderId && 
+                (exec.status === 'pending' || exec.status === 'processing')
+            );
+            
+            if (pendingExecution) {
+              // Update tool execution with render ID and output URL
+              await ToolsDAL.updateExecution(pendingExecution.id, {
+                outputRenderId: render.id,
+                outputUrl: uploadResult.url,
+                outputKey: uploadResult.key,
+                status: 'completed',
+                processingTime: Math.round(result.data.processingTime),
+                completedAt: new Date(),
+              });
+              logger.log('✅ Linked tool execution to render:', { 
+                executionId: pendingExecution.id, 
+                renderId: render.id,
+                toolId: toolId 
+              });
+            } else {
+              // Fallback: try to find by project only (less precise but better than nothing)
+              const projectExecutions = await ToolsDAL.getExecutionsByProject(projectId, 10);
+              const fallbackExecution = projectExecutions.find(
+                exec => 
+                  exec.userId === user.id && 
+                  !exec.outputRenderId && 
+                  (exec.status === 'pending' || exec.status === 'processing')
+              );
+              
+              if (fallbackExecution) {
+                await ToolsDAL.updateExecution(fallbackExecution.id, {
+                  outputRenderId: render.id,
+                  outputUrl: uploadResult.url,
+                  outputKey: uploadResult.key,
+                  status: 'completed',
+                  processingTime: Math.round(result.data.processingTime),
+                  completedAt: new Date(),
+                });
+                logger.log('✅ Linked tool execution to render (fallback):', { 
+                  executionId: fallbackExecution.id, 
+                  renderId: render.id 
+                });
+              }
+            }
+          } else {
+            // Fallback: try to find by project only if we can't identify the tool
+            const { ToolsDAL } = await import('@/lib/dal/tools');
+            const projectExecutions = await ToolsDAL.getExecutionsByProject(projectId, 10);
+            const fallbackExecution = projectExecutions.find(
+              exec => 
+                exec.userId === user.id && 
+                !exec.outputRenderId && 
+                (exec.status === 'pending' || exec.status === 'processing')
+            );
+            
+            if (fallbackExecution) {
+              await ToolsDAL.updateExecution(fallbackExecution.id, {
+                outputRenderId: render.id,
+                outputUrl: uploadResult.url,
+                outputKey: uploadResult.key,
+                status: 'completed',
+                processingTime: Math.round(result.data.processingTime),
+                completedAt: new Date(),
+              });
+              logger.log('✅ Linked tool execution to render (fallback by project):', { 
+                executionId: fallbackExecution.id, 
+                renderId: render.id 
+              });
+            }
+          }
+        } catch (error) {
+          // Non-critical - log but don't fail render
+          logger.warn('⚠️ Failed to link tool execution to render (non-critical):', error);
+        }
+      }
+
       // ✅ FIXED: Calculate version number for normal render (not batch)
       // Get completed renders count AFTER this render is marked as completed
       const { getCompletedRenders } = await import('@/lib/utils/chain-helpers');

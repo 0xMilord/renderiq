@@ -61,7 +61,7 @@ export default function AppsPage() {
           '@type': 'SoftwareApplication',
           name: tool.name,
           description: tool.description,
-          url: `${siteUrl}/apps/${tool.slug}`,
+          url: `${siteUrl}/${tool.slug}`,
           applicationCategory: 'DesignApplication',
         },
       })),

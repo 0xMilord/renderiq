@@ -2,9 +2,9 @@
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { MasonryFeed } from '@/components/gallery/masonry-feed';
-import { type SortOption, type FilterOption } from '@/components/gallery/gallery-filters';
+import { type SortOption, type SortField, type SortDirection, type FilterOption } from '@/components/gallery/gallery-filters';
 import { useGallery } from '@/lib/hooks/use-gallery';
-import { Search, X, Filter, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
+import { Search, X, Filter, PanelLeftOpen, PanelLeftClose, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -50,7 +50,7 @@ const ASPECT_RATIO_OPTIONS = [
 
 export default function GalleryPage() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [sortBy, setSortBy] = useState<SortOption>({ field: 'date', direction: 'desc' });
   const [filters, setFilters] = useState<FilterOption>({});
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
@@ -60,7 +60,34 @@ export default function GalleryPage() {
     sortBy,
     filters,
     searchQuery,
-  }), [sortBy, filters, searchQuery]);
+  }), [sortBy.field, sortBy.direction, filters, searchQuery]);
+  
+  // Toggle sort direction
+  const toggleSortDirection = () => {
+    setSortBy(prev => ({
+      ...prev,
+      direction: prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+  
+  // Handle sort field change
+  const handleSortFieldChange = (field: SortField) => {
+    setSortBy(prev => ({
+      field,
+      direction: prev.direction // Keep current direction
+    }));
+  };
+  
+  // Get sort display label
+  const getSortLabel = (field: SortField): string => {
+    const labels: Record<SortField, string> = {
+      date: 'Date Created',
+      likes: 'Likes',
+      views: 'Views',
+      trending: 'Trending Score'
+    };
+    return labels[field];
+  };
   
   // ✅ OPTIMIZED: Pass filters and sort to hook for server-side processing
   const { items, loading, hasMore, loadMore, likeItem, viewItem, likedItems } = useGallery(20, galleryOptions);
@@ -177,8 +204,8 @@ export default function GalleryPage() {
       {/* Header with Title, Description, Sidebar Button in Same Row */}
       <header className="fixed top-[var(--navbar-height)] left-0 right-0 z-40 border-b border-border bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto px-4">
-          {/* Main Header Row: Sidebar Button + Title/Description */}
-          <div className="h-14 flex items-center">
+          {/* Main Header Row: Sidebar Button + Title/Description + Sort */}
+          <div className="h-14 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
               {/* Sidebar Toggle Button */}
               <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
@@ -221,22 +248,6 @@ export default function GalleryPage() {
                           />
                         </div>
                       </div>
-                    {/* Sort */}
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Sort By</Label>
-                      <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="newest">Newest First</SelectItem>
-                          <SelectItem value="oldest">Oldest First</SelectItem>
-                          <SelectItem value="most_liked">Most Liked</SelectItem>
-                          <SelectItem value="most_viewed">Most Viewed</SelectItem>
-                          <SelectItem value="trending">Trending</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
 
                     {/* Content Type Filter */}
                     <div className="space-y-2">
@@ -350,6 +361,39 @@ export default function GalleryPage() {
                   Explore amazing AI-generated architectural renders created by our community
                 </p>
               </div>
+            </div>
+
+            {/* Sort - On extreme right */}
+            <div className="flex-shrink-0 flex items-center gap-2">
+              <Select value={sortBy.field} onValueChange={(value) => handleSortFieldChange(value as SortField)}>
+                <SelectTrigger className="w-[140px] sm:w-[180px] h-8 text-xs sm:text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="date">Date Created</SelectItem>
+                  <SelectItem value="likes">Likes</SelectItem>
+                  <SelectItem value="views">Views</SelectItem>
+                  <SelectItem value="trending">Trending Score</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={toggleSortDirection}
+                disabled={sortBy.field === 'trending'}
+                title={
+                  sortBy.field === 'trending' 
+                    ? 'Trending always sorts by highest score' 
+                    : `Sort ${sortBy.direction === 'asc' ? 'Ascending' : 'Descending'} - Click to toggle`
+                }
+              >
+                {sortBy.direction === 'asc' ? (
+                  <ArrowUp className="h-4 w-4" />
+                ) : (
+                  <ArrowDown className="h-4 w-4" />
+                )}
+              </Button>
             </div>
           </div>
 

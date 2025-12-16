@@ -9,7 +9,6 @@ import type { TLAssetId } from '@tldraw/tlschema';
 import { useTheme } from 'next-themes';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useRenderiqCanvas } from '@/lib/hooks/use-renderiq-canvas';
-import { useRenderiqAgent } from '@/lib/hooks/use-renderiq-agent';
 import type { Render } from '@/lib/types/render';
 import { logger } from '@/lib/utils/logger';
 import { cn } from '@/lib/utils';
@@ -23,8 +22,6 @@ import { GenerateVariantsDialog, type VariantGenerationConfig as VariantConfig }
 import { GenerateDrawingDialog, type DrawingGenerationConfig } from './generate-drawing-dialog';
 import { ImageToVideoDialog, type ImageToVideoConfig } from './image-to-video-dialog';
 import { UpscaleDialog } from './upscale-dialog';
-import { ContextHighlights } from '@/agent-kit/client/components/highlights/ContextHighlights';
-import { GoToAgentButton } from '@/agent-kit/client/components/GoToAgentButton';
 
 // Customize tldraw's default color palette to match Renderiq's green theme
 // This must be done outside React lifecycle (at module level) before component renders
@@ -120,18 +117,6 @@ export function RenderiqCanvas({
     chainId: effectiveChainId,
     currentRenderId: effectiveCurrentRender?.id,
     autoSave: true,
-  });
-
-  // ✅ NEW: Get projectId from chain
-  const effectiveProjectId = storeChain?.projectId || null;
-  
-  // ✅ NEW: Initialize agent for canvas manipulation
-  const { agent, isAgentGenerating } = useRenderiqAgent({
-    editor,
-    chainId: effectiveChainId,
-    projectId: effectiveProjectId,
-    currentRender: effectiveCurrentRender,
-    enabled: true,
   });
 
   // Detect theme changes and mount state
@@ -478,11 +463,9 @@ export function RenderiqCanvas({
             setVideoDialogOpen(true);
           }}
         />
-        {agent && <ContextHighlights agent={agent} />}
-        {agent && <GoToAgentButton agent={agent} />}
       </>
     ),
-  }), [onGenerateFromSelection, onGenerateVariants, onImageToVideo, agent]);
+  }), [onGenerateFromSelection, onGenerateVariants, onImageToVideo]);
 
   // Show generating frame on canvas when generating
   useEffect(() => {
@@ -658,6 +641,12 @@ export function RenderiqCanvas({
           // Create asset ID
           const assetId = AssetRecordType.createId();
 
+          // ✅ FIX: Convert CDN URL to direct GCS URL to avoid CORS issues during SVG export
+          // tldraw's ImageShapeUtil.toSvg uses getDataURIFromURL which fails on CDN URLs due to CORS
+          const { cdnToDirectGCS, isCDNUrl } = await import('@/lib/utils/cdn-fallback');
+          const imageUrl = render.outputUrl!;
+          const assetUrl = isCDNUrl(imageUrl) ? cdnToDirectGCS(imageUrl) : imageUrl;
+
           // Create image asset
           editor.createAssets([
             {
@@ -668,12 +657,13 @@ export function RenderiqCanvas({
                 w: img.naturalWidth || 1200,
                 h: img.naturalHeight || 800,
                 name: `render-${render.id}`,
-                src: render.outputUrl!,
+                src: assetUrl, // Use direct GCS URL instead of CDN URL
                 mimeType: 'image/png',
                 isAnimated: false,
               },
               meta: {
                 renderId: render.id,
+                originalUrl: imageUrl, // Store original URL in meta for reference
               },
             },
           ]);
@@ -796,6 +786,12 @@ export function RenderiqCanvas({
           // Create asset ID using tldraw's AssetRecordType.createId() for proper ID generation
           const assetId = AssetRecordType.createId();
           
+          // ✅ FIX: Convert CDN URL to direct GCS URL to avoid CORS issues during SVG export
+          // tldraw's ImageShapeUtil.toSvg uses getDataURIFromURL which fails on CDN URLs due to CORS
+          const { cdnToDirectGCS, isCDNUrl } = await import('@/lib/utils/cdn-fallback');
+          const imageUrl = effectiveCurrentRender.outputUrl!;
+          const assetUrl = isCDNUrl(imageUrl) ? cdnToDirectGCS(imageUrl) : imageUrl;
+          
           // Create image asset
           editor.createAssets([
             {
@@ -806,12 +802,13 @@ export function RenderiqCanvas({
                 w: imgWidth,
                 h: imgHeight,
                 name: `render-${effectiveCurrentRender.id}`,
-                src: effectiveCurrentRender.outputUrl!,
+                src: assetUrl, // Use direct GCS URL instead of CDN URL
                 mimeType: 'image/png',
                 isAnimated: false,
               },
               meta: {
                 renderId: effectiveCurrentRender.id, // Store render ID in meta for reference
+                originalUrl: imageUrl, // Store original URL in meta for reference
               },
             },
           ]);

@@ -36,6 +36,11 @@ export function convertRenderToMessages(render: Render): [Message, Message] {
       : undefined,
   };
 
+  // Ensure assistant message comes after user message (user uses createdAt, assistant uses createdAt + 1ms)
+  const userTime = render.createdAt instanceof Date ? render.createdAt.getTime() : new Date(render.createdAt).getTime();
+  const updateTime = render.updatedAt instanceof Date ? render.updatedAt.getTime() : new Date(render.updatedAt).getTime();
+  const assistantTime = Math.max(userTime + 1, updateTime); // Ensure assistant is after user message
+
   const assistantMessage: Message = {
     id: `assistant-${render.id}`,
     type: 'assistant',
@@ -45,7 +50,7 @@ export function convertRenderToMessages(render: Render): [Message, Message] {
         : render.status === 'processing' || render.status === 'pending'
           ? 'Generating your render...'
           : '',
-    timestamp: render.updatedAt,
+    timestamp: new Date(assistantTime),
     render: render.status === 'completed' ? render : undefined,
     isGenerating: render.status === 'processing' || render.status === 'pending',
   };
@@ -54,13 +59,18 @@ export function convertRenderToMessages(render: Render): [Message, Message] {
 }
 
 /**
- * Converts an array of renders to messages, sorted by chain position
+ * Converts an array of renders to messages, sorted by createdAt (oldest first, newest at bottom)
  * @param renders - Array of render objects
- * @returns Array of messages (pairs of user and assistant messages)
+ * @returns Array of messages (pairs of user and assistant messages) in chronological order
  */
 export function convertRendersToMessages(renders: Render[]): Message[] {
   return renders
-    .sort((a, b) => (a.chainPosition || 0) - (b.chainPosition || 0))
+    .sort((a, b) => {
+      // Simple chronological order: sort by createdAt (oldest first)
+      const aTime = a.createdAt instanceof Date ? a.createdAt.getTime() : new Date(a.createdAt).getTime();
+      const bTime = b.createdAt instanceof Date ? b.createdAt.getTime() : new Date(b.createdAt).getTime();
+      return aTime - bTime;
+    })
     .flatMap(render => convertRenderToMessages(render));
 }
 

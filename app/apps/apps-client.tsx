@@ -165,7 +165,7 @@ export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
   // Handle tool selection from dropdown
   const handleToolSelect = (tool: ToolConfig) => {
     if (isToolAccessible(tool.id) && tool.status === 'online') {
-      router.push(`/apps/${tool.slug}`);
+      router.push(`/${tool.slug}`);
       setSearchQuery('');
       setShowDropdown(false);
     }
@@ -418,7 +418,7 @@ export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
                   return (
                     <Link 
                       key={tool.id} 
-                      href={isOnline ? `/apps/${tool.slug}` : '#'}
+                      href={isOnline ? `/${tool.slug}` : '#'}
                       onClick={(e) => {
                         if (!isOnline) {
                           e.preventDefault();

@@ -52,7 +52,6 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isAppsDropdownOpen, setIsAppsDropdownOpen] = useState(false);
-  const [hoveredNavItem, setHoveredNavItem] = useState<string | null>(null);
   const pathname = usePathname();
   const { theme, systemTheme } = useTheme();
   const { user, loading } = useAuth();
@@ -74,12 +73,17 @@ export function Navbar() {
     ? (currentTheme === 'dark' ? '/logo-light.svg' : '/logo-dark.svg')
     : '/logo-dark.svg'; // Default to dark logo until mounted
 
-  // Navigation items configuration
+  // Navigation items configuration - Main visible navbar items
+  // Show "Dashboard" instead of "Home" for authenticated users
   const navItems = [
-    { href: '/', icon: Home, label: 'Home' },
+    { href: user ? '/dashboard' : '/', icon: Home, label: user ? 'Dashboard' : 'Home' },
     { href: '/render', icon: Sparkles, label: 'Render' },
     { href: '/canvas', icon: Layout, label: 'Canvas' },
     { href: '/gallery', icon: Images, label: 'Gallery' },
+  ];
+
+  // Hamburger menu items - Moved from main navbar
+  const hamburgerMenuItems = [
     { href: '/pricing', icon: CreditCard, label: 'Pricing' },
     { href: '/blog', icon: Newspaper, label: 'Blog' },
     { 
@@ -100,7 +104,11 @@ export function Navbar() {
 
   // Check if item is active
   const isActive = (href: string) => {
-    if (href === '/') {
+    if (href === '/' || href === '/dashboard') {
+      // For home/dashboard, check both routes based on auth state
+      if (user) {
+        return pathname === '/dashboard' || pathname.startsWith('/dashboard');
+      }
       return pathname === '/';
     }
     return pathname.startsWith(href);
@@ -134,47 +142,31 @@ export function Navbar() {
           {/* Middle Section: Navigation Links */}
           {!loading && (
             <div className="flex-1 flex items-center justify-center">
-              <nav 
-                className="hidden md:flex items-center gap-2"
-                onMouseLeave={() => setHoveredNavItem(null)}
-              >
+              <nav className="hidden md:flex items-center gap-2">
                 {navItems.map((item, index) => {
                   const Icon = item.icon;
                   const active = isActive(item.href);
                   const hasDropdown = item.dropdown && item.dropdown.length > 0;
-                  const showText = active || hoveredNavItem === item.href;
 
                   return (
                     <div key={item.href} className="flex items-center">
                       {index > 0 && (
                         <div className="h-6 w-px bg-border/50 mx-1 shrink-0" />
                       )}
-                      <div 
-                        className="relative"
-                        onMouseEnter={() => setHoveredNavItem(item.href)}
-                        onMouseLeave={() => setHoveredNavItem(null)}
-                      >
+                      <div className="relative">
                         {hasDropdown ? (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <button
                                 className={cn(
-                                  "flex items-center gap-2 rounded-md text-sm font-medium transition-all duration-200 outline-none overflow-hidden",
-                                  showText ? "px-3 py-2 gap-2" : "p-2 gap-0",
+                                  "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 outline-none",
                                   active
                                     ? "bg-primary text-primary-foreground"
                                     : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                                 )}
                               >
                                 <Icon className="h-4 w-4 shrink-0" />
-                                <span 
-                                  className={cn(
-                                    "whitespace-nowrap transition-all duration-200",
-                                    showText 
-                                      ? "opacity-100 max-w-[200px] ml-0" 
-                                      : "opacity-0 max-w-0 ml-0 w-0"
-                                  )}
-                                >
+                                <span className="whitespace-nowrap">
                                   {item.label}
                                 </span>
                               </button>
@@ -199,22 +191,14 @@ export function Navbar() {
                           <Link
                             href={item.href}
                             className={cn(
-                              "flex items-center gap-2 rounded-md text-sm font-medium transition-all duration-200 overflow-hidden",
-                              showText ? "px-3 py-2 gap-2" : "p-2 gap-0",
+                              "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200",
                               active
                                 ? "bg-primary text-primary-foreground"
                                 : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                             )}
                           >
                             <Icon className="h-4 w-4 shrink-0" />
-                            <span 
-                              className={cn(
-                                "whitespace-nowrap transition-all duration-200",
-                                showText 
-                                  ? "opacity-100 max-w-[200px] ml-0" 
-                                  : "opacity-0 max-w-0 ml-0 w-0"
-                              )}
-                            >
+                            <span className="whitespace-nowrap">
                               {item.label}
                             </span>
                           </Link>
@@ -225,51 +209,39 @@ export function Navbar() {
                 })}
                 <div className="flex items-center">
                   <div className="h-6 w-px bg-border/50 mx-1 shrink-0" />
-                  <div
-                    className="relative"
-                    onMouseEnter={() => setHoveredNavItem('apps')}
-                    onMouseLeave={() => setHoveredNavItem(null)}
-                  >
+                  <div className="relative">
                   <DropdownMenu open={isAppsDropdownOpen} onOpenChange={setIsAppsDropdownOpen}>
                     <DropdownMenuTrigger asChild>
                       <button 
                         className={cn(
-                          "flex items-center gap-2 rounded-md text-sm font-medium transition-all duration-200 outline-none overflow-hidden",
-                          (hoveredNavItem === 'apps' || pathname.startsWith('/apps')) ? "px-3 py-2 gap-2" : "p-2 gap-0",
+                          "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 outline-none",
                           pathname.startsWith('/apps')
                             ? "bg-primary text-primary-foreground"
                             : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                         )}
                       >
                         <Wrench className="h-4 w-4 shrink-0" />
-                        <span 
-                          className={cn(
-                            "whitespace-nowrap transition-all duration-200",
-                            (hoveredNavItem === 'apps' || pathname.startsWith('/apps'))
-                              ? "opacity-100 max-w-[400px] ml-0" 
-                              : "opacity-0 max-w-0 ml-0 w-0"
-                          )}
-                        >
+                        <span className="whitespace-nowrap">
                           Apps
                         </span>
                       </button>
                     </DropdownMenuTrigger>
                   <DropdownMenuContent 
                     align="start" 
-                    className="bg-background border border-border rounded-lg shadow-lg z-50 p-4"
+                    className="bg-background border border-border rounded-lg shadow-lg z-50 p-4 w-auto min-w-[400px] max-w-[600px]"
                   >
-                    <div className="grid grid-cols-2 gap-2 min-w-[400px] max-w-[500px]">
+                    <div className="grid grid-cols-2 gap-2 w-full">
                       {/* View All Apps - First Item */}
                       <div className="relative">
                         <DropdownMenuItem asChild>
                           <Link 
                             href="/apps"
-                            className="flex items-center gap-2 p-2 rounded-lg border border-transparent hover:bg-primary/20 hover:border-primary transition-all min-w-0"
+                            className="flex items-center gap-2 p-2 rounded-lg border border-transparent hover:bg-primary/20 hover:border-primary transition-all min-w-0 w-full"
                           >
-                            <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0">
+                            <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0 flex-shrink-0">
                               <Wrench className="h-3.5 w-3.5 shrink-0" />
                             </div>
-                            <span className="text-xs leading-snug truncate min-w-0 flex-1">View All Apps</span>
+                            <span className="text-xs leading-snug break-words min-w-0 flex-1">View All Apps</span>
                           </Link>
                         </DropdownMenuItem>
                       </div>
@@ -279,10 +251,10 @@ export function Navbar() {
                           <div key={tool.id} className="relative">
                             <DropdownMenuItem asChild>
                               <Link 
-                                href={`/apps/${tool.slug}`}
-                                className="flex items-center gap-2 p-2 rounded-lg border border-transparent hover:bg-primary/20 hover:border-primary transition-all min-w-0"
+                                href={`/${tool.slug}`}
+                                className="flex items-center gap-2 p-2 rounded-lg border border-transparent hover:bg-primary/20 hover:border-primary transition-all min-w-0 w-full"
                               >
-                                <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center overflow-hidden shrink-0">
+                                <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center overflow-hidden shrink-0 flex-shrink-0">
                                   <img 
                                     src={iconPath} 
                                     alt={tool.name}
@@ -293,7 +265,7 @@ export function Navbar() {
                                     }}
                                   />
                                 </div>
-                                <span className="text-xs leading-snug truncate min-w-0 flex-1">{tool.name}</span>
+                                <span className="text-xs leading-snug break-words min-w-0 flex-1">{tool.name}</span>
                               </Link>
                             </DropdownMenuItem>
                           </div>
@@ -377,7 +349,7 @@ export function Navbar() {
                             return (
                               <Link
                                 key={tool.id}
-                                href={`/apps/${tool.slug}`}
+                                href={`/${tool.slug}`}
                                 className="flex flex-col items-center justify-center gap-2 p-3 rounded-lg border border-transparent hover:bg-primary/20 hover:border-primary transition-all group"
                                 onClick={() => setIsOpen(false)}
                               >
@@ -421,6 +393,66 @@ export function Navbar() {
                             <Sparkles className="h-5 w-5" />
                             <span>Render</span>
                           </Link>
+                        </div>
+
+                        {/* Separator */}
+                        <div className="h-px bg-border" />
+
+                        {/* Pricing, Blog, and Use Cases - Moved from main navbar */}
+                        <div className="space-y-2">
+                          {hamburgerMenuItems.map((item) => {
+                            const Icon = item.icon;
+                            const active = isActive(item.href);
+                            const hasDropdown = item.dropdown && item.dropdown.length > 0;
+
+                            if (hasDropdown) {
+                              return (
+                                <div key={item.href} className="space-y-1">
+                                  <Link
+                                    href={item.href}
+                                    className={cn(
+                                      "flex items-center space-x-3 text-muted-foreground hover:text-foreground block px-3 py-2.5 rounded-md text-base font-medium transition-colors border border-transparent hover:bg-primary/20 hover:border-primary",
+                                      active && "text-foreground bg-primary/10 border-primary"
+                                    )}
+                                    onClick={() => setIsOpen(false)}
+                                  >
+                                    <Icon className="h-5 w-5" />
+                                    <span>{item.label}</span>
+                                  </Link>
+                                  <div className="pl-11 space-y-1">
+                                    {item.dropdown?.map((dropdownItem) => (
+                                      <Link
+                                        key={dropdownItem.href}
+                                        href={dropdownItem.href}
+                                        className={cn(
+                                          "block px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground rounded-md transition-colors hover:bg-primary/10",
+                                          isActive(dropdownItem.href) && "text-foreground bg-primary/10"
+                                        )}
+                                        onClick={() => setIsOpen(false)}
+                                      >
+                                        {dropdownItem.label}
+                                      </Link>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <Link
+                                key={item.href}
+                                href={item.href}
+                                className={cn(
+                                  "flex items-center space-x-3 text-muted-foreground hover:text-foreground block px-3 py-2.5 rounded-md text-base font-medium transition-colors border border-transparent hover:bg-primary/20 hover:border-primary",
+                                  active && "text-foreground bg-primary/10 border-primary"
+                                )}
+                                onClick={() => setIsOpen(false)}
+                              >
+                                <Icon className="h-5 w-5" />
+                                <span>{item.label}</span>
+                              </Link>
+                            );
+                          })}
                         </div>
                       </div>
                       

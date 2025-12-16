@@ -1,47 +1,91 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+}
 
 :root {
-  /* Light mode - light theme with darker green for proper contrast */
-  --background: 0 0% 100%;
-  --foreground: 0 0% 10%;
-  --card: 0 0% 98%;
-  --card-foreground: 0 0% 10%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 10%;
-  --primary: 72 90% 35%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 0 0% 96%;
-  --secondary-foreground: 0 0% 10%;
-  --muted: 0 0% 96%;
-  --muted-foreground: 0 0% 45%;
-  --accent: 72 90% 35%;
-  --accent-foreground: 0 0% 100%;
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 0 0% 90%;
-  --border-lighter: 0 0% 94%;
-  --input: 0 0% 90%;
-  --ring: 72 90% 35%;
-  --chart-1: 72 90% 35%;
-  --chart-2: 0 0% 45%;
-  --chart-3: 72 70% 50%;
-  --chart-4: 0 0% 35%;
-  --chart-5: 72 60% 55%;
-  --sidebar: 0 0% 98%;
-  --sidebar-foreground: 0 0% 10%;
-  --sidebar-primary: 72 90% 35%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 0 0% 96%;
-  --sidebar-accent-foreground: 0 0% 10%;
-  --sidebar-border: 0 0% 90%;
-  --sidebar-ring: 72 90% 35%;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.65 0.18 132);
+  --primary-foreground: oklch(0.99 0.03 121);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.58 0.22 27);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.90 0.18 127);
+  --chart-2: oklch(0.85 0.21 129);
+  --chart-3: oklch(0.77 0.20 131);
+  --chart-4: oklch(0.65 0.18 132);
+  --chart-5: oklch(0.53 0.14 132);
+  --radius: 0.875rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.65 0.18 132);
+  --sidebar-primary-foreground: oklch(0.99 0.03 121);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+  /* Custom variables for your app */
   --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --radius: 1rem;
-  --navbar-height: calc(2.75rem + 0.8rem); /* h-11 (2.75rem) + py-[0.4rem] (0.4rem top + 0.4rem bottom = 0.8rem) = 3.55rem */
+  --font-geist-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --navbar-height: calc(2.75rem + 0.8rem);
   --shadow-x: 0;
   --shadow-y: 1px;
   --shadow-blur: 3px;
@@ -61,64 +105,51 @@
 }
 
 .dark {
-  /* Dark mode - primary theme with neon green (#D1F24A) and pure dark background */
-  --background: 0 0% 7%;
-  --foreground: 0 0% 85%;
-  --card: 0 0% 9%;
-  --card-foreground: 0 0% 90%;
-  --popover: 0 0% 9%;
-  --popover-foreground: 0 0% 90%;
-  --primary: 72 87% 62%;
-  --primary-foreground: 0 0% 7%;
-  --secondary: 0 0% 12%;
-  --secondary-foreground: 0 0% 85%;
-  --muted: 0 0% 12%;
-  --muted-foreground: 0 0% 60%;
-  --accent: 72 87% 62%;
-  --accent-foreground: 0 0% 7%;
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 0 0% 18%;
-  --border-lighter: 0 0% 26%;
-  --input: 0 0% 15%;
-  --ring: 72 87% 62%;
-  --chart-1: 72 87% 62%;
-  --chart-2: 0 0% 45%;
-  --chart-3: 72 70% 50%;
-  --chart-4: 0 0% 35%;
-  --chart-5: 72 60% 55%;
-  --sidebar: 0 0% 8%;
-  --sidebar-foreground: 0 0% 85%;
-  --sidebar-primary: 72 87% 62%;
-  --sidebar-primary-foreground: 0 0% 7%;
-  --sidebar-accent: 0 0% 12%;
-  --sidebar-accent-foreground: 0 0% 85%;
-  --sidebar-border: 0 0% 18%;
-  --sidebar-ring: 72 87% 62%;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --radius: 1rem;
-  --navbar-height: calc(2.75rem + 0.8rem); /* h-11 (2.75rem) + py-[0.4rem] (0.4rem top + 0.4rem bottom = 0.8rem) = 3.55rem */
-  --shadow-x: 0;
-  --shadow-y: 1px;
-  --shadow-blur: 3px;
-  --shadow-spread: 0px;
-  --shadow-opacity: 0.1;
-  --shadow-color: oklch(0 0 0);
-  --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-  --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-  --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
-  --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
-  --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10);
-  --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
-  --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
-  --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  /* Primary: #D1F24A - Bright neon lime green for dark mode */
+  --primary: oklch(0.90 0.18 120);
+  --primary-foreground: oklch(0.145 0 0);
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  /* Accent: Aligned with primary hue for consistency */
+  --accent: oklch(0.90 0.15 120);
+  --accent-foreground: oklch(0.145 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  /* Ring: Aligned with primary hue */
+  --ring: oklch(0.90 0.18 120);
+  /* Charts: Aligned with primary hue (lime green spectrum) */
+  --chart-1: oklch(0.90 0.18 120);
+  --chart-2: oklch(0.85 0.17 121);
+  --chart-3: oklch(0.80 0.16 122);
+  --chart-4: oklch(0.75 0.15 123);
+  --chart-5: oklch(0.70 0.14 124);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  /* Sidebar primary: Aligned with main primary */
+  --sidebar-primary: oklch(0.90 0.18 120);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  /* Sidebar ring: Aligned with primary */
+  --sidebar-ring: oklch(0.90 0.18 120);
 }
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
   }
   html {
     @apply h-full m-0 p-0;
@@ -127,7 +158,7 @@
     padding: 0;
   }
   body {
-    @apply bg-background text-foreground h-full m-0 p-0;
+    @apply h-full m-0 p-0;
     height: 100%;
     margin: 0;
     padding: 0;
@@ -278,75 +309,75 @@
 /* Tldraw Theme Customization - Align with Renderiq color scheme */
 /* Override tldraw's default blue theme to match our green primary color */
 
-/* ✅ FIXED: Ensure UI dialogs appear above tldraw toolbars */
-/* Dialogs use Radix Portal which renders to body, so they need high z-index */
-/* tldraw toolbars use z-index up to ~1000, so dialogs need higher */
+/* ✅ FIXED: Z-index management for UI components above tldraw canvas */
+/* tldraw uses z-index up to ~1000, so UI components need z-index > 1000 */
+/* Using reasonable values that don't break shadcn's internal z-index management */
+
+/* Dialogs: shadcn uses z-[200]/z-[201], override only when needed above tldraw */
 [data-slot="dialog-overlay"] {
-  z-index: 10000 !important;
+  z-index: 1200;
 }
 
 [data-slot="dialog-content"] {
-  z-index: 10001 !important;
+  z-index: 1201;
 }
 
-/* ✅ FIXED: Ensure fullscreen chat bubble appears above tldraw toolbars */
-/* Fullscreen image dialog in unified chat interface needs high z-index */
-/* Match dialog z-index to ensure consistent layering above tldraw */
+/* Fullscreen chat overlay */
 [data-slot="fullscreen-chat-overlay"] {
-  z-index: 10000 !important;
+  z-index: 1200;
 }
 
-/* ✅ FIXED: Ensure dropdowns, selects, popovers, and other UI components appear above tldraw toolbars */
-/* These components use Radix Portal which renders to body, so they need high z-index */
-/* tldraw toolbars use z-index up to ~1000, so these components need higher */
+/* Dropdowns, selects, popovers: shadcn uses z-50, override to be above tldraw */
 [data-slot="dropdown-menu-content"],
 [data-slot="dropdown-menu-sub-content"] {
-  z-index: 10000 !important;
+  z-index: 1100;
 }
 
 [data-slot="select-content"] {
-  z-index: 10000 !important;
+  z-index: 1100;
 }
 
 [data-slot="popover-content"] {
-  z-index: 10000 !important;
+  z-index: 1100;
 }
 
 [data-slot="context-menu-content"],
 [data-slot="context-menu-sub-content"] {
-  z-index: 10000 !important;
+  z-index: 1100;
 }
 
 [data-slot="menubar-content"],
 [data-slot="menubar-sub-content"] {
-  z-index: 10000 !important;
+  z-index: 1100;
 }
 
 [data-slot="hover-card-content"] {
-  z-index: 10000 !important;
+  z-index: 1100;
 }
 
 [data-slot="tooltip-content"] {
-  z-index: 10000 !important;
+  z-index: 1100;
 }
 
+/* Sheets: similar to dialogs */
 [data-slot="sheet-overlay"] {
-  z-index: 10000 !important;
+  z-index: 1200;
 }
 
 [data-slot="sheet-content"] {
-  z-index: 10001 !important;
+  z-index: 1201;
 }
 
+/* Alert dialogs: similar to dialogs */
 [data-slot="alert-dialog-overlay"] {
-  z-index: 10000 !important;
+  z-index: 1200;
 }
 
 [data-slot="alert-dialog-content"] {
-  z-index: 10001 !important;
+  z-index: 1201;
 }
 
-/* Ensure tldraw toolbars and UI elements stay below dialogs */
+/* Ensure tldraw toolbars and UI elements stay below our UI components */
 /* Target all possible tldraw UI classes with high specificity */
 div[class*="tlui-toolbar"],
 div[class*="tlui-menu"],
@@ -355,17 +386,17 @@ div[class*="tlui-menu-container"],
 div[class*="tlui-popover"],
 div[class*="tlui-panel"],
 div[class*="tlui-dialog"] {
-  z-index: 9999 !important;
+  z-index: 1000;
 }
 
 /* Ensure tldraw overlays stay below dialogs */
 div[class*="tlui-overlay"] {
-  z-index: 9998 !important;
+  z-index: 999;
 }
 
-/* Override any inline z-index styles from tldraw */
+/* Override any inline z-index styles from tldraw (only when needed) */
 div[class*="tlui-"][style*="z-index"] {
-  z-index: 9999 !important;
+  z-index: 1000;
 }
 
 :root {

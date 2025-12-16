@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { Render } from '@/lib/types/render';
 import { logger } from '@/lib/utils/logger';
+import { getSafeStorage } from '@/lib/utils/safe-storage';
 
 export interface Message {
   id: string;
@@ -180,7 +181,7 @@ export const useChatStore = create<ChatState>()(
     }),
     {
       name: 'chat-store-default', // Default name, will be overridden per instance
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => getSafeStorage()),
       onRehydrateStorage: () => (state) => {
         // ✅ FIX: Normalize timestamps when rehydrating from localStorage
         if (state?.messages) {
@@ -320,7 +321,7 @@ export const createChatStore = (projectId: string, chainId?: string) => {
       }),
       {
         name: storageKey,
-        storage: createJSONStorage(() => localStorage),
+        storage: createJSONStorage(() => getSafeStorage()),
         onRehydrateStorage: () => (state) => {
           // ✅ FIX: Normalize timestamps when rehydrating from localStorage
           if (state?.messages) {

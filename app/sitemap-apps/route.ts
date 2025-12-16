@@ -26,7 +26,7 @@ async function getSitemapData(): Promise<MetadataRoute.Sitemap> {
   const toolPages = tools
     .filter(tool => tool.status === 'online') // Only include online tools
     .map((tool) => ({
-      url: `${baseUrl}/apps/${tool.slug}`,
+      url: `${baseUrl}/${tool.slug}`,
       lastModified: currentDate,
       changeFrequency: 'monthly' as const,
       priority: 0.8,
@@ -52,5 +52,7 @@ export async function GET() {
     return new NextResponse('Error generating sitemap', { status: 500 })
   }
 }
+
+
 
 

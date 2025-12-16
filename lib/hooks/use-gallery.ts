@@ -3,11 +3,12 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { getPublicGallery, viewGalleryItem, likeGalleryItem, batchCheckUserLiked } from '@/lib/actions/gallery.actions';
 import type { GalleryItemWithDetails } from '@/lib/types';
+import type { SortOption } from '@/components/gallery/gallery-filters';
 
 export function useGallery(
   limit = 20,
   options?: {
-    sortBy?: 'newest' | 'oldest' | 'most_liked' | 'most_viewed' | 'trending';
+    sortBy?: SortOption;
     filters?: {
       style?: string[];
       quality?: string[];
@@ -30,7 +31,8 @@ export function useGallery(
 
   // ✅ FIXED: Memoize options to prevent unnecessary callback recreation
   const memoizedOptions = useMemo(() => options, [
-    options?.sortBy,
+    options?.sortBy?.field,
+    options?.sortBy?.direction,
     options?.searchQuery,
     options?.filters?.style?.join(',') || '',
     options?.filters?.quality?.join(',') || '',
@@ -178,7 +180,8 @@ export function useGallery(
       filters: options?.filters || {},
     });
   }, [
-    options?.sortBy,
+    options?.sortBy?.field,
+    options?.sortBy?.direction,
     options?.searchQuery,
     options?.filters?.style?.join(',') || '',
     options?.filters?.quality?.join(',') || '',

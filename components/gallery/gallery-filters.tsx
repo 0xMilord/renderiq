@@ -19,7 +19,12 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 
-export type SortOption = 'newest' | 'oldest' | 'most_liked' | 'most_viewed' | 'trending';
+export type SortField = 'date' | 'likes' | 'views' | 'trending';
+export type SortDirection = 'asc' | 'desc';
+export type SortOption = {
+  field: SortField;
+  direction: SortDirection;
+};
 export type FilterOption = {
   style?: string[];
   quality?: string[];

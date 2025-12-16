@@ -89,6 +89,44 @@ function GalleryImageCardComponent({
   // Approximate: ~50-60 characters per line, so ~150-180 chars for 3 lines
   const shouldShowMoreButton = useMemo(() => item.render.prompt.length > 150, [item.render.prompt.length]);
 
+  // Check if image was generated with a tool/app (hide prompts for these)
+  // Multiple detection methods to ensure we catch all tool-generated images
+  const isToolGenerated = useMemo(() => {
+    // Method 1: Check if tool object exists (from toolExecutions join)
+    if (item.tool?.id) {
+      return true;
+    }
+    
+    // Method 2: Check if prompt contains system prompt patterns (leaked system prompts)
+    const prompt = item.render.prompt || '';
+    const systemPromptPatterns = [
+      /<role>/i,
+      /<task>/i,
+      /<constraints>/i,
+      /<output_requirements>/i,
+      /<context>/i,
+      /You are an expert/i,
+      /Transform this/i,
+      /architectural draftsman/i,
+      /3D axonometric/i,
+      /isometric diagram/i,
+      /floor plan/i,
+    ];
+    
+    // If prompt contains system prompt patterns, it's likely a tool-generated image
+    if (systemPromptPatterns.some(pattern => pattern.test(prompt))) {
+      return true;
+    }
+    
+    // Method 3: Check render settings for tool indicators
+    const settings = item.render.settings as any;
+    if (settings?.imageType || settings?.toolId || settings?.toolSlug) {
+      return true;
+    }
+    
+    return false;
+  }, [item.tool?.id, item.render.prompt, item.render.settings]);
+
   // Get tool information from item.tool (from DAL) or fallback to render settings
   const toolName = useMemo(() => {
     // First try to get from tool object (from DAL join)
@@ -272,7 +310,7 @@ function GalleryImageCardComponent({
       .replace(/[^a-z0-9-]/g, '')
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '');
-    return `/${username}`;
+    return `/u/${username}`;
   }, [item.user?.name]);
 
   // Get user initials for fallback avatar
@@ -478,25 +516,6 @@ function GalleryImageCardComponent({
                 maxWidth: '100%',
               }}
             >
-              {/* Tool Badge Overlay */}
-              {toolName && item.tool?.slug && (
-                <div className="absolute bottom-2 left-2 z-20">
-                  <Link
-                    href={`/apps/${item.tool.slug}`}
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent card click
-                    }}
-                    className="inline-block"
-                  >
-                    <Badge 
-                      variant="default" 
-                      className="text-xs bg-primary/90 text-primary-foreground backdrop-blur-sm hover:bg-primary cursor-pointer transition-colors"
-                    >
-                      {toolName}
-                    </Badge>
-                  </Link>
-                </div>
-              )}
               {imageLoading && !isVideo && (
                 <div className="absolute inset-0 flex items-center justify-center bg-muted z-10">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -724,25 +743,6 @@ function GalleryImageCardComponent({
             maxWidth: '100%',
           }}
         >
-          {/* Tool Badge Overlay */}
-          {toolName && item.tool?.slug && (
-            <div className="absolute bottom-2 left-2 z-20">
-              <Link
-                href={`/apps/${item.tool.slug}`}
-                onClick={(e) => {
-                  e.stopPropagation(); // Prevent card click
-                }}
-                className="inline-block"
-              >
-                <Badge 
-                  variant="default" 
-                  className="text-xs bg-primary/90 text-primary-foreground backdrop-blur-sm hover:bg-primary cursor-pointer transition-colors"
-                >
-                  {toolName}
-                </Badge>
-              </Link>
-            </div>
-          )}
           {(imageLoading || videoLoading) && (
             <div className="absolute inset-0 flex items-center justify-center bg-muted z-10">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -853,68 +853,81 @@ function GalleryImageCardComponent({
 
       {/* Actions Section */}
       <div className="px-4 py-3 space-y-3">
-        {/* Prompt - Show prompt instead of username */}
-        <div className="text-sm">
-          <div className="inline-block w-full">
-            <div className="flex items-start gap-2">
-              <span
-                className={cn(
-                  "text-foreground flex-1",
-                  !isPromptExpanded && "line-clamp-3"
-                )}
-              >
-                {item.render.prompt}
-              </span>
-              <button
-                onClick={handleCopyPrompt}
-                className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 mt-0.5"
-                title="Copy prompt"
-              >
-                {copied ? (
-                  <Check className="h-4 w-4 text-green-500" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </button>
+        {/* Prompt - Hide for tool-generated images (they use secret system prompts) */}
+        {!isToolGenerated && (
+          <div className="text-sm">
+            <div className="inline-block w-full">
+              <div className="flex items-start gap-2">
+                <span
+                  className={cn(
+                    "text-foreground flex-1",
+                    !isPromptExpanded && "line-clamp-3"
+                  )}
+                >
+                  {item.render.prompt}
+                </span>
+                <button
+                  onClick={handleCopyPrompt}
+                  className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 mt-0.5"
+                  title="Copy prompt"
+                >
+                  {copied ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+              {shouldShowMoreButton && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsPromptExpanded(!isPromptExpanded);
+                  }}
+                  className="text-muted-foreground hover:text-foreground mt-1 font-medium transition-colors"
+                >
+                  {isPromptExpanded ? ' show less' : '... show more'}
+                </button>
+              )}
             </div>
-            {shouldShowMoreButton && (
-              <button
-                onClick={(e) => {
+          </div>
+        )}
+
+        {/* Tool Badge - Replaces tags */}
+        {toolName && (item.tool?.slug || item.tool?.id) && (
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={item.tool?.slug ? `/${item.tool.slug}` : '#'}
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent card click
+                if (!item.tool?.slug) {
                   e.preventDefault();
-                  e.stopPropagation();
-                  setIsPromptExpanded(!isPromptExpanded);
-                }}
-                className="text-muted-foreground hover:text-foreground mt-1 font-medium transition-colors"
+                }
+              }}
+              className="inline-block"
+            >
+              <Badge 
+                variant="default" 
+                className="text-xs bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer transition-colors"
               >
-                {isPromptExpanded ? ' show less' : '... show more'}
-              </button>
+                {toolName}
+              </Badge>
+            </Link>
+            {isVideo && (
+              <Badge variant="secondary" className="text-xs">
+                🎬 Video
+              </Badge>
             )}
           </div>
-        </div>
-
-        {/* Metadata as Tags */}
-        <div className="flex flex-wrap gap-2">
-          {isVideo && (
-            <Badge variant="default" className="text-xs bg-primary text-primary-foreground">
+        )}
+        {!toolName && isVideo && (
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary" className="text-xs">
               🎬 Video
             </Badge>
-          )}
-          {item.render.settings?.style && (
-            <Badge variant="secondary" className="text-xs capitalize">
-              {item.render.settings.style}
-            </Badge>
-          )}
-          {item.render.settings?.quality && (
-            <Badge variant="secondary" className="text-xs capitalize">
-              {item.render.settings.quality}
-            </Badge>
-          )}
-          {item.render.settings?.aspectRatio && (
-            <Badge variant="secondary" className="text-xs">
-              {item.render.settings.aspectRatio}
-            </Badge>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Bottom Row: Views, Likes, Share, Date - Multi-column layout */}
         <div className="grid grid-cols-4 gap-2 pt-2 border-t border-border">

@@ -99,12 +99,12 @@ export function ArchitectureAppsSection() {
                   const iconPath = getToolIconPath(tool);
 
                   return (
-                    <Link key={tool.id} href={`/apps/${tool.slug}`} className="block">
+                    <Link key={tool.id} href={`/${tool.slug}`} className="block">
                       <Card className={`hover:shadow-lg transition-all duration-300 group cursor-pointer overflow-hidden flex flex-col h-full ${isOffline ? 'opacity-75' : ''}`}>
                         <CardHeader className="p-4 flex flex-col h-full">
                           {/* Image and Title in Same Row - 2 Column Format */}
                           <div className="grid grid-cols-[auto_1fr] gap-3 items-start mb-2 flex-shrink-0">
-                            <div className={`w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0 ${tool.color || 'bg-primary'} bg-opacity-10 overflow-hidden`}>
+                            <div className={`w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0 ${tool.color ? `${tool.color}/10` : 'bg-primary/10'} overflow-hidden`}>
                               {iconPath ? (
                                 <img 
                                   src={iconPath} 
@@ -143,7 +143,7 @@ export function ArchitectureAppsSection() {
                     <CardHeader className="p-4 flex flex-col h-full">
                       {/* Image and Title in Same Row - 2 Column Format */}
                       <div className="grid grid-cols-[auto_1fr] gap-3 items-start mb-2 flex-shrink-0">
-                        <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-primary bg-opacity-10">
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-primary/10">
                           <FaArrowRight className="h-5 w-5 text-primary" />
                         </div>
                         <CardTitle className="text-sm font-semibold group-hover:text-primary transition-colors leading-tight line-clamp-2 min-h-[2.5rem]">

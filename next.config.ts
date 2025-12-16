@@ -11,7 +11,23 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: process.cwd(),
   
   // Server components external packages - these won't be bundled, use node_modules directly
-  serverExternalPackages: ['@ai-sdk/google', 'ai'],
+  // ✅ FIX: Added for Turbopack compatibility - ensures these packages are resolved correctly
+  // ✅ FIX: Added React and tldraw to prevent server-side bundling issues
+  serverExternalPackages: [
+    '@ai-sdk/google', 
+    'ai', 
+    '@google/genai', 
+    '@google-cloud/vertexai',
+    'react',
+    'react-dom',
+    'tldraw',
+    '@tldraw/store',
+    '@tldraw/utils',
+    '@tldraw/state',
+    '@tldraw/state-react',
+    '@tldraw/validate',
+    '@tldraw/tlschema',
+  ],
   
   // Generate build ID for Sentry release tracking
   generateBuildId: async () => {
@@ -50,6 +66,9 @@ const nextConfig: NextConfig = {
     resolveAlias: {
       'contentlayer2/generated': './.contentlayer/generated/index.mjs',
     },
+    // ✅ FIX: Ensure serverExternalPackages works with Turbopack
+    // Turbopack respects serverExternalPackages, but we can also add explicit externals
+    resolveExtensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
   },
   // Webpack config for production builds (Turbopack not used in production)
   webpack: (config, { isServer, dev }) => {
@@ -120,15 +139,98 @@ const nextConfig: NextConfig = {
         ...config.resolve.alias,
       };
       
-      // Try to resolve packages for better module resolution
+      // ✅ CRITICAL FIX: Ensure React resolves to the correct version
+      // This prevents the "createContext is not a function" error
       try {
-        const googlePath = require.resolve('@ai-sdk/google');
-        const aiPath = require.resolve('ai');
+        const reactPath = require.resolve('react', { paths: [process.cwd()] });
+        const reactDomPath = require.resolve('react-dom', { paths: [process.cwd()] });
+        config.resolve.alias['react'] = reactPath;
+        config.resolve.alias['react-dom'] = reactDomPath;
+        config.resolve.alias['react/jsx-runtime'] = require.resolve('react/jsx-runtime', { paths: [process.cwd()] });
+        config.resolve.alias['react/jsx-dev-runtime'] = require.resolve('react/jsx-dev-runtime', { paths: [process.cwd()] });
+        
+        if (dev) {
+          console.log('✅ Module resolution: React resolved to', reactPath);
+        }
+      } catch (e) {
+        if (dev) {
+          console.warn('⚠️ Module resolution: Could not resolve React, using default');
+        }
+      }
+      
+      // ✅ CRITICAL FIX: Ensure React resolves to the correct version FIRST
+      // This prevents the "createContext is not a function" error
+      try {
+        const reactPath = require.resolve('react', { paths: [process.cwd()] });
+        const reactDomPath = require.resolve('react-dom', { paths: [process.cwd()] });
+        config.resolve.alias['react'] = reactPath;
+        config.resolve.alias['react-dom'] = reactDomPath;
+        config.resolve.alias['react/jsx-runtime'] = require.resolve('react/jsx-runtime', { paths: [process.cwd()] });
+        config.resolve.alias['react/jsx-dev-runtime'] = require.resolve('react/jsx-dev-runtime', { paths: [process.cwd()] });
+        
+        if (dev) {
+          console.log('✅ Module resolution: React resolved to', reactPath);
+        }
+      } catch (e) {
+        if (dev) {
+          console.warn('⚠️ Module resolution: Could not resolve React, using default');
+        }
+      }
+      
+      // ✅ FIX: Try to resolve packages for better module resolution
+      // This helps both webpack and Turbopack find the modules
+      try {
+        const googlePath = require.resolve('@ai-sdk/google', { paths: [process.cwd()] });
+        const aiPath = require.resolve('ai', { paths: [process.cwd()] });
         config.resolve.alias['@ai-sdk/google'] = googlePath;
         config.resolve.alias['ai'] = aiPath;
+        // Log successful resolution for debugging
+        if (dev) {
+          console.log('✅ Module resolution: @ai-sdk/google and ai resolved successfully');
+        }
       } catch (e) {
         // If resolution fails, webpack will try to find them in node_modules
         // serverExternalPackages will handle externalization
+        if (dev) {
+          console.warn('⚠️ Module resolution: Could not resolve @ai-sdk/google or ai, using node_modules fallback');
+        }
+      }
+      
+      // ✅ FIX: Ensure these packages are not bundled (externalized)
+      // This prevents React and tldraw from being bundled on the server, avoiding multiple instances
+      config.externals = config.externals || [];
+      const externalPackages = [
+        '@ai-sdk/google', 
+        'ai',
+        'react',
+        'react-dom',
+        'react/jsx-runtime',
+        'react/jsx-dev-runtime',
+        'tldraw',
+        '@tldraw/store',
+        '@tldraw/utils',
+        '@tldraw/state',
+        '@tldraw/state-react',
+        '@tldraw/validate',
+        '@tldraw/tlschema',
+      ];
+      
+      if (Array.isArray(config.externals)) {
+        config.externals.push(...externalPackages);
+      } else if (typeof config.externals === 'function') {
+        const originalExternals = config.externals;
+        config.externals = (context: any, request: string, callback: any) => {
+          if (externalPackages.includes(request) || request.startsWith('react/') || request.startsWith('@tldraw/')) {
+            return callback(null, `commonjs ${request}`);
+          }
+          return originalExternals(context, request, callback);
+        };
+      } else {
+        // If externals is an object, merge it
+        const externalsObj = config.externals as Record<string, boolean>;
+        externalPackages.forEach(pkg => {
+          externalsObj[pkg] = true;
+        });
       }
     }
     
@@ -401,7 +503,7 @@ const nextConfig: NextConfig = {
   
   // Redirects for SEO
   async redirects() {
-    return [
+    const redirects = [
       {
         source: '/ai-tools',
         destination: '/ai-architecture-tools',
@@ -412,7 +514,17 @@ const nextConfig: NextConfig = {
         destination: '/ai-rendering-software',
         permanent: true,
       },
-    ]
+    ];
+
+    // Redirect old /apps/[toolSlug] routes to root-level /[toolSlug]
+    // This handles the migration from /apps/tool-slug to /tool-slug
+    redirects.push({
+      source: '/apps/:toolSlug',
+      destination: '/:toolSlug',
+      permanent: true,
+    });
+
+    return redirects;
   },
 }
 

@@ -52,6 +52,7 @@ export interface ImageGenerationResult {
     quality: string;
     aspectRatio: string;
     seed?: number;
+    thoughtSummaries?: string[]; // Thought signatures from Gemini thinking mode
   };
 }
 
@@ -460,20 +461,28 @@ Original prompt: "${originalPrompt}"`;
         }
       }
 
-      // Extract image from response - check new SDK response structure
+      // Extract image and thought signatures from response - check new SDK response structure
       // The new SDK might return data differently
       let imageData: string | null = null;
       let mimeType: string = 'image/png';
+      let thoughtSummaries: string[] = [];
 
       // Try different response structures
       if (response.candidates && response.candidates.length > 0) {
         const candidate = response.candidates[0];
         if (candidate.content?.parts) {
           for (const part of candidate.content.parts) {
+            // Extract thought signatures (thinking summaries)
+            if ((part as any).thought === true && (part as any).text) {
+              thoughtSummaries.push((part as any).text);
+              logger.log('💭 AISDKService: Thought signature found', {
+                summary: (part as any).text.substring(0, 100)
+              });
+            }
+            // Extract image data
             if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
               imageData = part.inlineData.data;
               mimeType = part.inlineData.mimeType;
-              break;
             }
           }
         }
@@ -550,7 +559,8 @@ Original prompt: "${originalPrompt}"`;
             style: request.effect || 'realistic',
             quality: 'standard',
             aspectRatio: aspectRatio,
-            seed: request.seed
+            seed: request.seed,
+            thoughtSummaries: thoughtSummaries.length > 0 ? thoughtSummaries : undefined
           }
         }
       };
@@ -1300,10 +1310,26 @@ Original prompt: "${originalPrompt}"`;
           }
         });
         
-        // Extract image from response (same as chat API would)
-        const imagePart = response.candidates?.[0]?.content?.parts?.find(
-          (part: any) => part.inlineData && part.inlineData.mimeType?.startsWith('image/')
-        );
+        // Extract image and thought signatures from response
+        const candidate = response.candidates?.[0];
+        let imagePart: any = null;
+        const thoughtSummaries: string[] = [];
+        
+        if (candidate?.content?.parts) {
+          for (const part of candidate.content.parts) {
+            // Extract thought signatures
+            if ((part as any).thought === true && (part as any).text) {
+              thoughtSummaries.push((part as any).text);
+              logger.log('💭 AISDKService: Thought signature found in chat message', {
+                summary: (part as any).text.substring(0, 100)
+              });
+            }
+            // Extract image
+            if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
+              imagePart = part;
+            }
+          }
+        }
         
         if (!imagePart?.inlineData) {
           throw new Error('No image in response');
@@ -1311,7 +1337,8 @@ Original prompt: "${originalPrompt}"`;
 
         const processingTime = Date.now() - startTime;
         logger.log('✅ AISDKService: Chat message processed (via generateContent fallback)', {
-          processingTime: `${processingTime}ms`
+          processingTime: `${processingTime}ms`,
+          thoughtSummariesCount: thoughtSummaries.length
         });
         
         // ✅ FIXED: Return same format as generateImage for consistency
@@ -1326,7 +1353,8 @@ Original prompt: "${originalPrompt}"`;
               prompt: message,
               aspectRatio: config?.aspectRatio || '16:9',
               imageSize: config?.imageSize || '1K',
-              method: 'generateContent-fallback'
+              method: 'generateContent-fallback',
+              thoughtSummaries: thoughtSummaries.length > 0 ? thoughtSummaries : undefined
             }
           }
         };
@@ -1356,10 +1384,26 @@ Original prompt: "${originalPrompt}"`;
         }
       });
       
-      // Extract image from response
-      const imagePart = response.candidates[0].content.parts.find(
-        (part: any) => part.inlineData
-      );
+      // Extract image and thought signatures from response
+      const candidate = response.candidates[0];
+      let imagePart: any = null;
+      const thoughtSummaries: string[] = [];
+      
+      if (candidate?.content?.parts) {
+        for (const part of candidate.content.parts) {
+          // Extract thought signatures
+          if ((part as any).thought === true && (part as any).text) {
+            thoughtSummaries.push((part as any).text);
+            logger.log('💭 AISDKService: Thought signature found in chat session', {
+              summary: (part as any).text.substring(0, 100)
+            });
+          }
+          // Extract image
+          if (part.inlineData) {
+            imagePart = part;
+          }
+        }
+      }
       
       if (!imagePart?.inlineData) {
         throw new Error('No image in response');
@@ -1367,7 +1411,8 @@ Original prompt: "${originalPrompt}"`;
 
       const processingTime = Date.now() - startTime;
       logger.log('✅ AISDKService: Chat message processed', {
-        processingTime: `${processingTime}ms`
+        processingTime: `${processingTime}ms`,
+        thoughtSummariesCount: thoughtSummaries.length
       });
       
       // ✅ FIXED: Return same format as generateImage for consistency
@@ -1384,6 +1429,7 @@ Original prompt: "${originalPrompt}"`;
           quality: 'standard',
           aspectRatio: config?.aspectRatio || '16:9',
           chatSessionId,
+          thoughtSummaries: thoughtSummaries.length > 0 ? thoughtSummaries : undefined,
           // Additional metadata
           pipelineStage: 'chat-session'
         } as any // Allow additional metadata fields

@@ -165,8 +165,12 @@ export async function createToolExecutionAction(formData: FormData) {
     // Create render (if needed) - this will be handled by the tool-specific logic
     // For now, we'll create the execution and let the caller handle render creation
 
+    // Get tool slug for revalidation
+    const tool = await ToolsService.getToolById(toolId);
     revalidatePath('/apps');
-    revalidatePath(`/apps/${toolId}`);
+    if (tool) {
+      revalidatePath(`/${tool.slug}`);
+    }
 
     return {
       success: true,
@@ -208,8 +212,12 @@ export async function updateToolExecutionAction(
       return { success: false, error: 'Execution not found' };
     }
 
-    revalidatePath('/apps');
-    revalidatePath(`/apps/${execution.toolId}`);
+    // Get tool slug for revalidation
+    const tool = await ToolsService.getToolById(execution.toolId);
+    if (tool) {
+      revalidatePath('/apps');
+      revalidatePath(`/${tool.slug}`);
+    }
 
     return {
       success: true,
@@ -254,8 +262,12 @@ export async function saveToolTemplateAction(formData: FormData) {
       isPublic,
     });
 
+    // Get tool slug for revalidation
+    const tool = await ToolsService.getToolById(toolId);
     revalidatePath('/apps');
-    revalidatePath(`/apps/${toolId}`);
+    if (tool) {
+      revalidatePath(`/${tool.slug}`);
+    }
 
     return {
       success: true,

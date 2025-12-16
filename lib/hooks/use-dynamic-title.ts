@@ -31,8 +31,11 @@ export function useDynamicTitle(title?: string, projectName?: string, chainName?
         pageTitle = 'Gallery - Renderiq';
       } else if (pathname.startsWith('/project/')) {
         pageTitle = 'Project - Renderiq';
-      } else if (pathname.startsWith('/apps/')) {
+      } else if (pathname.startsWith('/apps')) {
         pageTitle = 'Apps - Renderiq';
+      } else if (pathname !== '/' && !pathname.startsWith('/dashboard') && !pathname.startsWith('/api') && !pathname.startsWith('/_next') && !pathname.startsWith('/u/') && !pathname.startsWith('/gallery') && !pathname.startsWith('/pricing') && !pathname.startsWith('/use-cases') && !pathname.startsWith('/render') && !pathname.startsWith('/canvas') && !pathname.startsWith('/project') && !pathname.startsWith('/login') && !pathname.startsWith('/signup') && !pathname.startsWith('/auth') && !pathname.startsWith('/blog') && !pathname.startsWith('/docs') && !pathname.startsWith('/about') && !pathname.startsWith('/contact') && !pathname.startsWith('/privacy') && !pathname.startsWith('/terms')) {
+        // This might be a tool slug at root level
+        pageTitle = 'Tool - Renderiq';
       } else if (pathname.startsWith('/pricing')) {
         pageTitle = 'Pricing - Renderiq';
       }

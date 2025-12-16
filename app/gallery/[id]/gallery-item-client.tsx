@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -223,8 +223,46 @@ export function GalleryItemPageClient({ item, similarItems }: GalleryItemPageCli
       .replace(/[^a-z0-9-]/g, '')
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '');
-    return `/${username}`;
+    return `/u/${username}`;
   };
+
+  // Check if image was generated with a tool/app (hide prompts for these)
+  // Multiple detection methods to ensure we catch all tool-generated images
+  const isToolGenerated = useMemo(() => {
+    // Method 1: Check if tool object exists (from toolExecutions join)
+    if (item.tool?.id) {
+      return true;
+    }
+    
+    // Method 2: Check if prompt contains system prompt patterns (leaked system prompts)
+    const prompt = item.render.prompt || '';
+    const systemPromptPatterns = [
+      /<role>/i,
+      /<task>/i,
+      /<constraints>/i,
+      /<output_requirements>/i,
+      /<context>/i,
+      /You are an expert/i,
+      /Transform this/i,
+      /architectural draftsman/i,
+      /3D axonometric/i,
+      /isometric diagram/i,
+      /floor plan/i,
+    ];
+    
+    // If prompt contains system prompt patterns, it's likely a tool-generated image
+    if (systemPromptPatterns.some(pattern => pattern.test(prompt))) {
+      return true;
+    }
+    
+    // Method 3: Check render settings for tool indicators
+    const settings = item.render.settings as any;
+    if (settings?.imageType || settings?.toolId || settings?.toolSlug) {
+      return true;
+    }
+    
+    return false;
+  }, [item.tool?.id, item.render.prompt, item.render.settings]);
 
   // Check if prompt exceeds 10 lines
   const promptLines = item.render.prompt.split('\n').length;
@@ -351,67 +389,69 @@ export function GalleryItemPageClient({ item, similarItems }: GalleryItemPageCli
 
           {/* Main Content - 2 Column Layout: Image first on mobile/tablet, Prompt below. On desktop: Prompt (1/4) on Left, Image (3/4) on Right */}
           <div className="flex flex-col lg:flex-row gap-6 mb-6 w-full max-w-full overflow-hidden">
-            {/* Left Column - Prompt Box (1/4 width) - Shows below image on mobile/tablet */}
-            <div className="w-full lg:w-1/4 lg:flex-shrink-0 min-w-0 max-w-full order-2 lg:order-1">
-              <section className="bg-card rounded-lg border border-border p-4 lg:sticky lg:top-4 overflow-hidden flex flex-col max-h-[calc(25vh-2rem)] lg:max-h-[calc(100vh-8rem)]">
-                <div className="flex items-center justify-between mb-3 flex-shrink-0">
-                  <h2 className="font-semibold text-lg">Prompt</h2>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={copyPrompt}
-                    className="h-7"
-                    aria-label="Copy prompt"
-                  >
-                    {copied ? (
-                      <Check className="h-3 w-3" />
-                    ) : (
-                      <Copy className="h-3 w-3" />
-                    )}
-                  </Button>
-                </div>
-                <div className="space-y-2 overflow-y-auto flex-1 min-h-0">
-                  <p className={cn(
-                    "text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap",
-                    !promptExpanded && "line-clamp-10"
-                  )} itemProp="description">
-                    {item.render.prompt}
-                  </p>
-                  {shouldShowExpand && (
-                    <button
-                      onClick={() => setPromptExpanded(!promptExpanded)}
-                      className="text-sm text-primary hover:underline flex-shrink-0"
-                      aria-expanded={promptExpanded}
+            {/* Left Column - Prompt Box (1/4 width) - Shows below image on mobile/tablet - Hide for tool-generated images */}
+            {!isToolGenerated && (
+              <div className="w-full lg:w-1/4 lg:flex-shrink-0 min-w-0 max-w-full order-2 lg:order-1">
+                <section className="bg-card rounded-lg border border-border p-4 lg:sticky lg:top-4 overflow-hidden flex flex-col max-h-[calc(25vh-2rem)] lg:max-h-[calc(100vh-8rem)]">
+                  <div className="flex items-center justify-between mb-3 flex-shrink-0">
+                    <h2 className="font-semibold text-lg">Prompt</h2>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={copyPrompt}
+                      className="h-7"
+                      aria-label="Copy prompt"
                     >
-                      {promptExpanded ? 'Show less' : 'Show more'}
-                    </button>
-                  )}
-                </div>
-                
-                {/* Tags/Settings - Below Prompt */}
-                {item.render.settings && (
-                  <div className="mt-4 pt-4 border-t border-border flex-shrink-0">
-                    <div className="flex flex-wrap gap-2">
-                      {item.render.settings.style && (
-                        <Badge variant="default" className="text-base px-3 py-1.5 h-auto">
-                          {item.render.settings.style}
-                        </Badge>
+                      {copied ? (
+                        <Check className="h-3 w-3" />
+                      ) : (
+                        <Copy className="h-3 w-3" />
                       )}
-                      {item.render.settings.quality && (
-                        <Badge variant="default" className="text-base px-3 py-1.5 h-auto">
-                          {item.render.settings.quality}
-                        </Badge>
-                      )}
-                      {item.render.settings.aspectRatio && (
-                        <Badge variant="default" className="text-base px-3 py-1.5 h-auto">
-                          {item.render.settings.aspectRatio}
-                        </Badge>
-                      )}
-                    </div>
+                    </Button>
                   </div>
-                )}
-              </section>
-            </div>
+                  <div className="space-y-2 overflow-y-auto flex-1 min-h-0">
+                    <p className={cn(
+                      "text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap",
+                      !promptExpanded && "line-clamp-10"
+                    )} itemProp="description">
+                      {item.render.prompt}
+                    </p>
+                    {shouldShowExpand && (
+                      <button
+                        onClick={() => setPromptExpanded(!promptExpanded)}
+                        className="text-sm text-primary hover:underline flex-shrink-0"
+                        aria-expanded={promptExpanded}
+                      >
+                        {promptExpanded ? 'Show less' : 'Show more'}
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Tags/Settings - Below Prompt */}
+                  {item.render.settings && (
+                    <div className="mt-4 pt-4 border-t border-border flex-shrink-0">
+                      <div className="flex flex-wrap gap-2">
+                        {item.render.settings.style && (
+                          <Badge variant="default" className="text-base px-3 py-1.5 h-auto">
+                            {item.render.settings.style}
+                          </Badge>
+                        )}
+                        {item.render.settings.quality && (
+                          <Badge variant="default" className="text-base px-3 py-1.5 h-auto">
+                            {item.render.settings.quality}
+                          </Badge>
+                        )}
+                        {item.render.settings.aspectRatio && (
+                          <Badge variant="default" className="text-base px-3 py-1.5 h-auto">
+                            {item.render.settings.aspectRatio}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </section>
+              </div>
+            )}
 
             {/* Right Column - Image (3/4 width) - Shows first on mobile/tablet */}
             <div className="w-full lg:w-3/4 lg:flex-shrink-0 min-w-0 max-w-full overflow-hidden order-1 lg:order-2">

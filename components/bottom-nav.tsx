@@ -82,7 +82,7 @@ export function BottomNav() {
   }
 
   const handleAppSelect = (toolSlug: string) => {
-    router.push(`/apps/${toolSlug}`);
+    router.push(`/${toolSlug}`);
     setIsAppsSheetOpen(false);
   };
 

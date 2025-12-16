@@ -230,7 +230,7 @@ export default function UseCasesPage() {
                             return (
                               <Link 
                                 key={toolSlug}
-                                href={`/apps/${toolSlug}`}
+                                href={`/${toolSlug}`}
                                 className="text-xs px-2 py-1 bg-background border rounded-md hover:bg-primary hover:text-primary-foreground transition-colors"
                               >
                                 {tool.name}
