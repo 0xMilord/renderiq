@@ -59,27 +59,27 @@ export function UserProfilePageClient({ user, galleryItems }: UserProfilePageCli
         <Card className="mb-12 border-2 shadow-lg">
           <CardContent className="p-6 sm:p-8">
             <div className="flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-8">
-              {/* Avatar */}
+            {/* Avatar */}
               <div className="relative flex-shrink-0">
                 {user.avatar ? (
-                  <div className="relative">
-                    <Image
-                      src={user.avatar}
+            <div className="relative">
+                <Image
+                  src={user.avatar}
                       alt={displayName}
                       width={140}
                       height={140}
                       className="rounded-full border-4 border-primary/20 shadow-xl object-cover"
-                    />
+                />
                     <div className="absolute inset-0 rounded-full border-4 border-primary/10" />
                   </div>
-                ) : (
+              ) : (
                   <div className="w-[140px] h-[140px] rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center border-4 border-primary/20 shadow-xl">
                     <User className="h-20 w-20 text-primary" />
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
+            </div>
 
-              {/* User Info */}
+            {/* User Info */}
               <div className="flex-1 text-center md:text-left min-w-0">
                 {/* Username Display */}
                 <div className="mb-4">
@@ -114,7 +114,7 @@ export function UserProfilePageClient({ user, galleryItems }: UserProfilePageCli
                       <span className="text-xl font-bold">{stats.totalViews}</span>
                       <span className="text-xs text-muted-foreground">Views</span>
                     </div>
-                  </div>
+                </div>
                 </div>
               </div>
             </div>

@@ -456,7 +456,7 @@ export function CanvasPageClient({ initialProjects }: CanvasPageClientProps) {
             <h2 className="text-lg font-semibold text-foreground truncate min-w-0">
               {currentProject ? currentProject.name : 'Canvas Editor'}
             </h2>
-            {/* Search and New Project in same row */}
+            {/* Search */}
             <div className="flex items-center gap-2 flex-1 min-w-0 max-w-md">
               <div className="relative flex-1 min-w-0">
                 <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -467,14 +467,19 @@ export function CanvasPageClient({ initialProjects }: CanvasPageClientProps) {
                   className="pl-8 h-9 text-sm"
                 />
               </div>
-              <CreateProjectModal platform="canvas" onProjectCreated={handleCreateProject}>
-                <Button variant="outline" size="sm" className="h-9 shrink-0">
-                  <Plus className="h-4 w-4 mr-1.5" />
-                  New Project
-                </Button>
-              </CreateProjectModal>
             </div>
           </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Show Create Project button only if no projects exist */}
+            {filteredProjects.length === 0 && (
+              <CreateProjectModal platform="canvas" onProjectCreated={handleCreateProject}>
+                <Button variant="default" size="sm" className="h-9 shrink-0">
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  Create Project
+                </Button>
+              </CreateProjectModal>
+            )}
+            {/* Show New File button only when a project is selected */}
           {selectedProjectId && (
             <CreateCanvasFileModal
               projectId={selectedProjectId}
@@ -482,22 +487,25 @@ export function CanvasPageClient({ initialProjects }: CanvasPageClientProps) {
             >
               <Button
                 disabled={isCreatingFile || fileOperationsLoading}
-                className="shrink-0"
+                  variant="default"
+                  size="sm"
+                  className="h-9 shrink-0"
               >
                 {isCreatingFile || fileOperationsLoading ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
                     Creating...
                   </>
                 ) : (
                   <>
-                    <Plus className="h-4 w-4 mr-2" />
+                      <Plus className="h-4 w-4 mr-1.5" />
                     New File
                   </>
                 )}
               </Button>
             </CreateCanvasFileModal>
           )}
+          </div>
         </header>
 
         {/* Content Area */}
@@ -604,7 +612,10 @@ export function CanvasPageClient({ initialProjects }: CanvasPageClientProps) {
                     projectId={selectedProjectId}
                     onFileCreated={handleCreateFile}
                   >
-                    <Button disabled={isCreatingFile || fileOperationsLoading}>
+                    <Button 
+                      disabled={isCreatingFile || fileOperationsLoading}
+                      variant="default"
+                    >
                       {isCreatingFile || fileOperationsLoading ? (
                         <>
                           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -613,7 +624,7 @@ export function CanvasPageClient({ initialProjects }: CanvasPageClientProps) {
                       ) : (
                         <>
                           <Plus className="h-4 w-4 mr-2" />
-                          Create Canvas File
+                          Create File
                         </>
                       )}
                     </Button>
@@ -625,16 +636,27 @@ export function CanvasPageClient({ initialProjects }: CanvasPageClientProps) {
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
                 <Folder className="h-16 w-16 text-muted mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-foreground mb-2">Select a Project</h3>
+                {filteredProjects.length === 0 ? (
+                  <>
+                    <h3 className="text-xl font-semibold text-foreground mb-2">Create Your First Project</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Choose a project from the sidebar to view its canvas files
+                      Start by creating a project, then add canvas files to build your node workflows
                 </p>
                 <CreateProjectModal platform="canvas" onProjectCreated={handleCreateProject}>
-                  <Button>
+                      <Button variant="default" size="lg">
                     <Plus className="h-4 w-4 mr-2" />
                     Create Project
                   </Button>
                 </CreateProjectModal>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-xl font-semibold text-foreground mb-2">Select a Project</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Choose a project from the sidebar to view its canvas files
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           )}

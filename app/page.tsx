@@ -136,6 +136,7 @@ export default async function Home() {
     return {
       imageUrl: user.avatar!,
       profileUrl,
+      userName: user.name || undefined,
     };
   });
 

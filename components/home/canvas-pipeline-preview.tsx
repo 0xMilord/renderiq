@@ -221,6 +221,7 @@ export function CanvasPipelinePreview() {
           minZoom={0.3}
           maxZoom={1.2}
           defaultViewport={{ x: 0, y: 0, zoom: 0.6 }}
+          proOptions={{ hideAttribution: true }}
         >
           <CanvasPipelineInner />
           <Background 

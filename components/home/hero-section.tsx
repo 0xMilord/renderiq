@@ -9,6 +9,7 @@ import { Marquee } from '@/components/ui/marquee';
 import { AvatarCircles } from '@/components/ui/avatar-circles';
 import { TickingNumber } from '@/components/ui/ticking-number';
 import { HeroGallerySlideshow } from './hero-gallery-slideshow';
+import { LineShadowText } from '@/components/ui/line-shadow-text';
 import { cn } from '@/lib/utils';
 import type { GalleryItemWithDetails } from '@/lib/types';
 
@@ -76,10 +77,10 @@ const HeroSection = memo(function HeroSection({ avatarData, totalUsers, galleryI
   return (
     <section className={`relative overflow-hidden w-full ${heroBgColor}`} style={{ paddingTop: 'var(--navbar-height)' }}>
       {/* Diagonal Stripe Pattern on Sides - Responsive - 2px width to match stroke */}
-      <div className="absolute inset-y-0 left-0 hidden md:block md:w-16 lg:w-32 -z-0" style={{ 
+      <div className="absolute inset-y-0 left-0 hidden md:block md:w-8 lg:w-16 -z-0" style={{ 
         backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 8px, ${borderColor} 8px, ${borderColor} 10px)`
       }}></div>
-      <div className="absolute inset-y-0 right-0 hidden md:block md:w-16 lg:w-32 -z-0" style={{ 
+      <div className="absolute inset-y-0 right-0 hidden md:block md:w-8 lg:w-16 -z-0" style={{ 
         backgroundImage: `repeating-linear-gradient(-45deg, transparent, transparent 8px, ${borderColor} 8px, ${borderColor} 10px)`
       }}></div>
 
@@ -87,116 +88,120 @@ const HeroSection = memo(function HeroSection({ avatarData, totalUsers, galleryI
       <div className="w-full relative z-10">
         {/* Hero Content Section - Bordered Container */}
         <div className={`w-full border-t-[2px] border-b-[2px] border-l-[2px] border-r-[2px] ${borderClass}`}>
-          <div className="pl-6 pr-6 sm:pl-[9.5rem] sm:pr-[9.5rem] md:pl-[10rem] md:pr-[10rem] lg:pl-[11rem] lg:pr-[11rem] py-12">
-            {/* Main Headline Container */}
-            <div className={`border-b-[2px] ${borderClass} pb-8 mb-8`}>
-              <h1 className={`text-5xl md:text-7xl lg:text-8xl font-black ${textColor} mb-6 leading-tight text-left`}>
-                Idea to approval ready design in seconds
-              </h1>
-            </div>
-
-            {/* Description Container */}
-            <div className={`border-b-[2px] ${borderClass} pb-8 mb-8`}>
-              <p className={`text-xl md:text-2xl ${textMutedColor} max-w-4xl leading-relaxed text-left`}>
-                Transform architectural sketches and 3D models into photorealistic renders and videos with AI. 
-                Industry-leading AI render pipelines for AEC firms. The leading <strong className={textColor}>architecture render software</strong> trusted by architects, engineers, and visualizers worldwide.
-              </p>
-            </div>
-
-            {/* CTA Buttons Container */}
-            <div className={`border-b-[2px] ${borderClass} pb-8 mb-8`}>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
-                <div className={`flex flex-col sm:flex-row gap-4 sm:col-span-2 border-b-[2px] sm:border-b-0 sm:border-r-[2px] ${borderClass} pb-4 sm:pb-0 pr-0 sm:pr-4 mb-0`}>
-                  <Link href="/render">
-                    <Button 
-                      size="lg" 
-                      className={`px-8 py-6 text-lg font-bold ${buttonBgColor} hover:opacity-90 ${buttonTextColor} rounded-lg border border-border w-full sm:w-auto transition-opacity`}
-                    >
-                      Start Creating
-                    </Button>
-                  </Link>
-                  <Link href="/gallery">
-                    <Button 
-                      size="lg" 
-                      variant="outline"
-                      className="px-8 py-6 text-lg font-bold rounded-lg border-2 w-full sm:w-auto"
-                    >
-                      View Demo
-                    </Button>
-                  </Link>
-                </div>
-                {avatarData.length > 0 && (
-                  <div className="flex flex-col items-center sm:items-start gap-2 pl-0 sm:pl-4 pt-4 sm:pt-0">
-                    <AvatarCircles 
-                      numPeople={totalUsers}
-                      avatarUrls={avatarData}
-                      className="justify-center sm:justify-start"
-                    />
-                  </div>
-                )}
-              </div>
-              <p className={`text-base md:text-lg ${textMutedColor} mt-4`}>
-                No credit card required
-              </p>
-            </div>
-
+          <div className="pl-6 pr-6 sm:pl-8 sm:pr-8 md:pl-8 md:pr-8 lg:pl-16 lg:pr-16 py-12">
             {/* Stats Section - Two Column Layout: Table (40%) + Hero Illustration (60%) */}
-            <div className="grid grid-cols-1 lg:grid-cols-[40%_60%] gap-0">
-              {/* Left Column - Table (40% max width) */}
-              <div className={`border-b-[2px] lg:border-b-0 lg:border-r-[2px] ${borderClass} pr-6 sm:pr-8 pb-6 sm:pb-8 lg:pb-0`}>
-                <table className="w-full border-collapse">
-                  <colgroup>
-                    <col style={{ width: '40%' }} />
-                    <col style={{ width: '60%' }} />
-                  </colgroup>
-                  <tbody>
-                    <tr className={`border-b-[2px] ${borderClass}`}>
-                      <td className="py-6 pr-4 align-middle">
-                        <div className={`text-5xl md:text-6xl font-black ${textColor}`}>
-                          <TickingNumber value="50K+" duration={2000} />
-                        </div>
-                      </td>
-                      <td className={`py-6 pl-4 align-middle border-l-[2px] ${borderClass}`}>
-                        <div className={`text-base font-semibold ${textMutedColor}`}>Renders Created</div>
-                      </td>
-                    </tr>
-                    <tr className={`border-b-[2px] ${borderClass}`}>
-                      <td className="py-6 pr-4 align-middle">
-                        <div className={`text-5xl md:text-6xl font-black ${textColor}`}>
-                          <TickingNumber value="2.5M" duration={2000} />
-                        </div>
-                      </td>
-                      <td className={`py-6 pl-4 align-middle border-l-[2px] ${borderClass}`}>
-                        <div className={`text-base font-semibold ${textMutedColor}`}>Minutes Saved</div>
-                      </td>
-                    </tr>
-                    <tr className={`border-b-[2px] ${borderClass}`}>
-                      <td className="py-6 pr-4 align-middle">
-                        <div className={`text-5xl md:text-6xl font-black ${textColor}`}>
-                          <TickingNumber value="10K+" duration={2000} />
-                        </div>
-                      </td>
-                      <td className={`py-6 pl-4 align-middle border-l-[2px] ${borderClass}`}>
-                        <div className={`text-base font-semibold ${textMutedColor}`}>AEC Professionals</div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="py-6 pr-4 align-middle">
-                        <div className={`text-5xl md:text-6xl font-black ${textColor}`}>
-                          <TickingNumber value="99%" duration={2000} />
-                        </div>
-                      </td>
-                      <td className={`py-6 pl-4 align-middle border-l-[2px] ${borderClass}`}>
-                        <div className={`text-base font-semibold ${textMutedColor}`}>Platform Uptime</div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+            <div className={`border-b-[2px] ${borderClass} pb-8 mb-8`}>
+              <div className="grid grid-cols-1 lg:grid-cols-[40%_60%] gap-0">
+                {/* Left Column - Headline + Description + CTA Buttons + Table (40% max width) + Users */}
+                <div className={`border-b-[2px] lg:border-b-0 lg:border-r-[2px] ${borderClass} pr-6 sm:pr-8 pb-6 sm:pb-8 lg:pb-0`}>
+                  {/* Main Headline Row */}
+                  <div className="mb-4 pb-4 border-b-[2px] border-border">
+                    <h1 className={`text-4xl md:text-5xl lg:text-6xl leading-none font-semibold tracking-tighter text-balance ${textColor} mb-3 text-left`}>
+                      Idea to approval ready{" "}
+                      <LineShadowText className="italic" shadowColor={isDarkMode ? "white" : "black"}>
+                        design
+                      </LineShadowText>
+                      {" "}in seconds
+                    </h1>
+                  </div>
 
-              {/* Right Column - Gallery Slideshow (60%) */}
-              <div className="pl-6 sm:pl-8 lg:pl-8 pt-6 sm:pt-8 lg:pt-0 flex items-center justify-center">
-                <HeroGallerySlideshow items={galleryItems} interval={4000} />
+                  {/* Description Row */}
+                  <div className="mb-4 pb-4 border-b-[2px] border-border">
+                    <p className={`text-base md:text-xl ${textMutedColor} leading-relaxed text-left`}>
+                      Transform architectural sketches and 3D models into photorealistic renders and videos with AI. 
+                      Industry-leading AI render pipelines for AEC firms. The leading <strong className={textColor}>architecture render software</strong> trusted by architects, engineers, and visualizers worldwide.
+                    </p>
+                  </div>
+
+                  {/* CTA Buttons Row - Before Stats */}
+                  <div className="flex flex-col sm:flex-row gap-4 mb-4 pb-4 border-b-[2px] border-border">
+                    <Link href="/render">
+                      <Button 
+                        size="lg" 
+                        className={`px-8 py-6 text-lg font-bold ${buttonBgColor} hover:opacity-90 ${buttonTextColor} rounded-lg border border-border w-full sm:w-auto transition-opacity`}
+                      >
+                        Start Creating
+                      </Button>
+                    </Link>
+                    <Link href="/demo">
+                      <Button 
+                        size="lg" 
+                        variant="outline"
+                        className="px-8 py-6 text-lg font-bold rounded-lg border-2 w-full sm:w-auto"
+                      >
+                        View Demo
+                      </Button>
+                    </Link>
+                  </div>
+                  
+                  {/* Stats Table */}
+                  <table className="w-full border-collapse">
+                    <colgroup>
+                      <col style={{ width: '40%' }} />
+                      <col style={{ width: '60%' }} />
+                    </colgroup>
+                    <tbody>
+                      <tr className={`border-b-[2px] ${borderClass}`}>
+                        <td className="py-3 pr-4 align-middle">
+                          <div className={`text-4xl md:text-5xl font-black ${textColor}`}>
+                            <TickingNumber value="50K+" duration={2000} />
+                          </div>
+                        </td>
+                        <td className={`py-3 pl-4 align-middle border-l-[2px] ${borderClass}`}>
+                          <div className={`text-sm font-semibold ${textMutedColor}`}>Renders Created</div>
+                        </td>
+                      </tr>
+                      <tr className={`border-b-[2px] ${borderClass}`}>
+                        <td className="py-3 pr-4 align-middle">
+                          <div className={`text-4xl md:text-5xl font-black ${textColor}`}>
+                            <TickingNumber value="2.5M" duration={2000} />
+                          </div>
+                        </td>
+                        <td className={`py-3 pl-4 align-middle border-l-[2px] ${borderClass}`}>
+                          <div className={`text-sm font-semibold ${textMutedColor}`}>Minutes Saved</div>
+                        </td>
+                      </tr>
+                      <tr className={`border-b-[2px] ${borderClass}`}>
+                        <td className="py-3 pr-4 align-middle">
+                          <div className={`text-4xl md:text-5xl font-black ${textColor}`}>
+                            <TickingNumber value="10K+" duration={2000} />
+                          </div>
+                        </td>
+                        <td className={`py-3 pl-4 align-middle border-l-[2px] ${borderClass}`}>
+                          <div className={`text-sm font-semibold ${textMutedColor}`}>AEC Professionals</div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-3 pr-4 align-middle">
+                          <div className={`text-4xl md:text-5xl font-black ${textColor}`}>
+                            <TickingNumber value="99%" duration={2000} />
+                          </div>
+                        </td>
+                        <td className={`py-3 pl-4 align-middle border-l-[2px] ${borderClass}`}>
+                          <div className={`text-sm font-semibold ${textMutedColor}`}>Platform Uptime</div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  
+                  {/* Users Array - In same column as stats, new row */}
+                  {avatarData.length > 0 && (
+                    <div className={`border-t-[2px] ${borderClass} pt-4 mt-4`}>
+                      <div className="flex flex-col items-center gap-2">
+                        <AvatarCircles 
+                          numPeople={totalUsers}
+                          avatarUrls={avatarData}
+                          className="justify-center"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Column - Gallery Slideshow (60%) */}
+                <div className="pl-6 sm:pl-8 lg:pl-8 pt-6 sm:pt-8 lg:pt-0 flex items-center justify-center">
+                  <HeroGallerySlideshow items={galleryItems} interval={4000} />
+                </div>
               </div>
             </div>
           </div>

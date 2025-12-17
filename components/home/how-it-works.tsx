@@ -6,6 +6,7 @@ import { Upload, Wand2, Download, CheckCircle, ArrowRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { FlickeringGrid } from '@/components/ui/flickering-grid';
 import Link from 'next/link';
 
 const steps = [
@@ -43,9 +44,21 @@ export function HowItWorksSection() {
   const isDarkMode = mounted && (resolvedTheme === 'dark' || theme === 'dark');
   // Hatch color: subtle pattern using muted colors
   const hatchColor = isDarkMode ? 'hsl(var(--muted))' : 'hsl(var(--muted))';
+  // Grid color: theme-aware
+  const gridColor = isDarkMode ? 'rgb(107, 114, 128)' : 'rgb(107, 114, 128)'; // gray-500
 
   return (
     <section id="how-it-works" className="relative py-20 px-4 sm:px-6 lg:px-8 bg-background/80 backdrop-blur-sm overflow-hidden">
+      {/* Flickering Grid Background */}
+      <FlickeringGrid
+        className="absolute inset-0 z-0 size-full"
+        squareSize={4}
+        gridGap={6}
+        color={gridColor}
+        maxOpacity={0.3}
+        flickerChance={0.1}
+      />
+      
       {/* Diagonal Stripe Pattern on Sides - Theme-aware - Responsive - 2px width to match stroke */}
       <div className="absolute inset-y-0 left-0 hidden md:block md:w-16 lg:w-32 -z-0 overflow-hidden" style={{ 
         backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 8px, ${hatchColor} 8px, ${hatchColor} 10px)`

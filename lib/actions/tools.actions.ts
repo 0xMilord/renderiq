@@ -215,7 +215,7 @@ export async function updateToolExecutionAction(
     // Get tool slug for revalidation
     const tool = await ToolsService.getToolById(execution.toolId);
     if (tool) {
-      revalidatePath('/apps');
+    revalidatePath('/apps');
       revalidatePath(`/${tool.slug}`);
     }
 
