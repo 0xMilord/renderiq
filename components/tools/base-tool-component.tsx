@@ -1278,6 +1278,15 @@ export function BaseToolComponent({
                               link.click();
                               document.body.removeChild(link);
                               window.URL.revokeObjectURL(url);
+
+                              // ✅ Trigger export task (non-blocking)
+                              if (res.renderId) {
+                                fetch('/api/tasks/export', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ renderId: res.renderId }),
+                                }).catch(() => {}); // Silently fail
+                              }
                             } catch (error) {
                               console.error('Download failed:', error);
                               toast.error(`Failed to download ${isVideo ? 'video' : 'image'}`);

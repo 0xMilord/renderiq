@@ -14,19 +14,6 @@ interface GenericToolProps {
 export function GenericTool({ tool, projectId, onHintChange, hintMessage }: GenericToolProps) {
   return (
     <BaseToolComponent tool={tool} projectId={projectId} onHintChange={onHintChange} hintMessage={hintMessage}>
-      <Card>
-        <CardHeader>
-          <CardTitle>How It Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3 list-decimal list-inside text-muted-foreground">
-            <li>Upload your image</li>
-            <li>Adjust settings (optional)</li>
-            <li>Click Generate</li>
-            <li>Download your result</li>
-          </ol>
-        </CardContent>
-      </Card>
     </BaseToolComponent>
   );
 }

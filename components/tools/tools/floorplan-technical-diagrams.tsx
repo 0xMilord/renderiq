@@ -260,19 +260,6 @@ Convert this floor plan into a professional technical architectural diagram with
         </>
       }
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>How It Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3 list-decimal list-inside text-muted-foreground">
-            <li>Upload your floor plan</li>
-            <li>Choose annotation style and dimensions</li>
-            <li>Generate professional technical diagram</li>
-            <li>Download your result</li>
-          </ol>
-        </CardContent>
-      </Card>
     </BaseToolComponent>
   );
 }

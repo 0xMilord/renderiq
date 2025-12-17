@@ -178,19 +178,6 @@ Upscale this architectural render to ${sizeConfig.resolution} while ${sizeConfig
         </>
       }
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>How It Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3 list-decimal list-inside text-muted-foreground">
-            <li>Upload your render</li>
-            <li>Choose resolution (1K, 2K, or 4K) using the slider</li>
-            <li>Generate upscaled render at selected resolution</li>
-            <li>Download your high-resolution result</li>
-          </ol>
-        </CardContent>
-      </Card>
     </BaseToolComponent>
   );
 }

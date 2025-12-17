@@ -305,20 +305,6 @@ Animate this architectural render with ${cameraPathConfig.description} camera mo
         </>
       }
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>How It Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3 list-decimal list-inside text-muted-foreground">
-            <li>Upload your architectural render</li>
-            <li>Configure camera path style and scene type</li>
-            <li>Choose focal length and lighting reference (optional)</li>
-            <li>Generate animated walkthrough video</li>
-          </ol>
-        </CardContent>
-      </Card>
-      
       <StyleReferenceDialog
         open={lightingDialogOpen}
         onOpenChange={setLightingDialogOpen}

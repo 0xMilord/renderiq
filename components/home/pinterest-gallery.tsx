@@ -111,13 +111,21 @@ const PinterestGallery = memo(function PinterestGallery({ items }: PinterestGall
     );
   }
 
+  // Ensure minimum repeat count for smooth animation (even with few items)
+  const getRepeatCount = (columnLength: number) => {
+    if (columnLength === 0) return 1;
+    // For smooth continuous animation, repeat at least 3-4 times
+    // If we have few items, repeat more to fill the space
+    return columnLength < 3 ? 6 : 4;
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-2 h-[600px] md:h-[800px] overflow-hidden">
       {/* Column 1: Top to Bottom */}
       <div className="relative h-full overflow-hidden">
         <Marquee
           vertical
-          repeat={columns[0].length > 0 ? 4 : 1}
+          repeat={getRepeatCount(columns[0].length)}
           className="h-full [--duration:50s] [--gap:0.5rem]"
           pauseOnHover
         >
@@ -130,7 +138,7 @@ const PinterestGallery = memo(function PinterestGallery({ items }: PinterestGall
         <Marquee
           vertical
           reverse
-          repeat={columns[1].length > 0 ? 4 : 1}
+          repeat={getRepeatCount(columns[1].length)}
           className="h-full [--duration:60s] [--gap:0.5rem]"
           pauseOnHover
         >
@@ -142,7 +150,7 @@ const PinterestGallery = memo(function PinterestGallery({ items }: PinterestGall
       <div className="relative h-full overflow-hidden">
         <Marquee
           vertical
-          repeat={columns[2].length > 0 ? 4 : 1}
+          repeat={getRepeatCount(columns[2].length)}
           className="h-full [--duration:55s] [--gap:0.5rem]"
           pauseOnHover
         >

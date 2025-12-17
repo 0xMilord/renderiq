@@ -13,8 +13,8 @@ import {
   FaMastodon,
   FaQuora
 } from 'react-icons/fa6';
-import { SiBluesky } from 'react-icons/si';
-import { Sparkles, Images, Lightbulb, Newspaper, CreditCard, Info, FileText, Mail, Users } from 'lucide-react';
+import { SiBluesky, SiAutodesk, SiBlender, SiRhinoceros } from 'react-icons/si';
+import { Sparkles, Images, Lightbulb, Newspaper, CreditCard, Info, FileText, Mail, Users, Puzzle } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { PWAInstallButton } from '@/components/pwa/install-button';
 import { Button } from '@/components/ui/button';
@@ -122,6 +122,12 @@ export function Footer() {
                     Blog
                   </Link>
                 </li>
+                <li>
+                  <Link href="/plugins" className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
+                    <Puzzle className="h-3.5 w-3.5" />
+                    Plugins
+                  </Link>
+                </li>
               </ul>
             </div>
 
@@ -165,6 +171,44 @@ export function Footer() {
         </div>
 
         <div className="border-t mt-8 pt-8">
+          {/* Plugins Links */}
+          <div className="mb-6">
+            <div className="flex flex-wrap gap-3">
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/plugins/sketchup-ai-rendering-plugin" className="flex items-center gap-2">
+                  <span className="text-lg">📐</span>
+                  <span>SketchUp Plugin</span>
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/plugins/revit-ai-rendering-plugin" className="flex items-center gap-2">
+                  <SiAutodesk className="h-4 w-4" />
+                  <span>Revit Plugin</span>
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/plugins/autocad-ai-rendering-plugin" className="flex items-center gap-2">
+                  <SiAutodesk className="h-4 w-4" />
+                  <span>AutoCAD Plugin</span>
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/plugins/blender-ai-rendering-plugin" className="flex items-center gap-2">
+                  <SiBlender className="h-4 w-4" />
+                  <span>Blender Plugin</span>
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/plugins/rhino-ai-rendering-plugin" className="flex items-center gap-2">
+                  <SiRhinoceros className="h-4 w-4" />
+                  <span>Rhino Plugin</span>
+                </Link>
+              </Button>
+            </div>
+          </div>
+
+          <div className="border-t mb-6 pt-6"></div>
+
           {/* Apps Links */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4">

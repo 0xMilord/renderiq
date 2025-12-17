@@ -1,4 +1,5 @@
-import { pgTable, text, timestamp, uuid, integer, boolean, jsonb, decimal, bigint, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, uuid, integer, boolean, jsonb, decimal, bigint, uniqueIndex, date } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 
 // Users table with enhanced profile
@@ -1018,3 +1019,182 @@ export type NewPluginWebhook = typeof pluginWebhooks.$inferInsert;
 
 export type ResumableUpload = typeof resumableUploads.$inferSelect;
 export type NewResumableUpload = typeof resumableUploads.$inferInsert;
+
+// ============================================================================
+// REWARDS & TASKS SYSTEM TABLES
+// ============================================================================
+
+// Task Categories
+export const taskCategories = pgTable('task_categories', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull().unique(),
+  slug: text('slug').notNull().unique(),
+  description: text('description'),
+  icon: text('icon'),
+  displayOrder: integer('display_order').default(0).notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Tasks
+export const tasks = pgTable('tasks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  categoryId: uuid('category_id').references(() => taskCategories.id).notNull(),
+  name: text('name').notNull(),
+  slug: text('slug').notNull().unique(),
+  description: text('description').notNull(),
+  instructions: text('instructions'),
+  creditsReward: integer('credits_reward').notNull(),
+  verificationType: text('verification_type', { 
+    enum: ['automatic', 'manual', 'link_verification', 'api_verification', 'screenshot'] 
+  }).notNull(),
+  verificationConfig: jsonb('verification_config').$type<Record<string, any>>(),
+  cooldownHours: integer('cooldown_hours').default(0).notNull(),
+  maxCompletions: integer('max_completions'),
+  isActive: boolean('is_active').default(true).notNull(),
+  displayOrder: integer('display_order').default(0).notNull(),
+  requirements: jsonb('requirements').$type<Record<string, any>>(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// User Tasks (Task Completions)
+export const userTasks = pgTable('user_tasks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  taskId: uuid('task_id').references(() => tasks.id).notNull(),
+  status: text('status', { 
+    enum: ['pending', 'completed', 'verified', 'rejected', 'expired'] 
+  }).default('pending').notNull(),
+  verificationData: jsonb('verification_data').$type<Record<string, any>>(),
+  verifiedAt: timestamp('verified_at'),
+  verifiedBy: uuid('verified_by').references(() => users.id),
+  creditsAwarded: integer('credits_awarded').default(0).notNull(),
+  transactionId: uuid('transaction_id').references(() => creditTransactions.id),
+  metadata: jsonb('metadata').$type<Record<string, any>>(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  // Unique constraint: user can only complete same task once per cooldown period (per day)
+  userTaskCooldownIdx: uniqueIndex('idx_user_task_cooldown').on(
+    table.userId, 
+    table.taskId, 
+    sql`DATE(${table.createdAt})`
+  ),
+}));
+
+// Task Verification Logs (Audit Trail)
+export const taskVerificationLogs = pgTable('task_verification_logs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userTaskId: uuid('user_task_id').references(() => userTasks.id, { onDelete: 'cascade' }).notNull(),
+  verificationMethod: text('verification_method').notNull(),
+  verificationResult: text('verification_result', { 
+    enum: ['success', 'failed', 'pending'] 
+  }).notNull(),
+  verificationDetails: jsonb('verification_details').$type<Record<string, any>>(),
+  errorMessage: text('error_message'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// User Streaks (Streak Tracking)
+export const userStreaks = pgTable('user_streaks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull().unique(),
+  currentStreak: integer('current_streak').default(0).notNull(),
+  longestStreak: integer('longest_streak').default(0).notNull(),
+  lastLoginDate: date('last_login_date'),
+  streakStartDate: date('streak_start_date'),
+  totalLoginDays: integer('total_login_days').default(0).notNull(),
+  gracePeriodUsed: boolean('grace_period_used').default(false).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Create Zod schemas for tasks system
+export const insertTaskCategorySchema = createInsertSchema(taskCategories);
+export const selectTaskCategorySchema = createSelectSchema(taskCategories);
+
+export const insertTaskSchema = createInsertSchema(tasks);
+export const selectTaskSchema = createSelectSchema(tasks);
+
+export const insertUserTaskSchema = createInsertSchema(userTasks);
+export const selectUserTaskSchema = createSelectSchema(userTasks);
+
+export const insertTaskVerificationLogSchema = createInsertSchema(taskVerificationLogs);
+export const selectTaskVerificationLogSchema = createSelectSchema(taskVerificationLogs);
+
+export const insertUserStreakSchema = createInsertSchema(userStreaks);
+export const selectUserStreakSchema = createSelectSchema(userStreaks);
+
+// Type exports for tasks system
+export type TaskCategory = typeof taskCategories.$inferSelect;
+export type NewTaskCategory = typeof taskCategories.$inferInsert;
+
+export type Task = typeof tasks.$inferSelect;
+export type NewTask = typeof tasks.$inferInsert;
+
+export type UserTask = typeof userTasks.$inferSelect;
+export type NewUserTask = typeof userTasks.$inferInsert;
+
+export type TaskVerificationLog = typeof taskVerificationLogs.$inferSelect;
+export type NewTaskVerificationLog = typeof taskVerificationLogs.$inferInsert;
+
+export type UserStreak = typeof userStreaks.$inferSelect;
+export type NewUserStreak = typeof userStreaks.$inferInsert;
+
+// ============================================================================
+// HELPER TYPES FOR TASKS SYSTEM
+// ============================================================================
+
+/**
+ * Task verification type enum
+ */
+export type TaskVerificationType = 'automatic' | 'manual' | 'link_verification' | 'api_verification' | 'screenshot';
+
+/**
+ * User task status enum
+ */
+export type UserTaskStatus = 'pending' | 'completed' | 'verified' | 'rejected' | 'expired';
+
+/**
+ * Verification result enum
+ */
+export type VerificationResult = 'success' | 'failed' | 'pending';
+
+/**
+ * Task with category (for joined queries)
+ */
+export type TaskWithCategory = Task & {
+  category: TaskCategory;
+};
+
+/**
+ * User task with task details (for joined queries)
+ */
+export type UserTaskWithDetails = UserTask & {
+  task: Task;
+  taskCategory?: TaskCategory;
+};
+
+/**
+ * Task completion stats
+ */
+export type TaskCompletionStats = {
+  totalCompleted: number;
+  totalCreditsEarned: number;
+  pendingCount: number;
+  verifiedCount: number;
+  rejectedCount: number;
+};
+
+/**
+ * Streak calculation result
+ */
+export type StreakUpdateResult = {
+  streak: number;
+  credits: number;
+  isNewStreak: boolean;
+  streakBroken: boolean;
+  gracePeriodUsed: boolean;
+};

@@ -359,20 +359,6 @@ Change the upholstery patterns and materials on furniture in this interior rende
         </>
       }
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>How It Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3 list-decimal list-inside text-muted-foreground">
-            <li>Upload your interior render with furniture</li>
-            <li>Select fabric type and pattern</li>
-            <li>Transform furniture upholstery</li>
-            <li>Download your result</li>
-          </ol>
-        </CardContent>
-      </Card>
-      
       <StyleReferenceDialog
         open={styleDialogOpen}
         onOpenChange={setStyleDialogOpen}

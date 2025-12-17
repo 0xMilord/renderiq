@@ -13,10 +13,12 @@ import { GallerySection } from '@/components/home/gallery-section';
 import { TestimonialsSection } from '@/components/home/testimonials-section';
 import { ArchitectureAppsSection } from '@/components/home/architecture-apps-section';
 import { UsersDAL } from '@/lib/dal/users';
+import { getAllTools } from '@/lib/tools/registry';
 import GradualBlur from '@/components/ui/gradual-blur';
 import { SmoothCursorWrapper } from '@/components/home/smooth-cursor-wrapper';
 import HeroSection from '@/components/home/hero-section';
 import OptimizedBackground from '@/components/home/optimized-background';
+import { CanvasPipelinePreview } from '@/components/home/canvas-pipeline-preview';
 import { 
   Wand2, 
   GalleryVertical, 
@@ -37,7 +39,11 @@ import {
   FileCode,
   Network,
   MessageSquare,
-  Grid3x3
+  Grid3x3,
+  Brain,
+  Puzzle,
+  Key,
+  Layers
 } from 'lucide-react';
 import type { Metadata } from 'next';
 
@@ -86,6 +92,10 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 export default async function Home() {
+  // Get dynamic tool count
+  const tools = getAllTools();
+  const toolCount = tools.length;
+  
   // Fetch actual gallery items for the homepage - fetch more for Pinterest-style scrolling
   const galleryResult = await getPublicGallery(1, 60);
   const galleryItems = galleryResult.success ? galleryResult.data || [] : [];
@@ -93,6 +103,11 @@ export default async function Home() {
   // Fetch top 50 gallery items for hero slideshow (sorted by likes + views)
   const heroGalleryResult = await getPublicGallery(1, 50);
   const heroGalleryItems = heroGalleryResult.success ? heroGalleryResult.data || [] : [];
+
+  // Get latest 10 gallery items for node preview (with prompt and image)
+  const nodePreviewItems = galleryItems
+    .filter(item => item.render?.prompt && item.render?.outputUrl && item.render.status === 'completed')
+    .slice(0, 10);
 
   // Fetch latest users for avatar circles - only those with avatars
   let latestUsers = [];
@@ -213,7 +228,7 @@ export default async function Home() {
       {/* Use Cases Section - AEC Professionals */}
       <UseCasesSection />
 
-      {/* Features Section - Bento Grid */}
+      {/* Features Section - Full Width Grid */}
       <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 bg-card/80 backdrop-blur-sm">
         <div className="w-full">
           <div className="text-center mb-16">
@@ -226,88 +241,130 @@ export default async function Home() {
             </h2>
           </div>
 
-          {/* Bento Grid Layout */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+          {/* Bento Grid Layout - Full Width */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
             {/* Node-Based Editor - Large Feature Card */}
             <Link href="/canvas" className="group md:col-span-2 lg:col-span-2 md:row-span-2">
-              <div className="h-full p-8 rounded-2xl bg-gradient-to-br from-violet-500/10 to-purple-500/10 border-2 border-violet-500/20 hover:border-violet-500/40 hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
-                <div>
-                  <div className="w-16 h-16 bg-violet-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                    <Network className="h-8 w-8 text-white" />
+              <div className="h-full p-8 rounded-2xl bg-card border-2 border-border hover:shadow-xl transition-all duration-300 flex flex-col relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-500/30 to-transparent"></div>
+                <div className="flex items-center gap-3 mb-3 relative z-10">
+                  <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
+                    <Network className="h-5 w-5 text-foreground" />
                   </div>
-                  <h3 className="text-3xl md:text-4xl font-bold text-card-foreground mb-4">Node-Based Editor</h3>
-                  <p className="text-lg text-muted-foreground mb-6">
-                    Blender-style visual workflow editor. Create complex render workflows by connecting nodes visually. Perfect for advanced users who want full control over their rendering pipeline.
-                  </p>
-                  <ul className="space-y-3 text-muted-foreground">
-                    <li className="flex items-center"><CheckCircle className="h-5 w-5 text-violet-500 mr-3" />Visual node editor with drag-and-drop</li>
-                    <li className="flex items-center"><CheckCircle className="h-5 w-5 text-violet-500 mr-3" />Text, Image, and Variants nodes</li>
-                    <li className="flex items-center"><CheckCircle className="h-5 w-5 text-violet-500 mr-3" />Real-time data flow visualization</li>
-                    <li className="flex items-center"><CheckCircle className="h-5 w-5 text-violet-500 mr-3" />Auto-save & export workflows</li>
-                  </ul>
+                  <h3 className="text-xl md:text-2xl font-bold text-card-foreground">Node-Based Editor</h3>
                 </div>
-                <div className="mt-8 flex items-center text-violet-500 font-semibold group-hover:translate-x-2 transition-transform">
-                  Explore Canvas Editor <ArrowRight className="ml-2 h-5 w-5" />
+                <div className="w-full h-px bg-border mb-6 relative z-10"></div>
+                <div className="flex-1 min-h-[300px] relative z-10">
+                  <CanvasPipelinePreview />
                 </div>
               </div>
             </Link>
 
             {/* Chat-Based Renderer - Medium Feature Card */}
             <Link href="/render" className="group md:col-span-1 lg:col-span-1 md:row-span-2">
-              <div className="h-full p-8 rounded-2xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-2 border-blue-500/20 hover:border-blue-500/40 hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
-                <div>
-                  <div className="w-16 h-16 bg-blue-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                    <MessageSquare className="h-8 w-8 text-white" />
+              <div className="h-full p-8 rounded-2xl bg-card border-2 border-border hover:shadow-xl transition-all duration-300 flex flex-col relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/30 to-transparent"></div>
+                <div className="flex items-center gap-3 mb-3 relative z-10">
+                  <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
+                    <MessageSquare className="h-5 w-5 text-foreground" />
                   </div>
-                  <h3 className="text-3xl md:text-4xl font-bold text-card-foreground mb-4">Chat-Based Renderer</h3>
-                  <p className="text-lg text-muted-foreground mb-6">
-                    Transform sketches into photorealistic renders through natural conversation. Simply describe what you want and watch it come to life.
-                  </p>
-                  <ul className="space-y-3 text-muted-foreground">
-                    <li className="flex items-center"><CheckCircle className="h-5 w-5 text-blue-500 mr-3" />Natural language prompts</li>
-                    <li className="flex items-center"><CheckCircle className="h-5 w-5 text-blue-500 mr-3" />AI-powered image generation</li>
-                    <li className="flex items-center"><CheckCircle className="h-5 w-5 text-blue-500 mr-3" />Instant visual feedback</li>
-                    <li className="flex items-center"><CheckCircle className="h-5 w-5 text-blue-500 mr-3" />Iterative refinement</li>
-                  </ul>
+                  <h3 className="text-xl md:text-2xl font-bold text-card-foreground">Chat-Based Renderer</h3>
                 </div>
-                <div className="mt-8 flex items-center text-blue-500 font-semibold group-hover:translate-x-2 transition-transform">
-                  Try Renderer <ArrowRight className="ml-2 h-5 w-5" />
+                <div className="w-full h-px bg-border mb-6 relative z-10"></div>
+                <div className="flex-1 min-h-[300px] relative z-10">
+                  {/* Space reserved for huge animated UI */}
                 </div>
               </div>
             </Link>
 
-            {/* 21 Tools - Large Feature Card */}
+            {/* Tools - Large Feature Card */}
             <Link href="/apps" className="group md:col-span-2 lg:col-span-3 md:row-span-1">
-              <div className="h-full p-8 rounded-2xl bg-gradient-to-br from-primary/10 to-green-500/10 border-2 border-primary/20 hover:border-primary/40 hover:shadow-xl transition-all duration-300 flex flex-col md:flex-row items-center justify-between gap-8">
-                <div className="flex-1">
-                  <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                    <Grid3x3 className="h-8 w-8 text-primary-foreground" />
+              <div className="h-full p-8 rounded-2xl bg-card border-2 border-border hover:shadow-xl transition-all duration-300 flex flex-col relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent"></div>
+                <div className="flex items-center gap-3 mb-3 relative z-10">
+                  <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
+                    <Grid3x3 className="h-5 w-5 text-foreground" />
                   </div>
-                  <h3 className="text-3xl md:text-4xl font-bold text-card-foreground mb-4">21 Specialized Tools</h3>
-                  <p className="text-lg text-muted-foreground mb-6">
-                    Comprehensive suite of AI-powered tools for every aspect of architectural visualization. From floor plans to material testing, we've got you covered.
-                  </p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-sm text-muted-foreground">
-                      <div className="font-semibold text-foreground mb-1">Render Transformations</div>
-                      <div>4 tools</div>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      <div className="font-semibold text-foreground mb-1">Floor Plans</div>
-                      <div>3 tools</div>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      <div className="font-semibold text-foreground mb-1">Material & Texture</div>
-                      <div>3 tools</div>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      <div className="font-semibold text-foreground mb-1">Interior Design</div>
-                      <div>4 tools</div>
-                    </div>
-                  </div>
+                  <h3 className="text-xl md:text-2xl font-bold text-card-foreground">{toolCount} Specialized Tools</h3>
                 </div>
-                <div className="flex items-center text-primary font-semibold group-hover:translate-x-2 transition-transform whitespace-nowrap">
-                  Explore All Tools <ArrowRight className="ml-2 h-5 w-5" />
+                <div className="w-full h-px bg-border mb-6 relative z-10"></div>
+                <div className="flex-1 min-h-[200px] relative z-10">
+                  {/* Space reserved for huge animated UI */}
+                </div>
+              </div>
+            </Link>
+
+            {/* AI Models - Feature Card */}
+            <Link href="/models" className="group md:col-span-1 lg:col-span-1 md:row-span-1">
+              <div className="h-full p-8 rounded-2xl bg-card border-2 border-border hover:shadow-xl transition-all duration-300 flex flex-col relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent"></div>
+                <div className="flex items-center gap-3 mb-3 relative z-10">
+                  <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
+                    <Brain className="h-5 w-5 text-foreground" />
+                  </div>
+                  <h3 className="text-xl md:text-2xl font-bold text-card-foreground">All Your Favorite Models</h3>
+                </div>
+                <div className="w-full h-px bg-border mb-6 relative z-10"></div>
+                <div className="flex-1 min-h-[200px] relative z-10">
+                  {/* Space reserved for huge animated UI */}
+                </div>
+              </div>
+            </Link>
+
+            {/* Plugins - Feature Card */}
+            <Link href="/plugins" className="group md:col-span-2 lg:col-span-2 md:row-span-1">
+              <div className="h-full p-8 rounded-2xl bg-card border-2 border-border hover:shadow-xl transition-all duration-300 flex flex-col relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-orange-500/30 to-transparent"></div>
+                <div className="flex items-center gap-3 mb-3 relative z-10">
+                  <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
+                    <Puzzle className="h-5 w-5 text-foreground" />
+                  </div>
+                  <h3 className="text-xl md:text-2xl font-bold text-card-foreground">Native Plugins</h3>
+                </div>
+                <div className="w-full h-px bg-border mb-6 relative z-10"></div>
+                <div className="flex-1 min-h-[200px] relative z-10">
+                  {/* Space reserved for huge animated UI */}
+                </div>
+              </div>
+            </Link>
+
+            {/* API Access - Feature Card */}
+            <Link href="/api" className="group md:col-span-1 lg:col-span-1 md:row-span-1">
+              <div className="h-full p-8 rounded-2xl bg-card border-2 border-border hover:shadow-xl transition-all duration-300 flex flex-col relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent"></div>
+                <div className="flex items-center gap-3 mb-3 relative z-10">
+                  <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
+                    <Key className="h-5 w-5 text-foreground" />
+                  </div>
+                  <h3 className="text-xl md:text-2xl font-bold text-card-foreground">API Access</h3>
+                </div>
+                <div className="w-full h-px bg-border mb-6 relative z-10"></div>
+                <div className="flex-1 min-h-[200px] relative z-10">
+                  {/* Space reserved for huge animated UI */}
+                </div>
+              </div>
+            </Link>
+
+            {/* Technical Moat - Feature Card */}
+            <Link href="/platform" className="group md:col-span-2 lg:col-span-2 md:row-span-1">
+              <div className="h-full p-8 rounded-2xl bg-card border-2 border-border hover:shadow-xl transition-all duration-300 flex flex-col relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent"></div>
+                <div className="flex items-center gap-3 mb-3 relative z-10">
+                  <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
+                    <Layers className="h-5 w-5 text-foreground" />
+                  </div>
+                  <h3 className="text-xl md:text-2xl font-bold text-card-foreground">Platform Built for AEC</h3>
+                </div>
+                <div className="w-full h-px bg-border mb-6 relative z-10"></div>
+                <div className="flex-1 min-h-[200px] relative z-10">
+                  {/* Space reserved for huge animated UI */}
                 </div>
               </div>
             </Link>

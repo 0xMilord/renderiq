@@ -8,13 +8,7 @@ import { Search, X, Filter, PanelLeftOpen, PanelLeftClose, ArrowUpDown, ArrowUp,
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
+import { cn } from '@/lib/utils';
 import {
   Select,
   SelectContent,
@@ -52,7 +46,21 @@ export default function GalleryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>({ field: 'date', direction: 'desc' });
   const [filters, setFilters] = useState<FilterOption>({});
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  
+  // Auto-open sidebar on desktop, keep closed on mobile
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 640) { // sm breakpoint
+        setSidebarOpen(true);
+      } else {
+        setSidebarOpen(false);
+      }
+    };
+    handleResize(); // Set initial state
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   // ✅ FIXED: Memoize options object to prevent infinite loop
   // This prevents the options object from being recreated on every render
@@ -197,278 +205,317 @@ export default function GalleryPage() {
   const filteredAndSortedItems = items;
 
   return (
-    <main className="min-h-screen bg-background relative">
-      {/* Grid Background */}
-      <OptimizedBackground />
-      
-      {/* Header with Title, Description, Sidebar Button in Same Row */}
-      <header className="fixed top-[var(--navbar-height)] left-0 right-0 z-40 border-b border-border bg-background/80 backdrop-blur-sm">
-        <div className="w-full px-4 sm:px-6 lg:px-8">
-          {/* Main Header Row: Sidebar Button + Title/Description + Sort */}
-          <div className="h-14 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-              {/* Sidebar Toggle Button */}
-              <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 w-8 p-0 shrink-0">
-                    <PanelLeftOpen className="h-4 w-4" />
-                    <span className="sr-only">Toggle filters sidebar</span>
-                  </Button>
-                </SheetTrigger>
-                <SheetContent 
-                  side="left" 
-                  className="w-[300px] sm:w-[320px] p-0"
-                  onOpenAutoFocus={(e) => e.preventDefault()}
+    <div className="flex min-h-screen bg-background">
+      {/* Sidebar */}
+      <div
+        className={cn(
+          "flex flex-col border-r bg-card transition-all duration-300 shrink-0 overflow-hidden",
+          "sticky top-[var(--navbar-height)] self-start",
+          "h-[calc(100vh-var(--navbar-height))]",
+          sidebarOpen 
+            ? "w-[55%] sm:w-[275px]" 
+            : "w-12"
+        )}
+      >
+        {/* Sidebar Header */}
+        <div className={cn(
+          "border-b shrink-0 flex items-center",
+          sidebarOpen ? "px-4 h-16" : "px-0 h-16 justify-center"
+        )}>
+          {sidebarOpen ? (
+            <div className="flex items-center justify-between w-full gap-4 min-w-0">
+              <h2 className="text-lg font-semibold truncate flex-1 min-w-0">
+                Filters
+              </h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSidebarOpen(false)}
+                className="h-8 w-8 shrink-0"
+                title="Collapse sidebar"
+              >
+                <PanelLeftClose className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarOpen(true)}
+              className="h-8 w-8"
+              title="Expand sidebar"
+            >
+              <PanelLeftOpen className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+
+        {/* Sidebar Content */}
+        <div className={cn(
+          "flex-1 overflow-y-auto overflow-x-hidden",
+          "[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]",
+          sidebarOpen ? "px-6 py-6 space-y-6" : "p-2 flex flex-col items-center gap-2"
+        )}>
+          {sidebarOpen ? (
+            <>
+              {/* Search inside Sidebar */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Search</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    type="text"
+                    placeholder="Search renders..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 w-full"
+                  />
+                </div>
+              </div>
+
+              {/* Content Type Filter */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Content Type</Label>
+                <Select 
+                  value={filters.contentType || 'both'} 
+                  onValueChange={(value) => handleContentTypeChange(value as 'image' | 'video' | 'both')}
                 >
-                  <div className="h-full flex flex-col">
-                    <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0 flex flex-row items-center justify-between">
-                      <SheetTitle>Filters</SheetTitle>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={() => setSidebarOpen(false)}
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="both">Both</SelectItem>
+                    <SelectItem value="image">Images Only</SelectItem>
+                    <SelectItem value="video">Videos Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Style Filter */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Style</Label>
+                <div className="space-y-2">
+                  {STYLE_OPTIONS.map((option) => (
+                    <div key={option.value} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`style-${option.value}`}
+                        checked={filters.style?.includes(option.value) || false}
+                        onCheckedChange={() => handleStyleToggle(option.value)}
+                      />
+                      <Label
+                        htmlFor={`style-${option.value}`}
+                        className="text-sm font-normal cursor-pointer"
                       >
-                        <PanelLeftClose className="h-4 w-4" />
-                        <span className="sr-only">Close sidebar</span>
-                      </Button>
-                    </SheetHeader>
-                    <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
-                      {/* Search inside Sidebar */}
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium">Search</Label>
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                          <Input
-                            type="text"
-                            placeholder="Search renders..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10 w-full"
-                          />
-                        </div>
-                      </div>
+                        {option.label}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-                    {/* Content Type Filter */}
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Content Type</Label>
-                      <Select 
-                        value={filters.contentType || 'both'} 
-                        onValueChange={(value) => handleContentTypeChange(value as 'image' | 'video' | 'both')}
+              {/* Quality Filter */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Quality</Label>
+                <div className="space-y-2">
+                  {QUALITY_OPTIONS.map((option) => (
+                    <div key={option.value} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`quality-${option.value}`}
+                        checked={filters.quality?.includes(option.value) || false}
+                        onCheckedChange={() => handleQualityToggle(option.value)}
+                      />
+                      <Label
+                        htmlFor={`quality-${option.value}`}
+                        className="text-sm font-normal cursor-pointer"
                       >
-                        <SelectTrigger className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="both">Both</SelectItem>
-                          <SelectItem value="image">Images Only</SelectItem>
-                          <SelectItem value="video">Videos Only</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        {option.label}
+                      </Label>
                     </div>
+                  ))}
+                </div>
+              </div>
 
-                    {/* Style Filter */}
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Style</Label>
-                      <div className="space-y-2">
-                        {STYLE_OPTIONS.map((option) => (
-                          <div key={option.value} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`style-${option.value}`}
-                              checked={filters.style?.includes(option.value) || false}
-                              onCheckedChange={() => handleStyleToggle(option.value)}
-                            />
-                            <Label
-                              htmlFor={`style-${option.value}`}
-                              className="text-sm font-normal cursor-pointer"
-                            >
-                              {option.label}
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Quality Filter */}
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Quality</Label>
-                      <div className="space-y-2">
-                        {QUALITY_OPTIONS.map((option) => (
-                          <div key={option.value} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`quality-${option.value}`}
-                              checked={filters.quality?.includes(option.value) || false}
-                              onCheckedChange={() => handleQualityToggle(option.value)}
-                            />
-                            <Label
-                              htmlFor={`quality-${option.value}`}
-                              className="text-sm font-normal cursor-pointer"
-                            >
-                              {option.label}
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Aspect Ratio Filter */}
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Aspect Ratio</Label>
-                      <div className="space-y-2">
-                        {ASPECT_RATIO_OPTIONS.map((option) => (
-                          <div key={option.value} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`ratio-${option.value}`}
-                              checked={filters.aspectRatio?.includes(option.value) || false}
-                              onCheckedChange={() => handleAspectRatioToggle(option.value)}
-                            />
-                            <Label
-                              htmlFor={`ratio-${option.value}`}
-                              className="text-sm font-normal cursor-pointer"
-                            >
-                              {option.label}
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Clear Filters */}
-                    {activeFilterCount > 0 && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          handleClearFilters();
-                        }}
-                        className="w-full"
+              {/* Aspect Ratio Filter */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Aspect Ratio</Label>
+                <div className="space-y-2">
+                  {ASPECT_RATIO_OPTIONS.map((option) => (
+                    <div key={option.value} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`ratio-${option.value}`}
+                        checked={filters.aspectRatio?.includes(option.value) || false}
+                        onCheckedChange={() => handleAspectRatioToggle(option.value)}
+                      />
+                      <Label
+                        htmlFor={`ratio-${option.value}`}
+                        className="text-sm font-normal cursor-pointer"
                       >
-                        <X className="h-4 w-4 mr-2" />
-                        Clear All Filters ({activeFilterCount})
-                      </Button>
-                    )}
+                        {option.label}
+                      </Label>
                     </div>
-                  </div>
-                </SheetContent>
-              </Sheet>
+                  ))}
+                </div>
+              </div>
 
+              {/* Clear Filters */}
+              {activeFilterCount > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    handleClearFilters();
+                  }}
+                  className="w-full"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Clear All Filters ({activeFilterCount})
+                </Button>
+              )}
+            </>
+          ) : (
+            // Collapsed mode - icon buttons
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10"
+                title="Search"
+                onClick={() => setSidebarOpen(true)}
+              >
+                <Search className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10"
+                title="Filters"
+                onClick={() => setSidebarOpen(true)}
+              >
+                <Filter className="h-4 w-4" />
+              </Button>
+              {activeFilterCount > 0 && (
+                <Badge variant="secondary" className="h-6 w-6 p-0 flex items-center justify-center text-xs">
+                  {activeFilterCount}
+                </Badge>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <main className="flex-1 min-w-0 flex flex-col">
+        {/* Grid Background */}
+        <div className="fixed inset-0 pointer-events-none z-0">
+          <OptimizedBackground />
+        </div>
+        
+        {/* Header with Title, Description, Sort */}
+        <header className="sticky top-[var(--navbar-height)] z-40 border-b border-border bg-background/80 backdrop-blur-sm shrink-0 h-16">
+          <div className="w-full h-full px-4 sm:px-6 lg:px-8 flex items-center">
+            {/* Main Header Row: Title/Description + Sort */}
+            <div className="w-full flex items-center justify-between gap-4">
               {/* Title and Description */}
               <div className="flex-1 min-w-0">
-                <h1 className="text-base sm:text-lg md:text-xl font-bold text-foreground mb-0.5 sm:mb-1">
+                <h1 className="text-base sm:text-lg md:text-xl font-bold text-foreground">
                   Renderiq Gallery
                 </h1>
                 <p className="text-xs sm:text-sm text-muted-foreground line-clamp-1">
                   Explore amazing AI-generated architectural renders created by our community
                 </p>
               </div>
+
+              {/* Sort - On extreme right */}
+              <div className="flex-shrink-0 flex items-center gap-2">
+                <Select value={sortBy.field} onValueChange={(value) => handleSortFieldChange(value as SortField)}>
+                  <SelectTrigger className="w-[140px] sm:w-[180px] h-8 text-xs sm:text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="date">Date Created</SelectItem>
+                    <SelectItem value="likes">Likes</SelectItem>
+                    <SelectItem value="views">Views</SelectItem>
+                    <SelectItem value="trending">Trending Score</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={toggleSortDirection}
+                  disabled={sortBy.field === 'trending'}
+                  title={
+                    sortBy.field === 'trending' 
+                      ? 'Trending always sorts by highest score' 
+                      : `Sort ${sortBy.direction === 'asc' ? 'Ascending' : 'Descending'} - Click to toggle`
+                  }
+                >
+                  {sortBy.direction === 'asc' ? (
+                    <ArrowUp className="h-4 w-4" />
+                  ) : (
+                    <ArrowDown className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
             </div>
 
-            {/* Sort - On extreme right */}
-            <div className="flex-shrink-0 flex items-center gap-2">
-              <Select value={sortBy.field} onValueChange={(value) => handleSortFieldChange(value as SortField)}>
-                <SelectTrigger className="w-[140px] sm:w-[180px] h-8 text-xs sm:text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="date">Date Created</SelectItem>
-                  <SelectItem value="likes">Likes</SelectItem>
-                  <SelectItem value="views">Views</SelectItem>
-                  <SelectItem value="trending">Trending Score</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 w-8 p-0"
-                onClick={toggleSortDirection}
-                disabled={sortBy.field === 'trending'}
-                title={
-                  sortBy.field === 'trending' 
-                    ? 'Trending always sorts by highest score' 
-                    : `Sort ${sortBy.direction === 'asc' ? 'Ascending' : 'Descending'} - Click to toggle`
-                }
-              >
-                {sortBy.direction === 'asc' ? (
-                  <ArrowUp className="h-4 w-4" />
-                ) : (
-                  <ArrowDown className="h-4 w-4" />
+            {/* Active Filter Badges Row - Separate from main header row */}
+            {activeFilterCount > 0 && (
+              <div className="pb-3 pt-2 border-t border-border flex flex-wrap gap-2">
+                {filters.style?.map((style) => (
+                  <Badge
+                    key={style}
+                    variant="secondary"
+                    className="cursor-pointer text-xs"
+                    onClick={() => handleStyleToggle(style)}
+                  >
+                    {STYLE_OPTIONS.find(o => o.value === style)?.label || style}
+                    <X className="h-3 w-3 ml-1" />
+                  </Badge>
+                ))}
+                {filters.quality?.map((quality) => (
+                  <Badge
+                    key={quality}
+                    variant="secondary"
+                    className="cursor-pointer text-xs"
+                    onClick={() => handleQualityToggle(quality)}
+                  >
+                    {QUALITY_OPTIONS.find(o => o.value === quality)?.label || quality}
+                    <X className="h-3 w-3 ml-1" />
+                  </Badge>
+                ))}
+                {filters.aspectRatio?.map((ratio) => (
+                  <Badge
+                    key={ratio}
+                    variant="secondary"
+                    className="cursor-pointer text-xs"
+                    onClick={() => handleAspectRatioToggle(ratio)}
+                  >
+                    {ASPECT_RATIO_OPTIONS.find(o => o.value === ratio)?.label || ratio}
+                    <X className="h-3 w-3 ml-1" />
+                  </Badge>
+                ))}
+                {filters.contentType && filters.contentType !== 'both' && (
+                  <Badge
+                    variant="secondary"
+                    className="cursor-pointer text-xs"
+                    onClick={() => handleContentTypeChange('both')}
+                  >
+                    {filters.contentType === 'image' ? 'Images Only' : 'Videos Only'}
+                    <X className="h-3 w-3 ml-1" />
+                  </Badge>
                 )}
-              </Button>
-            </div>
+              </div>
+            )}
           </div>
+        </header>
 
-          {/* Active Filter Badges Row - Separate from main header row */}
-          {activeFilterCount > 0 && (
-            <div className="pb-3 pt-2 border-t border-border flex flex-wrap gap-2">
-              {filters.style?.map((style) => (
-                <Badge
-                  key={style}
-                  variant="secondary"
-                  className="cursor-pointer text-xs"
-                  onClick={() => handleStyleToggle(style)}
-                >
-                  {STYLE_OPTIONS.find(o => o.value === style)?.label || style}
-                  <X className="h-3 w-3 ml-1" />
-                </Badge>
-              ))}
-              {filters.quality?.map((quality) => (
-                <Badge
-                  key={quality}
-                  variant="secondary"
-                  className="cursor-pointer text-xs"
-                  onClick={() => handleQualityToggle(quality)}
-                >
-                  {QUALITY_OPTIONS.find(o => o.value === quality)?.label || quality}
-                  <X className="h-3 w-3 ml-1" />
-                </Badge>
-              ))}
-              {filters.aspectRatio?.map((ratio) => (
-                <Badge
-                  key={ratio}
-                  variant="secondary"
-                  className="cursor-pointer text-xs"
-                  onClick={() => handleAspectRatioToggle(ratio)}
-                >
-                  {ASPECT_RATIO_OPTIONS.find(o => o.value === ratio)?.label || ratio}
-                  <X className="h-3 w-3 ml-1" />
-                </Badge>
-              ))}
-              {filters.contentType && filters.contentType !== 'both' && (
-                <Badge
-                  variant="secondary"
-                  className="cursor-pointer text-xs"
-                  onClick={() => handleContentTypeChange('both')}
-                >
-                  {filters.contentType === 'image' ? 'Images Only' : 'Videos Only'}
-                  <X className="h-3 w-3 ml-1" />
-                </Badge>
-              )}
-            </div>
-          )}
-        </div>
-      </header>
-
-      {/* End-to-end separator below header - Dynamic height based on filter badges */}
-      <div 
-        className="fixed left-0 right-0 z-40 h-px bg-border" 
-        style={{ 
-          top: activeFilterCount > 0 
-            ? 'calc(var(--navbar-height) + 3.5rem + 3rem)' // h-14 (3.5rem) + filter badges row (~3rem)
-            : 'calc(var(--navbar-height) + 3.5rem)' // Just h-14 (3.5rem)
-        }}
-      />
-
-      {/* Content - Dynamic padding based on filter badges */}
-      <section 
-        ref={containerRef}
-        className="w-full px-4 sm:px-6 lg:px-8 py-8" 
-        style={{
-          paddingTop: activeFilterCount > 0
-            ? 'calc(var(--navbar-height) + 3.5rem + 3rem + 1.5rem)' // Header + filter badges + spacing
-            : 'calc(var(--navbar-height) + 3.5rem + 1.5rem)' // Just header + spacing
-        }}
-        aria-label="Gallery content"
-      >
+        {/* Content */}
+        <section 
+          ref={containerRef}
+          className="w-full px-4 sm:px-6 lg:px-8 py-8 relative z-10" 
+          aria-label="Gallery content"
+        >
         {/* Masonry Feed */}
         <MasonryFeed
           items={items}
@@ -480,6 +527,7 @@ export default function GalleryPage() {
           likedItems={likedItems}
         />
       </section>
-    </main>
+      </main>
+    </div>
   );
 }

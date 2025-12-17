@@ -391,20 +391,6 @@ Transform this moodboard into a photorealistic ${roomConfig.description} render.
         </>
       }
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>How It Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3 list-decimal list-inside text-muted-foreground">
-            <li>Upload your moodboard image</li>
-            <li>Choose style approach, room type, and detail level</li>
-            <li>Transform into photorealistic render</li>
-            <li>Download your result</li>
-          </ol>
-        </CardContent>
-      </Card>
-      
       <StyleReferenceDialog
         open={styleDialogOpen}
         onOpenChange={setStyleDialogOpen}

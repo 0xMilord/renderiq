@@ -130,6 +130,17 @@ export function CommonImageCard({
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       
+      // ✅ Trigger export task (non-blocking)
+      try {
+        await fetch('/api/tasks/export', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ renderId: renderData.id }),
+        });
+      } catch (error) {
+        // Silently fail - export tracking shouldn't break downloads
+      }
+      
       onDownload?.(data);
     } catch (error) {
       console.error('Failed to download:', error);

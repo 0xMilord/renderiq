@@ -166,6 +166,21 @@ export class UserOnboardingService {
       // CRITICAL: Always initialize user credits (even if 0 from sybil detection)
       // This ensures user has a credits record in the database
       const creditsResult = await this.initializeUserCredits(newUser.id, creditsToAward);
+
+      // ✅ Trigger onboarding complete task (non-blocking)
+      try {
+        const { TaskAutomationService } = await import('./task-automation.service');
+        const { TasksDAL } = await import('@/lib/dal/tasks');
+        const { TasksService } = await import('./tasks.service');
+        const task = await TasksDAL.getTaskBySlug('complete-onboarding');
+        if (task && task.isActive) {
+          await TasksService.completeTask(newUser.id, task.id, {
+            event: 'onboarding_complete',
+          });
+        }
+      } catch (error) {
+        logger.error('⚠️ Failed to trigger onboarding task (non-critical):', error);
+      }
       if (!creditsResult.success) {
         logger.error('❌ UserOnboarding: Failed to initialize credits, retrying with default:', creditsResult.error);
         // Retry with default credits if initialization failed

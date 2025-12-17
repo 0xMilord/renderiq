@@ -195,6 +195,17 @@ export function GalleryItemPageClient({ item, similarItems }: GalleryItemPageCli
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+
+      // ✅ Trigger export task (non-blocking)
+      try {
+        await fetch('/api/tasks/export', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ renderId: item.render.id }),
+        });
+      } catch (error) {
+        // Silently fail
+      }
     } catch (error) {
       console.error('Failed to download:', error);
     }

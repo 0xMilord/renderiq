@@ -46,7 +46,7 @@ export async function generateMetadata({
       siteName: 'Renderiq',
       images: [
         {
-          url: `${siteUrl}/og/apps/${tool.slug}.jpg`,
+          url: `${siteUrl}/og/apps/${tool.id}.jpg`, // Use tool ID for OG images (consistent naming)
           width: 1200,
           height: 630,
           alt: tool.seo.title,
@@ -99,7 +99,7 @@ export default async function ToolPage({ params }: { params: Promise<{ toolSlug:
       description: 'Available with Renderiq subscription or credits'
     },
     featureList: tool.features || [],
-    screenshot: `${siteUrl}/og/apps/${tool.slug}.jpg`,
+    screenshot: `${siteUrl}/og/apps/${tool.id}.jpg`,
     author: {
       '@type': 'Organization',
       name: 'Renderiq'

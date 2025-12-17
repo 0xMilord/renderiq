@@ -6,15 +6,20 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight } from 'lucide-react';
 import { getToolBySlug, type ToolConfig } from '@/lib/tools/registry';
-import { getToolIconPath } from '@/lib/utils/tool-icons';
+import { getAppIconPath } from '@/lib/utils/tool-icons';
 
 interface RelatedToolsProps {
-  toolSlugs: string[];
+  toolSlugs: string[]; // Accepts app slugs (client-facing terminology)
   title?: string;
   description?: string;
 }
 
-export function RelatedTools({ toolSlugs, title = "Related Tools", description }: RelatedToolsProps) {
+/**
+ * Related Apps component - displays related apps for a use case
+ * Note: Client-facing uses "apps" terminology, internal code uses "tools"
+ */
+export function RelatedTools({ toolSlugs, title = "Related Apps", description }: RelatedToolsProps) {
+  // Internal: use "tools" terminology for code
   const relatedTools: ToolConfig[] = toolSlugs
     .map(slug => getToolBySlug(slug))
     .filter((tool): tool is ToolConfig => tool !== undefined && tool.status === 'online');
@@ -37,7 +42,7 @@ export function RelatedTools({ toolSlugs, title = "Related Tools", description }
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {relatedTools.map((tool) => {
-            const iconPath = getToolIconPath(tool.slug);
+            const iconPath = getAppIconPath(tool.id);
             const isOnline = tool.status === 'online';
 
             return (
@@ -96,7 +101,7 @@ export function RelatedTools({ toolSlugs, title = "Related Tools", description }
                       className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
                       disabled={!isOnline}
                     >
-                      {isOnline ? 'Try Tool' : 'Coming Soon'}
+                      {isOnline ? 'Try App' : 'Coming Soon'}
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
                   </CardContent>

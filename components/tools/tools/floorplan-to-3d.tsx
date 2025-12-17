@@ -317,19 +317,6 @@ Transform this 2D floor plan into a 3D ${perspective} diagram in ${renderStyleCo
         </>
       }
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>How It Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3 list-decimal list-inside text-muted-foreground">
-            <li>Upload your 2D floor plan</li>
-            <li>Choose perspective type and wall height</li>
-            <li>Generate 3D axonometric diagram</li>
-            <li>Download your result</li>
-          </ol>
-        </CardContent>
-      </Card>
     </BaseToolComponent>
   );
 }

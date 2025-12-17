@@ -358,19 +358,6 @@ Populate this empty floor plan with ${furnitureStyle} style furniture appropriat
         </>
       }
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>How It Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3 list-decimal list-inside text-muted-foreground">
-            <li>Upload your empty floor plan</li>
-            <li>Choose furniture style and room type</li>
-            <li>Generate furnished floor plan</li>
-            <li>Download your result</li>
-          </ol>
-        </CardContent>
-      </Card>
     </BaseToolComponent>
   );
 }

@@ -376,19 +376,6 @@ Generate a professional architectural portfolio layout showcasing these project 
         </>
       }
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>How It Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3 list-decimal list-inside text-muted-foreground">
-            <li>Upload multiple project images (up to 10)</li>
-            <li>Choose layout style, color scheme, and typography</li>
-            <li>Select image emphasis preference</li>
-            <li>Generate professional portfolio layout</li>
-          </ol>
-        </CardContent>
-      </Card>
     </BaseToolComponent>
   );
 }

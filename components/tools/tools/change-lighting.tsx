@@ -305,19 +305,6 @@ Modify the lighting conditions in this interior space, transforming to ${lightin
         </>
       }
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>How It Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3 list-decimal list-inside text-muted-foreground">
-            <li>Upload your interior render</li>
-            <li>Choose lighting type and time of day</li>
-            <li>Transform lighting conditions</li>
-            <li>Download your result</li>
-          </ol>
-        </CardContent>
-      </Card>
     </BaseToolComponent>
   );
 }

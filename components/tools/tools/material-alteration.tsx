@@ -286,20 +286,6 @@ Alter the building materials and facade finishes in this architectural render. R
         </>
       }
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>How It Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3 list-decimal list-inside text-muted-foreground">
-            <li>Upload your architectural render</li>
-            <li>Select facade material and finish</li>
-            <li>Transform building materials</li>
-            <li>Download your result</li>
-          </ol>
-        </CardContent>
-      </Card>
-      
       <StyleReferenceDialog
         open={styleDialogOpen}
         onOpenChange={setStyleDialogOpen}

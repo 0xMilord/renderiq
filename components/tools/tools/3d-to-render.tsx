@@ -375,20 +375,6 @@ Transform this 3D model screenshot into a photorealistic architectural render. A
         </>
       }
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>How It Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3 list-decimal list-inside text-muted-foreground">
-            <li>Upload 3D model screenshot</li>
-            <li>Configure lighting and environment</li>
-            <li>Choose camera angle</li>
-            <li>Generate photorealistic render</li>
-          </ol>
-        </CardContent>
-      </Card>
-      
       <StyleReferenceDialog
         open={styleDialogOpen}
         onOpenChange={setStyleDialogOpen}

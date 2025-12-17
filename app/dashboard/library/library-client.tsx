@@ -145,6 +145,17 @@ export function LibraryClient({ rendersByProject }: LibraryClientProps) {
         toast.info('Opened in new tab. Right-click and "Save As" to download.');
       }
     }
+
+    // ✅ Trigger export task (non-blocking)
+    try {
+      await fetch('/api/tasks/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ renderId: render.id }),
+      });
+    } catch (error) {
+      // Silently fail - export tracking shouldn't break downloads
+    }
   }, []);
 
   return (

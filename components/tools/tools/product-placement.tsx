@@ -255,19 +255,6 @@ Place the specified product into this interior scene ${quantity === 'multiple' ?
         </>
       }
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>How It Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3 list-decimal list-inside text-muted-foreground">
-            <li>Upload interior scene (first image) and product image (second image)</li>
-            <li>Configure placement style and scale adjustment</li>
-            <li>Choose lighting matching option</li>
-            <li>Place product seamlessly into scene</li>
-          </ol>
-        </CardContent>
-      </Card>
     </BaseToolComponent>
   );
 }

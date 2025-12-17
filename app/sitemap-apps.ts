@@ -18,7 +18,7 @@ export default async function sitemapApps(): Promise<MetadataRoute.Sitemap> {
     priority: 0.9,
   };
 
-  // Get all tools (21 tools total)
+  // Get all tools dynamically
   const tools = getAllTools();
   
   // Individual tool pages

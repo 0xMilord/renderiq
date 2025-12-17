@@ -34,7 +34,7 @@ interface ToolOrchestratorProps {
   hintMessage?: string | null;
 }
 
-// Tool component mapping - All 21 tools mapped
+// Tool component mapping - All tools mapped dynamically
 // Sophisticated components can be swapped in as they're built
 const TOOL_COMPONENTS: Record<string, React.ComponentType<{ tool: ToolConfig; projectId?: string | null; onHintChange?: (hint: string | null) => void; hintMessage?: string | null }>> = {
   // Sophisticated components (custom UI)

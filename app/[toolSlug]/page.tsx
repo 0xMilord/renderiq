@@ -20,6 +20,7 @@ export async function generateMetadata({
     };
   }
 
+  // Client-side uses "apps" terminology, but URLs are at root level
   const toolUrl = `${siteUrl}/${tool.slug}`;
 
   return {
@@ -46,7 +47,7 @@ export async function generateMetadata({
       siteName: 'Renderiq',
       images: [
         {
-          url: `${siteUrl}/og/apps/${tool.slug}.jpg`,
+          url: `${siteUrl}/og/apps/${tool.id}.jpg`, // Use tool ID for OG images (consistent naming)
           width: 1200,
           height: 630,
           alt: tool.seo.title,
@@ -58,7 +59,7 @@ export async function generateMetadata({
       card: 'summary_large_image',
       title: tool.seo.title,
       description: tool.seo.description,
-      images: [`${siteUrl}/og/apps/${tool.slug}.jpg`],
+      images: [`${siteUrl}/og/apps/${tool.id}.jpg`],
       creator: '@Renderiq',
     },
     robots: {
@@ -99,7 +100,7 @@ export default async function ToolPage({ params }: { params: Promise<{ toolSlug:
       description: 'Available with Renderiq subscription or credits'
     },
     featureList: tool.features || [],
-    screenshot: `${siteUrl}/og/apps/${tool.slug}.jpg`,
+    screenshot: `${siteUrl}/og/apps/${tool.id}.jpg`,
     author: {
       '@type': 'Organization',
       name: 'Renderiq'

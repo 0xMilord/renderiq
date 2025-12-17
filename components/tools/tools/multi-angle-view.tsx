@@ -317,19 +317,6 @@ Generate ${viewAngle} (view ${viewIndex + 1} of ${totalViews}) of this architect
         </>
       }
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>How It Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3 list-decimal list-inside text-muted-foreground">
-            <li>Upload your architectural design</li>
-            <li>Choose number of views and view type</li>
-            <li>Generate multiple camera angles</li>
-            <li>Download your result</li>
-          </ol>
-        </CardContent>
-      </Card>
     </BaseToolComponent>
   );
 }

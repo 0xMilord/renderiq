@@ -244,19 +244,6 @@ Replace the specified ${replacementType} items in this interior space ${replaceE
         </>
       }
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>How It Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3 list-decimal list-inside text-muted-foreground">
-            <li>Upload your interior render</li>
-            <li>Select replacement type and style matching</li>
-            <li>Choose scale preservation option</li>
-            <li>Replace items with AI precision</li>
-          </ol>
-        </CardContent>
-      </Card>
     </BaseToolComponent>
   );
 }

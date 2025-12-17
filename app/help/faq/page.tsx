@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { JsonLd } from '@/components/seo/json-ld';
 import { FAQPageClient } from './faq-client';
+import { getAllTools } from '@/lib/tools/registry';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
 
@@ -105,7 +106,7 @@ const faqs = [
       },
       {
         question: 'Do I need any technical skills or 3D modeling experience to use Renderiq?',
-        answer: 'No! Renderiq is designed for architects, designers, and anyone who needs to visualize architectural concepts. Our unified chat interface and 21 specialized tools make it easy to create stunning renders without any prior experience. Just describe what you want, upload a sketch or floor plan, and our AI handles the rest. No CAD software, Blender, or 3D modeling knowledge needed.',
+        answer: 'No! Renderiq is designed for architects, designers, and anyone who needs to visualize architectural concepts. Our unified chat interface and specialized tools make it easy to create stunning renders without any prior experience. Just describe what you want, upload a sketch or floor plan, and our AI handles the rest. No CAD software, Blender, or 3D modeling knowledge needed.',
       },
       {
         question: 'What file formats does Renderiq support for uploads?',
@@ -113,7 +114,7 @@ const faqs = [
       },
       {
         question: 'What makes Renderiq different from other AI rendering tools like Midjourney or DALL-E?',
-        answer: 'Renderiq is purpose-built for architecture and AEC professionals. Unlike generic AI tools, our AI models are fine-tuned specifically for architectural visualization, ensuring accurate proportions, proper scale, and technically correct renders. We offer 21 specialized tools for specific tasks (floor plan visualization, material changes, lighting adjustments), a node-based Canvas Editor for complex workflows, render chains for version control, and AEC-specific features that generic tools simply cannot provide.',
+        answer: 'Renderiq is purpose-built for architecture and AEC professionals. Unlike generic AI tools, our AI models are fine-tuned specifically for architectural visualization, ensuring accurate proportions, proper scale, and technically correct renders. We offer specialized tools for specific tasks (floor plan visualization, material changes, lighting adjustments), a node-based Canvas Editor for complex workflows, render chains for version control, and AEC-specific features that generic tools simply cannot provide.',
       },
     ],
   },
@@ -134,11 +135,11 @@ const faqs = [
       },
       {
         question: 'What specialized tools does Renderiq offer?',
-        answer: 'Renderiq offers 21 specialized AI tools for specific architectural visualization tasks: Render Transformations (section drawings, CAD conversion, upscaling, effects), Floor Plan Tools (furnished visualization, 3D conversion, technical diagrams), Diagram Tools (exploded views, multi-angle views), Material & Texture Tools (texture changes, material alterations, lighting adjustments), Interior Design Tools (upholstery changes, product placement, item replacement, moodboard rendering), and 3D Tools (3D model rendering, model enhancement). Each tool has optimized prompts and settings for best results.',
+        answer: 'Renderiq offers specialized AI tools for specific architectural visualization tasks: Render Transformations (section drawings, CAD conversion, upscaling, effects), Floor Plan Tools (furnished visualization, 3D conversion, technical diagrams), Diagram Tools (exploded views, multi-angle views), Material & Texture Tools (texture changes, material alterations, lighting adjustments), Interior Design Tools (upholstery changes, product placement, item replacement, moodboard rendering), and 3D Tools (3D model rendering, model enhancement). Each tool has optimized prompts and settings for best results.',
       },
       {
         question: 'How does the unified chat interface work?',
-        answer: 'The unified chat interface is your main way to interact with Renderiq. Simply type what you want in natural language, upload images, and reference previous renders using @v1, @v2, or @latest. The AI understands architectural context, maintains conversation history, and provides intelligent suggestions. You can ask for material changes, lighting adjustments, style modifications, or completely new designs. The chat interface works seamlessly with all 21 specialized tools and the Canvas Editor.',
+        answer: 'The unified chat interface is your main way to interact with Renderiq. Simply type what you want in natural language, upload images, and reference previous renders using @v1, @v2, or @latest. The AI understands architectural context, maintains conversation history, and provides intelligent suggestions. You can ask for material changes, lighting adjustments, style modifications, or completely new designs. The chat interface works seamlessly with all specialized tools and the Canvas Editor.',
       },
       {
         question: 'What are AEC finetunes and technically correct renders?',
@@ -205,7 +206,7 @@ const faqs = [
       },
       {
         question: 'What are the subscription plans and pricing?',
-        answer: 'Renderiq offers flexible pricing: Free plan with 10 credits/month (3 projects, 5 renders per project), Starter plan at ₹799/month with 100 credits/month (10 projects, 10 renders per project), Pro plan at ₹2,499/month with 400 credits/month (unlimited projects and renders, video generation, API access), and Enterprise plan at ₹6,499/month with 1,200 credits/month (unlimited everything, team collaboration, dedicated support). Annual plans available with 20-25% savings. All plans include access to all 21 specialized tools and the Canvas Editor.',
+        answer: 'Renderiq offers flexible pricing: Free plan with 10 credits/month (3 projects, 5 renders per project), Starter plan at ₹799/month with 100 credits/month (10 projects, 10 renders per project), Pro plan at ₹2,499/month with 400 credits/month (unlimited projects and renders, video generation, API access), and Enterprise plan at ₹6,499/month with 1,200 credits/month (unlimited everything, team collaboration, dedicated support). Annual plans available with 20-25% savings. All plans include access to all specialized tools and the Canvas Editor.',
       },
       {
         question: 'Can I cancel my subscription anytime? What happens to my credits?',

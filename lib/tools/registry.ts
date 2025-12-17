@@ -34,7 +34,7 @@ export const TOOLS: ToolConfig[] = [
   // Category 1: Render Transformations
   {
     id: 'render-section-drawing',
-    slug: 'render-section-drawing',
+    slug: 'ai-architectural-section-drawing-tool',
     name: 'Render to Section Drawing',
     description: 'Convert renders to technical CAD sections, 3D cross-sections, or illustrated 2D drawings with text control and style references for construction docs',
     category: 'transformation',
@@ -51,7 +51,7 @@ export const TOOLS: ToolConfig[] = [
   },
   {
     id: 'render-to-cad',
-    slug: 'render-to-cad',
+    slug: 'convert-render-to-cad-drawing-tool',
     name: 'Render to CAD',
     description: 'Generate floor plans, elevations, and sections in batch with CAD linework, dimensions, and annotations for permit applications and construction docs',
     category: 'transformation',
@@ -68,7 +68,7 @@ export const TOOLS: ToolConfig[] = [
   },
   {
     id: 'render-upscale',
-    slug: 'render-upscale',
+    slug: 'ai-render-upscaler-architectural-enhancement',
     name: 'Render Upscale',
     description: 'Upscale renders 2x, 4x, or 8x with AI enhancement, sharpening edges, refining textures, and maintaining architectural accuracy for print-ready quality',
     category: 'transformation',
@@ -85,7 +85,7 @@ export const TOOLS: ToolConfig[] = [
   },
   {
     id: 'render-effects',
-    slug: 'render-effects',
+    slug: 'architectural-render-effects-stylization-tool',
     name: 'Render Effects',
     description: 'Apply sketch, illustration, wireframe, watercolor, or pencil effects with adjustable intensity while preserving architectural proportions and design intent',
     category: 'transformation',
@@ -104,7 +104,7 @@ export const TOOLS: ToolConfig[] = [
   // Category 2: Floor Plan Tools
   {
     id: 'floorplan-to-furnished',
-    slug: 'floorplan-to-furnished',
+    slug: 'ai-floor-plan-furniture-placement-tool',
     name: 'Empty Floorplan to Furnished',
     description: 'Add modern, traditional, minimalist, or luxury furniture to floor plans with proper scale, room-specific layouts, and CAD-style technical drawing quality',
     category: 'floorplan',
@@ -121,7 +121,7 @@ export const TOOLS: ToolConfig[] = [
   },
   {
     id: 'floorplan-to-3d',
-    slug: 'floorplan-to-3d',
+    slug: 'convert-2d-floor-plan-to-3d-diagram',
     name: 'Floorplan to 3D Model',
     description: 'Transform 2D plans into isometric, axonometric, or oblique 3D diagrams with adjustable wall heights (2.4m-3.6m) and technical accuracy',
     category: 'floorplan',
@@ -138,7 +138,7 @@ export const TOOLS: ToolConfig[] = [
   },
   {
     id: 'floorplan-technical-diagrams',
-    slug: 'floorplan-technical-diagrams',
+    slug: 'floor-plan-technical-diagram-generator',
     name: 'Floorplan Technical Diagrams',
     description: 'Create technical diagrams with minimal, standard, or detailed annotations, optional dimensions, room labels, and architectural symbols for documentation',
     category: 'floorplan',
@@ -157,7 +157,7 @@ export const TOOLS: ToolConfig[] = [
   // Category 3: Diagram & Visualization Tools
   {
     id: 'exploded-diagram',
-    slug: 'exploded-diagram',
+    slug: 'architectural-exploded-diagram-generator',
     name: 'Exploded Diagram',
     description: 'Generate exploded axonometric views with tight, medium, or wide component spacing in vertical, horizontal, or diagonal orientations for assembly visualization',
     category: 'diagram',
@@ -174,7 +174,7 @@ export const TOOLS: ToolConfig[] = [
   },
   {
     id: 'multi-angle-view',
-    slug: 'multi-angle-view',
+    slug: 'multi-angle-architectural-view-generator',
     name: 'Multi Angle View',
     description: 'Generate 2, 4, or 6 consistent camera angles (aerial, eye-level, or mixed) with matching lighting and materials for comprehensive design visualization',
     category: 'diagram',
@@ -193,7 +193,7 @@ export const TOOLS: ToolConfig[] = [
   // Category 4: Material & Texture Tools
   {
     id: 'change-texture',
-    slug: 'change-texture',
+    slug: 'ai-interior-texture-material-replacement',
     name: 'Change Texture',
     description: 'Replace interior materials with wood, stone, metal, fabric, concrete, marble, tile, or plaster with subtle, medium, or strong intensity and lighting control',
     category: 'material',
@@ -227,7 +227,7 @@ export const TOOLS: ToolConfig[] = [
   },
   {
     id: 'change-lighting',
-    slug: 'change-lighting',
+    slug: 'interior-lighting-simulation-change-tool',
     name: 'Change Lighting',
     description: 'Transform interior lighting with natural, warm, cool, dramatic, soft, or studio styles for day, sunset, night, dawn, or golden hour while preserving materials',
     category: 'material',
@@ -246,7 +246,7 @@ export const TOOLS: ToolConfig[] = [
   // Category 5: Interior Design Tools
   {
     id: 'upholstery-change',
-    slug: 'upholstery-change',
+    slug: 'furniture-upholstery-fabric-replacement-tool',
     name: 'Upholstery Change',
     description: 'Replace furniture upholstery with leather, fabric, velvet, linen, suede, or canvas in solid, striped, geometric, floral, or abstract patterns while maintaining form',
     category: 'interior',
@@ -263,7 +263,7 @@ export const TOOLS: ToolConfig[] = [
   },
   {
     id: 'product-placement',
-    slug: 'product-placement',
+    slug: 'ai-product-placement-interior-visualization',
     name: 'Product Placement',
     description: 'Place products into scenes with natural, prominent, or subtle positioning, auto/ preserve/fit scale adjustment, and optional lighting matching for realistic integration',
     category: 'interior',
@@ -280,7 +280,7 @@ export const TOOLS: ToolConfig[] = [
   },
   {
     id: 'item-change',
-    slug: 'item-change',
+    slug: 'interior-item-replacement-swap-tool',
     name: 'Item Change',
     description: 'Replace furniture, decor, fixtures, or artwork with style-matched, contrasting, or neutral alternatives while preserving or adjusting scale and lighting',
     category: 'interior',
@@ -297,7 +297,7 @@ export const TOOLS: ToolConfig[] = [
   },
   {
     id: 'moodboard-to-render',
-    slug: 'moodboard-to-render',
+    slug: 'convert-moodboard-to-interior-render-ai',
     name: 'Moodboard to Render',
     description: 'Convert moodboards into cohesive, eclectic, minimalist, or maximalist interior renders for living, bedroom, kitchen, office, dining, or bathroom with concept to complete detail',
     category: 'interior',
@@ -316,7 +316,7 @@ export const TOOLS: ToolConfig[] = [
   // Category 6: 3D & Model Tools
   {
     id: '3d-to-render',
-    slug: '3d-to-render',
+    slug: 'convert-3d-model-to-photorealistic-render',
     name: '3D to Render',
     description: 'Convert 3D model screenshots to photorealistic renders with natural/dramatic/soft/studio lighting, urban/natural/minimal environments, and eye-level/aerial/low-angle/close-up cameras',
     category: '3d',
@@ -333,7 +333,7 @@ export const TOOLS: ToolConfig[] = [
   },
   {
     id: 'sketch-to-render',
-    slug: 'sketch-to-render',
+    slug: 'convert-architectural-sketch-to-render-ai',
     name: 'Sketch to Render',
     description: 'Transform sketches to photorealistic renders with preserve/enhance/transform style options and sunny/overcast/sunset/night environments while maintaining design intent',
     category: '3d',
@@ -352,7 +352,7 @@ export const TOOLS: ToolConfig[] = [
   // Category 7: Presentation & Portfolio Tools
   {
     id: 'presentation-board-maker',
-    slug: 'presentation-board-maker',
+    slug: 'architectural-presentation-board-maker-tool',
     name: 'Presentation Board Maker',
     description: 'Create A3/A2/A1/A0 presentation boards with grid/masonry/linear/asymmetric/magazine layouts, light/dark/neutral/custom colors, and optional annotations for client meetings',
     category: 'presentation',
@@ -369,7 +369,7 @@ export const TOOLS: ToolConfig[] = [
   },
   {
     id: 'portfolio-layout-generator',
-    slug: 'portfolio-layout-generator',
+    slug: 'architect-portfolio-layout-generator-tool',
     name: 'Portfolio Layout Generator',
     description: 'Generate portfolio layouts with grid/masonry/linear/magazine/editorial styles, light/dark/neutral/minimal colors, minimal/elegant/bold typography, and balanced/large/small image emphasis',
     category: 'presentation',
@@ -405,7 +405,7 @@ export const TOOLS: ToolConfig[] = [
   // Category 8: Video Generation Tools
   {
     id: 'render-to-video',
-    slug: 'render-to-video',
+    slug: 'animate-architectural-render-to-video-ai',
     name: 'Render to Video',
     description: 'Animate architectural renders with smooth, cinematic motion. Create walkthrough videos, time-lapses, and dynamic presentations with camera movements, lighting changes, and environmental effects',
     category: 'video',
@@ -422,7 +422,7 @@ export const TOOLS: ToolConfig[] = [
   },
   {
     id: 'text-to-video-walkthrough',
-    slug: 'text-to-video-walkthrough',
+    slug: 'ai-architectural-walkthrough-video-generator',
     name: 'Text to Video Walkthrough',
     description: 'Generate architectural walkthrough videos from text descriptions. Create virtual property tours, construction sequences, design presentations, and marketing videos with synchronized audio',
     category: 'video',
@@ -439,7 +439,7 @@ export const TOOLS: ToolConfig[] = [
   },
   {
     id: 'keyframe-sequence-video',
-    slug: 'keyframe-sequence-video',
+    slug: 'architectural-keyframe-sequence-video-tool',
     name: 'Keyframe Sequence Video',
     description: 'Create smooth video transitions between multiple keyframe images (2-3 images). Perfect for showing design evolution, before/after sequences, and design variations with seamless transitions',
     category: 'video',

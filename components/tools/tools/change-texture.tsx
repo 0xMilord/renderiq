@@ -447,20 +447,6 @@ Modify the textures and materials in this interior space, replacing existing ${s
         </>
       }
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>How It Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3 list-decimal list-inside text-muted-foreground">
-            <li>Upload your interior render</li>
-            <li>Select material type and texture intensity</li>
-            <li>Choose lighting preservation option</li>
-            <li>Generate with new textures</li>
-          </ol>
-        </CardContent>
-      </Card>
-      
       <StyleReferenceDialog
         open={styleDialogOpen}
         onOpenChange={setStyleDialogOpen}

@@ -48,6 +48,13 @@ export function RenderDisplay({
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+
+      // ✅ Trigger export task (non-blocking)
+      fetch('/api/tasks/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ renderId: render.id }),
+      }).catch(() => {}); // Silently fail
     }
   };
 

@@ -37,16 +37,16 @@ const categoryIcons: Record<ToolCategory, typeof Sparkles> = {
   video: Play,
 };
 
-// Get custom SVG icon path for tools
-const getToolIconPath = (slug: string): string => {
-  return `/apps/icons/${slug}.svg`;
+// Get custom SVG icon path for apps (uses app ID, not slug)
+const getAppIconPath = (appId: string): string => {
+  return `/apps/icons/${appId}.svg`;
 };
 
 // Component to display tool cover image
 // Optimized with lazy loading and priority flags for performance
 function ToolCardMedia({ tool, index }: { tool: ToolConfig; index: number }) {
   const [imageError, setImageError] = useState(false);
-  const coverImage = `/apps/cover/${tool.slug}.jpg`;
+  const coverImage = `/apps/cover/${tool.id}.jpg`; // Use tool ID for cover images (consistent naming)
   
   // Load first 4 images with priority (above the fold)
   // Lazy load all others for better performance
@@ -86,7 +86,7 @@ function ToolIconWithFallback({
   index: number;
 }) {
   const [iconError, setIconError] = useState(false);
-  const iconPath = getToolIconPath(tool.slug);
+  const iconPath = getAppIconPath(tool.id); // Use app ID for icons (consistent with file naming)
   
   // Load first 4 icons immediately, lazy load others
   const isAboveFold = index < 4;
@@ -107,10 +107,14 @@ function ToolIconWithFallback({
 }
 
 interface AppsPageClientProps {
-  tools: ToolConfig[];
+  tools: ToolConfig[]; // Internal: "tools" for code, client-facing uses "apps"
   categories: typeof CATEGORIES;
 }
 
+/**
+ * Apps Page Client Component
+ * Note: Client-facing uses "apps" terminology, internal code uses "tools"
+ */
 export function AppsPageClient({ tools, categories }: AppsPageClientProps) {
   const router = useRouter();
   

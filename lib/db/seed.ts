@@ -215,6 +215,16 @@ export async function seedDatabase() {
   try {
     await seedSubscriptionPlans();
     await seedCreditPackages();
+    
+    // ✅ Seed tasks system (VC-safe MVP)
+    try {
+      const { seedTasksDatabase } = await import('./seed-tasks');
+      await seedTasksDatabase();
+    } catch (error) {
+      logger.error('⚠️ Failed to seed tasks (non-critical):', error);
+      // Don't throw - tasks seeding is optional
+    }
+    
     logger.log('🎉 Database seeding completed successfully');
   } catch (error) {
     console.error('❌ Database seeding failed:', error);

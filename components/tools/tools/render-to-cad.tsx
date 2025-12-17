@@ -629,27 +629,6 @@ CRITICAL SCALE REQUIREMENT: The drawing must be marked as NTS (Not To Scale) unl
         </>
       }
     >
-      <Card className="h-full border-2 hover:border-primary/50 transition-colors">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg font-semibold">How It Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-2.5">
-            {(TOOL_CONTENT['render-to-cad']?.howItWorks.steps || []).map((item, idx) => (
-              <li key={idx} className="flex items-start gap-3 text-sm">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary font-semibold flex items-center justify-center text-xs mt-0.5">
-                  {idx + 1}
-                </span>
-                <div className="flex-1 pt-0.5">
-                  <span className="font-medium text-foreground">{item.step}:</span>
-                  <span className="text-muted-foreground ml-1">{item.detail}</span>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </CardContent>
-      </Card>
-      
       {/* Tool-specific content sections */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
         {/* Drawing Types */}

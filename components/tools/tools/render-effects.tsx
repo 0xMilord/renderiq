@@ -302,20 +302,6 @@ Apply ${effectConfig.description} to this architectural render with ${intensityC
         </>
       }
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>How It Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3 list-decimal list-inside text-muted-foreground">
-            <li>Upload your architectural render</li>
-            <li>Choose effect type and intensity</li>
-            <li>Apply creative effects with AI</li>
-            <li>Download your stylized render</li>
-          </ol>
-        </CardContent>
-      </Card>
-      
       <StyleReferenceDialog
         open={styleDialogOpen}
         onOpenChange={setStyleDialogOpen}

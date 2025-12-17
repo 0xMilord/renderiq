@@ -347,20 +347,6 @@ Transform the architectural sketch into an architectural render following ${styl
         </>
       }
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>How It Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3 list-decimal list-inside text-muted-foreground">
-            <li>Upload your architectural sketch</li>
-            <li>Choose style preservation level</li>
-            <li>Select environment (optional)</li>
-            <li>Generate photorealistic render</li>
-          </ol>
-        </CardContent>
-      </Card>
-      
       <StyleReferenceDialog
         open={styleDialogOpen}
         onOpenChange={setStyleDialogOpen}

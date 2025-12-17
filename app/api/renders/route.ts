@@ -1142,6 +1142,20 @@ export async function handleRenderRequest(request: NextRequest) {
       }
     }
 
+    // ✅ Trigger automatic task: Create Render or Refine Render
+    try {
+      const { TaskAutomationService } = await import('@/lib/services/task-automation.service');
+      if (validatedReferenceRenderId) {
+        // This is a refinement (has reference render)
+        await TaskAutomationService.onRenderRefined(user.id, render.id, validatedReferenceRenderId);
+      } else {
+        // This is a new render
+        await TaskAutomationService.onRenderCreated(user.id, render.id);
+      }
+    } catch (error) {
+      logger.error('⚠️ Failed to trigger render task (non-critical)', error);
+    }
+
     // Update render status to processing
     await RendersDAL.updateStatus(render.id, 'processing');
 
@@ -1806,6 +1820,14 @@ export async function handleRenderRequest(request: NextRequest) {
       if (isPublic) {
         logger.log('📸 Adding render to public gallery');
         await RendersDAL.addToGallery(render.id, user.id, isPublic);
+        
+        // ✅ Trigger automatic task: Share to Gallery (if task exists)
+        try {
+          const { TaskAutomationService } = await import('@/lib/services/task-automation.service');
+          // Note: Gallery share task removed for MVP, keeping hook for future
+        } catch (error) {
+          logger.error('⚠️ Failed to trigger gallery share task (non-critical)', error);
+        }
       }
 
       logger.log('🎉 Render completed successfully');

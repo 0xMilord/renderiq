@@ -257,6 +257,18 @@
 
 .react-flow__node {
   overflow: visible !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.react-flow__node-selected {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.react-flow__node:focus {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .react-flow__node .react-flow__handle {
@@ -304,6 +316,33 @@
 
 .animate-shimmer {
   animation: shimmer 2s infinite;
+}
+
+/* Marquee animations for carousel/sliding effects */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-100% - var(--gap, 1rem)));
+  }
+}
+
+@keyframes marquee-vertical {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(-100% - var(--gap, 0.5rem)));
+  }
+}
+
+.animate-marquee {
+  animation: marquee var(--duration, 40s) linear infinite;
+}
+
+.animate-marquee-vertical {
+  animation: marquee-vertical var(--duration, 40s) linear infinite;
 }
 
 /* Tldraw Theme Customization - Align with Renderiq color scheme */

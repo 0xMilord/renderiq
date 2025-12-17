@@ -3,9 +3,13 @@ import { AppsPageClient } from "./apps-client";
 import { getAllTools, CATEGORIES } from "@/lib/tools/registry";
 import { JsonLd } from '@/components/seo/json-ld';
 
+// Get dynamic tool count
+const tools = getAllTools();
+const toolCount = tools.length;
+
 export const metadata: Metadata = {
-  title: "AI Architecture Tools | 21 Specialized Tools for Architects | Renderiq",
-  description: "Discover 21 specialized AI architecture tools: render transformations, floor plan tools, diagrams, material testing, interior design, 3D visualization, and presentation tools. Transform your architectural workflow.",
+  title: `AI Architecture Tools | ${toolCount} Specialized Tools for Architects | Renderiq`,
+  description: `Discover ${toolCount} specialized AI architecture tools: render transformations, floor plan tools, diagrams, material testing, interior design, 3D visualization, and presentation tools. Transform your architectural workflow.`,
   keywords: [
     "AI architecture tools",
     "architectural software",
@@ -23,16 +27,16 @@ export const metadata: Metadata = {
     canonical: `${process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io'}/apps`,
   },
   openGraph: {
-    title: "AI Architecture Tools - 21 Specialized Tools for Architects",
-    description: "Discover 21 specialized AI architecture tools for every stage of your design workflow. From concept to presentation.",
+    title: `AI Architecture Tools - ${toolCount} Specialized Tools for Architects`,
+    description: `Discover ${toolCount} specialized AI architecture tools for every stage of your design workflow. From concept to presentation.`,
     type: "website",
     url: `${process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io'}/apps`,
     siteName: "Renderiq",
   },
   twitter: {
     card: "summary_large_image",
-    title: "AI Architecture Tools - 21 Specialized Tools",
-    description: "Discover 21 specialized AI architecture tools for every stage of your design workflow.",
+    title: `AI Architecture Tools - ${toolCount} Specialized Tools`,
+    description: `Discover ${toolCount} specialized AI architecture tools for every stage of your design workflow.`,
   },
   robots: {
     index: true,
@@ -41,7 +45,6 @@ export const metadata: Metadata = {
 };
 
 export default function AppsPage() {
-  const tools = getAllTools();
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://renderiq.io';
   
   // CollectionPage schema for apps listing
@@ -49,7 +52,7 @@ export default function AppsPage() {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
     name: 'AI Architecture Tools',
-    description: 'A collection of 21 specialized AI architecture tools for architects and designers, including render transformations, floor plan tools, diagrams, material testing, interior design, 3D visualization, and presentation tools.',
+    description: `A collection of ${toolCount} specialized AI architecture tools for architects and designers, including render transformations, floor plan tools, diagrams, material testing, interior design, 3D visualization, and presentation tools.`,
     url: `${siteUrl}/apps`,
     mainEntity: {
       '@type': 'ItemList',

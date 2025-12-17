@@ -516,12 +516,71 @@ const nextConfig: NextConfig = {
       },
     ];
 
-    // Redirect old /apps/[toolSlug] routes to root-level /[toolSlug]
+    // Redirect old /apps/[toolSlug] routes to root-level /[toolSlug] (apps)
     // This handles the migration from /apps/tool-slug to /tool-slug
     redirects.push({
       source: '/apps/:toolSlug',
       destination: '/:toolSlug',
       permanent: true,
+    });
+
+    // Redirect old tool slugs to new SEO-optimized slugs
+    const oldToNewSlugMap: Record<string, string> = {
+      'render-section-drawing': 'ai-architectural-section-drawing-tool',
+      'render-to-cad': 'convert-render-to-cad-drawing-tool',
+      'render-upscale': 'ai-render-upscaler-architectural-enhancement',
+      'render-effects': 'architectural-render-effects-stylization-tool',
+      'floorplan-to-furnished': 'ai-floor-plan-furniture-placement-tool',
+      'floorplan-to-3d': 'convert-2d-floor-plan-to-3d-diagram',
+      'floorplan-technical-diagrams': 'floor-plan-technical-diagram-generator',
+      'exploded-diagram': 'architectural-exploded-diagram-generator',
+      'multi-angle-view': 'multi-angle-architectural-view-generator',
+      'change-texture': 'ai-interior-texture-material-replacement',
+      'material-alteration': 'facade-material-alteration-replacement-tool',
+      'change-lighting': 'interior-lighting-simulation-change-tool',
+      'upholstery-change': 'furniture-upholstery-fabric-replacement-tool',
+      'product-placement': 'ai-product-placement-interior-visualization',
+      'item-change': 'interior-item-replacement-swap-tool',
+      'moodboard-to-render': 'convert-moodboard-to-interior-render-ai',
+      '3d-to-render': 'convert-3d-model-to-photorealistic-render',
+      'sketch-to-render': 'convert-architectural-sketch-to-render-ai',
+      'presentation-board-maker': 'architectural-presentation-board-maker-tool',
+      'portfolio-layout-generator': 'architect-portfolio-layout-generator-tool',
+      'presentation-sequence-creator': 'architectural-presentation-sequence-creator',
+      'render-to-video': 'animate-architectural-render-to-video-ai',
+      'text-to-video-walkthrough': 'ai-architectural-walkthrough-video-generator',
+      'keyframe-sequence-video': 'architectural-keyframe-sequence-video-tool',
+    };
+
+    // Add redirects for old slugs
+    Object.entries(oldToNewSlugMap).forEach(([oldSlug, newSlug]) => {
+      redirects.push({
+        source: `/${oldSlug}`,
+        destination: `/${newSlug}`,
+        permanent: true,
+      });
+      redirects.push({
+        source: `/apps/${oldSlug}`,
+        destination: `/${newSlug}`,
+        permanent: true,
+      });
+    });
+
+    // Plugin slug redirects (old short slugs to new SEO-optimized slugs)
+    const pluginRedirects = [
+      { from: '/plugins/sketchup', to: '/plugins/sketchup-ai-rendering-plugin' },
+      { from: '/plugins/revit', to: '/plugins/revit-ai-rendering-plugin' },
+      { from: '/plugins/autocad', to: '/plugins/autocad-ai-rendering-plugin' },
+      { from: '/plugins/blender', to: '/plugins/blender-ai-rendering-plugin' },
+      { from: '/plugins/rhino', to: '/plugins/rhino-ai-rendering-plugin' },
+    ];
+
+    pluginRedirects.forEach(({ from, to }) => {
+      redirects.push({
+        source: from,
+        destination: to,
+        permanent: true,
+      });
     });
 
     return redirects;

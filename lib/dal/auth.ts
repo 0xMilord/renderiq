@@ -254,6 +254,15 @@ export class AuthDAL {
         .where(eq(users.id, userId));
 
       logger.log('✅ AuthDAL: Last login updated');
+
+      // ✅ Trigger daily login task (non-blocking)
+      try {
+        const { TaskAutomationService } = await import('@/lib/services/task-automation.service');
+        await TaskAutomationService.onDailyLogin(userId);
+      } catch (error) {
+        logger.error('⚠️ Failed to trigger daily login task (non-critical):', error);
+        // Don't throw - task automation shouldn't break login
+      }
     } catch (error) {
       console.error('❌ AuthDAL: Error updating last login:', error);
       throw error;

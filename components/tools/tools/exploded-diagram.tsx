@@ -317,19 +317,6 @@ Create an exploded axonometric diagram from this architectural design in ${rende
         </>
       }
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>How It Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3 list-decimal list-inside text-muted-foreground">
-            <li>Upload your architectural design</li>
-            <li>Configure spacing and orientation</li>
-            <li>Generate exploded axonometric diagram</li>
-            <li>Download your result</li>
-          </ol>
-        </CardContent>
-      </Card>
     </BaseToolComponent>
   );
 }

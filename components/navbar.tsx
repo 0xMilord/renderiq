@@ -44,8 +44,9 @@ import {
 import { CATEGORIES, getToolsByCategory, getAllTools } from '@/lib/tools/registry';
 
 // Get custom SVG icon path for tools
-const getToolIconPath = (slug: string): string => {
-  return `/apps/icons/${slug}.svg`;
+// Get app icon path (uses app ID, not slug, since icon files use IDs)
+const getAppIconPath = (appId: string): string => {
+  return `/apps/icons/${appId}.svg`;
 };
 
 export function Navbar() {
@@ -246,7 +247,7 @@ export function Navbar() {
                         </DropdownMenuItem>
                       </div>
                       {getAllTools().map((tool, index) => {
-                        const iconPath = getToolIconPath(tool.slug);
+                        const iconPath = getAppIconPath(tool.id);
                         return (
                           <div key={tool.id} className="relative">
                             <DropdownMenuItem asChild>
@@ -345,7 +346,7 @@ export function Navbar() {
                         {/* Apps Grid - 4 columns, 5 rows (20 items) */}
                         <div className="grid grid-cols-4 gap-3">
                           {getAllTools().slice(0, 20).map((tool) => {
-                            const iconPath = getToolIconPath(tool.slug);
+                            const iconPath = getAppIconPath(tool.id);
                             return (
                               <Link
                                 key={tool.id}

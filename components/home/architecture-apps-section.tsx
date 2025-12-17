@@ -13,14 +13,14 @@ import {
   FaVideo
 } from 'react-icons/fa';
 
-// Icon mapping for each specific tool (matching navbar mapping)
-// Get custom SVG icon path for tools
-const getToolIconPath = (tool: { slug: string; outputType: string }): string | null => {
-  // For video tools, use a special icon or return null to use default
+// Icon mapping for each specific app (matching navbar mapping)
+// Get custom SVG icon path for apps (uses app ID, not slug, since icon files use IDs)
+const getAppIconPath = (tool: { id: string; outputType: string }): string | null => {
+  // For video apps, use a special icon or return null to use default
   if (tool.outputType === 'video') {
     return null; // Will use FaVideo fallback
   }
-  return `/apps/icons/${tool.slug}.svg`;
+  return `/apps/icons/${tool.id}.svg`;
 };
 
 export function ArchitectureAppsSection() {
@@ -54,11 +54,11 @@ export function ArchitectureAppsSection() {
 
   return (
     <section id="architecture-apps" className="w-full overflow-x-hidden relative bg-background/80 backdrop-blur-sm">
-      <div className={`w-full px-4 sm:px-6 lg:px-8 relative border-l-[5px] border-r-[5px] border-b-[5px] ${borderClass}`}>
+      <div className={`w-full relative border-l-[5px] border-r-[5px] border-b-[5px] ${borderClass}`}>
         <div className="w-full">
-          <div className="grid grid-cols-1 lg:grid-cols-[50%_50%] gap-0 relative pt-8">
+          <div className="grid grid-cols-1 lg:grid-cols-[50%_50%] gap-0 relative">
             {/* Column 1 - 50% - Text, Description, and Tag */}
-            <div className="text-left relative pb-6 lg:pb-8 pr-0 lg:pr-6">
+            <div className="text-left relative px-4 sm:px-6 lg:px-8 pb-6 lg:pb-8 pr-0 lg:pr-6">
               <Badge className="mb-4 bg-muted text-muted-foreground px-4 py-2">
                 Architecture Apps
               </Badge>
@@ -72,7 +72,7 @@ export function ArchitectureAppsSection() {
             </div>
 
             {/* Column 2 - 50% - Illustration */}
-            <div className="relative flex items-center justify-center lg:justify-end pb-6 lg:pb-8 pl-0 lg:pl-6">
+            <div className="relative flex items-center justify-center lg:justify-end">
               <div className="relative w-full h-full min-h-[200px] lg:min-h-[300px] max-w-md">
                 <Image
                   src="/home/architecture-apps-section.svg"
@@ -96,7 +96,7 @@ export function ArchitectureAppsSection() {
                 {sortedTools.map((tool) => {
                   const effectiveStatus = getEffectiveToolStatus(tool.id, tool.status);
                   const isOffline = effectiveStatus === 'offline';
-                  const iconPath = getToolIconPath(tool);
+                  const iconPath = getAppIconPath(tool);
 
                   return (
                     <Link key={tool.id} href={`/${tool.slug}`} className="block">

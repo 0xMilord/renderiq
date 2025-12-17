@@ -416,20 +416,6 @@ Create a professional architectural presentation board with these images. Use ${
         </>
       }
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>How It Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3 list-decimal list-inside text-muted-foreground">
-            <li>Upload multiple render images (up to 10)</li>
-            <li>Choose board size, layout style, and color scheme</li>
-            <li>Select annotation preferences</li>
-            <li>Generate professional presentation board</li>
-          </ol>
-        </CardContent>
-      </Card>
-      
       <StyleReferenceDialog
         open={colorDialogOpen}
         onOpenChange={setColorDialogOpen}

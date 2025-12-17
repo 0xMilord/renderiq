@@ -18,8 +18,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
 // Get custom SVG icon path for tools
-const getToolIconPath = (slug: string): string => {
-  return `/apps/icons/${slug}.svg`;
+// Get app icon path (uses app ID, not slug, since icon files use IDs)
+const getAppIconPath = (appId: string): string => {
+  return `/apps/icons/${appId}.svg`;
 };
 
 const publicNavItems = [
@@ -177,7 +178,7 @@ export function BottomNav() {
                   <div className="mt-6 overflow-y-auto px-4 pb-4">
                     <div className="flex flex-col gap-1">
                       {allTools.map((tool) => {
-                        const iconPath = getToolIconPath(tool.slug);
+                        const iconPath = getAppIconPath(tool.id);
                         const isOnline = ('status' in tool ? tool.status : 'offline') === 'online';
                         
                         return (

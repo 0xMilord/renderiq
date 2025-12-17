@@ -280,19 +280,6 @@ Create a sequential presentation layout that tells a visual story with these arc
         </>
       }
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>How It Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3 list-decimal list-inside text-muted-foreground">
-            <li>Upload multiple architectural images (up to 8)</li>
-            <li>Choose sequence type, flow direction, and transition style</li>
-            <li>Select annotation preferences</li>
-            <li>Create sequential presentation layout</li>
-          </ol>
-        </CardContent>
-      </Card>
     </BaseToolComponent>
   );
 }
