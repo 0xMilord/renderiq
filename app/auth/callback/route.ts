@@ -51,7 +51,7 @@ export async function GET(request: Request) {
           {
             id: data.user.id,
             email: data.user.email!,
-            name: data.user.user_metadata?.name || data.user.user_metadata?.full_name,
+            name: data.user.user_metadata?.name || data.user.user_metadata?.full_name || data.user.email?.split('@')[0],
             avatar: avatarUrl,
           },
           {

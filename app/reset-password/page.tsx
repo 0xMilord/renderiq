@@ -183,11 +183,10 @@ export default function ResetPasswordPage() {
       {/* DotGrid Background */}
       <div className="absolute inset-0 -z-0">
         <DotGrid
-          className="opacity-20"
+          className="opacity-20 h-full w-full"
           dotSize={4}
           spacing={20}
           returnDuration={1.5}
-          className="h-full w-full"
         />
       </div>
 

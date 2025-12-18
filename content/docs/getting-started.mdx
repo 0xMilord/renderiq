@@ -1,138 +1,96 @@
 ---
-title: Getting Started with Renderiq - AI Architectural Visualization Platform
-description: Learn how to get started with Renderiq, the AI-powered platform for transforming architectural sketches into photorealistic renders using multiple state-of-the-art AI models for image, video, and 3D generation. Complete guide for architects and designers.
+title: Getting Started
+description: Transform your architectural sketches into stunning photorealistic renders in minutes. Here's how to get started with Renderiq.
 order: 1
 category: Introduction
 ---
 
-# Getting Started with Renderiq
+# Getting Started
 
-Welcome to **Renderiq** - the AI-powered architectural visualization platform that transforms your sketches and prompts into photorealistic renders and videos using multiple state-of-the-art AI models.
+Welcome to Renderiq! In just a few minutes, you'll be transforming rough sketches into beautiful architectural visualizations.
 
-## What is Renderiq?
+## Create Your Account
 
-Renderiq is a comprehensive AI architectural visualization platform designed for architects, designers, and creative professionals. Using multiple advanced AI models for image, video, and 3D generation, Renderiq enables you to:
+1. Head to [Sign Up](/signup)
+2. Sign up with Google, GitHub, or email
+3. You'll get **25 free credits** to start creating immediately
 
-- Transform architectural sketches into photorealistic visualizations
-- Generate high-quality images and videos from text prompts
-- Iterate on designs with version-controlled render chains
-- Organize work into projects with advanced project management
-- Share and discover renders in the public gallery
+## Three Ways to Create
 
-## Key Features
+Renderiq gives you three powerful interfaces for different workflows:
 
-### AI-Powered Rendering
-- **Image Generation**: Multiple state-of-the-art models for photorealistic renders
-- **Video Generation**: Advanced video models for cinematic walkthroughs
-- **3D Generation**: 3D model creation from images or text
-- **Multiple Quality Levels**: Standard, High, and Ultra quality options
-- **Aspect Ratio Control**: 16:9, 9:16, 1:1, 4:3, and 21:9 support
+### 1. Apps — Quick, No-Prompt Tools
 
-### Project Management
-- **Project Organization**: Create and manage multiple architectural projects
-- **Render Chains**: Version-controlled sequences of related renders
-- **Automatic Chain Creation**: Default chains created automatically for new projects
-- **Project Slugs**: URL-friendly project identifiers for easy sharing
+Browse our **32 specialized AI apps** at [/apps](/apps). Each app is purpose-built for a specific task:
 
-### Unified Chat Interface
-- **Conversational Rendering**: Chat-based interface for natural interaction
-- **Image Upload Support**: Upload sketches and reference images
-- **Version References**: Reference previous renders using @mentions (@v1, @v2, @latest)
-- **Real-time Preview**: See renders as they're generated
+- **Sketch to Render** — Transform hand drawings into photorealistic images
+- **Render to CAD** — Generate floor plans, elevations, and sections
+- **Material Swap** — Change materials across your design
+- **Render Upscale** — Enhance resolution up to 8x
+- And 28 more...
 
-### Canvas Editor
-- **Node-Based Workflows**: Visual programming with React Flow
-- **Workflow Automation**: Create complex rendering pipelines
-- **Auto-save**: Automatic saving of canvas state
+Just upload your image and hit generate — no prompt needed.
 
-### Credit System
-- **Flexible Billing**: Credit-based system for pay-as-you-go usage
-- **Subscription Plans**: Monthly plans with included credits
-- **Transaction History**: Track all credit usage and purchases
+### 2. Chat Interface — Iterative Design
 
-## Quick Start Guide
+The [Render page](/render) gives you a conversational AI experience:
 
-### Step 1: Create Your Account
+- Chat naturally with AI to refine your vision
+- Upload sketches and reference images
+- Iterate on designs with version control
+- Reference previous renders with @mentions (@v1, @v2, @latest)
 
-1. Navigate to the [Sign Up page](/signup)
-2. Choose your signup method:
-   - **Email/Password**: Traditional signup with email verification
-   - **OAuth**: Quick signup with Google or GitHub
-3. Verify your email (if using email/password)
-4. Complete your profile setup
+Perfect for exploring ideas and refining concepts through conversation.
 
-### Step 2: Create Your First Project
+### 3. Canvas — Node-Based Workflows
 
-1. Navigate to `/dashboard/projects` or `/render`
-2. Click "New Project" or "Create Project"
-3. Enter a project name and optional description
-4. Upload an initial sketch (optional) or use the shape generator
-5. Click "Create Project"
+For complex, multi-step pipelines, use the [Canvas](/canvas):
 
-### Step 3: Generate Your First Render
+- Visual node-based editor
+- Chain multiple AI operations together
+- Create reusable workflows
+- Automate batch processing
 
-1. Go to `/render` or select your project
-2. Enter a descriptive prompt in the chat interface
-3. Configure settings:
-   - **Style**: Choose from predefined styles
-   - **Quality**: Standard (1 credit), High (2 credits), or Ultra (3 credits)
-   - **Aspect Ratio**: Select your preferred ratio
-4. Click "Generate" or press Enter
-5. Wait for your render to complete
+Ideal for production workflows and advanced users.
 
-### Step 4: Iterate and Refine
+## Your First Render
 
-1. Review your generated render
-2. Use version references to build on previous renders
-3. Upload reference images for style transfer
-4. Adjust prompts and settings for better results
-5. Create render chains to track iterations
+The fastest way to start:
 
-## System Architecture
+1. Go to [Apps](/apps)
+2. Pick a tool like **Sketch to Render**
+3. Upload your image
+4. Hit **Generate**
 
-Renderiq uses a modern, scalable architecture:
+That's it — no prompt required for most apps.
 
-- **Frontend**: Next.js 15 with React 19 and TypeScript
-- **Backend**: Next.js Server Actions for internal operations
-- **API Routes**: External API endpoints for integrations
-- **Database**: PostgreSQL with Drizzle ORM
-- **Storage**: Supabase Storage for file management
-- **Authentication**: Supabase Auth with OAuth support
-- **AI Models**: Multiple models for image, video, and 3D generation
+## Understanding Credits
 
-## Credit Costs
+Credits are based on image quality:
 
-Understanding credit costs helps you plan your usage:
+| Quality | Credits | Best for |
+|---------|---------|----------|
+| Standard | 5 | Quick iterations, concept testing |
+| High | 10 | Client presentations |
+| Ultra | 15 | Final deliverables, portfolio pieces |
 
-- **Image Generation**:
-  - Standard Quality: 1 credit
-  - High Quality: 2 credits
-  - Ultra Quality: 3 credits
+Video generation costs vary by duration and model.
 
-- **Video Generation**:
-  - Base Cost: 5 credits
-  - Duration Multiplier: Scales with video length
-  - Model Multiplier: Higher quality models cost more
+## Organize Your Work
 
-- **Upscaling**: Varies based on scale factor and quality
+Keep your projects tidy:
+
+- **Projects** — Group related renders together (e.g., "Beach House Concept")
+- **Chains** — Track iterations of the same design
+- **Library** — All your renders in one place
 
 ## What's Next?
 
-Now that you understand the basics:
-
-- [Making Your Account](/docs/making-your-account) - Detailed account setup and management
-- [Around the App](/docs/around-the-app) - Complete guide to all features and pages
-- [Creating Your First Project](/docs/creating-your-first-project) - Step-by-step project creation
-- [Creating Your First Chain](/docs/creating-your-first-chain) - Organize renders with chains
-- [Unified Chat Interface](/docs/unified-chat-interface) - Master the rendering interface
-- [Prompt Engineering](/docs/prompt-engineering) - Write effective prompts for better results
+- [Prompt Engineering](/docs/prompt-engineering) — Write prompts that get stunning results
+- [Projects & Chains](/docs/creating-your-first-project) — Organize your work like a pro
+- [Chat Interface](/docs/unified-chat-interface) — Master the conversational interface
 
 ## Need Help?
 
-- Check [Known Issues](/docs/known-issues) for common problems and solutions
-- Review the [Changelog](/docs/changelog) for recent updates
-- Contact support for additional assistance
-
-## SEO Keywords
-
-Renderiq, AI architectural visualization, architectural rendering, AI design tools, photorealistic renders, architectural visualization software, AI image generation, design iteration, render chains, project management for architects
+- Check [Known Issues](/docs/known-issues) for common solutions
+- Email us at support@renderiq.io
