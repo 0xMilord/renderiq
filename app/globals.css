@@ -45,28 +45,28 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
-  --animate-line-shadow: line-shadow 15s linear infinite;
-  @keyframes line-shadow {
-  0% {
-    background-position: 0 0;
+  --animate-shine: shine var(--duration) infinite linear;
+
+  @keyframes shine {
+    0% {
+      background-position: 0% 0%;
     }
-  100% {
-    background-position: 100% -100%;
+    50% {
+      background-position: 100% 100%;
+    }
+    to {
+      background-position: 0% 0%;
     }
   }
-  --animate-grid: grid 15s linear infinite
-;
-  @keyframes grid {
-  0% {
-    transform: translateY(-50%);}
-  100% {
-    transform: translateY(0);}}
-  --animate-ripple: ripple var(--duration,2s) ease calc(var(--i, 0)*.2s) infinite;
-  @keyframes ripple {
-  0%, 100% {
-    transform: translate(-50%, -50%) scale(1);}
-  50% {
-    transform: translate(-50%, -50%) scale(0.9);}}}
+  @keyframes orbit-spin {
+  from {
+    transform: rotate(0deg);
+    }
+  to {
+    transform: rotate(360deg);
+    }
+  }
+}
 
 :root {
   --background: oklch(1 0 0);
@@ -197,37 +197,6 @@
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
-  }
-
-  /* 120fps Animation Optimizations */
-  .will-change-transform {
-    will-change: transform;
-    transform: translateZ(0);
-    backface-visibility: hidden;
-    perspective: 1000px;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-
-  /* GPU-accelerated animations */
-  [data-framer-motion] {
-    will-change: transform;
-    transform: translateZ(0);
-    backface-visibility: hidden;
-  }
-
-  /* Smooth gradient transitions */
-  .gradient-tab-bg {
-    will-change: transform, opacity;
-    transform: translateZ(0);
-    backface-visibility: hidden;
-    contain: layout style paint;
-  }
-
-  /* Optimize navbar animations */
-  nav[class*="navbar"] * {
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
   }
 
   /* Custom Scrollbar Styles - Slim and Sleek */
@@ -395,6 +364,56 @@
 
 .animate-marquee-vertical {
   animation: marquee-vertical var(--duration, 40s) linear infinite;
+}
+
+@keyframes marquee-aec {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee-aec {
+  animation: marquee-aec 20s linear infinite;
+}
+
+@keyframes orbit-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes edge-glow {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes edge-glow-vertical {
+  0%, 100% {
+    background-position: 50% 0%;
+  }
+  50% {
+    background-position: 50% 100%;
+  }
+}
+
+.animate-edge-glow {
+  background-size: 200% 100%;
+  animation: edge-glow 3s ease-in-out infinite;
+}
+
+.animate-edge-glow-vertical {
+  background-size: 100% 200%;
+  animation: edge-glow-vertical 3s ease-in-out infinite;
 }
 
 /* Tldraw Theme Customization - Align with Renderiq color scheme */
@@ -593,4 +612,21 @@ div[class*="tlui-"][style*="z-index"] {
 /* Ensure tldraw uses our color scheme */
 .tldraw {
   color-scheme: light dark;
+}
+
+/* Shine animation utility */
+.animate-shine {
+  animation: shine var(--duration, 14s) infinite linear;
+}
+
+@keyframes shine {
+  0% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
 }

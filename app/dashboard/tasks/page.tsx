@@ -9,3 +9,4 @@ export const metadata: Metadata = {
 export default function TasksPage() {
   return <TasksPageClient />;
 }
+

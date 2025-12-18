@@ -33,7 +33,7 @@ function CanvasPipelineInner() {
   useEffect(() => {
     if (!hasFitted.current) {
       setTimeout(() => {
-        fitView({ padding: 0.2, maxZoom: 0.7 });
+        fitView({ padding: 0.1, maxZoom: 0.5 });
         hasFitted.current = true;
       }, 100);
     }
@@ -202,11 +202,12 @@ export function CanvasPipelinePreview() {
   }, [rawNodes, initialEdges]);
 
   return (
-    <div className="w-full h-full relative overflow-hidden">
+    <div className="w-full h-full min-h-[250px] md:min-h-[300px] relative overflow-hidden">
       <ReactFlowProvider>
         <ReactFlow
           nodes={initialNodes}
           edges={initialEdges}
+          proOptions={{ hideAttribution: true }}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           nodesDraggable={false}
@@ -221,7 +222,6 @@ export function CanvasPipelinePreview() {
           minZoom={0.3}
           maxZoom={1.2}
           defaultViewport={{ x: 0, y: 0, zoom: 0.6 }}
-          proOptions={{ hideAttribution: true }}
         >
           <CanvasPipelineInner />
           <Background 

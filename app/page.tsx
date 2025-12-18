@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { DecoratedText } from '@/components/ui/decorated-text';
 import { getPublicGallery } from '@/lib/actions/gallery.actions';
 import { UseCasesSection } from '@/components/home/use-cases-section';
 import { HowItWorksSection } from '@/components/home/how-it-works';
@@ -19,6 +20,15 @@ import { SmoothCursorWrapper } from '@/components/home/smooth-cursor-wrapper';
 import HeroSection from '@/components/home/hero-section';
 import OptimizedBackground from '@/components/home/optimized-background';
 import { CanvasPipelinePreview } from '@/components/home/canvas-pipeline-preview';
+import { ShineBorder } from '@/components/ui/shine-border';
+import { VercelCard } from '@/components/ui/vercel-card';
+import { AnimatedBeamMultipleOutputDemo } from '@/components/home/animated-beam-models-demo';
+import { ChatRendererDemo } from '@/components/home/chat-renderer-demo';
+import { PluginsExpandableDemo } from '@/components/home/plugins-expandable-demo';
+import Clock from '@/components/ui/clock';
+import { LogoStepper } from '@/components/ui/logo-stepper';
+import { AECFeaturesGrid } from '@/components/home/aec-features-grid';
+import { ApiOrbitDemo } from '@/components/home/api-orbit-demo';
 import { 
   Wand2, 
   GalleryVertical, 
@@ -33,7 +43,7 @@ import {
   Users,
   TrendingUp,
   Award,
-  Clock,
+  Clock as ClockIcon,
   FileCheck,
   GitBranch,
   FileCode,
@@ -109,6 +119,21 @@ export default async function Home() {
     .filter(item => item.render?.prompt && item.render?.outputUrl && item.render.status === 'completed')
     .slice(0, 10);
 
+  // Get latest 10 renders for chat demo - with uploaded image and output
+  const chatDemoRenders = galleryItems
+    .filter(item => 
+      item.render?.outputUrl && 
+      item.render.status === 'completed' &&
+      (item.render as any)?.uploadedImageUrl // Only items with uploaded images
+    )
+    .slice(0, 10)
+    .map(item => ({
+      id: item.render!.id,
+      outputUrl: item.render!.outputUrl,
+      inputUrl: (item.render as any)?.uploadedImageUrl,
+      prompt: item.render!.prompt,
+    }));
+
   // Fetch latest users for avatar circles - only those with avatars
   let latestUsers = [];
   let totalUsers = 0;
@@ -136,7 +161,6 @@ export default async function Home() {
     return {
       imageUrl: user.avatar!,
       profileUrl,
-      userName: user.name || undefined,
     };
   });
 
@@ -232,10 +256,10 @@ export default async function Home() {
       {/* Features Section - Full Width Grid */}
       <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 bg-card/80 backdrop-blur-sm">
         <div className="w-full">
-          <div className="text-center mb-16">
-            <Badge className="mb-4 bg-muted text-muted-foreground px-4 py-2">
+          <div className="text-center lg:text-left mb-16">
+            <DecoratedText className="text-sm font-medium px-3 py-1.5 mb-4">
               Features
-            </Badge>
+            </DecoratedText>
             <h2 className="text-4xl md:text-5xl font-bold text-card-foreground mb-6">
               Everything you need for professional
               <span className="block text-muted-foreground">architecture visualization</span>
@@ -243,133 +267,163 @@ export default async function Home() {
           </div>
 
           {/* Bento Grid Layout - Full Width */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
-            {/* Node-Based Editor - Large Feature Card */}
-            <Link href="/canvas" className="group md:col-span-2 lg:col-span-2 md:row-span-2">
-              <div className="h-full p-8 rounded-2xl bg-card border-2 border-border hover:shadow-xl transition-all duration-300 flex flex-col relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
-                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-500/30 to-transparent"></div>
-                <div className="flex items-center gap-3 mb-3 relative z-10">
-                  <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
-                    <Network className="h-5 w-5 text-foreground" />
-                  </div>
-                  <h3 className="text-xl md:text-2xl font-bold text-card-foreground">Node-Based Editor</h3>
-                </div>
-                <div className="w-full h-px bg-border mb-6 relative z-10"></div>
-                <div className="flex-1 min-h-[300px] relative z-10">
-                  <CanvasPipelinePreview />
-                </div>
-              </div>
-            </Link>
+          <VercelCard className="w-full overflow-visible" showIcons={true} bordered={false}>
+            <div className="relative w-full">
+              <ShineBorder borderWidth={0.5} shineColor="white" className="z-20 opacity-60" sides="internal" />
+              <div className="flex flex-col w-full">
+              
+              {/* Row 1: Node-Based Editor + Tools (3/4) | Chat-Based Renderer (1/4) */}
+              <div className="flex flex-col lg:flex-row lg:min-h-[700px] overflow-visible">
+                {/* Left Column - Node-Based Editor + Tools stacked (65% width) */}
+                <div className="flex flex-col lg:w-[65%]">
+                  {/* Node-Based Editor */}
+                  <div className="p-4 bg-card transition-all duration-300 flex flex-col relative overflow-visible">
+                      <ShineBorder borderWidth={0.5} shineColor={["#8B5CF6", "#D1F24A"]} className="z-30 opacity-60" />
+                      <div className="flex items-center gap-3 mb-3 relative z-10">
+                        <DecoratedText className="text-xl md:text-2xl font-bold text-card-foreground px-3 py-1.5 flex items-center gap-3">
+                          <Network className="h-5 w-5 text-foreground" />
+                          <span className="w-px h-6 bg-foreground/30 mx-2" />
+                          Node-Based Editor
+                        </DecoratedText>
+                      </div>
+                      <div className="w-full h-px bg-border mb-6 relative z-10"></div>
+                      <div className="h-[300px] md:h-[350px] lg:h-[400px] relative z-10">
+                        <CanvasPipelinePreview />
+                      </div>
+                    </div>
 
-            {/* Chat-Based Renderer - Medium Feature Card */}
-            <Link href="/render" className="group md:col-span-1 lg:col-span-1 md:row-span-2">
-              <div className="h-full p-8 rounded-2xl bg-card border-2 border-border hover:shadow-xl transition-all duration-300 flex flex-col relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
-                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/30 to-transparent"></div>
-                <div className="flex items-center gap-3 mb-3 relative z-10">
-                  <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
-                    <MessageSquare className="h-5 w-5 text-foreground" />
-                  </div>
-                  <h3 className="text-xl md:text-2xl font-bold text-card-foreground">Chat-Based Renderer</h3>
+                  {/* 24 Specialized Tools */}
+                  <div className="p-4 rounded-none bg-card transition-all duration-300 flex flex-col relative overflow-visible">
+                      <ShineBorder borderWidth={0.5} shineColor={["#D1F24A", "#8B5CF6"]} className="z-30 opacity-60" />
+                      <div className="flex items-center gap-3 mb-3 relative z-10">
+                        <DecoratedText className="text-xl md:text-2xl font-bold text-card-foreground px-3 py-1.5 flex items-center gap-3">
+                          <Grid3x3 className="h-5 w-5 text-foreground" />
+                          <span className="w-px h-6 bg-foreground/30 mx-2" />
+                          {toolCount} Specialized AEC Tools
+                        </DecoratedText>
+                      </div>
+                      <div className="w-full h-px bg-border mb-6 relative z-10"></div>
+                      <div className="min-h-[280px] relative z-10 flex items-center overflow-visible">
+                        <LogoStepper
+                          logos={tools.slice(0, 18).map(tool => ({
+                            icon: (
+                              <img
+                                src={`/apps/icons/${tool.id}.svg`}
+                                alt={tool.name}
+                                className="w-full h-full object-contain"
+                              />
+                            ),
+                            label: tool.name,
+                          }))}
+                          direction="loop"
+                          animationDelay={1.5}
+                          animationDuration={0.5}
+                          visibleCount={7}
+                        />
+                      </div>
+                    </div>
                 </div>
-                <div className="w-full h-px bg-border mb-6 relative z-10"></div>
-                <div className="flex-1 min-h-[300px] relative z-10">
-                  {/* Space reserved for huge animated UI */}
-                </div>
-              </div>
-            </Link>
 
-            {/* Tools - Large Feature Card */}
-            <Link href="/apps" className="group md:col-span-2 lg:col-span-3 md:row-span-1">
-              <div className="h-full p-8 rounded-2xl bg-card border-2 border-border hover:shadow-xl transition-all duration-300 flex flex-col relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
-                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent"></div>
-                <div className="flex items-center gap-3 mb-3 relative z-10">
-                  <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
-                    <Grid3x3 className="h-5 w-5 text-foreground" />
+                {/* Right Column - Chat-Based Renderer (35% width, max 600px) */}
+                <div className="lg:w-[35%] lg:max-w-[600px] self-stretch min-h-[500px] md:min-h-[600px] lg:min-h-0">
+                  <div className="h-full p-4 bg-card transition-all duration-300 flex flex-col relative overflow-visible">
+                    <ShineBorder borderWidth={0.5} shineColor={["#3B82F6", "#8B5CF6"]} className="z-30 opacity-60" />
+                    <div className="flex-shrink-0 flex items-center gap-2 mb-2 relative z-10">
+                      <DecoratedText className="text-xl md:text-2xl font-bold text-card-foreground px-3 py-1.5 flex items-center gap-3">
+                        <MessageSquare className="h-5 w-5 text-foreground" />
+                        <span className="w-px h-6 bg-foreground/30 mx-2" />
+                        Chat-Based Renderer
+                      </DecoratedText>
+                    </div>
+                    <div className="flex-shrink-0 w-full h-px bg-border mb-2 relative z-10"></div>
+                    <div className="flex-1 min-h-[400px] md:min-h-[500px] relative z-10 overflow-hidden border border-border">
+                      <ChatRendererDemo className="h-full" galleryRenders={chatDemoRenders} />
+                    </div>
                   </div>
-                  <h3 className="text-xl md:text-2xl font-bold text-card-foreground">{toolCount} Specialized Tools</h3>
-                </div>
-                <div className="w-full h-px bg-border mb-6 relative z-10"></div>
-                <div className="flex-1 min-h-[200px] relative z-10">
-                  {/* Space reserved for huge animated UI */}
                 </div>
               </div>
-            </Link>
 
-            {/* AI Models - Feature Card */}
-            <Link href="/models" className="group md:col-span-1 lg:col-span-1 md:row-span-1">
-              <div className="h-full p-8 rounded-2xl bg-card border-2 border-border hover:shadow-xl transition-all duration-300 flex flex-col relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
-                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent"></div>
-                <div className="flex items-center gap-3 mb-3 relative z-10">
-                  <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
-                    <Brain className="h-5 w-5 text-foreground" />
+              {/* Row 2: AI Models (35%) | Native Plugins (65%) */}
+              <div className="flex flex-col lg:flex-row">
+                {/* AI Models - 35% width */}
+                <div className="lg:w-[35%]">
+                  <div className="h-full p-4 rounded-none bg-card transition-all duration-300 flex flex-col relative overflow-visible ">
+                    <ShineBorder borderWidth={0.5} shineColor={["#A855F7", "#D1F24A"]} className="z-30 opacity-60" />
+                    <div className="flex items-center gap-3 mb-3 relative z-10">
+                      <DecoratedText className="text-xl md:text-2xl font-bold text-card-foreground px-3 py-1.5 flex items-center gap-3">
+                        <Brain className="h-5 w-5 text-foreground" />
+                        <span className="w-px h-6 bg-foreground/30 mx-2" />
+                        All Your Favorite Models
+                      </DecoratedText>
+                    </div>
+                    <div className="w-full h-px bg-border mb-6 relative z-10"></div>
+                    <div className="flex-1 min-h-[200px] relative z-10">
+                      <AnimatedBeamMultipleOutputDemo className="h-full" />
+                    </div>
                   </div>
-                  <h3 className="text-xl md:text-2xl font-bold text-card-foreground">All Your Favorite Models</h3>
                 </div>
-                <div className="w-full h-px bg-border mb-6 relative z-10"></div>
-                <div className="flex-1 min-h-[200px] relative z-10">
-                  {/* Space reserved for huge animated UI */}
-                </div>
-              </div>
-            </Link>
 
-            {/* Plugins - Feature Card */}
-            <Link href="/plugins" className="group md:col-span-2 lg:col-span-2 md:row-span-1">
-              <div className="h-full p-8 rounded-2xl bg-card border-2 border-border hover:shadow-xl transition-all duration-300 flex flex-col relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
-                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-orange-500/30 to-transparent"></div>
-                <div className="flex items-center gap-3 mb-3 relative z-10">
-                  <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
-                    <Puzzle className="h-5 w-5 text-foreground" />
+                {/* Native Plugins - 65% width */}
+                <div className="lg:w-[65%] min-h-[300px] md:min-h-[350px]">
+                  <div className="h-full p-4 rounded-none bg-card transition-all duration-300 flex flex-col relative overflow-visible group">
+                    <ShineBorder borderWidth={0.5} shineColor={["#F97316", "#A855F7"]} className="z-30 opacity-60" />
+                    <div className="flex items-center gap-3 mb-3 relative z-10">
+                      <DecoratedText className="text-xl md:text-2xl font-bold text-card-foreground px-3 py-1.5 flex items-center gap-3">
+                        <Puzzle className="h-5 w-5 text-foreground" />
+                        <span className="w-px h-6 bg-foreground/30 mx-2" />
+                        Native Plugins
+                      </DecoratedText>
+                    </div>
+                    <div className="w-full h-px bg-border mb-6 relative z-10"></div>
+                    <div className="flex-1 min-h-[200px] relative z-10 flex items-stretch">
+                      <PluginsExpandableDemo />
+                    </div>
                   </div>
-                  <h3 className="text-xl md:text-2xl font-bold text-card-foreground">Native Plugins</h3>
-                </div>
-                <div className="w-full h-px bg-border mb-6 relative z-10"></div>
-                <div className="flex-1 min-h-[200px] relative z-10">
-                  {/* Space reserved for huge animated UI */}
                 </div>
               </div>
-            </Link>
 
-            {/* API Access - Feature Card */}
-            <Link href="/api" className="group md:col-span-1 lg:col-span-1 md:row-span-1">
-              <div className="h-full p-8 rounded-2xl bg-card border-2 border-border hover:shadow-xl transition-all duration-300 flex flex-col relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
-                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent"></div>
-                <div className="flex items-center gap-3 mb-3 relative z-10">
-                  <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
-                    <Key className="h-5 w-5 text-foreground" />
+              {/* Row 3: Platform Built for AEC (3/4) | API Access (1/4) */}
+              <div className="flex flex-col lg:flex-row">
+                {/* Platform Built for AEC - 3/4 width */}
+                <div className="lg:w-3/4">
+                  <div className="h-full p-4 bg-card transition-all duration-300 flex flex-col relative overflow-visible">
+                    <ShineBorder borderWidth={0.5} shineColor={["#10B981", "#F97316"]} className="z-30 opacity-60" />
+                    <div className="flex items-center gap-3 mb-3 relative z-10">
+                      <DecoratedText className="text-xl md:text-2xl font-bold text-card-foreground px-3 py-1.5 flex items-center gap-3">
+                        <Layers className="h-5 w-5 text-foreground" />
+                        <span className="w-px h-6 bg-foreground/30 mx-2" />
+                        Platform Built for AEC
+                      </DecoratedText>
+                    </div>
+                    <div className="w-full h-px bg-border mb-6 relative z-10"></div>
+                    <div className="flex-1 relative z-10">
+                      <AECFeaturesGrid />
+                    </div>
                   </div>
-                  <h3 className="text-xl md:text-2xl font-bold text-card-foreground">API Access</h3>
                 </div>
-                <div className="w-full h-px bg-border mb-6 relative z-10"></div>
-                <div className="flex-1 min-h-[200px] relative z-10">
-                  {/* Space reserved for huge animated UI */}
-                </div>
-              </div>
-            </Link>
 
-            {/* Technical Moat - Feature Card */}
-            <Link href="/platform" className="group md:col-span-2 lg:col-span-2 md:row-span-1">
-              <div className="h-full p-8 rounded-2xl bg-card border-2 border-border hover:shadow-xl transition-all duration-300 flex flex-col relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
-                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent"></div>
-                <div className="flex items-center gap-3 mb-3 relative z-10">
-                  <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
-                    <Layers className="h-5 w-5 text-foreground" />
+                {/* API Access - 1/4 width */}
+                <div className="lg:w-1/4">
+                  <div className="h-full p-4 bg-card transition-all duration-300 flex flex-col relative overflow-visible">
+                    <ShineBorder borderWidth={0.5} shineColor={["#6366F1", "#10B981"]} className="z-30 opacity-60" />
+                    <div className="flex items-center gap-3 mb-3 relative z-10">
+                      <DecoratedText className="text-xl md:text-2xl font-bold text-card-foreground px-3 py-1.5 flex items-center gap-3">
+                        <Key className="h-5 w-5 text-foreground" />
+                        <span className="w-px h-6 bg-foreground/30 mx-2" />
+                        API Access
+                      </DecoratedText>
+                    </div>
+                    <div className="w-full h-px bg-border mb-6 relative z-10"></div>
+                    <div className="flex-1 h-[250px] md:h-[280px] lg:h-[300px] relative z-10 flex items-center justify-center">
+                      <ApiOrbitDemo className="w-full h-full" />
+                    </div>
                   </div>
-                  <h3 className="text-xl md:text-2xl font-bold text-card-foreground">Platform Built for AEC</h3>
-                </div>
-                <div className="w-full h-px bg-border mb-6 relative z-10"></div>
-                <div className="flex-1 min-h-[200px] relative z-10">
-                  {/* Space reserved for huge animated UI */}
                 </div>
               </div>
-            </Link>
-          </div>
+
+            </div>
+            </div>
+          </VercelCard>
         </div>
       </section>
 
@@ -382,42 +436,53 @@ export default async function Home() {
       {/* FAQ Section */}
       <FAQSection />
 
-      {/* CTA Section - Conversion Optimized */}
+      {/* CTA Section - With Clock Component */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-[hsl(72,87%,62%)] relative overflow-hidden">
-        <div className="max-w-7xl mx-auto text-center relative border-[2px] border-[hsl(0,0%,7%)] p-8">
-          <h2 className="text-4xl md:text-6xl font-bold text-[hsl(0,0%,7%)] mb-6">
-            Ready to transform your architectural designs?
-          </h2>
-          <p className="text-xl md:text-2xl text-[hsl(0,0%,20%)] mb-8 max-w-4xl mx-auto">
-            Join thousands of AEC professionals creating stunning visualizations with Renderiq
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-            <Link href="/signup">
-              <Button size="lg" variant="secondary" className="px-8 py-4 text-lg font-semibold bg-[hsl(0,0%,7%)] hover:bg-[hsl(0,0%,15%)] text-[hsl(72,87%,62%)]">
-                <Globe className="h-6 w-6 mr-2" />
-                Get Started Free
-                <ArrowRight className="h-5 w-5 ml-2" />
-              </Button>
-            </Link>
-            <Link href="/gallery">
-              <Button size="lg" variant="outline" className="border-2 border-[hsl(0,0%,7%)] text-[hsl(0,0%,7%)] hover:bg-[hsl(0,0%,7%)] hover:text-[hsl(72,87%,62%)] px-8 py-4 text-lg font-semibold">
-                <GalleryVertical className="h-6 w-6 mr-2" />
-                View Gallery
-              </Button>
-            </Link>
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-[hsl(0,0%,20%)]">
-            <div className="flex items-center gap-2">
-              <FileCheck className="h-4 w-4" />
-              <span>No credit card required</span>
+        <div className="max-w-7xl mx-auto relative border-[2px] border-[hsl(0,0%,7%)] p-8 md:p-12">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-8 md:gap-16">
+            {/* Left Column - Text Content */}
+            <div className="flex flex-col items-start text-left space-y-6 flex-1">
+              <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[hsl(0,0%,7%)]">
+                <span className="block">Render Faster</span>
+                <span className="block">Than Ever</span>
+              </h2>
+              <p className="text-lg md:text-xl text-[hsl(0,0%,20%)] max-w-lg">
+                Join thousands of AEC professionals creating stunning visualizations with Renderiq
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Link href="/signup">
+                  <Button size="lg" variant="secondary" className="px-8 py-4 text-lg font-semibold bg-[hsl(0,0%,7%)] hover:bg-[hsl(0,0%,15%)] text-[hsl(72,87%,62%)]">
+                    <Globe className="h-6 w-6 mr-2" />
+                    Get Started Free
+                    <ArrowRight className="h-5 w-5 ml-2" />
+                  </Button>
+                </Link>
+                <Link href="/gallery">
+                  <Button size="lg" variant="outline" className="border-2 border-[hsl(0,0%,7%)] text-[hsl(0,0%,7%)] hover:bg-[hsl(0,0%,7%)] hover:text-[hsl(72,87%,62%)] px-8 py-4 text-lg font-semibold">
+                    <GalleryVertical className="h-6 w-6 mr-2" />
+                    View Gallery
+                  </Button>
+                </Link>
+              </div>
+              <div className="flex flex-wrap items-center gap-6 text-sm text-[hsl(0,0%,20%)]">
+                <div className="flex items-center gap-2">
+                  <FileCheck className="h-4 w-4" />
+                  <span>No credit card required</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <ClockIcon className="h-4 w-4" />
+                  <span>Setup in 2 minutes</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Award className="h-4 w-4" />
+                  <span>10 free credits to start</span>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              <span>Setup in 2 minutes</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Award className="h-4 w-4" />
-              <span>10 free credits to start</span>
+
+            {/* Right Column - Clock */}
+            <div className="w-full md:w-[320px] lg:w-[380px] aspect-square flex-shrink-0">
+              <Clock />
             </div>
           </div>
         </div>

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
@@ -77,39 +76,11 @@ export function Navbar() {
 
   // Navigation items configuration - Main visible navbar items
   // Show "Dashboard" instead of "Home" for authenticated users
-  // All gradients use neon green (#D1F24A) variations with complementary colors (lime, yellow-green, cyan, teal)
   const navItems = [
-    { 
-      href: user ? '/dashboard' : '/', 
-      icon: Home, 
-      label: user ? 'Dashboard' : 'Home',
-      gradient: 'bg-gradient-to-r from-lime-300 via-lime-400 to-green-500'
-    },
-    { 
-      href: '/render', 
-      icon: Sparkles, 
-      label: 'Render',
-      gradient: 'bg-gradient-to-r from-yellow-300 via-lime-400 to-green-500'
-    },
-    { 
-      href: '/canvas', 
-      icon: Layout, 
-      label: 'Canvas',
-      gradient: 'bg-gradient-to-r from-green-400 via-emerald-400 to-teal-500'
-    },
-    { 
-      href: '/gallery', 
-      icon: Images, 
-      label: 'Gallery',
-      gradient: 'bg-gradient-to-r from-lime-400 via-green-400 to-emerald-500'
-    },
-    {
-      href: '/apps',
-      icon: Wrench,
-      label: 'Apps',
-      gradient: 'bg-gradient-to-r from-green-500 via-lime-400 to-yellow-400',
-      isDropdown: true
-    },
+    { href: user ? '/dashboard' : '/', icon: Home, label: user ? 'Dashboard' : 'Home' },
+    { href: '/render', icon: Sparkles, label: 'Render' },
+    { href: '/canvas', icon: Layout, label: 'Canvas' },
+    { href: '/gallery', icon: Images, label: 'Gallery' },
   ];
 
   // Hamburger menu items - Moved from main navbar
@@ -140,10 +111,6 @@ export function Navbar() {
         return pathname === '/dashboard' || pathname.startsWith('/dashboard');
       }
       return pathname === '/';
-    }
-    if (href === '/apps') {
-      // Check if on /apps or any tool page
-      return pathname.startsWith('/apps') || getAllTools().some(tool => pathname.startsWith(`/${tool.slug}`));
     }
     return pathname.startsWith(href);
   };
@@ -176,185 +143,139 @@ export function Navbar() {
           {/* Middle Section: Navigation Links */}
           {!loading && (
             <div className="flex-1 flex items-center justify-center">
-              <nav className="hidden md:flex items-center">
-                <div className="flex rounded-2xl bg-slate-100/50 dark:bg-slate-800/50 p-1 backdrop-blur-sm" style={{ willChange: 'contents', transform: 'translateZ(0)' }}>
-                  {navItems.map((item) => {
-                    const Icon = item.icon;
-                    const active = isActive(item.href);
-                    const hasDropdown = item.dropdown && item.dropdown.length > 0;
+              <nav className="hidden md:flex items-center gap-2">
+                {navItems.map((item, index) => {
+                  const Icon = item.icon;
+                  const active = isActive(item.href);
+                  const hasDropdown = item.dropdown && item.dropdown.length > 0;
 
-                    // Handle Apps dropdown separately
-                    if (item.isDropdown && item.href === '/apps') {
-                      return (
-                        <DropdownMenu key={item.href} open={isAppsDropdownOpen} onOpenChange={setIsAppsDropdownOpen}>
-                          <DropdownMenuTrigger asChild>
-                            <button
-                              className={cn(
-                                "relative flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 outline-none",
-                                "will-change-transform",
-                                active
-                                  ? "text-white shadow-lg"
-                                  : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100"
-                              )}
-                              style={{ transform: 'translateZ(0)' }}
+                  return (
+                    <div key={item.href} className="flex items-center">
+                      {index > 0 && (
+                        <div className="h-6 w-px bg-border/50 mx-1 shrink-0" />
+                      )}
+                      <div className="relative">
+                        {hasDropdown ? (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                className={cn(
+                                  "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 outline-none",
+                                  active
+                                    ? "bg-primary text-primary-foreground"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                                )}
+                              >
+                                <Icon className="h-4 w-4 shrink-0" />
+                                <span className="whitespace-nowrap">
+                                  {item.label}
+                                </span>
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent 
+                              align="start" 
+                              className="bg-muted/80 backdrop-blur-sm border border-border/50 rounded-lg shadow-lg z-50 p-2 min-w-[200px]"
                             >
-                              {active && (
-                                <motion.div
-                                  layoutId="gradientTab"
-                                  className={`absolute inset-0 rounded-xl gradient-tab-bg ${item.gradient}`}
-                                  style={{ willChange: 'transform', transform: 'translateZ(0)' }}
-                                  transition={{ 
-                                    type: "spring", 
-                                    stiffness: 1000, 
-                                    damping: 50,
-                                    mass: 0.5,
-                                    restDelta: 0.001
-                                  }}
-                                />
-                              )}
-                              <div className="relative z-10 flex items-center gap-2">
-                                <Icon className="h-4 w-4" />
-                                <span>{item.label}</span>
-                              </div>
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent 
-                            align="start" 
-                            className="bg-background border border-border rounded-lg shadow-lg z-50 p-4 w-auto min-w-[400px] max-w-[600px]"
-                          >
-                            <div className="grid grid-cols-2 gap-2 w-full">
-                              {/* View All Apps - First Item */}
-                              <div className="relative">
-                                <DropdownMenuItem asChild>
+                              {item.dropdown?.map((dropdownItem) => (
+                                <DropdownMenuItem key={dropdownItem.href} asChild>
                                   <Link 
-                                    href="/apps"
-                                    className="flex items-center gap-2 p-2 rounded-lg border border-transparent hover:bg-primary/20 hover:border-primary transition-all min-w-0 w-full"
+                                    href={dropdownItem.href}
+                                    className="cursor-pointer"
                                   >
-                                    <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0 flex-shrink-0">
-                                      <Wrench className="h-3.5 w-3.5 shrink-0" />
-                                    </div>
-                                    <span className="text-xs leading-snug break-words min-w-0 flex-1">View All Apps</span>
+                                    {dropdownItem.label}
                                   </Link>
                                 </DropdownMenuItem>
-                              </div>
-                              {getAllTools().map((tool) => {
-                                const iconPath = getAppIconPath(tool.id);
-                                return (
-                                  <div key={tool.id} className="relative">
-                                    <DropdownMenuItem asChild>
-                                      <Link 
-                                        href={`/${tool.slug}`}
-                                        className="flex items-center gap-2 p-2 rounded-lg border border-transparent hover:bg-primary/20 hover:border-primary transition-all min-w-0 w-full"
-                                      >
-                                        <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center overflow-hidden shrink-0 flex-shrink-0">
-                                          <img 
-                                            src={iconPath} 
-                                            alt={tool.name}
-                                            className="w-full h-full object-contain rounded-md"
-                                            onError={(e) => {
-                                              (e.target as HTMLImageElement).style.display = 'none';
-                                            }}
-                                          />
-                                        </div>
-                                        <span className="text-xs leading-snug break-words min-w-0 flex-1">{tool.name}</span>
-                                      </Link>
-                                    </DropdownMenuItem>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      );
-                    }
-
-                    if (hasDropdown) {
-                      return (
-                        <DropdownMenu key={item.href}>
-                          <DropdownMenuTrigger asChild>
-                            <button
-                              className={cn(
-                                "relative flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 outline-none",
-                                "will-change-transform",
-                                active
-                                  ? "text-white shadow-lg"
-                                  : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100"
-                              )}
-                              style={{ transform: 'translateZ(0)' }}
-                            >
-                              {active && (
-                                <motion.div
-                                  layoutId="gradientTab"
-                                  className={`absolute inset-0 rounded-xl gradient-tab-bg ${item.gradient}`}
-                                  style={{ willChange: 'transform', transform: 'translateZ(0)' }}
-                                  transition={{ 
-                                    type: "spring", 
-                                    stiffness: 1000, 
-                                    damping: 50,
-                                    mass: 0.5,
-                                    restDelta: 0.001
-                                  }}
-                                />
-                              )}
-                              <div className="relative z-10 flex items-center gap-2">
-                                <Icon className="h-4 w-4" />
-                                <span>{item.label}</span>
-                              </div>
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent 
-                            align="start" 
-                            className="bg-muted/80 backdrop-blur-sm border border-border/50 rounded-lg shadow-lg z-50 p-2 min-w-[200px]"
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : (
+                          <Link
+                            href={item.href}
+                            className={cn(
+                              "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200",
+                              active
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                            )}
                           >
-                            {item.dropdown?.map((dropdownItem) => (
-                              <DropdownMenuItem key={dropdownItem.href} asChild>
-                                <Link 
-                                  href={dropdownItem.href}
-                                  className="cursor-pointer"
-                                >
-                                  {dropdownItem.label}
-                                </Link>
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      );
-                    }
-
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
+                            <Icon className="h-4 w-4 shrink-0" />
+                            <span className="whitespace-nowrap">
+                              {item.label}
+                            </span>
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                <div className="flex items-center">
+                  <div className="h-6 w-px bg-border/50 mx-1 shrink-0" />
+                  <div className="relative">
+                  <DropdownMenu open={isAppsDropdownOpen} onOpenChange={setIsAppsDropdownOpen}>
+                    <DropdownMenuTrigger asChild>
+                      <button 
                         className={cn(
-                          "relative flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200",
-                          "will-change-transform",
-                          active
-                            ? "text-white shadow-lg"
-                            : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100"
+                          "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 outline-none",
+                          pathname.startsWith('/apps')
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                         )}
-                        style={{ transform: 'translateZ(0)' }}
                       >
-                        {active && (
-                          <motion.div
-                            layoutId="gradientTab"
-                            className={`absolute inset-0 rounded-xl ${item.gradient}`}
-                            style={{ willChange: 'transform', transform: 'translateZ(0)' }}
-                            transition={{ 
-                              type: "spring", 
-                              stiffness: 1000, 
-                              damping: 50,
-                              mass: 0.5,
-                              restDelta: 0.001
-                            }}
-                          />
-                        )}
-                        <div className="relative z-10 flex items-center gap-2">
-                          <Icon className="h-4 w-4" />
-                          <span>{item.label}</span>
-                        </div>
-                      </Link>
-                    );
-                  })}
+                        <Wrench className="h-4 w-4 shrink-0" />
+                        <span className="whitespace-nowrap">
+                          Apps
+                        </span>
+                      </button>
+                    </DropdownMenuTrigger>
+                  <DropdownMenuContent 
+                    align="start" 
+                    className="bg-background border border-border rounded-lg shadow-lg z-50 p-4 w-auto min-w-[400px] max-w-[600px]"
+                  >
+                    <div className="grid grid-cols-2 gap-2 w-full">
+                      {/* View All Apps - First Item */}
+                      <div className="relative">
+                        <DropdownMenuItem asChild>
+                          <Link 
+                            href="/apps"
+                            className="flex items-center gap-2 p-2 rounded-lg border border-transparent hover:bg-primary/20 hover:border-primary transition-all min-w-0 w-full"
+                          >
+                            <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0 flex-shrink-0">
+                              <Wrench className="h-3.5 w-3.5 shrink-0" />
+                            </div>
+                            <span className="text-xs leading-snug break-words min-w-0 flex-1">View All Apps</span>
+                          </Link>
+                        </DropdownMenuItem>
+                      </div>
+                      {getAllTools().map((tool, index) => {
+                        const iconPath = getAppIconPath(tool.id);
+                        return (
+                          <div key={tool.id} className="relative">
+                            <DropdownMenuItem asChild>
+                              <Link 
+                                href={`/${tool.slug}`}
+                                className="flex items-center gap-2 p-2 rounded-lg border border-transparent hover:bg-primary/20 hover:border-primary transition-all min-w-0 w-full"
+                              >
+                                <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center overflow-hidden shrink-0 flex-shrink-0">
+                                  <img 
+                                    src={iconPath} 
+                                    alt={tool.name}
+                                    className="w-full h-full object-contain rounded-md"
+                                    onError={(e) => {
+                                      // Fallback to a default icon if custom icon doesn't exist
+                                      (e.target as HTMLImageElement).style.display = 'none';
+                                    }}
+                                  />
+                                </div>
+                                <span className="text-xs leading-snug break-words min-w-0 flex-1">{tool.name}</span>
+                              </Link>
+                            </DropdownMenuItem>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                  </div>
                 </div>
               </nav>
             </div>

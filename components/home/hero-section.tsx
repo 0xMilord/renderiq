@@ -11,6 +11,7 @@ import { TickingNumber } from '@/components/ui/ticking-number';
 import { HeroGallerySlideshow } from './hero-gallery-slideshow';
 import { LineShadowText } from '@/components/ui/line-shadow-text';
 import { cn } from '@/lib/utils';
+import { Highlighter } from '@/components/ui/highlighter';
 import type { GalleryItemWithDetails } from '@/lib/types';
 
 interface HeroSectionProps {
@@ -108,8 +109,15 @@ const HeroSection = memo(function HeroSection({ avatarData, totalUsers, galleryI
                   {/* Description Row */}
                   <div className="mb-4 pb-4 border-b-[2px] border-border">
                     <p className={`text-base md:text-xl ${textMutedColor} leading-relaxed text-left`}>
-                      Transform architectural sketches and 3D models into photorealistic renders and videos with AI. 
-                      Industry-leading AI render pipelines for AEC firms. The leading <strong className={textColor}>architecture render software</strong> trusted by architects, engineers, and visualizers worldwide.
+                      Turn sketches into{" "}
+                      <Highlighter action="highlight" color="#D1F24A" textColor="#000000">
+                        accurate renders in seconds
+                      </Highlighter>
+                      . Upload your design, describe your vision, and let AI handle the rest. Designed for{" "}
+                      <Highlighter action="underline" color="#D1F24A">
+                        Architects, Engineers, and Visualizers
+                      </Highlighter>
+                      . AI that understands your design intent.
                     </p>
                   </div>
 
@@ -259,8 +267,8 @@ const HeroSection = memo(function HeroSection({ avatarData, totalUsers, galleryI
                   </div>
                 ))}
               </Marquee>
-              <div className="pointer-events-none absolute inset-y-0 left-0 w-1/4 bg-gradient-to-r from-background"></div>
-              <div className="pointer-events-none absolute inset-y-0 right-0 w-1/4 bg-gradient-to-l from-background"></div>
+              <div className={`pointer-events-none absolute inset-y-0 left-0 w-1/3 ${isDarkMode ? 'bg-gradient-to-r from-card via-card/50 to-transparent' : 'bg-gradient-to-r from-background via-background/50 to-transparent'}`}></div>
+              <div className={`pointer-events-none absolute inset-y-0 right-0 w-1/3 ${isDarkMode ? 'bg-gradient-to-l from-card via-card/50 to-transparent' : 'bg-gradient-to-l from-background via-background/50 to-transparent'}`}></div>
             </div>
           </div>
         </div>

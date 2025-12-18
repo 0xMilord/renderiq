@@ -18,33 +18,13 @@ import { Sparkles, Images, Lightbulb, Newspaper, CreditCard, Info, FileText, Mai
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { PWAInstallButton } from '@/components/pwa/install-button';
 import { Button } from '@/components/ui/button';
-import { RetroGrid } from '@/components/ui/retro-grid';
 import { getAllTools, CATEGORIES, type ToolCategory } from '@/lib/tools/registry';
 
 export function Footer() {
   return (
     <footer className="bg-background border-t w-full relative -mt-px">
-      {/* Retro Grid Background - Extends to footer bottom edge */}
-      <RetroGrid 
-        className="absolute inset-0 z-0 overflow-hidden"
-        angle={65}
-        cellSize={60}
-        opacity={0.3}
-        lightLineColor="gray"
-        darkLineColor="gray"
-      />
       
-      {/* Floating Render Button - Centered with top offset */}
-      <div className="absolute left-1/2 -translate-x-1/2 -top-6 z-10">
-        <Button asChild size="lg" className="shadow-lg">
-          <Link href="/render">
-            <Sparkles className="h-5 w-5 mr-2" />
-            Render
-          </Link>
-        </Button>
-      </div>
-      
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-12 pt-10 pb-32 sm:pb-36 md:pb-40 lg:pb-44 relative z-10">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-12 pt-10 pb-32 sm:pb-36 md:pb-40 lg:pb-44">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="col-span-1 md:col-span-2">

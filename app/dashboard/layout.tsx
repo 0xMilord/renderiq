@@ -75,6 +75,7 @@ const pageTitles: Record<string, string> = {
   '/dashboard/settings': 'Account Settings',
   '/dashboard/api-keys': 'API Keys',
   '/dashboard/analytics': 'Analytics',
+  '/dashboard/tasks': 'Earn Credits',
 };
 
 // Page descriptions mapping (for main content header)
@@ -91,6 +92,7 @@ const pageDescriptions: Record<string, string> = {
   '/dashboard/settings': 'Your command center for account preferences',
   '/dashboard/api-keys': 'Manage your API keys for programmatic access',
   '/dashboard/analytics': 'View your usage statistics and analytics',
+  '/dashboard/tasks': 'Complete tasks to earn credits. All tasks happen inside Renderiq.',
 };
 
 // Page icons mapping (for main content header)
@@ -107,6 +109,7 @@ const pageIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   '/dashboard/settings': Command,
   '/dashboard/api-keys': Key,
   '/dashboard/analytics': BarChart3,
+  '/dashboard/tasks': Sparkles,
 };
 
 // Helper function to get page title from pathname (for sidebar)
@@ -199,6 +202,7 @@ const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/dashboard/projects', icon: FolderOpen, label: 'Projects' },
   { href: '/dashboard/library', icon: BookOpen, label: 'Library' },
+  { href: '/dashboard/tasks', icon: Sparkles, label: 'Earn Credits' },
   { href: '/dashboard/billing', icon: CreditCard, label: 'Billing' },
   { href: '/dashboard/likes', icon: Heart, label: 'Likes' },
   { href: '/dashboard/ambassador', icon: Users, label: 'Ambassador' },

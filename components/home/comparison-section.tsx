@@ -5,6 +5,9 @@ import { FaCube } from 'react-icons/fa';
 import { SiGooglegemini, SiOpenai } from 'react-icons/si';
 import { MdImage } from 'react-icons/md';
 import { Badge } from '@/components/ui/badge';
+import { DecoratedText } from '@/components/ui/decorated-text';
+import { Highlighter } from '@/components/ui/highlighter';
+import { VercelCard } from '@/components/ui/vercel-card';
 
 interface ComparisonRow {
   feature: string;
@@ -180,21 +183,26 @@ export function ComparisonSection() {
         {/* Header */}
         <div className="px-4 sm:px-6 lg:px-8 mb-6 sm:mb-8 lg:mb-12">
           <div className="text-center">
-            <Badge className="mb-3 sm:mb-4 bg-muted text-muted-foreground px-3 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm">
+            <DecoratedText className="text-xs sm:text-sm font-medium px-3 py-1.5 mb-3 sm:mb-4">
               Comparison
-            </Badge>
+            </DecoratedText>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground mb-4 sm:mb-6">
               Why Choose Renderiq?
             </h2>
             <p className="text-base sm:text-lg lg:text-xl text-muted-foreground max-w-3xl mx-auto">
-              Compare Renderiq with traditional architecture render software and other AI tools
+              Compare Renderiq with{" "}
+              <Highlighter action="underline" color="#D1F24A">
+                traditional render software
+              </Highlighter>{" "}
+              and other AI tools
             </p>
           </div>
         </div>
 
         {/* Comparison Table - Full Width */}
         <div className="w-full px-2 sm:px-4 lg:px-8">
-          <div className="bg-card/95 backdrop-blur-md rounded-xl border-2 border-border shadow-2xl overflow-x-auto overflow-y-visible">
+          <VercelCard className="overflow-visible" showIcons={true} bordered>
+            <div className="bg-card/95 backdrop-blur-md overflow-x-auto overflow-y-visible">
             {/* Table Header */}
             <div className="grid grid-cols-[minmax(120px,1.5fr)_repeat(5,1fr)] gap-2 sm:gap-3 p-3 sm:p-4 bg-muted/60 border-b-2 border-border">
               <div className="text-xs sm:text-sm md:text-base font-bold text-foreground flex items-center">
@@ -246,7 +254,8 @@ export function ComparisonSection() {
                 </div>
               ))}
             </div>
-          </div>
+            </div>
+          </VercelCard>
         </div>
       </div>
     </section>

@@ -15,6 +15,9 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { DecoratedText } from '@/components/ui/decorated-text';
+import { Highlighter } from '@/components/ui/highlighter';
+import { VercelCard } from '@/components/ui/vercel-card';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 
@@ -257,6 +260,9 @@ export function FAQSection() {
         <div className="w-full px-4 sm:px-6 lg:px-8 relative border-l-[2px] border-r-[2px] border-b-[2px] border-[hsl(0,0%,7%)]">
           <div className="w-full relative">
             <div className="text-left relative pt-8">
+              <DecoratedText className="text-sm font-medium px-3 py-1.5 mb-4 text-neutral-800 dark:text-neutral-800">
+                FAQ
+              </DecoratedText>
               <h2 className="text-4xl md:text-5xl font-bold text-[hsl(0,0%,7%)] mb-6">
                 Frequently Asked Questions
               </h2>
@@ -300,7 +306,10 @@ export function FAQSection() {
               Frequently Asked Questions
             </h2>
             <p className="text-xl text-[hsl(0,0%,20%)] max-w-3xl pb-6">
-              Everything you need to know about Renderiq
+              <Highlighter action="highlight" color="#000000" textColor="#D1F24A">
+                Know everything
+              </Highlighter>{" "}
+              you need about Renderiq
             </p>
           </div>
         </div>
@@ -313,7 +322,8 @@ export function FAQSection() {
         <div className="flex flex-col lg:flex-row w-full overflow-hidden relative">
           {/* Left Column - 60% - FAQ Content */}
           <div className="w-full lg:w-[60%] order-1 lg:order-1 px-4 sm:px-6 lg:px-8 py-8 bg-[hsl(72,87%,62%)] relative flex flex-col border-r-[2px] border-[hsl(0,0%,7%)]">
-            <div className="w-full relative px-4 sm:px-6 lg:px-8 py-6 rounded-2xl bg-background flex-1 border-[2px] border-[hsl(0,0%,7%)]">
+            <VercelCard className="w-full flex-1 bg-background overflow-visible" showIcons={true} bordered iconClassName="text-black dark:text-black">
+              <div className="px-4 sm:px-6 lg:px-8 py-6">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <div className="relative mb-8">
                   
@@ -383,7 +393,8 @@ export function FAQSection() {
                   </TabsContent>
                 ))}
               </Tabs>
-            </div>
+              </div>
+            </VercelCard>
           </div>
 
           {/* Right Column - 40% - FAQ Image - Extended to extreme right edge */}

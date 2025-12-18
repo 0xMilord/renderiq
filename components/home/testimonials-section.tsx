@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useTheme } from 'next-themes';
 import { Badge } from '@/components/ui/badge';
+import { DecoratedText } from '@/components/ui/decorated-text';
+import { Highlighter } from '@/components/ui/highlighter';
+import { VercelCard } from '@/components/ui/vercel-card';
 import { TwitterTestimonialsGrid } from './twitter-testimonials-grid';
 
 interface TwitterTestimonial {
@@ -35,14 +38,18 @@ export function TestimonialsSection({ testimonials }: TestimonialsSectionProps) 
       <div className={`w-full px-4 sm:px-6 lg:px-8 relative border-l-[2px] border-r-[2px] border-b-[2px] ${borderClass}`}>
         <div className="w-full relative">
           <div className="text-left relative pt-8">
-            <Badge className="mb-4 bg-background text-foreground px-4 py-2">
+            <DecoratedText className="text-sm font-medium px-3 py-1.5 mb-4 text-neutral-800 dark:text-neutral-800">
               Testimonials
-            </Badge>
+            </DecoratedText>
             <h2 className="text-4xl md:text-5xl font-bold mb-6 text-[hsl(0,0%,7%)]">
               Trusted by AEC Professionals
             </h2>
             <p className="text-xl max-w-3xl pb-6 text-[hsl(0,0%,20%)]">
-              Join thousands of architects, engineers, and designers who trust Renderiq for their visualization needs
+              Join{" "}
+              <Highlighter action="highlight" color="#000000" textColor="#D1F24A">
+                thousands of architects, engineers, and designers
+              </Highlighter>{" "}
+              who trust Renderiq for their visualization needs
             </p>
           </div>
         </div>
@@ -55,12 +62,12 @@ export function TestimonialsSection({ testimonials }: TestimonialsSectionProps) 
         <div className="flex flex-col lg:flex-row w-full overflow-hidden relative">
           {/* Left Column - 100% on mobile, 60% on desktop - Testimonials Content */}
           <div className={`w-full lg:w-[60%] order-1 lg:order-1 px-4 sm:px-6 lg:px-8 py-8 relative flex flex-col border-r-[2px] ${borderClass} bg-[hsl(72,87%,62%)]`}>
-            <div className={`w-full relative px-4 sm:px-6 lg:px-8 py-6 rounded-2xl bg-background flex-1 border-[2px] ${borderClass}`}>
-              {/* Twitter Testimonials - Masonry Layout */}
-              <div>
+            <VercelCard className="w-full flex-1 bg-background" showIcons={true} bordered iconClassName="text-black dark:text-black">
+              <div className="px-4 sm:px-6 lg:px-8 py-6">
+                {/* Twitter Testimonials - Masonry Layout */}
                 <TwitterTestimonialsGrid testimonials={testimonials} />
               </div>
-            </div>
+            </VercelCard>
           </div>
 
           {/* Right Column - 40% - Testimonials Image - Extended to extreme right edge */}
