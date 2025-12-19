@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { 
   ArrowRight, 
   Search,
@@ -51,21 +50,21 @@ function ToolCardMedia({ tool, index }: { tool: ToolConfig; index: number }) {
   // Load first 4 images with priority (above the fold)
   // Lazy load all others for better performance
   const isAboveFold = index < 4;
-  const loading = isAboveFold ? undefined : 'lazy';
 
+  // ✅ FIXED: Use regular img tag instead of Next.js Image for static files to prevent
+  // "Invalid hook call" errors when Next.js tries to optimize missing images
+  // Next.js Image optimization can cause SSR issues with missing static files
   return (
     <div className="relative w-full aspect-video bg-muted overflow-hidden">
-      <Image
-        src={coverImage}
-        alt={tool.name}
-        fill
-        priority={isAboveFold}
-        loading={loading}
-        className="object-cover group-hover:scale-105 transition-transform duration-300"
-        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
-        onError={() => setImageError(true)}
-      />
-      {imageError && (
+      {!imageError ? (
+        <img
+          src={coverImage}
+          alt={tool.name}
+          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          loading={isAboveFold ? 'eager' : 'lazy'}
+          onError={() => setImageError(true)}
+        />
+      ) : (
         <div className="absolute inset-0 flex items-center justify-center bg-muted">
           <FileImage className="h-12 w-12 text-muted-foreground" />
         </div>

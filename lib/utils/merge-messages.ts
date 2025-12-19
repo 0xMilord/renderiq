@@ -97,14 +97,68 @@ export function mergeMessagesWithRenders(
   }
   
   // Add any new renders from chain that aren't in existing messages
+  // ✅ FIXED: Add both user and assistant messages together to maintain conversational order
+  const addedRenderIds = new Set(merged.filter(m => m.render?.id).map(m => m.render!.id));
+  const addedMessageIds = new Set(merged.map(m => m.id));
+  
+  // Group messages from chain by render ID to pair user/assistant messages
+  const messagesByRenderId = new Map<string, { userMsg?: Message; assistantMsg?: Message }>();
+  
   for (const chainMsg of newMessagesFromChain) {
-    if (chainMsg.render && !merged.some(m => m.render?.id === chainMsg.render?.id)) {
-      merged.push(chainMsg);
+    if (chainMsg.render?.id) {
+      // This is an assistant message with a render
+      const renderId = chainMsg.render.id;
+      if (!messagesByRenderId.has(renderId)) {
+        messagesByRenderId.set(renderId, {});
+      }
+      messagesByRenderId.get(renderId)!.assistantMsg = chainMsg;
+    } else if (chainMsg.type === 'user') {
+      // This is a user message - find its corresponding assistant message by matching prompt content
+      const matchingAssistant = newMessagesFromChain.find(
+        m => m.render && 
+        m.render.prompt === chainMsg.content &&
+        Math.abs(m.timestamp.getTime() - chainMsg.timestamp.getTime()) < 200
+      );
+      if (matchingAssistant?.render?.id) {
+        const renderId = matchingAssistant.render.id;
+        if (!messagesByRenderId.has(renderId)) {
+          messagesByRenderId.set(renderId, {});
+        }
+        messagesByRenderId.get(renderId)!.userMsg = chainMsg;
+      } else if (!addedMessageIds.has(chainMsg.id)) {
+        // Standalone user message (shouldn't happen with renders, but handle gracefully)
+        merged.push(chainMsg);
+        addedMessageIds.add(chainMsg.id);
+      }
     }
   }
   
-  // Simple chronological order: sort by timestamp (oldest first, newest at bottom)
-  merged.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+  // Add paired user/assistant messages together
+  for (const [renderId, { userMsg, assistantMsg }] of messagesByRenderId.entries()) {
+    if (assistantMsg && !addedRenderIds.has(renderId)) {
+      // Add user message first if it exists and isn't already in merged
+      if (userMsg && !addedMessageIds.has(userMsg.id)) {
+        merged.push(userMsg);
+        addedMessageIds.add(userMsg.id);
+      }
+      // Add assistant message
+      merged.push(assistantMsg);
+      addedRenderIds.add(renderId);
+      addedMessageIds.add(assistantMsg.id);
+    }
+  }
+  
+  // ✅ FIXED: Sort by timestamp with secondary sort by message type (user before assistant for same timestamp)
+  // This ensures conversational order: user messages appear before their corresponding assistant messages
+  merged.sort((a, b) => {
+    const timeDiff = a.timestamp.getTime() - b.timestamp.getTime();
+    if (Math.abs(timeDiff) < 200) {
+      // Messages within 200ms of each other: user messages come first
+      if (a.type === 'user' && b.type === 'assistant') return -1;
+      if (a.type === 'assistant' && b.type === 'user') return 1;
+    }
+    return timeDiff;
+  });
   
   return merged;
 }

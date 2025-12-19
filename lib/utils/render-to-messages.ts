@@ -36,10 +36,11 @@ export function convertRenderToMessages(render: Render): [Message, Message] {
       : undefined,
   };
 
-  // Ensure assistant message comes after user message (user uses createdAt, assistant uses createdAt + 1ms)
+  // Ensure assistant message comes after user message with proper spacing to maintain conversational order
+  // Use a larger gap (100ms) to ensure proper ordering even when multiple renders are created quickly
   const userTime = render.createdAt instanceof Date ? render.createdAt.getTime() : new Date(render.createdAt).getTime();
   const updateTime = render.updatedAt instanceof Date ? render.updatedAt.getTime() : new Date(render.updatedAt).getTime();
-  const assistantTime = Math.max(userTime + 1, updateTime); // Ensure assistant is after user message
+  const assistantTime = Math.max(userTime + 100, updateTime); // Ensure assistant is after user message with 100ms gap
 
   const assistantMessage: Message = {
     id: `assistant-${render.id}`,

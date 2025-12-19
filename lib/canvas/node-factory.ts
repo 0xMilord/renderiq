@@ -141,6 +141,18 @@ export const NODE_REGISTRY: Record<NodeType, NodeDefinition> = {
         type: 'image',
         required: true,
       },
+      {
+        id: 'style',
+        label: 'Style',
+        type: 'style',
+        required: false,
+      },
+      {
+        id: 'materials',
+        label: 'Materials',
+        type: 'material',
+        required: false,
+      },
     ],
     outputs: [
       {

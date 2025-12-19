@@ -171,16 +171,25 @@ export async function getApiUsageStats(options: GetAnalyticsOptions = {}) {
       };
     }
 
-    const { startDate, endDate } = options;
+    const { days = 30, startDate, endDate } = options;
     const timeRange = startDate && endDate
       ? { startDate, endDate }
       : undefined;
 
-    const apiUsageStats = await AnalyticsService.getApiUsageStats(user.id, timeRange);
+    const [apiUsageStats, dailyUsage] = await Promise.all([
+      AnalyticsService.getApiUsageStats(user.id, timeRange),
+      AnalyticsService.getDailyUsage(user.id, days),
+    ]);
 
     return {
       success: true,
-      data: apiUsageStats,
+      data: {
+        ...apiUsageStats,
+        dailyUsage: dailyUsage.map(d => ({
+          date: d.date,
+          apiCalls: d.apiCalls,
+        })),
+      },
     };
   } catch (error) {
     logger.error('❌ Analytics Action: Failed to fetch API usage stats', error);

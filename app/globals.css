@@ -275,6 +275,25 @@
   z-index: 10 !important;
 }
 
+/* ✅ FIXED: Hide React Flow watermark/attribution */
+.react-flow__attribution {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+.react-flow__minimap .react-flow__attribution {
+  display: none !important;
+}
+
+/* Hide any watermark text or links in minimap */
+.react-flow__minimap a,
+.react-flow__minimap [class*="attribution"],
+.react-flow__minimap [class*="watermark"] {
+  display: none !important;
+  visibility: hidden !important;
+}
+
 .react-flow__controls {
   @apply !bg-card !border-border;
 }
@@ -294,6 +313,8 @@
   pointer-events: all !important;
   z-index: 50 !important;
   position: absolute !important;
+  /* ✅ FIXED: Override inset property to ensure proper centering */
+  inset: unset !important;
   /* Positioning handled by inline styles in base-node.tsx for proper spacing */
 }
 

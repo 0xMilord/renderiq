@@ -33,31 +33,46 @@ export interface Shortcut {
 }
 
 export const CANVAS_SHORTCUTS: Shortcut[] = [
+  // ✅ FIXED: All node creation shortcuts now require Ctrl to prevent triggering while typing
   {
     key: 't',
+    ctrl: true,
     action: 'add-text-node',
-    description: 'Add Text Node',
+    description: 'Add Text Node (Ctrl+T)',
   },
   {
     key: 'i',
+    ctrl: true,
     action: 'add-image-node',
-    description: 'Add Image Node',
+    description: 'Add Image Node (Ctrl+I)',
   },
   {
     key: 'v',
+    ctrl: true,
+    shift: true,
     action: 'add-variants-node',
-    description: 'Add Variants Node',
+    description: 'Add Variants Node (Ctrl+Shift+V)',
   },
   {
     key: 's',
+    ctrl: true,
+    shift: true,
     action: 'add-style-node',
-    description: 'Add Style Node',
+    description: 'Add Style Node (Ctrl+Shift+S)',
   },
   {
     key: 'm',
+    ctrl: true,
     action: 'add-material-node',
-    description: 'Add Material Node',
+    description: 'Add Material Node (Ctrl+M)',
   },
+  {
+    key: 'o',
+    ctrl: true,
+    action: 'add-output-node',
+    description: 'Add Output Node (Ctrl+O)',
+  },
+  // Delete operations (no modifier needed, but only when not in input)
   {
     key: 'Delete',
     action: 'delete-selected',
@@ -68,71 +83,79 @@ export const CANVAS_SHORTCUTS: Shortcut[] = [
     action: 'delete-selected',
     description: 'Delete Selected Nodes',
   },
+  // Standard editing shortcuts
   {
     key: 'c',
     ctrl: true,
     action: 'copy-selected',
-    description: 'Copy Selected Nodes',
+    description: 'Copy Selected Nodes (Ctrl+C)',
   },
   {
     key: 'v',
     ctrl: true,
     action: 'paste',
-    description: 'Paste Nodes',
+    description: 'Paste Nodes (Ctrl+V)',
   },
   {
     key: 'z',
     ctrl: true,
     action: 'undo',
-    description: 'Undo',
+    description: 'Undo (Ctrl+Z)',
   },
   {
     key: 'y',
     ctrl: true,
     action: 'redo',
-    description: 'Redo',
+    description: 'Redo (Ctrl+Y)',
   },
   {
     key: 'z',
     ctrl: true,
     shift: true,
     action: 'redo',
-    description: 'Redo (Alternative)',
+    description: 'Redo Alternative (Ctrl+Shift+Z)',
   },
   {
     key: 's',
     ctrl: true,
     action: 'save',
-    description: 'Save Canvas',
+    description: 'Save Canvas (Ctrl+S)',
   },
   {
     key: 'a',
     ctrl: true,
     action: 'select-all',
-    description: 'Select All Nodes',
+    description: 'Select All Nodes (Ctrl+A)',
   },
   {
     key: 'Escape',
     action: 'deselect-all',
-    description: 'Deselect All',
+    description: 'Deselect All (Esc)',
   },
+  // Zoom shortcuts
   {
     key: '=',
     ctrl: true,
     action: 'zoom-in',
-    description: 'Zoom In',
+    description: 'Zoom In (Ctrl+=)',
+  },
+  {
+    key: '+',
+    ctrl: true,
+    action: 'zoom-in',
+    description: 'Zoom In (Ctrl++)',
   },
   {
     key: '-',
     ctrl: true,
     action: 'zoom-out',
-    description: 'Zoom Out',
+    description: 'Zoom Out (Ctrl+-)',
   },
   {
     key: '0',
     ctrl: true,
     action: 'fit-view',
-    description: 'Fit View',
+    description: 'Fit View (Ctrl+0)',
   },
 ];
 
@@ -155,18 +178,33 @@ export class ShortcutHandler {
 
   /**
    * Handle keyboard event
+   * ✅ FIXED: Improved input detection to prevent shortcuts while typing
    */
   handleKeyDown(event: KeyboardEvent): boolean {
-    // Don't handle shortcuts when typing in inputs
-    if (
-      event.target instanceof HTMLInputElement ||
-      event.target instanceof HTMLTextAreaElement ||
-      (event.target as HTMLElement)?.isContentEditable
-    ) {
-      // Allow some shortcuts even in inputs
+    const target = event.target as HTMLElement;
+    
+    // ✅ FIXED: Comprehensive check for input fields - don't trigger shortcuts when typing
+    const isInputField = 
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement ||
+      target?.isContentEditable ||
+      target?.closest('input, textarea, select, [contenteditable="true"]') !== null ||
+      target?.tagName === 'INPUT' ||
+      target?.tagName === 'TEXTAREA' ||
+      target?.tagName === 'SELECT';
+
+    if (isInputField) {
+      // Only allow certain shortcuts in input fields (Escape, Delete, Backspace)
+      // And Ctrl+ combinations that are safe (like Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+Z)
       const allowedInInput = ['Escape', 'Delete', 'Backspace'];
-      if (!allowedInInput.includes(event.key)) {
-        return false;
+      const safeCtrlShortcuts = ['a', 'c', 'v', 'x', 'z', 'y']; // Standard editing shortcuts
+      
+      const isSafeCtrlShortcut = (event.ctrlKey || event.metaKey) && 
+        safeCtrlShortcuts.includes(event.key.toLowerCase());
+      
+      if (!allowedInInput.includes(event.key) && !isSafeCtrlShortcut) {
+        return false; // Block shortcut when typing in input
       }
     }
 
@@ -178,6 +216,7 @@ export class ShortcutHandler {
     const handler = this.handlers.get(shortcut.action);
     if (handler) {
       event.preventDefault();
+      event.stopPropagation();
       handler();
       return true;
     }

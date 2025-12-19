@@ -55,10 +55,15 @@ import { useProjects } from '@/lib/hooks/use-projects';
 import { toSentenceCase } from '@/lib/utils/string';
 import type { Project, RenderChain } from '@/lib/db/schema';
 import { TasksStatsButtons } from '@/components/tasks/tasks-stats-buttons';
-import { AmbassadorReferralBadge } from '@/components/ambassador/ambassador-referral-badge';
+import { AmbassadorHeaderContent } from '@/components/ambassador/ambassador-header-content';
+import { ProfileQuickActions } from '@/components/profile/profile-quick-actions';
 import { CreateApiKeyButton } from '@/components/api-keys/create-api-key-button';
 import { Suspense } from 'react';
 import { AnalyticsTabsHeader } from '@/components/analytics/analytics-tabs-header';
+import { SettingsTabsHeader } from '@/components/settings/settings-tabs-header';
+import { ApiKeysHeaderStats } from '@/components/api-keys/api-keys-header-stats';
+import { ProjectHeaderTabs } from '@/components/projects/project-header-tabs';
+import { ProfileHeaderStats } from '@/components/profile/profile-header-stats';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -94,10 +99,10 @@ const pageDescriptions: Record<string, string> = {
   '/dashboard/billing/history': 'View all your payment transactions and invoices',
   '/dashboard/billing/history/credits': 'Track all your credit transactions and usage',
   '/dashboard/likes': "Here's what you've liked",
-  '/dashboard/ambassador': 'Manage your ambassador account, track referrals, and view earnings',
-  '/dashboard/profile': 'View and manage your profile information',
+  '/dashboard/ambassador': '',
+  '/dashboard/profile': '',
   '/dashboard/settings': 'Your command center for account preferences',
-  '/dashboard/api-keys': 'Manage your API keys for programmatic access',
+  '/dashboard/api-keys': '',
   '/dashboard/analytics': 'View your usage statistics and analytics',
   '/dashboard/tasks': 'Complete tasks to earn credits. All tasks happen inside Renderiq.',
 };
@@ -150,13 +155,17 @@ function getPageDescription(pathname: string, projects: Project[] = [], chains: 
   }
   
   // Check for project detail page: /dashboard/projects/[slug]
+  // Return empty string so header tabs can be shown instead
   const projectMatch = pathname.match(/^\/dashboard\/projects\/([^/]+)$/);
   if (projectMatch) {
-    const [, slug] = projectMatch;
-    const project = projects.find(p => p.slug === slug);
-    if (project) {
-      return toSentenceCase(project.name);
-    }
+    return '';
+  }
+  
+  // ✅ FIXED: For projects page, include dynamic counts in description
+  if (pathname === '/dashboard/projects') {
+    const projectCount = projects.length;
+    const chainCount = chains.length;
+    return `Organize and manage your ${projectCount} project${projectCount !== 1 ? 's' : ''} and ${chainCount} render chain${chainCount !== 1 ? 's' : ''}`;
   }
   
   // Check exact matches first
@@ -883,23 +892,49 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           ) : (
             <div className="min-w-0 flex-1 overflow-hidden flex items-center justify-between gap-3 h-16">
-              <div className="min-w-0 flex-1 overflow-hidden flex items-center gap-3">
-                <CurrentPageIcon className="h-5 w-5 text-primary shrink-0" />
-                <h2 className="text-lg font-semibold text-foreground truncate min-w-0">{currentPageDescription}</h2>
-              </div>
-              {pathname === '/dashboard/ambassador' && (
-                <AmbassadorReferralBadge />
-              )}
-              {pathname === '/dashboard/analytics' && (
+              {/* Analytics: Tabs on the left, full width, no icon/description */}
+              {pathname === '/dashboard/analytics' ? (
                 <AnalyticsTabsHeader />
+              ) : pathname.match(/^\/dashboard\/projects\/[^/]+$/) ? (
+                /* Project Detail: Tabs on the left, New Chain button shown conditionally */
+                <Suspense fallback={<div className="flex-1 h-10 bg-muted animate-pulse rounded shrink-0" />}>
+                  <ProjectHeaderTabs />
+                </Suspense>
+              ) : pathname === '/dashboard/settings' ? (
+                /* Settings: Tabs on the left, full width, no icon/description */
+                <Suspense fallback={<div className="flex-1 h-10 bg-muted animate-pulse rounded shrink-0" />}>
+                  <SettingsTabsHeader />
+                </Suspense>
+              ) : pathname === '/dashboard/api-keys' ? (
+                /* API Keys: Stats on the left, create button on the right */
+                <>
+                  <Suspense fallback={<div className="flex-1 h-16 bg-muted animate-pulse rounded shrink-0" />}>
+                    <ApiKeysHeaderStats />
+                  </Suspense>
+                  <Suspense fallback={<div className="h-9 w-32 bg-muted animate-pulse rounded shrink-0" />}>
+                    <CreateApiKeyButton />
+                  </Suspense>
+                </>
+              ) : pathname === '/dashboard/profile' ? (
+                /* Profile: Quick actions on the left, stats on the right */
+                <>
+                  <ProfileQuickActions />
+                  <Suspense fallback={<div className="h-14 w-96 bg-muted animate-pulse rounded shrink-0" />}>
+                    <ProfileHeaderStats />
+                  </Suspense>
+                </>
+              ) : pathname === '/dashboard/ambassador' ? (
+                /* Ambassador: Referral code and tier on the left, create link button on the right */
+                <Suspense fallback={<div className="flex-1 h-10 bg-muted animate-pulse rounded shrink-0" />}>
+                  <AmbassadorHeaderContent />
+                </Suspense>
+              ) : (
+                <div className="min-w-0 flex-1 overflow-hidden flex items-center gap-3">
+                  <CurrentPageIcon className="h-5 w-5 text-primary shrink-0" />
+                  <h2 className="text-lg font-semibold text-foreground truncate min-w-0">{currentPageDescription}</h2>
+                </div>
               )}
             </div>
-          )}
-          {/* API Keys Page Create Button */}
-          {pathname === '/dashboard/api-keys' && (
-            <Suspense fallback={<div className="h-10 w-32 bg-muted animate-pulse rounded shrink-0" />}>
-              <CreateApiKeyButton />
-            </Suspense>
           )}
           {/* Tasks Page Stats Buttons */}
           {pathname === '/dashboard/tasks' && (
@@ -908,29 +943,22 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           {/* Projects Page Actions */}
           {pathname === '/dashboard/projects' && (
             <div className="flex items-center gap-2 shrink-0 ml-4">
-              <div className="flex flex-col items-end gap-1">
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => fetchData()}
-                    disabled={loading}
-                    className="flex items-center gap-2"
-                  >
-                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                    <span className="hidden sm:inline">Refresh</span>
-                  </Button>
-                  <CreateProjectModal onProjectCreated={() => fetchData()}>
-                    <Button size="sm" className="flex items-center gap-2">
-                      <Plus className="h-4 w-4" />
-                      <span className="hidden sm:inline">New Project</span>
-                    </Button>
-                  </CreateProjectModal>
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {projects.length} project{projects.length !== 1 ? 's' : ''}
-                </div>
-              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => fetchData()}
+                disabled={loading}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Refresh</span>
+              </Button>
+              <CreateProjectModal onProjectCreated={() => fetchData()}>
+                <Button size="sm" className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  <span className="hidden sm:inline">New Project</span>
+                </Button>
+              </CreateProjectModal>
             </div>
           )}
           

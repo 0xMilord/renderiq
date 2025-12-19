@@ -570,11 +570,12 @@ export async function createRenderAction(formData: FormData) {
       // ✅ FIX: Calculate credits per batch item using model-based pricing
       // Each batch item should use the same credit calculation as the main request
       // Divide total credits by number of requests to get per-item cost
-      const batchItemCreditsCost = Math.ceil(creditsCost / numberOfRequests);
+      const numberOfBatchRequests = batchRequests.length; // ✅ FIXED: Use batchRequests.length instead of numberOfRequests
+      const batchItemCreditsCost = Math.ceil(creditsCost / numberOfBatchRequests);
       
       logger.log('💰 Batch credits calculation:', {
         totalCredits: creditsCost,
-        numberOfRequests,
+        numberOfRequests: numberOfBatchRequests,
         perItemCredits: batchItemCreditsCost
       });
       

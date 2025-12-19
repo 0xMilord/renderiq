@@ -176,19 +176,100 @@ function CanvasEditorInner({
   useWakeLock(isAnyNodeGenerating);
 
   // Handle node data updates from custom events
+  // ✅ FIXED: Update node data and trigger save - connection flow will handle propagation automatically
   useEffect(() => {
+    let saveTimeoutId: NodeJS.Timeout | null = null;
+
     const handleNodeDataUpdate = (event: CustomEvent) => {
       const { nodeId, data } = event.detail;
+      
+      // ✅ FIXED: Log what data is being updated for debugging
+      const nodeType = data?.type || 'unknown';
+      const hasImageData = !!(data?.imageData || data?.imageUrl);
+      const hasMaterials = !!(data?.materials && Array.isArray(data.materials) && data.materials.length > 0);
+      const hasExtractedStyle = !!data?.extractedStyle;
+      
+      logger.log('📝 Node data update received:', {
+        nodeId,
+        nodeType,
+        hasImageData,
+        hasMaterials,
+        hasExtractedStyle,
+        dataKeys: Object.keys(data || {}),
+      });
+      
       setNodes((nds) =>
         nds.map((node) => (node.id === nodeId ? { ...node, data } : node))
       );
+      
+      // ✅ FIXED: Trigger immediate save when node data updates (especially for generating/completed states)
+      // This ensures state is persisted to database immediately
+      if (saveTimeoutId) {
+        clearTimeout(saveTimeoutId);
+      }
+      
+      saveTimeoutId = setTimeout(() => {
+        // Get current nodes state (will include the update)
+        setNodes((currentNodes) => {
+          const canvasNodes: CanvasNode[] = currentNodes.map((node) => {
+            // ✅ FIXED: Ensure all data fields are included, but exclude base64 image data to prevent 10MB limit
+            const nodeData = node.data as any;
+            const { imageData, ...dataWithoutBase64 } = nodeData; // Exclude base64 imageData
+            
+            return {
+              id: node.id,
+              type: node.type as any,
+              position: node.position,
+              data: {
+                ...dataWithoutBase64, // Include all data fields except base64
+                // Explicitly preserve important fields that might be lost (but NOT base64 data)
+                imageUrl: nodeData?.imageUrl, // Keep URL, not base64
+                imageType: nodeData?.imageType,
+                imageName: nodeData?.imageName,
+                materials: nodeData?.materials,
+                extractedStyle: nodeData?.extractedStyle,
+                styleExtraction: nodeData?.styleExtraction,
+                // DO NOT include imageData (base64) - it's too large and causes 10MB limit
+              } as any,
+              inputs: [],
+              outputs: [],
+            };
+          });
+
+          const canvasConnections: NodeConnection[] = edges.map((edge) => ({
+            id: edge.id,
+            source: edge.source,
+            sourceHandle: edge.sourceHandle || '',
+            target: edge.target,
+            targetHandle: edge.targetHandle || '',
+          }));
+
+          logger.log('💾 Auto-saving canvas state after node update:', {
+            nodeId,
+            nodeCount: canvasNodes.length,
+            nodeWithImageData: canvasNodes.find(n => (n.data as any)?.imageData)?.id,
+            nodeWithMaterials: canvasNodes.find(n => (n.data as any)?.materials?.length > 0)?.id,
+          });
+          
+          saveGraph({
+            nodes: canvasNodes,
+            connections: canvasConnections,
+            viewport: { x: 0, y: 0, zoom: 1 },
+          });
+          
+          return currentNodes; // Return unchanged to avoid re-render
+        });
+      }, 500); // Shorter debounce for important state changes
     };
 
     window.addEventListener('nodeDataUpdate', handleNodeDataUpdate as EventListener);
     return () => {
       window.removeEventListener('nodeDataUpdate', handleNodeDataUpdate as EventListener);
+      if (saveTimeoutId) {
+        clearTimeout(saveTimeoutId);
+      }
     };
-  }, [setNodes]);
+  }, [setNodes, edges, saveGraph]);
 
   // Create edge lookup maps for O(1) access instead of O(n) filtering
   const edgeLookup = useMemo(() => {
@@ -384,21 +465,65 @@ function CanvasEditorInner({
           }
 
           if (node.type === 'variants') {
+            const currentData = node.data as any;
+            const updatedData = { ...currentData };
+            let changed = false;
+
+            // ✅ FIXED: Get source image from connected image node
             const imageEdge = incomingEdges.find((e) => e.targetHandle === 'sourceImage' && e.sourceHandle === 'image');
             if (imageEdge) {
               const sourceNode = currentNodeMap.get(imageEdge.source);
               if (sourceNode?.type === 'image') {
                 const imageData = sourceNode.data as any;
-                const currentData = node.data as any;
                 const newUrl = imageData.outputUrl || currentData.sourceImageUrl || '';
                 if (currentData.sourceImageUrl !== newUrl) {
-                  hasChanges = true;
-                  return {
-                    ...node,
-                    data: { ...currentData, sourceImageUrl: newUrl },
-                  };
+                  updatedData.sourceImageUrl = newUrl;
+                  updatedData.prompt = imageData.prompt || currentData.prompt; // Get prompt from source image
+                  changed = true;
+                }
+              } else if (sourceNode?.type === 'image-input') {
+                const imageInputData = sourceNode.data as any;
+                const newUrl = imageInputData.imageUrl || currentData.sourceImageUrl || '';
+                if (currentData.sourceImageUrl !== newUrl) {
+                  updatedData.sourceImageUrl = newUrl;
+                  changed = true;
                 }
               }
+            }
+
+            // ✅ NEW: Get style settings from connected style/style-reference node
+            const styleEdge = incomingEdges.find((e) => e.targetHandle === 'style' && e.sourceHandle === 'style');
+            if (styleEdge) {
+              const sourceNode = currentNodeMap.get(styleEdge.source);
+              if (sourceNode?.type === 'style') {
+                updatedData.styleSettings = sourceNode.data;
+                changed = true;
+              } else if (sourceNode?.type === 'style-reference') {
+                const styleRefData = sourceNode.data as any;
+                if (styleRefData.extractedStyle) {
+                  updatedData.styleSettings = styleRefData.extractedStyle;
+                  updatedData.styleReference = styleRefData; // Also store reference for context
+                  changed = true;
+                }
+              }
+            }
+
+            // ✅ NEW: Get material settings from connected material node
+            const materialEdge = incomingEdges.find((e) => e.targetHandle === 'materials' && e.sourceHandle === 'materials');
+            if (materialEdge) {
+              const sourceNode = currentNodeMap.get(materialEdge.source);
+              if (sourceNode?.type === 'material') {
+                updatedData.materialSettings = sourceNode.data;
+                changed = true;
+              }
+            }
+
+            if (changed) {
+              hasChanges = true;
+              return {
+                ...node,
+                data: updatedData,
+              };
             }
             return node;
           }
@@ -422,16 +547,40 @@ function CanvasEditorInner({
               }
             }
 
-            const variantsEdge = incomingEdges.find((e) => e.targetHandle === 'variants' && e.sourceHandle === 'variants');
+            // ✅ FIXED: Handle dynamic variant outputs (variant-0, variant-1, etc.)
+            // Support both old format (variants) and new format (variant-0, variant-1, ...)
+            // Find the edge that connects to THIS output node's 'image' input
+            const variantsEdge = incomingEdges.find((e) => 
+              (e.targetHandle === 'image' && e.sourceHandle?.startsWith('variant-')) ||
+              (e.targetHandle === 'variants' && e.sourceHandle === 'variants')
+            );
             if (variantsEdge) {
               const sourceNode = currentNodeMap.get(variantsEdge.source);
               if (sourceNode?.type === 'variants') {
                 const variantsData = sourceNode.data as any;
-                const selectedVariant = variantsData.variants?.find((v: any) => v.id === variantsData.selectedVariantId);
-                if (selectedVariant) {
-                  if (updatedData.variantUrl !== selectedVariant.url) {
-                    updatedData.variantUrl = selectedVariant.url || '';
-                    updatedData.variantId = selectedVariant.id;
+                
+                // Extract variant index from handle ID (e.g., "variant-0" -> 0)
+                let variantIndex = -1;
+                if (variantsEdge.sourceHandle?.startsWith('variant-')) {
+                  const indexStr = variantsEdge.sourceHandle.replace('variant-', '');
+                  variantIndex = parseInt(indexStr, 10);
+                }
+                
+                // If we have a specific variant index, use that variant
+                // Otherwise, fall back to selected variant (for backward compatibility)
+                let targetVariant = null;
+                if (variantIndex >= 0 && variantsData.variants && variantsData.variants[variantIndex]) {
+                  targetVariant = variantsData.variants[variantIndex];
+                } else {
+                  targetVariant = variantsData.variants?.find((v: any) => v.id === variantsData.selectedVariantId);
+                }
+                
+                if (targetVariant) {
+                  // Use variantUrl for variant connections, imageUrl for image connections
+                  const newUrl = targetVariant.url || '';
+                  if (updatedData.variantUrl !== newUrl) {
+                    updatedData.variantUrl = newUrl;
+                    updatedData.variantId = targetVariant.id;
                     updatedData.status = 'ready';
                     changed = true;
                   }
@@ -478,7 +627,7 @@ function CanvasEditorInner({
     // Debounce connection data updates to avoid excessive re-renders
     const timeoutId = setTimeout(handleConnectionData, 50);
     return () => clearTimeout(timeoutId);
-  }, [edges, setNodes, edgeLookup]);
+  }, [edges, setNodes, edgeLookup, nodes]); // ✅ Added nodes dependency to trigger when node data updates
 
   // Memoize nodes with status and highlighting to avoid re-rendering on every change
   const memoizedNodes = useMemo(() => 
@@ -498,6 +647,7 @@ function CanvasEditorInner({
 
   // Convert canvas nodes to React Flow nodes - only on initial load
   const [initialLoad, setInitialLoad] = useState(true);
+  const [edgesLoaded, setEdgesLoaded] = useState(false);
   
   useEffect(() => {
     if (initialLoad && !loading) {
@@ -514,8 +664,9 @@ function CanvasEditorInner({
           },
         }));
         setNodes(rfNodes);
-        // Initialize history with loaded state
-        history.initialize(rfNodes, []);
+        // ✅ FIXED: Don't initialize history here - wait for edges to load
+        // History will be initialized in the edges loading effect
+        logger.log('✅ Nodes loaded from graph:', { count: rfNodes.length });
       } else if (!graph || !graph.nodes || graph.nodes.length === 0) {
         // Only create default node if no graph exists at all - use factory
         const defaultNode = NodeFactory.createNode('text', { x: 100, y: 100 });
@@ -526,12 +677,13 @@ function CanvasEditorInner({
           fileId: fileId,
         };
         setNodes([defaultNode]);
-        // Initialize history with default state
+        // Initialize history with default state (no edges yet)
         history.initialize([defaultNode], []);
+        setEdgesLoaded(true); // Mark edges as loaded (empty set)
       }
       setInitialLoad(false);
     }
-  }, [graph, loading, setNodes, initialLoad, history]);
+  }, [graph, loading, setNodes, initialLoad, history, projectId, fileId]);
 
   // Fit view after nodes are loaded and ReactFlow instance is ready
   useEffect(() => {
@@ -544,42 +696,65 @@ function CanvasEditorInner({
     }
   }, [initialLoad, reactFlowInstance, nodes.length]);
 
-  // Convert canvas connections to React Flow edges
+  // Convert canvas connections to React Flow edges - ONLY on initial load
+  // ✅ FIXED: Only load edges from graph on initial load to prevent overwriting newly created edges
   useEffect(() => {
-    if (graph && graph.connections) {
-      // Use a Set to track unique edge IDs and prevent duplicates
-      const seenIds = new Set<string>();
-      const rfEdges: Edge[] = graph.connections
-        .map((conn: NodeConnection) => {
-          // Generate a unique ID if not present or if duplicate
-          let edgeId = conn.id || `${conn.source}-${conn.target}-${conn.sourceHandle || 'default'}-${conn.targetHandle || 'default'}`;
-          
-          // If ID already seen, make it unique
-          if (seenIds.has(edgeId)) {
-            edgeId = `${edgeId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-          }
-          seenIds.add(edgeId);
-          
-          return {
-            id: edgeId,
-            source: conn.source,
-            sourceHandle: conn.sourceHandle,
-            target: conn.target,
-            targetHandle: conn.targetHandle,
-          };
-        })
-        .filter((edge, index, self) => 
-          // Also filter by connection uniqueness (same source/target/handles)
-          index === self.findIndex(e => 
-            e.source === edge.source &&
-            e.target === edge.target &&
-            e.sourceHandle === edge.sourceHandle &&
-            e.targetHandle === edge.targetHandle
-          )
-        );
-      setEdges(rfEdges);
+    // Only load edges on initial load when graph is first available and nodes are loaded
+    if (!initialLoad && !edgesLoaded && !loading && nodes.length > 0) {
+      if (graph && graph.connections && graph.connections.length > 0) {
+        // Ensure nodes exist before loading edges that reference them
+        const nodeIds = new Set(nodes.map(n => n.id));
+        
+        // Use a Set to track unique edge IDs and prevent duplicates
+        const seenIds = new Set<string>();
+        const rfEdges: Edge[] = graph.connections
+          .map((conn: NodeConnection) => {
+            // Skip edges that reference non-existent nodes
+            if (!nodeIds.has(conn.source) || !nodeIds.has(conn.target)) {
+              logger.log('⚠️ Skipping edge - node not found:', { source: conn.source, target: conn.target });
+              return null;
+            }
+            
+            // Generate a unique ID if not present or if duplicate
+            let edgeId = conn.id || `${conn.source}-${conn.target}-${conn.sourceHandle || 'default'}-${conn.targetHandle || 'default'}`;
+            
+            // If ID already seen, make it unique
+            if (seenIds.has(edgeId)) {
+              edgeId = `${edgeId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            }
+            seenIds.add(edgeId);
+            
+            return {
+              id: edgeId,
+              source: conn.source,
+              sourceHandle: conn.sourceHandle,
+              target: conn.target,
+              targetHandle: conn.targetHandle,
+            };
+          })
+          .filter((edge): edge is Edge => edge !== null)
+          .filter((edge, index, self) => 
+            // Also filter by connection uniqueness (same source/target/handles)
+            index === self.findIndex(e => 
+              e.source === edge.source &&
+              e.target === edge.target &&
+              e.sourceHandle === edge.sourceHandle &&
+              e.targetHandle === edge.targetHandle
+            )
+          );
+        
+        logger.log('✅ Loading edges from graph:', { count: rfEdges.length, nodesCount: nodes.length });
+        setEdges(rfEdges);
+        // Initialize history with loaded nodes and edges
+        history.initialize(nodes, rfEdges);
+        setEdgesLoaded(true);
+      } else {
+        // No edges in graph, but nodes are loaded - initialize history with empty edges
+        history.initialize(nodes, []);
+        setEdgesLoaded(true);
+      }
     }
-  }, [graph, setEdges]);
+  }, [graph, setEdges, nodes, loading, initialLoad, edgesLoaded, history]);
 
   // Memoize isValidConnection callback - must be at top level (Rules of Hooks)
   const isValidConnection = useCallback((connection: Connection) => {
@@ -600,85 +775,94 @@ function CanvasEditorInner({
     (params: Connection) => {
       logger.log('🔌 Connection attempt:', params);
       
-      // Validate connection using ConnectionValidator
-      const validation = ConnectionValidator.validateConnection(params, nodes);
-      
-      if (!validation.valid) {
-        logger.log('❌ Connection rejected:', validation.error);
-        toast.error(validation.error || 'Invalid connection', {
-          description: validation.hint,
-        });
-        canvasErrorHandler.handleError(
-          canvasErrorHandler.createConnectionError(
-            validation.error || 'Invalid connection',
-            undefined,
-            { hint: validation.hint }
-          )
-        );
-        return;
-      }
-
-      // Check for cycles
-      const wouldCycle = ConnectionValidator.wouldCreateCycle(
-        params,
-        nodes,
-        edges.map(e => ({ source: e.source, target: e.target }))
-      );
-
-      if (wouldCycle) {
-        logger.log('❌ Connection rejected: would create cycle');
-        toast.error('Cannot create connection', {
-          description: 'This connection would create a circular dependency',
-        });
-        return;
-      }
-
-      // Show warning if present
-      if (validation.warning) {
-        toast.warning(validation.warning);
-      }
-
-      // Show hint if present
-      if (validation.hint) {
-        logger.log('💡 Connection hint:', validation.hint);
-      }
-
-      logger.log('✅ Connection accepted:', { source: params.source, target: params.target });
-      setEdges((eds) => {
-        // Check if this connection already exists
-        const existingEdge = eds.find(
-          e => e.source === params.source &&
-               e.target === params.target &&
-               e.sourceHandle === params.sourceHandle &&
-               e.targetHandle === params.targetHandle
-        );
-        
-        if (existingEdge) {
-          logger.log('⚠️ Connection already exists, skipping');
-          return eds;
-        }
-        
-        const newEdges = addEdge(params, eds);
-        
-        // Ensure all edges have unique IDs
-        const seenIds = new Set<string>();
-        const edgesWithUniqueIds = newEdges.map((edge) => {
-          if (seenIds.has(edge.id)) {
-            // Generate a unique ID
-            const uniqueId = `${edge.source}-${edge.target}-${edge.sourceHandle || 'default'}-${edge.targetHandle || 'default'}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-            seenIds.add(uniqueId);
-            return { ...edge, id: uniqueId };
+      // ✅ FIXED: Use current nodes and edges from state, not stale closures
+      setNodes((currentNodes) => {
+        setEdges((currentEdges) => {
+          // Validate connection using ConnectionValidator with current state
+          const validation = ConnectionValidator.validateConnection(params, currentNodes);
+          
+          if (!validation.valid) {
+            logger.log('❌ Connection rejected:', validation.error);
+            toast.error(validation.error || 'Invalid connection', {
+              description: validation.hint,
+            });
+            canvasErrorHandler.handleError(
+              canvasErrorHandler.createConnectionError(
+                validation.error || 'Invalid connection',
+                undefined,
+                { hint: validation.hint }
+              )
+            );
+            return currentEdges; // Return unchanged edges
           }
-          seenIds.add(edge.id);
-          return edge;
+
+          // Check for cycles with current edges
+          const wouldCycle = ConnectionValidator.wouldCreateCycle(
+            params,
+            currentNodes,
+            currentEdges.map(e => ({ source: e.source, target: e.target }))
+          );
+
+          if (wouldCycle) {
+            logger.log('❌ Connection rejected: would create cycle');
+            toast.error('Cannot create connection', {
+              description: 'This connection would create a circular dependency',
+            });
+            return currentEdges; // Return unchanged edges
+          }
+
+          // Show warning if present
+          if (validation.warning) {
+            toast.warning(validation.warning);
+          }
+
+          // Show hint if present
+          if (validation.hint) {
+            logger.log('💡 Connection hint:', validation.hint);
+          }
+
+          logger.log('✅ Connection accepted:', { source: params.source, target: params.target });
+          
+          // Check if this connection already exists
+          const existingEdge = currentEdges.find(
+            e => e.source === params.source &&
+                 e.target === params.target &&
+                 e.sourceHandle === params.sourceHandle &&
+                 e.targetHandle === params.targetHandle
+          );
+          
+          if (existingEdge) {
+            logger.log('⚠️ Connection already exists, skipping');
+            return currentEdges;
+          }
+          
+          const newEdges = addEdge(params, currentEdges);
+          
+          // Ensure all edges have unique IDs
+          const seenIds = new Set<string>();
+          const edgesWithUniqueIds = newEdges.map((edge) => {
+            if (seenIds.has(edge.id)) {
+              // Generate a unique ID
+              const uniqueId = `${edge.source}-${edge.target}-${edge.sourceHandle || 'default'}-${edge.targetHandle || 'default'}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+              seenIds.add(uniqueId);
+              return { ...edge, id: uniqueId };
+            }
+            seenIds.add(edge.id);
+            return edge;
+          });
+          
+          // Push to history after connection with current state
+          history.pushState(currentNodes, edgesWithUniqueIds);
+          setCanUndo(history.canUndo());
+          setCanRedo(history.canRedo());
+          
+          logger.log('✅ Edge added successfully:', { edgeId: edgesWithUniqueIds[edgesWithUniqueIds.length - 1]?.id, totalEdges: edgesWithUniqueIds.length });
+          return edgesWithUniqueIds;
         });
-        
-        // Push to history after connection
-        history.pushState(nodes, edgesWithUniqueIds);
-        return edgesWithUniqueIds;
+        return currentNodes; // Return unchanged nodes
       });
     },
-    [setEdges, nodes, edges, history]
+    [setEdges, setNodes, history, setCanUndo, setCanRedo]
   );
 
   // Define undo/redo handlers
@@ -856,8 +1040,9 @@ function CanvasEditorInner({
   }, [nodes, edges, loading, initialLoad, history]);
 
   // Auto-save on changes - but not on initial load
+  // ✅ FIXED: Only auto-save after edges are loaded to prevent overwriting with incomplete state
   useEffect(() => {
-    if (loading || initialLoad || nodes.length === 0) return;
+    if (loading || initialLoad || !edgesLoaded || nodes.length === 0) return;
 
     const timeoutId = setTimeout(() => {
       const canvasNodes: CanvasNode[] = nodes.map((node) => ({
@@ -877,6 +1062,7 @@ function CanvasEditorInner({
         targetHandle: edge.targetHandle || '',
       }));
 
+      logger.log('💾 Auto-saving canvas state:', { nodes: canvasNodes.length, edges: canvasConnections.length });
       saveGraph({
         nodes: canvasNodes,
         connections: canvasConnections,
@@ -885,7 +1071,7 @@ function CanvasEditorInner({
     }, 1000); // Debounce 1 second
 
     return () => clearTimeout(timeoutId);
-  }, [nodes, edges, loading, initialLoad, saveGraph]);
+  }, [nodes, edges, loading, initialLoad, edgesLoaded, saveGraph]);
 
   // Capture screenshot on component unmount or navigation
   useEffect(() => {
@@ -1049,17 +1235,18 @@ function CanvasEditorInner({
           minZoom={0.1}
           maxZoom={2}
           defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+          proOptions={{ hideAttribution: true }}
           defaultEdgeOptions={{
             type: 'default',
             style: { 
               strokeWidth: 2,
-              strokeDasharray: '5,5', // Dashed line pattern
+              // ✅ UPDATED: Solid edges instead of dashed
             },
             animated: false,
           }}
           connectionLineStyle={{ 
             strokeWidth: 2,
-            strokeDasharray: '5,5', // Dashed line pattern for connection preview
+            // ✅ UPDATED: Solid connection preview instead of dashed
           }}
           nodesDraggable={true}
           nodesConnectable={true}

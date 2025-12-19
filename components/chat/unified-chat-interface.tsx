@@ -2653,7 +2653,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
           "hidden lg:block border-b border-border",
           isSidebarCollapsed && "lg:hidden"
         )}>
-          <div className="px-4 py-1.5 h-11 flex items-center">
+          <div className="px-3 sm:px-4 py-2 flex items-center">
             <div className="flex items-center justify-between gap-2 w-full">
               <Button
                 variant="ghost"
@@ -3338,7 +3338,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                 </div>
               </div>
               
-              <div className="flex gap-1 sm:gap-2">
+              <div className="flex gap-1 sm:gap-2 items-stretch">
                 <div className="relative flex-1 flex flex-col">
                   {/* Detected Mentions - Inside textarea container */}
                   {inputValue.includes('@') && (
@@ -3367,7 +3367,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                         : "Describe your vision..."
                     }
                     className={cn(
-                      "h-[60px] sm:h-[70px] resize-none w-full text-xs sm:text-sm",
+                      "h-[60px] sm:h-[70px] resize-none w-full text-xs sm:text-sm flex-1",
                       isVideoMode && "border-primary/50 bg-primary/5"
                     )}
                     disabled={isGenerating}
@@ -3380,11 +3380,11 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                     renders={chain?.renders}
                   />
                 </div>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1 h-[60px] sm:h-[70px]">
                 <Button
                   onClick={handleSendMessage}
                   disabled={!inputValue.trim() || isGenerating || (credits && credits.balance < getCreditsCost())}
-                  className="h-8 sm:h-9 shrink-0 px-2 sm:px-3"
+                  className="flex-1 h-full shrink-0 px-2 sm:px-3"
                   size="sm"
                 >
                   {credits && credits.balance < getCreditsCost() ? (
@@ -3412,7 +3412,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                   variant="outline"
                   size="sm"
                   onClick={handleUploadModalOpen}
-                  className="h-8 sm:h-9 shrink-0 px-2 sm:px-3"
+                  className="flex-1 h-full shrink-0 px-2 sm:px-3"
                   disabled={isGenerating}
                   title="Upload image"
                 >
@@ -3707,11 +3707,6 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                               </SelectItem>
                             </SelectContent>
                           </Select>
-                          {selectedImageModel && (
-                            <p className="text-[9px] text-muted-foreground mt-0.5">
-                              Supported: {getSupportedResolutions(selectedImageModel as ModelId).join(', ')}
-                            </p>
-                          )}
                         </div>
                       </div>
                     )}
@@ -4022,49 +4017,54 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
               </>
             )}
             
-              {/* Buttons spread out across available width */}
+              {/* Buttons grouped together, Credit Usage on the right */}
               <div className="flex items-center gap-2 sm:gap-3 flex-1 justify-between min-w-0">
-            {/* Project Rules */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 sm:h-8 text-[10px] sm:text-xs px-2 sm:px-3 shrink-0"
-              onClick={() => setIsProjectRulesModalOpen(true)}
-              title="Project Rules"
-            >
-              <FileText className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
-              <span>Rules</span>
-              {projectRules && projectRules.length > 0 && (
-                <span className="ml-1 px-1 py-0.5 bg-primary/10 text-primary rounded text-[8px] sm:text-[9px] font-medium">
-                  {projectRules.length}
-                </span>
-              )}
-            </Button>
-            
-            {/* Prompt Builder and Library Buttons */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => openPromptGallery()}
-              className="h-7 sm:h-8 px-2 text-[10px] sm:text-xs shrink-0"
-              disabled={isGenerating}
-              title="Prompt Library"
-            >
-              <BookOpen className="h-3 w-3 mr-1" />
-              <span className="hidden sm:inline">Library</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => openPromptBuilder()}
-              className="h-7 sm:h-8 px-2 text-[10px] sm:text-xs shrink-0"
-              disabled={isGenerating}
-              title="Prompt Builder"
-            >
-              <Wand2 className="h-3 w-3 mr-1" />
-              <span className="hidden sm:inline">Builder</span>
-            </Button>
-            
+                {/* Rules, Library, and Builder buttons grouped together */}
+                <div className="flex items-center gap-2 sm:gap-2">
+                  {/* Project Rules */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 sm:h-8 text-[10px] sm:text-xs px-2 sm:px-3 shrink-0"
+                    onClick={() => setIsProjectRulesModalOpen(true)}
+                    title="Project Rules"
+                  >
+                    <FileText className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
+                    <span>Rules</span>
+                    {projectRules && projectRules.length > 0 && (
+                      <span className="ml-1 px-1 py-0.5 bg-primary/10 text-primary rounded text-[8px] sm:text-[9px] font-medium">
+                        {projectRules.length}
+                      </span>
+                    )}
+                  </Button>
+                  
+                  {/* Prompt Library */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openPromptGallery()}
+                    className="h-7 sm:h-8 px-2 text-[10px] sm:text-xs shrink-0"
+                    disabled={isGenerating}
+                    title="Prompt Library"
+                  >
+                    <BookOpen className="h-3 w-3 mr-1" />
+                    <span className="hidden sm:inline">Library</span>
+                  </Button>
+                  
+                  {/* Prompt Builder */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openPromptBuilder()}
+                    className="h-7 sm:h-8 px-2 text-[10px] sm:text-xs shrink-0"
+                    disabled={isGenerating}
+                    title="Prompt Builder"
+                  >
+                    <Wand2 className="h-3 w-3 mr-1" />
+                    <span className="hidden sm:inline">Builder</span>
+                  </Button>
+                </div>
+                
                 {/* Credit Usage */}
                 <div className={cn(
                   "flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-md border h-7 sm:h-8 shrink-0",

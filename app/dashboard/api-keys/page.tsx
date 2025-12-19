@@ -1,7 +1,6 @@
 import { Suspense } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ApiKeysList } from '@/components/api-keys/api-keys-list';
-import { ApiKeysUsageMetrics } from '@/components/api-keys/api-keys-usage-metrics';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info, Shield, Lock } from 'lucide-react';
 
@@ -10,9 +9,6 @@ export default function ApiKeysPage() {
     <div className="h-full w-full">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         <div className="w-full space-y-6">
-          {/* Usage Metrics */}
-          <ApiKeysUsageMetrics />
-
           {/* API Keys List */}
           <Suspense fallback={
             <Card>

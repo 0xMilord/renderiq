@@ -25,7 +25,7 @@ export function AmbassadorReferralBadge() {
   };
 
   if (loading) {
-    return <Skeleton className="h-10 w-64" />;
+    return <Skeleton className="h-8 w-56" />;
   }
 
   if (!ambassador?.code) {
@@ -33,20 +33,20 @@ export function AmbassadorReferralBadge() {
   }
 
   return (
-    <div className="flex items-center gap-3 bg-secondary/50 border border-border rounded-lg px-4 py-2 h-10">
-      <span className="text-sm text-muted-foreground">Your referral code:</span>
-      <code className="font-mono text-base font-semibold">{ambassador.code}</code>
+    <div className="flex items-center gap-2 bg-secondary/50 border border-border rounded-lg px-3 py-1.5 h-8">
+      <span className="text-xs text-muted-foreground">Referral code:</span>
+      <code className="font-mono text-sm font-semibold">{ambassador.code}</code>
       <Button
         variant="ghost"
         size="sm"
         onClick={handleCopy}
-        className="h-6 w-6 p-0 shrink-0"
+        className="h-5 w-5 p-0 shrink-0"
         title="Copy referral code"
       >
         {copied ? (
-          <Check className="h-4 w-4 text-green-600" />
+          <Check className="h-3 w-3 text-green-600" />
         ) : (
-          <Copy className="h-4 w-4" />
+          <Copy className="h-3 w-3" />
         )}
       </Button>
     </div>

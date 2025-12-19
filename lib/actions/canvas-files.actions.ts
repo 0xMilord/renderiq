@@ -468,8 +468,15 @@ export async function generateCanvasVariantsAction(params: {
   sourceImageUrl: string;
   prompt: string;
   count: number;
+  variantType?: 'multi-angle' | 'design-options'; // ✅ NEW: Variant type
   settings: Record<string, any>;
+  styleSettings?: any; // ✅ NEW: Style settings from Style Node
+  materialSettings?: any; // ✅ NEW: Material settings from Material Node
+  styleReference?: any; // ✅ NEW: Style reference from Style Reference Node
+  previousVariants?: Array<{ prompt: string; url?: string }>; // ✅ NEW: Previous variants for context
   nodeId?: string;
+  projectId?: string;
+  fileId?: string;
 }) {
   try {
     const { user } = await getCachedUser();
@@ -488,31 +495,83 @@ export async function generateCanvasVariantsAction(params: {
       return { success: false, error: 'Insufficient credits' };
     }
 
-    // Generate variants
-    const variants = [];
-    for (let i = 0; i < params.count; i++) {
-      const renderResult = await RendersDAL.create({
-        userId: user.id,
-        type: 'image',
-        prompt: params.prompt || 'Variant',
-        settings: {
-          style: params.settings.style || 'architectural',
-          quality: params.settings.quality || 'standard',
-          aspectRatio: '16:9',
-        },
-        status: 'pending',
-        platform: 'canvas', // Mark as canvas platform
-      });
-
-      variants.push({
-        id: renderResult.id,
-        url: params.sourceImageUrl, // Placeholder - would be actual generated image
-        prompt: params.prompt || 'Variant',
-        settings: params.settings,
-        renderId: renderResult.id,
-      });
+    // ✅ FIXED: Use batch API instead of creating individual renders
+    const { buildVariantBatchRequests } = await import('@/lib/utils/variant-prompt-builder');
+    const { createRenderAction } = await import('@/lib/actions/render.actions');
+    
+    // ✅ UPDATED: Build batch requests with full context
+    const config = {
+      variantCount: params.count,
+      variantType: (params.variantType || 'multi-angle') as 'multi-angle' | 'design-options', // Default to multi-angle
+      variationStrength: params.settings.variationStrength || 0.5, // ✅ NEW: Include variation strength
+      styleSettings: params.styleSettings,
+      materialSettings: params.materialSettings,
+      styleReference: params.styleReference,
+      previousVariants: params.previousVariants,
+      basePrompt: params.prompt || 'Generate architectural variant',
+    };
+    const batchRequests = buildVariantBatchRequests(params.prompt || 'Generate architectural variant', config);
+    
+    // Create FormData for batch API
+    const formData = new FormData();
+    formData.append('prompt', params.prompt || 'Generate architectural variant');
+    formData.append('style', params.settings.style || 'architectural');
+    formData.append('quality', params.settings.quality || 'standard');
+    formData.append('aspectRatio', '16:9');
+    formData.append('type', 'image');
+    
+    // ✅ CRITICAL: Include projectId and fileId for proper render creation
+    if (params.projectId) {
+      formData.append('projectId', params.projectId);
     }
-
+    if (params.fileId) {
+      formData.append('fileId', params.fileId);
+      formData.append('platform', 'canvas');
+    }
+    
+    // Add batch API flags
+    formData.append('useBatchAPI', 'true');
+    formData.append('batchRequests', JSON.stringify(batchRequests));
+    formData.append('variantCount', params.count.toString());
+    formData.append('variantType', params.variantType || 'multi-angle');
+    
+    // If source image is provided, add it for image-to-image generation
+    if (params.sourceImageUrl) {
+      try {
+        // Fetch the image and convert to File
+        const response = await fetch(params.sourceImageUrl);
+        const blob = await response.blob();
+        const file = new File([blob], 'source-image.png', { type: blob.type || 'image/png' });
+        formData.append('uploadedImage', file);
+        formData.append('generationType', 'image-to-image');
+      } catch (error) {
+        logger.warn('Failed to fetch source image for variants:', error);
+        // Continue without source image (text-to-image fallback)
+      }
+    }
+    
+    // Call batch API
+    const renderResult = await createRenderAction(formData);
+    
+    if (!renderResult.success || !renderResult.data) {
+      return {
+        success: false,
+        error: renderResult.error || 'Failed to generate variants',
+      };
+    }
+    
+    // Extract batch results
+    const batchResults = Array.isArray(renderResult.data) ? renderResult.data : [renderResult.data];
+    
+    // Map batch results to variant format
+    const variants = batchResults.map((result: any, index: number) => ({
+      id: result.renderId || result.id || `variant-${index}`,
+      url: result.outputUrl || result.url || params.sourceImageUrl, // Will be updated when render completes
+      prompt: batchRequests[index]?.prompt || params.prompt || 'Variant',
+      settings: params.settings,
+      renderId: result.renderId || result.id,
+    }));
+    
     // Deduct credits
     await BillingService.deductCredits(
       user.id,

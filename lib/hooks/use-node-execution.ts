@@ -22,12 +22,19 @@ interface GenerateVariantsParams {
   sourceImageUrl: string;
   prompt?: string;
   count: number;
+  variantType?: 'multi-angle' | 'design-options'; // ✅ NEW: Variant type
   settings: {
     variationStrength: number;
     style?: string;
     quality: 'standard' | 'high' | 'ultra';
   };
+  styleSettings?: any; // ✅ NEW: Style settings from Style Node
+  materialSettings?: any; // ✅ NEW: Material settings from Material Node
+  styleReference?: any; // ✅ NEW: Style reference from Style Reference Node
+  previousVariants?: Array<{ prompt: string; url?: string }>; // ✅ NEW: Previous variants for context
   nodeId: string;
+  projectId?: string; // Project ID for render creation
+  fileId?: string; // Canvas file ID for render creation
 }
 
 interface GenerateVideoParams {
@@ -201,8 +208,15 @@ export function useNodeExecution() {
         sourceImageUrl: params.sourceImageUrl,
         prompt: params.prompt || '',
         count: params.count,
+        variantType: params.variantType,
         settings: params.settings,
+        styleSettings: params.styleSettings,
+        materialSettings: params.materialSettings,
+        styleReference: params.styleReference,
+        previousVariants: params.previousVariants,
         nodeId: params.nodeId,
+        projectId: params.projectId,
+        fileId: params.fileId,
       });
       return result;
     } catch (error) {

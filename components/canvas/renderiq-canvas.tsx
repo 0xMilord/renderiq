@@ -472,6 +472,8 @@ export function RenderiqCanvas({
     if (!editor) return;
     
     const generatingFrameId = createShapeId('generating-frame');
+    if (!editor) return;
+    
     const existingFrame = editor.getShape(generatingFrameId);
     
     if (isGenerating) {
@@ -482,29 +484,62 @@ export function RenderiqCanvas({
         const centerX = viewportBounds.x + viewportBounds.width / 2;
         const centerY = viewportBounds.y + viewportBounds.height / 2;
         
-        // Create generating frame - this will show on the canvas
-        editor.createShapes([
-          {
-            id: generatingFrameId,
-            type: 'frame',
-            x: centerX - 600,
-            y: centerY - 400,
-            props: {
-              w: 1200,
-              h: 800,
-              name: 'Generating your render...',
+        // ✅ FIXED: Create generating frame immediately when isGenerating becomes true
+        // This shows a placeholder on the canvas even before the render is created in the database
+        try {
+          editor.createShapes([
+            {
+              id: generatingFrameId,
+              type: 'frame',
+              x: centerX - 600,
+              y: centerY - 400,
+              props: {
+                w: 1200,
+                h: 800,
+                name: generatingPrompt ? `Generating: ${generatingPrompt.substring(0, 50)}...` : 'Generating your render...',
+              },
+              meta: {
+                isGenerating: true,
+                prompt: generatingPrompt || '',
+              },
             },
-            meta: {
-              isGenerating: true,
-              prompt: generatingPrompt || '',
-            },
-          },
-        ]);
+          ]);
+          
+          logger.log('✅ RenderiqCanvas: Created generating frame on canvas', {
+            generatingPrompt: generatingPrompt?.substring(0, 50),
+          });
+        } catch (error) {
+          logger.error('❌ RenderiqCanvas: Failed to create generating frame', error);
+        }
+      } else {
+        // Update existing frame with new prompt if it changed
+        if (generatingPrompt && existingFrame.meta?.prompt !== generatingPrompt) {
+          try {
+            editor.updateShapes([{
+              id: generatingFrameId,
+              type: 'frame',
+              props: {
+                name: `Generating: ${generatingPrompt.substring(0, 50)}...`,
+              },
+              meta: {
+                ...existingFrame.meta,
+                prompt: generatingPrompt,
+              },
+            }]);
+          } catch (error) {
+            logger.error('❌ RenderiqCanvas: Failed to update generating frame', error);
+          }
+        }
       }
     } else {
       // Remove generating frame when not generating
       if (existingFrame) {
-        editor.deleteShapes([generatingFrameId]);
+        try {
+          editor.deleteShapes([generatingFrameId]);
+          logger.log('✅ RenderiqCanvas: Removed generating frame from canvas');
+        } catch (error) {
+          logger.error('❌ RenderiqCanvas: Failed to remove generating frame', error);
+        }
       }
     }
   }, [isGenerating, generatingPrompt, editor]);

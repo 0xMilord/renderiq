@@ -1,37 +1,35 @@
 'use client';
 
-import { usePathname, useSearchParams, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { BarChart3, TrendingUp, CreditCard, Zap, Database, FolderOpen } from 'lucide-react';
+import { User, Bell, Paintbrush, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export function AnalyticsTabsHeader() {
+export function SettingsTabsHeader() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const router = useRouter();
-  const activeTab = searchParams.get('tab') || 'overview';
+  const searchParams = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'profile';
 
-  if (pathname !== '/dashboard/analytics') {
+  if (pathname !== '/dashboard/settings') {
     return null;
   }
 
   const handleTabChange = (value: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value === 'overview') {
-      params.delete('tab');
+    const newSearchParams = new URLSearchParams(searchParams.toString());
+    if (value === 'profile') {
+      newSearchParams.delete('tab');
     } else {
-      params.set('tab', value);
+      newSearchParams.set('tab', value);
     }
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    router.push(`${pathname}?${newSearchParams.toString()}`, { scroll: false });
   };
 
   const tabs = [
-    { value: 'overview', label: 'Overview', icon: BarChart3 },
-    { value: 'renders', label: 'Renders', icon: TrendingUp },
-    { value: 'credits', label: 'Credits', icon: CreditCard },
-    { value: 'api', label: 'API', icon: Zap },
-    { value: 'storage', label: 'Storage', icon: Database },
-    { value: 'projects', label: 'Projects', icon: FolderOpen },
+    { value: 'profile', label: 'Profile', icon: User },
+    { value: 'notifications', label: 'Notifications', icon: Bell },
+    { value: 'renders', label: 'Render Settings', icon: Paintbrush },
+    { value: 'security', label: 'Security', icon: Shield },
   ];
 
   return (
@@ -58,4 +56,3 @@ export function AnalyticsTabsHeader() {
     </div>
   );
 }
-

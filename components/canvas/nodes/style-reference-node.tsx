@@ -23,40 +23,79 @@ const DEFAULT_STYLE: StyleNodeData = {
 export function StyleReferenceNode(props: any) {
   const { data, id } = props;
   const nodeColors = useNodeColors();
-  const [localData, setLocalData] = useState<StyleReferenceNodeData>(data || {
-    imageUrl: null,
-    imageData: null,
-    imageType: null,
-    imageName: null,
-    styleExtraction: {
-      extractCamera: true,
-      extractLighting: true,
-      extractAtmosphere: true,
-      extractEnvironment: true,
-      extractColors: true,
-      extractComposition: true,
-    },
-    extractedStyle: undefined,
+  // ✅ FIXED: Initialize with data from props if available (includes data from database)
+  const [localData, setLocalData] = useState<StyleReferenceNodeData>(() => {
+    if (data) {
+      return {
+        imageUrl: data.imageUrl ?? null,
+        imageData: data.imageData ?? null,
+        imageType: data.imageType ?? null,
+        imageName: data.imageName ?? null,
+        styleExtraction: data.styleExtraction || {
+          extractCamera: true,
+          extractLighting: true,
+          extractAtmosphere: true,
+          extractEnvironment: true,
+          extractColors: true,
+          extractComposition: true,
+        },
+        extractedStyle: data.extractedStyle,
+        selectedStyleId: data.selectedStyleId,
+      };
+    }
+    return {
+      imageUrl: null,
+      imageData: null,
+      imageType: null,
+      imageName: null,
+      styleExtraction: {
+        extractCamera: true,
+        extractLighting: true,
+        extractAtmosphere: true,
+        extractEnvironment: true,
+        extractColors: true,
+        extractComposition: true,
+      },
+      extractedStyle: undefined,
+    };
   });
   const [isExtracting, setIsExtracting] = useState(false);
 
-  // Update local data when prop data changes
+  // ✅ FIXED: Update local data when prop data changes, but preserve existing data if prop is incomplete
   useEffect(() => {
     if (data) {
-      setLocalData(data);
+      setLocalData((prev) => {
+        // Merge with previous data to preserve fields that might not be in the prop
+        // This ensures data loaded from database is preserved
+        return {
+          ...prev,
+          ...data,
+          // Preserve image data if it exists in either prev or data
+          imageUrl: data.imageUrl !== undefined ? data.imageUrl : prev.imageUrl,
+          imageData: data.imageData !== undefined ? data.imageData : prev.imageData,
+          imageType: data.imageType !== undefined ? data.imageType : prev.imageType,
+          imageName: data.imageName !== undefined ? data.imageName : prev.imageName,
+          extractedStyle: data.extractedStyle !== undefined ? data.extractedStyle : prev.extractedStyle,
+          styleExtraction: data.styleExtraction || prev.styleExtraction,
+        };
+      });
     }
   }, [data]);
 
   const handleChange = useCallback((updates: Partial<StyleReferenceNodeData>) => {
-    const newData = { ...localData, ...updates };
-    setLocalData(newData);
-    
-    // Dispatch update event
-    const event = new CustomEvent('nodeDataUpdate', {
-      detail: { nodeId: id, data: newData },
+    // ✅ FIXED: Use functional update to avoid stale closure issues
+    setLocalData((prev) => {
+      const newData = { ...prev, ...updates };
+      
+      // Dispatch update event with complete data
+      const event = new CustomEvent('nodeDataUpdate', {
+        detail: { nodeId: id, data: newData },
+      });
+      window.dispatchEvent(event);
+      
+      return newData;
     });
-    window.dispatchEvent(event);
-  }, [localData, id]);
+  }, [id]);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {

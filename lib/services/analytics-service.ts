@@ -41,6 +41,7 @@ export interface ApiUsageStats {
   averagePerDay: number;
   uniqueApiKeys: number;
   activeApiKeys: number;
+  dailyUsage?: Array<{ date: string; apiCalls: number }>;
 }
 
 export interface UserActivityStats {

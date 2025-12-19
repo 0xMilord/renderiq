@@ -41,17 +41,27 @@ export interface ImageNodeData {
   errorMessage?: string;
   generatedAt?: Date;
   renderId?: string;
+  previousRenders?: Array<{
+    id: string;
+    url: string;
+    prompt: string;
+    generatedAt: Date;
+  }>;
 }
 
 export interface VariantsNodeData {
   sourceImageUrl?: string;
   prompt?: string;
   count: number;
+  variantType?: 'multi-angle' | 'design-options'; // ✅ NEW: Two types of variants
   settings: {
     variationStrength: number;
     style?: string;
     quality: 'standard' | 'high' | 'ultra';
   };
+  styleSettings?: StyleNodeData; // ✅ NEW: From Style Node
+  materialSettings?: MaterialNodeData; // ✅ NEW: From Material Node
+  styleReference?: StyleReferenceNodeData; // ✅ NEW: From Style Reference Node
   status: 'idle' | 'generating' | 'completed' | 'error';
   variants: Array<{
     id: string;

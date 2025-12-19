@@ -25,25 +25,56 @@ import { NodeExecutionStatus } from '@/lib/canvas/workflow-executor';
 
 export function MaterialNode(props: any) {
   const { data, id } = props;
-  const [localData, setLocalData] = useState<MaterialNodeData>(data || {
-    materials: [],
+  // ✅ FIXED: Initialize with data from props if available (includes data from database)
+  const [localData, setLocalData] = useState<MaterialNodeData>(() => {
+    if (data && data.materials && Array.isArray(data.materials) && data.materials.length > 0) {
+      return {
+        materials: data.materials,
+      };
+    }
+    return {
+      materials: [],
+    };
   });
 
-  // Update local data when prop data changes
+  // ✅ FIXED: Update local data when prop data changes, but preserve existing data if prop is incomplete
   useEffect(() => {
     if (data) {
-      setLocalData(data);
+      setLocalData((prev) => {
+        // Merge with previous data to preserve materials array
+        // This ensures data loaded from database is preserved
+        return {
+          ...prev,
+          ...data,
+          // Preserve materials array if it exists in either prev or data
+          materials: data.materials && Array.isArray(data.materials) && data.materials.length > 0
+            ? data.materials
+            : (prev.materials && Array.isArray(prev.materials) && prev.materials.length > 0
+              ? prev.materials
+              : []),
+        };
+      });
     }
   }, [data]);
 
   const handleChange = useCallback((updates: MaterialNodeData) => {
-    setLocalData(updates);
-    
-    // Dispatch update event
-    const event = new CustomEvent('nodeDataUpdate', {
-      detail: { nodeId: id, data: updates },
+    setLocalData((prev) => {
+      // ✅ FIXED: Merge updates with previous data to preserve all fields
+      const updated = {
+        ...prev,
+        ...updates,
+        // Ensure materials array is properly preserved
+        materials: updates.materials || prev.materials || [],
+      };
+      
+      // Dispatch update event with complete data
+      const event = new CustomEvent('nodeDataUpdate', {
+        detail: { nodeId: id, data: updated },
+      });
+      window.dispatchEvent(event);
+      
+      return updated;
     });
-    window.dispatchEvent(event);
   }, [id]);
 
   const addMaterial = useCallback(() => {

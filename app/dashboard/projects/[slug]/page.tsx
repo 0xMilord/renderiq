@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -45,7 +45,8 @@ export default function ProjectSlugPage() {
   const { isImageModalOpen, selectedRender, openImageModal, closeImageModal } = useModalStore();
   
   const [project, setProject] = useState<Project | null>(null);
-  const [activeTab, setActiveTab] = useState<'chains' | 'renders'>('chains');
+  const searchParams = useSearchParams();
+  const activeTab = (searchParams.get('tab') || 'chains') as 'chains' | 'renders';
   
   // Use store values with local aliases for backward compatibility
   const searchQuery = renderSearchQuery;
@@ -165,25 +166,7 @@ export default function ProjectSlugPage() {
     logger.log('Share render:', item.id);
   }, []);
 
-  const handleCreateChain = useCallback(async () => {
-    if (!project) return;
-    
-    try {
-      const chainName = `Chain ${new Date().toLocaleDateString()}`;
-      const result = await createRenderChain(project.id, chainName, `New render chain for ${project.name}`);
-      
-      if (result.success && result.data && project) {
-        // Redirect to unified project/chain route
-        router.push(`/project/${project.slug}/chain/${result.data.id}`);
-      } else {
-        console.error('Failed to create chain:', result.error);
-        alert(result.error || 'Failed to create chain');
-      }
-    } catch (error) {
-      console.error('Error creating chain:', error);
-      alert('Failed to create chain');
-    }
-  }, [project, router]);
+  // handleCreateChain is now handled in ProjectHeaderTabs component
 
   // Show loading state while projects are loading or project is not found yet
   if (!project && projects.length === 0) {
@@ -225,26 +208,10 @@ export default function ProjectSlugPage() {
     <div className="h-full w-full">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
 
-        {/* Tabs for Chains and Renders */}
-        <Tabs defaultValue="chains" value={activeTab} onValueChange={(value) => setActiveTab(value as 'chains' | 'renders')} className="w-full">
-          {/* Tabs, Search, Filters - All in one row on desktop, tabs on new row on mobile */}
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-6 sm:items-center">
-            {/* Tabs and New Chain Button - Full width on mobile, inline on desktop */}
-            <div className="flex items-center gap-2 w-full sm:w-auto sm:shrink-0">
-              <TabsList className="grid w-full sm:w-auto grid-cols-2 sm:inline-flex flex-1 sm:flex-initial">
-                <TabsTrigger value="chains" className="text-xs sm:text-sm">Render Chains</TabsTrigger>
-                <TabsTrigger value="renders" className="text-xs sm:text-sm">All Renders</TabsTrigger>
-              </TabsList>
-              {activeTab === 'chains' && (
-                <Button onClick={handleCreateChain} size="sm" className="shrink-0">
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Chain
-                </Button>
-              )}
-            </div>
-            
-            {/* Search, Filters, View Toggle Row - Only show for All Renders tab */}
-            {activeTab === 'renders' && (
+        {/* Tabs Content */}
+        <Tabs defaultValue="chains" value={activeTab} className="w-full">
+          {/* Search, Filters, View Toggle Row - Only show for All Renders tab */}
+          {activeTab === 'renders' && (
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 flex-1 sm:items-center">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -281,7 +248,6 @@ export default function ProjectSlugPage() {
                 </div>
               </div>
             )}
-          </div>
 
           <TabsContent value="chains">
             {chainsWithRenders.length === 0 ? (
@@ -292,10 +258,6 @@ export default function ProjectSlugPage() {
                   <p className="text-sm text-muted-foreground mb-4 text-center">
                     Chains will be created automatically when you generate renders
                   </p>
-                  <Button onClick={handleCreateChain}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Chain
-                  </Button>
                 </CardContent>
               </Card>
             ) : (

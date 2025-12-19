@@ -99,10 +99,10 @@ const nodeColors = {
     accent: '#4aff9e',
   },
   'prompt-builder': {
-    color: '#00d4ff',
-    header: 'bg-[#00d4ff]/20 border-[#00d4ff]',
-    icon: 'text-[#00d4ff]',
-    accent: '#00d4ff',
+    color: '#6bcf33',
+    header: 'bg-[#6bcf33]/20 border-[#6bcf33]',
+    icon: 'text-[#6bcf33]',
+    accent: '#6bcf33',
   },
   'style-reference': {
     color: '#ffb84a',
@@ -111,10 +111,10 @@ const nodeColors = {
     accent: '#ffb84a',
   },
   'image-input': {
-    color: '#4a9eff',
-    header: 'bg-[#4a9eff]/20 border-[#4a9eff]',
-    icon: 'text-[#4a9eff]',
-    accent: '#4a9eff',
+    color: '#6bcf33',
+    header: 'bg-[#6bcf33]/20 border-[#6bcf33]',
+    icon: 'text-[#6bcf33]',
+    accent: '#6bcf33',
   },
   video: {
     color: '#9e4aff',
@@ -196,6 +196,7 @@ export function BaseNode({
   };
 
   // Calculate handle style - Position handles on card edges (half in, half out)
+  // ✅ UPDATED: Rectangular handles instead of circular dots
   const getHandleStyle = (
     position: Position,
     index: number,
@@ -206,48 +207,83 @@ export function BaseNode({
   ): React.CSSProperties => {
     const handleColor = handleColorType ? handleColors[handleColorType] : colors.accent;
     const isConnected = isHandleConnected(handleType, handleId);
-    // Constant size - always use 12px for better visibility
-    const size = 12;
-    const halfSize = size / 2; // 6px for positioning
+    // ✅ UPDATED: Reduced height by 30%, keep reduced width
+    const horizontalWidth = 8; // Width for left/right handles
+    const horizontalHeight = 45; // Height for left/right handles (64 * 0.7 = 44.8, rounded to 45)
+    const verticalWidth = 4; // Width for top/bottom handles
+    const verticalHeight = 90; // Height for top/bottom handles (128 * 0.7 = 89.6, rounded to 90)
     
+    // Determine dimensions based on position
+    const isHorizontal = position === Position.Left || position === Position.Right;
+    const width = isHorizontal ? horizontalWidth : verticalWidth;
+    const height = isHorizontal ? horizontalHeight : verticalHeight;
+    const halfWidth = width / 2;
+    const halfHeight = height / 2;
+    
+    // ✅ FIXED: Position handles perfectly centered on the container edge and central axis
     const style: React.CSSProperties = {
       backgroundColor: handleColor,
       borderColor: handleColor,
-      width: `${size}px`,
-      height: `${size}px`,
+      width: `${width}px`,
+      height: `${height}px`,
       borderWidth: '2px',
-      borderStyle: isConnected ? 'dashed' : 'solid',
+      borderStyle: 'solid',
+      borderRadius: '2px', // Slight rounding for rectangular handles
       zIndex: 10, // Above the card border
       position: 'absolute',
+      // ✅ FIXED: Explicitly set all position properties to avoid inset conflicts
       left: 'auto',
       right: 'auto',
       top: 'auto',
       bottom: 'auto',
+      margin: 0, // Reset any margins
+      padding: 0, // Reset any padding
       transition: 'none', // Prevent size transitions that cause shifting
     } as React.CSSProperties;
     
-    // Position handles on edges: half outside, half inside (6px for 12px handle)
+    // ✅ FIXED: Position handle center exactly at the border center (1px from container edge)
+    // Node has 2px border, so border center is at 1px from edge
+    // This ensures perfect centering on both X and Y axes of the node's central axis
+    const nodeBorderWidth = 2; // Node border width
+    const borderCenter = nodeBorderWidth / 2; // Border center (1px from edge)
+    
     let baseTransform = '';
     switch (position) {
       case Position.Left:
-        style.left = `-${halfSize}px`;
+        // ✅ Perfect X-axis centering: handle center at border center (1px from left edge)
+        // ✅ Perfect Y-axis centering: top 50% + translateY(-50%)
+        style.left = `${borderCenter - halfWidth}px`;
+        style.right = 'auto';
         style.top = '50%';
-        baseTransform = 'translateY(-50%)';
+        style.bottom = 'auto';
+        baseTransform = 'translateY(-50%)'; // Perfect vertical centering on Y-axis
         break;
       case Position.Right:
-        style.right = `-${halfSize}px`;
+        // ✅ Perfect X-axis centering: handle center at border center (1px from right edge)
+        // ✅ Perfect Y-axis centering: top 50% + translateY(-50%)
+        style.right = `${borderCenter - halfWidth}px`;
+        style.left = 'auto';
         style.top = '50%';
-        baseTransform = 'translateY(-50%)';
+        style.bottom = 'auto';
+        baseTransform = 'translateY(-50%)'; // Perfect vertical centering on Y-axis
         break;
       case Position.Top:
-        style.top = `-${halfSize}px`;
+        // ✅ Perfect X-axis centering: left 50% + translateX(-50%)
+        // ✅ Perfect Y-axis centering: handle center at border center (1px from top edge)
+        style.top = `${borderCenter - halfHeight}px`;
+        style.bottom = 'auto';
         style.left = '50%';
-        baseTransform = 'translateX(-50%)';
+        style.right = 'auto';
+        baseTransform = 'translateX(-50%)'; // Perfect horizontal centering on X-axis
         break;
       case Position.Bottom:
-        style.bottom = `-${halfSize}px`;
+        // ✅ Perfect X-axis centering: left 50% + translateX(-50%)
+        // ✅ Perfect Y-axis centering: handle center at border center (1px from bottom edge)
+        style.bottom = `${borderCenter - halfHeight}px`;
+        style.top = 'auto';
         style.left = '50%';
-        baseTransform = 'translateX(-50%)';
+        style.right = 'auto';
+        baseTransform = 'translateX(-50%)'; // Perfect horizontal centering on X-axis
         break;
     }
     
@@ -257,20 +293,68 @@ export function BaseNode({
       (style as any)['--handle-direction'] = handleType === 'source' ? 'outward' : 'inward';
     }
 
-    // For multiple handles on same side, add spacing from center to prevent overlap
+    // ✅ FIXED: Proper spacing between handles - constrained within node bounds
     if (total > 1) {
-      const spacing = 20; // Spacing between handles to prevent overlap
-      const offset = (index - (total - 1) / 2) * spacing;
+      // Calculate spacing: handle size + 1px gap to prevent overlap
+      const handleSize = isHorizontal ? height : width;
+      const gap = 1; // 1px gap between handles
+      const spacing = handleSize + gap; // Total spacing = handle size + gap
       
       if (position === Position.Left || position === Position.Right) {
-        // For vertical sides, adjust Y position from center
-        baseTransform = `translateY(calc(-50% + ${offset}px))`;
+        // ✅ FIXED: Constrain handles within available space (between header and bottom)
+        // Header: py-2 (8px top + 8px bottom) + text (~20px) = ~36px
+        // Top padding: p-3 = 12px
+        // Bottom padding: p-3 = 12px
+        // Start position: 36px (header) + 12px (top padding) = 48px from top
+        // End position: 12px (bottom padding) from bottom
+        const headerHeight = 36; // Header height
+        const topPadding = 12; // Content top padding
+        const bottomPadding = 12; // Content bottom padding
+        const startOffset = headerHeight + topPadding; // Start below header (48px)
+        const endOffset = bottomPadding; // End above bottom (12px)
+        
+        // Calculate position: distribute evenly from startOffset to (100% - endOffset)
+        // First handle at startOffset, last handle at (100% - endOffset - handleSize)
+        // Use percentage-based distribution within available space
+        const positionPercent = total === 1 
+          ? 0.5 // Single handle: center
+          : index / (total - 1); // 0 to 1 for distribution
+        
+        // Calculate top position using calc()
+        // Formula: startOffset + positionPercent * (100% - startOffset - endOffset - halfHeight)
+        // This ensures handles stay within bounds
+        const totalOffset = startOffset + endOffset + halfHeight;
+        const topPosition = `calc(${startOffset}px + ${positionPercent} * (100% - ${totalOffset}px))`;
+        
+        style.top = topPosition;
+        style.bottom = 'auto';
+        baseTransform = 'translateY(-50%)'; // Center handle vertically on its position
       } else {
-        // For horizontal sides, adjust X position from center
+        // For horizontal sides (top/bottom), adjust X position from center
+        // Maintains Y-axis centering, adjusts X position with proper spacing
+        const offset = (index - (total - 1) / 2) * spacing;
         baseTransform = `translateX(calc(-50% + ${offset}px))`;
+      }
+    } else {
+      // Single handle: center it vertically within available space
+      if (position === Position.Left || position === Position.Right) {
+        const headerHeight = 36;
+        const topPadding = 12;
+        const bottomPadding = 12;
+        const startOffset = headerHeight + topPadding;
+        const endOffset = bottomPadding;
+        
+        // Center in available space: startOffset + (available space / 2)
+        const totalOffset = startOffset + endOffset + halfHeight;
+        style.top = `calc(${startOffset}px + (100% - ${totalOffset}px) / 2)`;
+        style.bottom = 'auto';
+        baseTransform = 'translateY(-50%)';
       }
     }
 
+    // ✅ FIXED: Set transform origin to center for proper scaling/centering
+    style.transformOrigin = 'center center';
+    
     // Mirror input handles horizontally (only the visual shape, not position)
     if (handleType === 'target') {
       // For input handles, add horizontal mirror transform
@@ -279,6 +363,9 @@ export function BaseNode({
       // Output handles keep normal orientation
       style.transform = baseTransform;
     }
+    
+    // ✅ FIXED: Ensure box-sizing is border-box for accurate positioning
+    (style as any).boxSizing = 'border-box';
 
     return style;
   };
@@ -336,7 +423,7 @@ export function BaseNode({
               position={Position.Left}
               id={input.id}
               style={handleStyle}
-              className={cn('!rounded-full', isConnected && 'handle-connected handle-inward')}
+              className={cn(isConnected && 'handle-connected handle-inward')}
               data-position="left"
               data-handle-type="target"
               title={input.label || `${input.type || 'input'}`}
@@ -372,8 +459,8 @@ export function BaseNode({
                 top: handleStyle.top,
                 bottom: handleStyle.bottom,
                 transform: handleStyle.transform,
-                width: '12px', 
-                height: '12px', 
+                width: handleStyle.width, 
+                height: handleStyle.height, 
                 pointerEvents: 'auto', 
                 zIndex: 100,
                 backgroundColor: 'transparent',
@@ -399,7 +486,7 @@ export function BaseNode({
               position={Position.Top}
               id={input.id}
               style={getHandleStyle(Position.Top, index, groupedInputs.top.length, 'target', input.id, input.type)}
-              className={cn('!rounded-full', isConnected && 'handle-connected handle-inward')}
+              className={cn(isConnected && 'handle-connected handle-inward')}
               data-position="top"
               data-handle-type="target"
               title={input.label || `${input.type || 'input'}`}
@@ -417,7 +504,7 @@ export function BaseNode({
               position={Position.Right}
               id={input.id}
               style={getHandleStyle(Position.Right, index, groupedInputs.right.length, 'target', input.id, input.type)}
-              className={cn('!rounded-full', isConnected && 'handle-connected handle-inward')}
+              className={cn(isConnected && 'handle-connected handle-inward')}
               data-position="right"
               data-handle-type="target"
               title={input.label || `${input.type || 'input'}`}
@@ -435,7 +522,7 @@ export function BaseNode({
               position={Position.Bottom}
               id={input.id}
               style={getHandleStyle(Position.Bottom, index, groupedInputs.bottom.length, 'target', input.id, input.type)}
-              className={cn('!rounded-full', isConnected && 'handle-connected handle-inward')}
+              className={cn(isConnected && 'handle-connected handle-inward')}
               data-position="bottom"
               data-handle-type="target"
               title={input.label || `${input.type || 'input'}`}
@@ -459,7 +546,7 @@ export function BaseNode({
               position={Position.Right}
               id={output.id}
               style={handleStyle}
-              className={cn('!rounded-full', isConnected && 'handle-connected handle-outward')}
+              className={cn(isConnected && 'handle-connected handle-outward')}
               data-position="right"
               data-handle-type="source"
               title={output.label || `${output.type || 'output'}`}
@@ -495,8 +582,8 @@ export function BaseNode({
                 top: handleStyle.top,
                 bottom: handleStyle.bottom,
                 transform: handleStyle.transform,
-                width: '12px', 
-                height: '12px', 
+                width: handleStyle.width, 
+                height: handleStyle.height, 
                 pointerEvents: 'auto', 
                 zIndex: 100,
                 backgroundColor: 'transparent',
@@ -522,7 +609,7 @@ export function BaseNode({
               position={Position.Bottom}
               id={output.id}
               style={getHandleStyle(Position.Bottom, index, groupedOutputs.bottom.length, 'source', output.id, output.type || nodeType)}
-              className={cn('!rounded-full', isConnected && 'handle-connected handle-outward')}
+              className={cn(isConnected && 'handle-connected handle-outward')}
               data-position="bottom"
               data-handle-type="source"
               title={output.label || `${output.type || 'output'}`}
@@ -540,7 +627,7 @@ export function BaseNode({
               position={Position.Left}
               id={output.id}
               style={getHandleStyle(Position.Left, index, groupedOutputs.left.length, 'source', output.id, output.type || nodeType)}
-              className={cn('!rounded-full', isConnected && 'handle-connected handle-outward')}
+              className={cn(isConnected && 'handle-connected handle-outward')}
               data-position="left"
               data-handle-type="source"
               title={output.label || `${output.type || 'output'}`}
@@ -558,7 +645,7 @@ export function BaseNode({
               position={Position.Top}
               id={output.id}
               style={getHandleStyle(Position.Top, index, groupedOutputs.top.length, 'source', output.id, output.type || nodeType)}
-              className={cn('!rounded-full', isConnected && 'handle-connected handle-outward')}
+              className={cn(isConnected && 'handle-connected handle-outward')}
               data-position="top"
               data-handle-type="source"
               title={output.label || `${output.type || 'output'}`}
