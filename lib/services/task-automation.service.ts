@@ -1,6 +1,7 @@
 import { TasksDAL } from '@/lib/dal/tasks';
 import { TasksService } from './tasks.service';
 import { logger } from '@/lib/utils/logger';
+import { hasUserActivated, isFirstRender } from '@/lib/utils/ga4-helpers';
 
 /**
  * TaskAutomationService - Handles automatic task completion
@@ -51,6 +52,10 @@ export class TaskAutomationService {
     try {
       logger.log('📋 TaskAutomation: Render refined, checking tasks:', userId, renderId);
       
+      // Track render_activated if this is first render refinement
+      // Note: This will be tracked client-side when the refinement completes
+      // Server-side can't access window.gtag, so we store metadata for client
+      
       // Only count if it's a refinement (has parent)
       if (!parentRenderId) {
         return;
@@ -87,6 +92,10 @@ export class TaskAutomationService {
   static async onRenderExported(userId: string, renderId: string): Promise<void> {
     try {
       logger.log('📋 TaskAutomation: Render exported, checking tasks:', userId, renderId);
+      
+      // Track render export and activation
+      // Note: This will be tracked client-side when export happens
+      // Server-side can't access window.gtag
       
       const task = await TasksDAL.getTaskBySlug('export-render');
       if (!task || !task.isActive) {

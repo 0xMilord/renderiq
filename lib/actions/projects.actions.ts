@@ -165,6 +165,8 @@ export async function createProject(formData: FormData) {
       if (result.success && result.data) {
         logger.log('✅ [createProject] Project created successfully, revalidating paths...');
         
+        // Note: GA4 tracking happens client-side after action completes
+        
         // ✅ Trigger task automation for project creation (non-blocking)
         TaskAutomationService.onProjectCreated(userId, result.data.id)
           .catch((error) => logger.warn('⚠️ Task automation failed for project creation:', error));

@@ -83,6 +83,9 @@ export class UserOnboardingService {
           lastLoginAt: undefined,
         });
         logger.log('✅ UserOnboarding: User profile created:', newUser.id);
+        
+        // Track signup_completed in GA4 (client-side only - will be called from client)
+        // Note: Server-side tracking happens via Measurement Protocol in cron jobs
       } catch (error) {
         // Handle duplicate user creation (race condition or user created between checks)
         if (error instanceof Error && error.message.includes('duplicate key') || 

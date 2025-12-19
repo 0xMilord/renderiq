@@ -712,9 +712,33 @@ export function BaseToolComponent({
           });
           setResults([]);
         }
-        // Track render completed
-        const duration = Date.now() - startTime;
-        trackRenderCompleted(renderType, style, quality, duration);
+        
+        // Track GA4 events if provided by server action
+        if (result._ga4Track && user?.id) {
+          try {
+            const { trackRenderCreated, trackFirstRenderCreated, trackRenderCompleted, trackFirstRenderCompleted } = await import('@/lib/utils/ga4-tracking');
+            
+            // Track render created
+            if (result._ga4Track.renderCreated) {
+              const rc = result._ga4Track.renderCreated;
+              if (rc.isFirst && rc.timeToFirst !== undefined) {
+                trackFirstRenderCreated(user.id, rc.renderId, rc.type, rc.platform, rc.timeToFirst);
+              }
+              trackRenderCreated(user.id, rc.renderId, rc.projectId, rc.type, rc.platform, rc.quality, rc.style, rc.creditsCost);
+            }
+            
+            // Track render completed
+            if (result._ga4Track.renderCompleted) {
+              const rcomp = result._ga4Track.renderCompleted;
+              if (rcomp.isFirst) {
+                trackFirstRenderCompleted(user.id, rcomp.renderId, rcomp.type, rcomp.quality, rcomp.creditsCost, rcomp.latencyMs);
+              }
+              trackRenderCompleted(user.id, rcomp.renderId, rcomp.type, rcomp.quality, rcomp.creditsCost, rcomp.latencyMs);
+            }
+          } catch (error) {
+            console.warn('GA4 tracking failed:', error);
+          }
+        }
         
         await refreshCredits();
         toast.success(Array.isArray(result.data)

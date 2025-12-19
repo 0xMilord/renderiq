@@ -1,5 +1,10 @@
 import { ToolsDAL } from '@/lib/dal/tools';
 import { logger } from '@/lib/utils/logger';
+import { 
+  trackToolUsed, 
+  trackToolCompleted, 
+  trackToolFailed 
+} from '@/lib/utils/ga4-tracking';
 import type { Tool, ToolExecution } from '@/lib/db/schema';
 
 export class ToolsService {
@@ -70,6 +75,8 @@ export class ToolsService {
       },
     }).catch(err => logger.warn('Analytics event creation failed (non-critical):', err));
 
+    // Note: GA4 tracking happens client-side after action completes
+
     return execution;
   }
 
@@ -117,6 +124,8 @@ export class ToolsService {
             creditsCost: execution.creditsCost,
           },
         }).catch(err => logger.warn('Analytics event creation failed (non-critical):', err));
+        
+        // Note: GA4 tracking happens client-side after action completes
       } else if (status === 'failed') {
         ToolsDAL.createAnalyticsEvent({
           toolId: execution.toolId,
@@ -127,6 +136,8 @@ export class ToolsService {
             errorMessage: data?.errorMessage,
           },
         }).catch(err => logger.warn('Analytics event creation failed (non-critical):', err));
+        
+        // Note: GA4 tracking happens client-side after action completes
       }
     }
 

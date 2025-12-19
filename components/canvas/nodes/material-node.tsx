@@ -67,11 +67,13 @@ export function MaterialNode(props: any) {
         materials: updates.materials || prev.materials || [],
       };
       
-      // Dispatch update event with complete data
-      const event = new CustomEvent('nodeDataUpdate', {
-        detail: { nodeId: id, data: updated },
-      });
-      window.dispatchEvent(event);
+      // ✅ FIXED: Defer event dispatch to avoid setState during render
+      setTimeout(() => {
+        const event = new CustomEvent('nodeDataUpdate', {
+          detail: { nodeId: id, data: updated },
+        });
+        window.dispatchEvent(event);
+      }, 0);
       
       return updated;
     });

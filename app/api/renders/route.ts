@@ -1832,10 +1832,12 @@ export async function handleRenderRequest(request: NextRequest) {
 
       logger.log('🎉 Render completed successfully');
 
-      // Track render completed
+      // Track render completed (Sentry metrics)
       const duration = Date.now() - startTime;
       trackRenderCompleted(renderType, renderStyle, renderQuality, duration);
       trackApiResponseTime('/api/renders', 'POST', 200, duration);
+      
+      // Note: GA4 tracking happens client-side via response metadata
 
       // ✅ FIX: Fetch updated render to include all fields (uploadedImageUrl, chainPosition, etc.)
       const updatedRender = await RendersDAL.getById(render.id);

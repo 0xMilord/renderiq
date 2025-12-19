@@ -553,10 +553,30 @@ export async function generateCanvasVariantsAction(params: {
     // Call batch API
     const renderResult = await createRenderAction(formData);
     
-    if (!renderResult.success || !renderResult.data) {
+    // ✅ FIXED: Check for limit errors and pass them through
+    if (!renderResult.success) {
+      // Check if it's a limit error
+      if ((renderResult as any).limitReached) {
+        return {
+          success: false,
+          error: renderResult.error || 'Render limit reached',
+          limitReached: true,
+          limitType: (renderResult as any).limitType,
+          current: (renderResult as any).current,
+          limit: (renderResult as any).limit,
+          planName: (renderResult as any).planName,
+        };
+      }
       return {
         success: false,
         error: renderResult.error || 'Failed to generate variants',
+      };
+    }
+    
+    if (!renderResult.data) {
+      return {
+        success: false,
+        error: 'No data returned from render action',
       };
     }
     

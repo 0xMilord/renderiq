@@ -4,6 +4,7 @@ import { ApiKeysDAL } from '@/lib/dal/api-keys';
 import { getUserFromAction } from '@/lib/utils/get-user-from-action';
 import { securityLog } from '@/lib/utils/security';
 import { logger } from '@/lib/utils/logger';
+import { trackApiKeyCreated } from '@/lib/utils/ga4-tracking';
 
 export interface CreateApiKeyInput {
   name: string;
@@ -72,6 +73,16 @@ export async function createApiKeyAction(
       keyId: apiKey.id,
       keyPrefix: apiKey.keyPrefix,
     });
+
+    // Track API key creation (client-side only)
+    if (typeof window !== 'undefined' && window.gtag) {
+      try {
+        const platform = input.scopes.includes('webhook:write') ? 'webhook' : 'api';
+        trackApiKeyCreated(authUserId, platform);
+      } catch (error) {
+        logger.warn('⚠️ Failed to track API key creation in GA4 (non-critical):', error);
+      }
+    }
 
     return {
       success: true,

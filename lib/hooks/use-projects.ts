@@ -108,6 +108,21 @@ export function useProjects(platform?: 'render' | 'tools' | 'canvas') {
         if (!platform || newProject.platform === platform) {
           setProjects(prev => [newProject, ...prev]);
         }
+        
+        // Track project creation in GA4
+        if (newProject && typeof window !== 'undefined' && window.gtag) {
+          try {
+            const { trackProjectCreated } = await import('@/lib/utils/ga4-tracking');
+            const { useAuthStore } = await import('@/lib/stores/auth-store');
+            const userId = useAuthStore.getState().user?.id;
+            if (userId) {
+              trackProjectCreated(userId, newProject.id, newProject.platform || 'render', !!newProject.originalImageId);
+            }
+          } catch (error) {
+            console.warn('GA4 project tracking failed:', error);
+          }
+        }
+        
         return { success: true, data: result.data };
       } else {
         // ✅ FIXED: Pass through limitReached data from action

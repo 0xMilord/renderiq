@@ -48,6 +48,8 @@ import { toast } from 'sonner';
 import { useWakeLock } from '@/lib/hooks/use-wake-lock';
 import { captureCanvasScreenshot, uploadCanvasScreenshot } from '@/lib/utils/canvas-screenshot';
 import { updateCanvasFileAction } from '@/lib/actions/canvas-files.actions';
+import { LimitReachedDialog } from '@/components/billing/limit-reached-dialog';
+import { useModalStore } from '@/lib/stores/modal-store';
 
 const nodeTypes: NodeTypes = {
   text: TextNode as any,
@@ -160,6 +162,9 @@ function CanvasEditorInner({
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   const [nodeStatuses, setNodeStatuses] = useState<Map<string, NodeExecutionStatus>>(new Map());
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // ✅ NEW: Modal store for limit dialogs
+  const { limitDialogOpen, limitDialogData, closeLimitDialog } = useModalStore();
   const [highlightedNodeIds, setHighlightedNodeIds] = useState<string[]>([]);
   const multiSelectManager = useState(() => new MultiSelectManager())[0];
   const workflowExecutor = useState(() => new WorkflowExecutor(ExecutionMode.MANUAL))[0];
@@ -214,22 +219,39 @@ function CanvasEditorInner({
           const canvasNodes: CanvasNode[] = currentNodes.map((node) => {
             // ✅ FIXED: Ensure all data fields are included, but exclude base64 image data to prevent 10MB limit
             const nodeData = node.data as any;
-            const { imageData, ...dataWithoutBase64 } = nodeData; // Exclude base64 imageData
+            
+            // ✅ FIXED: More comprehensive base64 exclusion - remove ALL base64 fields
+            const {
+              imageData,           // Base64 image data
+              baseImageData,        // Base64 base image data
+              // Keep these fields (they're not base64):
+              imageUrl,
+              imageType,
+              imageName,
+              baseImageUrl,
+              baseImageType,
+              materials,
+              extractedStyle,
+              styleExtraction,
+              ...otherData
+            } = nodeData;
             
             return {
               id: node.id,
               type: node.type as any,
               position: node.position,
               data: {
-                ...dataWithoutBase64, // Include all data fields except base64
-                // Explicitly preserve important fields that might be lost (but NOT base64 data)
-                imageUrl: nodeData?.imageUrl, // Keep URL, not base64
-                imageType: nodeData?.imageType,
-                imageName: nodeData?.imageName,
-                materials: nodeData?.materials,
-                extractedStyle: nodeData?.extractedStyle,
-                styleExtraction: nodeData?.styleExtraction,
-                // DO NOT include imageData (base64) - it's too large and causes 10MB limit
+                ...otherData, // Include all other data fields
+                // Explicitly preserve important fields (but NOT base64 data)
+                imageUrl: imageUrl, // Keep URL, not base64
+                imageType: imageType,
+                imageName: imageName,
+                baseImageUrl: baseImageUrl, // Keep URL if exists
+                baseImageType: baseImageType,
+                materials: materials,
+                extractedStyle: extractedStyle,
+                styleExtraction: styleExtraction,
+                // DO NOT include imageData or baseImageData (base64) - they're too large and cause 10MB limit
               } as any,
               inputs: [],
               outputs: [],
@@ -365,8 +387,10 @@ function CanvasEditorInner({
               const sourceNode = currentNodeMap.get(imageEdge.source);
               if (sourceNode?.type === 'image-input') {
                 const imageInputData = sourceNode.data as any;
-                if (imageInputData.imageData && imageInputData.imageData !== updatedData.baseImageData) {
-                  updatedData.baseImageData = imageInputData.imageData;
+                // ✅ FIXED: Use imageUrl instead of imageData (base64) to prevent 10MB limit
+                // The image-to-image API can accept URLs, so we don't need base64
+                if (imageInputData.imageUrl && imageInputData.imageUrl !== updatedData.baseImageData) {
+                  updatedData.baseImageData = imageInputData.imageUrl; // Use URL, not base64
                   updatedData.baseImageType = imageInputData.imageType;
                   changed = true;
                 }
@@ -374,9 +398,7 @@ function CanvasEditorInner({
                 // Can also use output from another image node
                 const imageData = sourceNode.data as any;
                 if (imageData.outputUrl) {
-                  // Convert output URL to base64 if needed
-                  // For now, we'll need to fetch and convert
-                  // This is a simplified version - in production you'd handle this better
+                  // ✅ FIXED: Use URL directly, not base64
                   updatedData.baseImageData = imageData.outputUrl;
                   updatedData.baseImageType = 'image/png';
                   changed = true;
@@ -430,8 +452,10 @@ function CanvasEditorInner({
               const sourceNode = currentNodeMap.get(imageEdge.source);
               if (sourceNode?.type === 'image-input') {
                 const imageInputData = sourceNode.data as any;
-                if (imageInputData.imageData && imageInputData.imageData !== updatedData.baseImageData) {
-                  updatedData.baseImageData = imageInputData.imageData;
+                // ✅ FIXED: Use imageUrl instead of imageData (base64) to prevent 10MB limit
+                // The video generation API can accept URLs, so we don't need base64
+                if (imageInputData.imageUrl && imageInputData.imageUrl !== updatedData.baseImageData) {
+                  updatedData.baseImageData = imageInputData.imageUrl; // Use URL, not base64
                   updatedData.baseImageType = imageInputData.imageType;
                   changed = true;
                 }
@@ -439,8 +463,7 @@ function CanvasEditorInner({
                 // Support Image Node output → Video Node (image-to-video from generated images)
                 const imageData = sourceNode.data as any;
                 if (imageData.outputUrl) {
-                  // For generated images, we need to convert the URL to base64
-                  // For now, store the URL - the video generation API will handle it
+                  // ✅ FIXED: Use URL directly, not base64
                   updatedData.baseImageData = imageData.outputUrl;
                   updatedData.baseImageType = 'image/png';
                   changed = true;
@@ -1309,6 +1332,17 @@ function CanvasEditorInner({
           />
         </ReactFlow>
       </div>
+      
+      {/* ✅ NEW: Limit Reached Dialog */}
+      <LimitReachedDialog
+        isOpen={limitDialogOpen}
+        onClose={() => closeLimitDialog()}
+        limitType={limitDialogData?.limitType || 'credits'}
+        current={limitDialogData?.current || 0}
+        limit={limitDialogData?.limit ?? null}
+        planName={limitDialogData?.planName || 'Free'}
+        message={limitDialogData?.message}
+      />
     </div>
   );
 }

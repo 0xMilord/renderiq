@@ -55,6 +55,8 @@ interface BaseNodeProps {
   nodeId?: string;
   status?: NodeExecutionStatus;
   progress?: number;
+  skipContentWrapper?: boolean; // ✅ NEW: Option to skip the content wrapper div
+  skipContentPadding?: boolean; // ✅ NEW: Option to skip the content padding container (p-3 space-y-2)
 }
 
 // Consistent border radius (rounded-lg = 8px)
@@ -93,10 +95,10 @@ const nodeColors = {
     accent: '#9e4aff',
   },
   output: {
-    color: '#4aff9e',
-    header: 'bg-[#4aff9e]/20 border-[#4aff9e]',
-    icon: 'text-[#4aff9e]',
-    accent: '#4aff9e',
+    color: '#00b871', // ✅ FIXED: Darker green for better contrast in light mode
+    header: 'bg-[#00b871]/20 border-[#00b871] dark:bg-[#4aff9e]/20 dark:border-[#4aff9e]',
+    icon: 'text-[#00b871] dark:text-[#4aff9e]', // ✅ FIXED: Darker green for light mode, bright for dark mode
+    accent: '#00b871', // ✅ FIXED: Darker green for better contrast
   },
   'prompt-builder': {
     color: '#6bcf33',
@@ -131,6 +133,7 @@ const handleColors: Record<string, string> = {
   style: '#ff9e4a',
   material: '#9e4aff',
   variants: '#ff4a9e',
+  output: '#00b871', // ✅ FIXED: Darker green for better contrast in light mode
 };
 
 export function BaseNode({
@@ -144,6 +147,8 @@ export function BaseNode({
   nodeId,
   status = NodeExecutionStatus.IDLE,
   progress,
+  skipContentWrapper = false, // ✅ NEW: Option to skip content wrapper
+  skipContentPadding = false, // ✅ NEW: Option to skip content padding
 }: BaseNodeProps) {
   const colors = nodeColors[nodeType] || nodeColors.text;
   const { deleteElements, getEdges, getNodes, addEdges } = useReactFlow();
@@ -385,9 +390,9 @@ export function BaseNode({
           backgroundColor: hasHeaderHandles ? `${colors.color}20` : undefined,
         }}
       >
-        <div className="flex items-center gap-1.5 flex-1 min-w-0">
-          <Icon className={cn('h-3.5 w-3.5 flex-shrink-0', colors.icon)} />
-          <span className={cn('text-xs font-semibold truncate', colors.icon)}>{title}</span>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <Icon className={cn('h-7 w-7 flex-shrink-0', colors.icon)} />
+          <span className={cn('text-xl font-semibold truncate', colors.icon)}>{title}</span>
           {nodeId && status !== NodeExecutionStatus.IDLE && (
             <NodeStatusIndicator
               nodeId={nodeId}
@@ -411,7 +416,7 @@ export function BaseNode({
 
       {/* Content Container - Handles can overflow, content is contained */}
       <NodeColorContext.Provider value={colors}>
-        <div className="p-3 space-y-2 relative" style={{ overflow: 'visible' }}>
+        <div className={cn('relative', !skipContentPadding && 'p-3 space-y-2')} style={{ overflow: 'visible' }}>
           {/* Input Handles - Left Side */}
         {groupedInputs.left.map((input, index) => {
           const isConnected = isHandleConnected('target', input.id);
@@ -531,9 +536,13 @@ export function BaseNode({
         })}
 
         {/* Node Content - Properly contained */}
-        <div className="nodrag nopan w-full">
-          {children}
-        </div>
+        {skipContentWrapper ? (
+          children
+        ) : (
+          <div className="nodrag nopan w-full">
+            {children}
+          </div>
+        )}
 
         {/* Output Handles - Right Side */}
         {groupedOutputs.right.map((output, index) => {

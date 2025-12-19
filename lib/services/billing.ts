@@ -3,6 +3,10 @@ import { userSubscriptions, subscriptionPlans, userCredits, creditTransactions, 
 import { eq, and, sql } from 'drizzle-orm';
 import { RazorpayService } from './razorpay.service';
 import { logger } from '@/lib/utils/logger';
+import { 
+  trackCreditsEarned, 
+  trackCreditsSpent 
+} from '@/lib/utils/ga4-tracking';
 
 // Maximum initial credits for new users on signup
 const INITIAL_SIGNUP_CREDITS = 25;
@@ -143,6 +147,8 @@ export class BillingService {
           }),
         ]);
 
+        // Note: GA4 tracking happens client-side after action completes
+
         return { success: true, newBalance };
       });
     } catch (error) {
@@ -169,6 +175,19 @@ export class BillingService {
 
       const oldBalance = userCredit[0].balance;
       const result = await this.addCredits(userId, -amount, 'spent', description, referenceId, referenceType);
+      
+      // Add GA4 tracking data for credits spent
+      if (result.success) {
+        result._ga4Track = {
+          event: 'credits_spent',
+          amount,
+          reason: description,
+          balanceAfter: result.newBalance || 0,
+          renderId: referenceId,
+        };
+      }
+
+      // Note: GA4 tracking happens client-side after action completes
 
       // Check if credits are running low after deduction
       if (result.success && result.newBalance !== undefined) {

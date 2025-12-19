@@ -115,7 +115,22 @@ export function LimitReachedDialog({
           <div className="flex flex-col gap-3 mt-6">
             {/* Primary CTA: Upgrade */}
             <Button
-              onClick={handleUpgrade}
+              onClick={async () => {
+                // Track upgrade_clicked
+                if (typeof window !== 'undefined' && window.gtag) {
+                  try {
+                    const { trackUpgradeClicked } = await import('@/lib/utils/ga4-tracking');
+                    const { useAuthStore } = await import('@/lib/stores/auth-store');
+                    const userId = useAuthStore.getState().user?.id;
+                    if (userId) {
+                      trackUpgradeClicked(userId, '/dashboard', 'Pro');
+                    }
+                  } catch (error) {
+                    console.warn('GA4 upgrade tracking failed:', error);
+                  }
+                }
+                handleUpgrade();
+              }}
               className="w-full"
               size="lg"
             >

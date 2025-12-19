@@ -14,6 +14,14 @@ import { StorageService } from '@/lib/services/storage';
 import { logger } from '@/lib/utils/logger';
 import { getCachedUser } from '@/lib/services/auth-cache';
 import { getUserFromAction } from '@/lib/utils/get-user-from-action';
+import { isFirstRender, getTimeToFirstRender } from '@/lib/utils/ga4-helpers';
+import { 
+  trackRenderCreated, 
+  trackFirstRenderCreated,
+  trackRenderCompleted,
+  trackFirstRenderCompleted,
+  trackRenderFailed
+} from '@/lib/utils/ga4-tracking';
 
 const aiService = AISDKService.getInstance();
 
@@ -285,8 +293,9 @@ export async function createRenderAction(formData: FormData) {
     );
 
     if (!deductResult.success) {
-      logger.warn('❌ Credit deduction failed:', deductResult.error);
-      return { success: false, error: deductResult.error || 'Failed to deduct credits' };
+      const errorMsg = 'error' in deductResult ? deductResult.error : 'Failed to deduct credits';
+      logger.warn('❌ Credit deduction failed:', errorMsg);
+      return { success: false, error: errorMsg };
     }
 
     // Verify project exists and belongs to user
@@ -700,6 +709,9 @@ export async function createRenderAction(formData: FormData) {
 
     logger.log('✅ Render record created:', render.id);
 
+    // Note: GA4 tracking happens client-side after action completes
+    // Server actions can't access window.gtag, so we return tracking data
+
     // Update render status to processing
     await RendersDAL.updateStatus(render.id, 'processing');
 
@@ -729,12 +741,27 @@ export async function createRenderAction(formData: FormData) {
     });
 
     if (!renderResult.success) {
-      return renderResult;
+      return {
+        ...renderResult,
+        _ga4Track: {
+          event: 'render_failed',
+          renderId: render.id,
+          errorType: 'generation_failed',
+          errorMessage: renderResult.error || 'Unknown error',
+        },
+      };
     }
 
     // Revalidate paths
     revalidatePath('/render');
     revalidatePath(`/project/${project.slug}`);
+    
+    // Get first render status for tracking
+    const isFirstRenderCheck = await isFirstRender(userId);
+    const timeToFirstRender = isFirstRenderCheck ? await getTimeToFirstRender(userId) : null;
+    const latencyMs = renderResult.data?.processingTime 
+      ? renderResult.data.processingTime * 1000 
+      : 0;
     
     return {
       success: true,
@@ -746,6 +773,27 @@ export async function createRenderAction(formData: FormData) {
         processingTime: renderResult.data?.processingTime,
         provider: renderResult.data?.provider,
         type,
+      },
+      _ga4Track: {
+        renderCreated: {
+          renderId: render.id,
+          projectId,
+          type,
+          platform,
+          quality,
+          style,
+          creditsCost,
+          isFirst: !!isFirstRenderCheck,
+          timeToFirst: timeToFirstRender || undefined,
+        },
+        renderCompleted: {
+          renderId: render.id,
+          type,
+          quality,
+          creditsCost,
+          latencyMs,
+          isFirst: !!isFirstRenderCheck,
+        },
       },
     };
 

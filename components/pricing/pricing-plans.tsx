@@ -652,7 +652,22 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
                 {/* CTA Button */}
                 <Button
                   className="w-full"
-                  onClick={() => handleSubscribe(currentPlan.id)}
+                  onClick={async () => {
+                    // Track upgrade_clicked
+                    if (typeof window !== 'undefined' && window.gtag) {
+                      try {
+                        const { trackUpgradeClicked } = await import('@/lib/utils/ga4-tracking');
+                        const { useAuthStore } = await import('@/lib/stores/auth-store');
+                        const userId = useAuthStore.getState().user?.id;
+                        if (userId) {
+                          trackUpgradeClicked(userId, '/pricing', currentPlan.name);
+                        }
+                      } catch (error) {
+                        console.warn('GA4 upgrade tracking failed:', error);
+                      }
+                    }
+                    handleSubscribe(currentPlan.id);
+                  }}
                   disabled={
                     loading === currentPlan.id || 
                     !razorpayLoaded || 

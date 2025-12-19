@@ -87,11 +87,13 @@ export function StyleReferenceNode(props: any) {
     setLocalData((prev) => {
       const newData = { ...prev, ...updates };
       
-      // Dispatch update event with complete data
-      const event = new CustomEvent('nodeDataUpdate', {
-        detail: { nodeId: id, data: newData },
-      });
-      window.dispatchEvent(event);
+      // ✅ FIXED: Defer event dispatch to avoid setState during render
+      setTimeout(() => {
+        const event = new CustomEvent('nodeDataUpdate', {
+          detail: { nodeId: id, data: newData },
+        });
+        window.dispatchEvent(event);
+      }, 0);
       
       return newData;
     });

@@ -4492,8 +4492,21 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
             <Button
               variant="default"
               className="w-full sm:w-auto"
-              onClick={() => {
+              onClick={async () => {
                 setIsUpgradeDialogOpen(false);
+                // Track upgrade_clicked
+                if (typeof window !== 'undefined' && window.gtag) {
+                  try {
+                    const { trackUpgradeClicked } = await import('@/lib/utils/ga4-tracking');
+                    const { useAuthStore } = await import('@/lib/stores/auth-store');
+                    const userId = useAuthStore.getState().user?.id;
+                    if (userId) {
+                      trackUpgradeClicked(userId, '/chat', 'Pro');
+                    }
+                  } catch (error) {
+                    console.warn('GA4 upgrade tracking failed:', error);
+                  }
+                }
                 window.open('/pricing', '_blank');
               }}
             >

@@ -304,6 +304,9 @@ export class RazorpayService {
       }
 
       logger.log('✅ RazorpayService: Payment verified successfully');
+      
+      // Track payment completed in GA4 (client-side only - will be called from payment success page)
+      // Note: Server-side tracking happens via Measurement Protocol if needed
 
       return {
         success: true,

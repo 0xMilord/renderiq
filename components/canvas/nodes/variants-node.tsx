@@ -17,6 +17,8 @@ import { VariantsNodeData } from '@/lib/types/canvas';
 import { useNodeExecution } from '@/lib/hooks/use-node-execution';
 import { BaseNode, useNodeColors } from './base-node';
 import { NodeExecutionStatus } from '@/lib/canvas/workflow-executor';
+import { useModalStore } from '@/lib/stores/modal-store';
+import type { LimitType } from '@/lib/services/plan-limits.service';
 
 export function VariantsNode(props: any) {
   const { data, id } = props;
@@ -67,6 +69,23 @@ export function VariantsNode(props: any) {
         fileId: data?.fileId,
       });
 
+      // ✅ FIXED: Check for limit errors and show modal
+      if (!result.success && (result as any).limitReached) {
+        const limitData = result as any;
+        openLimitDialog({
+          limitType: (limitData.limitType as LimitType) || 'renders_per_project',
+          current: limitData.current || 0,
+          limit: limitData.limit ?? null,
+          planName: limitData.planName || 'Free',
+          message: result.error || limitData.error || 'Render limit reached',
+        });
+        setLocalData((prev) => ({
+          ...prev,
+          status: 'idle', // Reset to idle instead of error
+        }));
+        return; // Exit early - don't show error toast
+      }
+
       if (result.success && result.data) {
         setLocalData((prev) => ({
           ...prev,
@@ -74,11 +93,13 @@ export function VariantsNode(props: any) {
           variants: result.data.variants,
         }));
 
-        // Dispatch update event
-        const event = new CustomEvent('nodeDataUpdate', {
-          detail: { nodeId: id, data: { ...localData, variants: result.data.variants } },
-        });
-        window.dispatchEvent(event);
+        // ✅ FIXED: Defer event dispatch to avoid setState during render
+        setTimeout(() => {
+          const event = new CustomEvent('nodeDataUpdate', {
+            detail: { nodeId: id, data: { ...localData, variants: result.data.variants } },
+          });
+          window.dispatchEvent(event);
+        }, 0);
       } else {
         throw new Error(result.error || 'Failed to generate variants');
       }
@@ -89,7 +110,7 @@ export function VariantsNode(props: any) {
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
       }));
     }
-  }, [localData, id, generateVariants]);
+  }, [localData, id, generateVariants, openLimitDialog]);
 
   const handleSelectVariant = useCallback(
     (variantId: string) => {

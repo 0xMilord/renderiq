@@ -204,7 +204,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
-            gtag('config', 'G-Z8NSF00GYD');
+            gtag('config', 'G-Z8NSF00GYD', {
+              anonymize_ip: true,
+            });
           `}
         </Script>
         <JsonLd data={organizationSchema} />

@@ -173,6 +173,22 @@ export const useAuthStore = create<AuthState>((set, get) => {
           // Set user temporarily for immediate UI feedback
           // onAuthStateChange will sync it properly
           set({ user: result.data.user, loading: false });
+          
+          // Track signup in GA4 (client-side)
+          if (typeof window !== 'undefined' && window.gtag) {
+            try {
+              const { trackSignupCompleted, initGA4User } = await import('@/lib/utils/ga4-tracking');
+              trackSignupCompleted(result.data.user.id, 'email', 'direct');
+              initGA4User(result.data.user.id, {
+                user_role: 'free',
+                signup_source: 'direct',
+                signup_date: new Date().toISOString(),
+                subscription_status: 'none',
+              });
+            } catch (error) {
+              console.warn('GA4 signup tracking failed:', error);
+            }
+          }
         } else {
           set({ loading: false });
         }
@@ -185,6 +201,16 @@ export const useAuthStore = create<AuthState>((set, get) => {
     },
 
     signOut: async () => {
+      // Clear GA4 user on signout
+      if (typeof window !== 'undefined' && window.gtag) {
+        try {
+          const { clearGA4User } = await import('@/lib/utils/ga4-tracking');
+          clearGA4User();
+        } catch (error) {
+          console.warn('GA4 signout tracking failed:', error);
+        }
+      }
+      
       // ✅ Don't set loading to true - we want immediate UI update
       // Setting loading to true causes navbar to show skeleton perpetually
       

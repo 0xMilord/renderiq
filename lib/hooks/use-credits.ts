@@ -85,9 +85,27 @@ export function useCredits() {
       const result = await getUserCredits();
       logger.log('📥 useCredits: Refresh result:', result);
       if (result.success && 'credits' in result) {
+        const oldBalance = credits?.balance || 0;
+        const newBalance = result.credits.balance;
+        
         setCredits(result.credits);
         setError(null);
         logger.log('✅ useCredits: Credits refreshed:', result.credits);
+        
+        // Track credits changes in GA4 if balance changed
+        if (oldBalance !== newBalance && typeof window !== 'undefined' && window.gtag) {
+          try {
+            const { trackCreditsEarned, trackCreditsSpent } = await import('@/lib/utils/ga4-tracking');
+            const diff = newBalance - oldBalance;
+            if (diff > 0) {
+              trackCreditsEarned(user.id, diff, 'unknown', newBalance);
+            } else if (diff < 0) {
+              trackCreditsSpent(user.id, Math.abs(diff), 'unknown', newBalance);
+            }
+          } catch (error) {
+            console.warn('GA4 credits tracking failed:', error);
+          }
+        }
       } else {
         setError(result.error || 'Failed to refresh credits');
         logger.log('❌ useCredits: Refresh failed:', result.error);
