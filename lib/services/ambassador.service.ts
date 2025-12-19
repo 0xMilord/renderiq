@@ -273,6 +273,16 @@ export class AmbassadorService {
       );
 
       logger.log('✅ AmbassadorService: Signup tracked successfully');
+      
+      // ✅ FIXED: Update ambassador volume tier after new referral
+      try {
+        await this.updateAmbassadorVolumeTier(ambassador.id);
+        logger.log('✅ AmbassadorService: Volume tier updated after signup');
+      } catch (error) {
+        logger.warn('⚠️ AmbassadorService: Failed to update volume tier after signup:', error);
+        // Don't fail signup tracking if tier update fails
+      }
+      
       return {
         success: true,
         referral,
@@ -425,6 +435,16 @@ export class AmbassadorService {
       // This will be handled in a separate update if needed
 
       logger.log('✅ AmbassadorService: Commission recorded:', commissionAmount);
+      
+      // ✅ FIXED: Update ambassador volume tier after subscription payment
+      try {
+        await this.updateAmbassadorVolumeTier(ambassador.id);
+        logger.log('✅ AmbassadorService: Volume tier updated after subscription payment');
+      } catch (error) {
+        logger.warn('⚠️ AmbassadorService: Failed to update volume tier after payment:', error);
+        // Don't fail commission processing if tier update fails
+      }
+      
       return {
         success: true,
         commission,

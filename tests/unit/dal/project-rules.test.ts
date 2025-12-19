@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ProjectRulesDAL } from '@/lib/dal/project-rules';
 import { setupTestDB, teardownTestDB, createTestUser, createTestProject, createTestRenderChain, getTestDB } from '../../fixtures/database';
-import { projectRules } from '@/lib/db/schema';
+import { projectRules, renderChains } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 describe('ProjectRulesDAL', () => {
@@ -27,6 +27,13 @@ describe('ProjectRulesDAL', () => {
 
   describe('create', () => {
     it('should create a new project rule', async () => {
+      // ✅ FIXED: Verify chain exists before creating rule (fixes foreign key constraint)
+      const db = getTestDB();
+      const verifyChain = await db.select().from(renderChains).where(eq(renderChains.id, testChain.id)).limit(1);
+      if (verifyChain.length === 0) {
+        throw new Error(`Chain ${testChain.id} does not exist in database. Test setup failed.`);
+      }
+
       const ruleData = {
         chainId: testChain.id,
         rule: 'Always use modern style',

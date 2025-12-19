@@ -141,6 +141,17 @@ export async function setupTestDB() {
   // Clean database before tests
   await cleanDatabase();
   
+  // ✅ FIXED: Wait for cleanup to complete and verify it worked
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
+  // Verify cleanup worked by checking user count
+  const userCount = await testClient`SELECT COUNT(*)::int as count FROM users`;
+  if (userCount[0]?.count > 0) {
+    // Force cleanup again if users still exist (cleanup might have failed)
+    await testClient`TRUNCATE TABLE users CASCADE`;
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
+  
   // Ensure autocommit is enabled (postgres-js uses autocommit by default, but let's be explicit)
   await testClient`SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL READ COMMITTED`;
   
@@ -229,51 +240,83 @@ export async function teardownTestDB() {
  * Clean all tables in correct order (respecting foreign key constraints)
  */
 export async function cleanDatabase() {
-  if (!testDb) {
+  if (!testDb || !testClient) {
     throw new Error('Test database not initialized. Call setupTestDB() first.');
   }
 
-  // Delete in reverse order of dependencies (respecting foreign key constraints)
-  await testDb.delete(schema.userLikes);
-  await testDb.delete(schema.galleryItems);
-  await testDb.delete(schema.renderVersions);
-  await testDb.delete(schema.renders);
-  await testDb.delete(schema.renderQueue);
-  await testDb.delete(schema.toolAnalytics);
-  await testDb.delete(schema.toolExecutions);
-  await testDb.delete(schema.toolSettingsTemplates);
-  await testDb.delete(schema.tools);
-  await testDb.delete(schema.canvasGraphs);
-  await testDb.delete(schema.canvasFileVersions);
-  await testDb.delete(schema.canvasFiles);
-  await testDb.delete(schema.projectRules);
-  await testDb.delete(schema.renderChains);
-  await testDb.delete(schema.projectVersions);
-  await testDb.delete(schema.projects);
-  await testDb.delete(schema.fileVersions);
-  await testDb.delete(schema.fileStorage);
-  await testDb.delete(schema.creditTransactions);
-  await testDb.delete(schema.userCredits);
-  await testDb.delete(schema.ambassadorCommissions);
-  await testDb.delete(schema.ambassadorPayouts);
-  await testDb.delete(schema.ambassadorReferrals);
-  await testDb.delete(schema.ambassadorLinks);
-  await testDb.delete(schema.ambassadors);
-  await testDb.delete(schema.accountActivity);
-  await testDb.delete(schema.sybilDetections);
-  await testDb.delete(schema.deviceFingerprints);
-  await testDb.delete(schema.ipAddresses);
-  await testDb.delete(schema.userSubscriptions);
-  await testDb.delete(schema.invoices);
-  await testDb.delete(schema.paymentOrders);
-  await testDb.delete(schema.creditPackages);
-  await testDb.delete(schema.subscriptionPlans);
-  await testDb.delete(schema.ambassadorVolumeTiers);
-  await testDb.delete(schema.notifications);
-  await testDb.delete(schema.usageTracking);
-  await testDb.delete(schema.apiRateLimits);
-  await testDb.delete(schema.userSettings);
-  await testDb.delete(schema.users);
+  // ✅ FIXED: Use TRUNCATE CASCADE for faster, more reliable cleanup
+  // This is faster than DELETE and ensures all related records are removed
+  // Disable foreign key checks temporarily to avoid constraint issues
+  try {
+    await testClient`SET session_replication_role = 'replica'`; // Temporarily disable triggers
+    await testClient`TRUNCATE TABLE 
+      user_likes, gallery_items, render_versions, renders, render_queue,
+      tool_analytics, tool_executions, tool_settings_templates, tools,
+      canvas_graphs, canvas_file_versions, canvas_files,
+      project_rules, render_chains, project_versions, projects,
+      file_versions, file_storage,
+      credit_transactions, user_credits,
+      ambassador_commissions, ambassador_payouts, ambassador_referrals, ambassador_links, ambassadors,
+      account_activity, sybil_detections, device_fingerprints, ip_addresses,
+      user_subscriptions, invoices, payment_orders, credit_packages, subscription_plans,
+      ambassador_volume_tiers, notifications, usage_tracking, api_rate_limits,
+      user_settings, user_streaks, user_tasks, task_verification_logs, task_categories, tasks,
+      users
+      CASCADE`;
+    await testClient`SET session_replication_role = 'origin'`; // Re-enable triggers
+  } catch (error: any) {
+    // If TRUNCATE fails (e.g., table doesn't exist), fall back to DELETE
+    if (error.code === '42P01' || error.message?.includes('does not exist')) {
+      // Fallback to DELETE method
+      await testDb.delete(schema.userLikes);
+      await testDb.delete(schema.galleryItems);
+      await testDb.delete(schema.renderVersions);
+      await testDb.delete(schema.renders);
+      await testDb.delete(schema.renderQueue);
+      await testDb.delete(schema.toolAnalytics);
+      await testDb.delete(schema.toolExecutions);
+      await testDb.delete(schema.toolSettingsTemplates);
+      await testDb.delete(schema.tools);
+      await testDb.delete(schema.canvasGraphs);
+      await testDb.delete(schema.canvasFileVersions);
+      await testDb.delete(schema.canvasFiles);
+      await testDb.delete(schema.projectRules);
+      await testDb.delete(schema.renderChains);
+      await testDb.delete(schema.projectVersions);
+      await testDb.delete(schema.projects);
+      await testDb.delete(schema.fileVersions);
+      await testDb.delete(schema.fileStorage);
+      await testDb.delete(schema.creditTransactions);
+      await testDb.delete(schema.userCredits);
+      await testDb.delete(schema.ambassadorCommissions);
+      await testDb.delete(schema.ambassadorPayouts);
+      await testDb.delete(schema.ambassadorReferrals);
+      await testDb.delete(schema.ambassadorLinks);
+      await testDb.delete(schema.ambassadors);
+      await testDb.delete(schema.accountActivity);
+      await testDb.delete(schema.sybilDetections);
+      await testDb.delete(schema.deviceFingerprints);
+      await testDb.delete(schema.ipAddresses);
+      await testDb.delete(schema.userSubscriptions);
+      await testDb.delete(schema.invoices);
+      await testDb.delete(schema.paymentOrders);
+      await testDb.delete(schema.creditPackages);
+      await testDb.delete(schema.subscriptionPlans);
+      await testDb.delete(schema.ambassadorVolumeTiers);
+      await testDb.delete(schema.notifications);
+      await testDb.delete(schema.usageTracking);
+      await testDb.delete(schema.apiRateLimits);
+      await testDb.delete(schema.userSettings);
+      await testDb.delete(schema.userStreaks);
+      await testDb.delete(schema.userTasks);
+      await testDb.delete(schema.taskVerificationLogs);
+      await testDb.delete(schema.taskCategories);
+      await testDb.delete(schema.tasks);
+      await testDb.delete(schema.users);
+    } else {
+      throw error;
+    }
+  }
 }
 
 /**
@@ -336,11 +379,23 @@ export async function createTestUser(data?: Partial<NewUser>) {
         ) as user_id
       `;
       
-      // Fetch the user with all fields
-      const [user] = await db.select()
-        .from(schema.users)
-        .where(eq(schema.users.id, result.user_id))
-        .limit(1);
+      // ✅ FIXED: Wait longer for function to commit, then verify user exists with more retries
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Fetch the user with all fields - retry if not immediately visible
+      // Increased retries for remote database replication lag
+      let user = null;
+      for (let attempt = 0; attempt < 30; attempt++) {
+        const [found] = await db.select()
+          .from(schema.users)
+          .where(eq(schema.users.id, result.user_id))
+          .limit(1);
+        if (found) {
+          user = found;
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
       
       if (user) {
         // Update any additional fields that were provided
@@ -349,6 +404,8 @@ export async function createTestUser(data?: Partial<NewUser>) {
             .set({ ...data, updatedAt: new Date() })
             .where(eq(schema.users.id, userId))
             .returning();
+          // ✅ FIXED: Wait a bit to ensure update is committed
+          await new Promise(resolve => setTimeout(resolve, 100));
           return updated[0] || user;
         }
         return user;
@@ -376,21 +433,22 @@ export async function createTestUser(data?: Partial<NewUser>) {
       throw new Error('Failed to create test user - no user returned from insert');
     }
     
+    // ✅ FIXED: Wait longer to ensure user is committed and visible
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
     // Force a commit by doing a simple query (ensures transaction is committed)
     await client`SELECT 1`;
     
-    // Verify the user was actually inserted by querying it back
-    // Use retry loop in case of transaction timing
+    // ✅ FIXED: Verify the user was actually inserted by querying it back
+    // Increased retries for remote database replication lag
     let verifyUser;
-    for (let attempt = 0; attempt < 5; attempt++) {
+    for (let attempt = 0; attempt < 30; attempt++) {
       verifyUser = await db.select().from(schema.users).where(eq(schema.users.id, userId)).limit(1);
       if (verifyUser.length > 0) {
         break;
       }
-      // Small delay to allow transaction to commit
-      if (attempt < 4) {
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
+      // Wait longer to allow transaction to commit and replicate
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
     
     if (!verifyUser || verifyUser.length === 0) {
@@ -426,18 +484,17 @@ export async function createTestProject(userId: string, data?: Partial<NewProjec
   const db = getTestDB();
   const timestamp = Date.now();
   
-  // Verify user exists before creating project
+  // ✅ FIXED: Verify user exists before creating project
   // Use a retry loop in case of remote DB latency/transaction timing
+  // Increased attempts and delay to match other test fixes
   let user;
-  for (let attempt = 0; attempt < 10; attempt++) {
+  for (let attempt = 0; attempt < 30; attempt++) {
     user = await db.select().from(schema.users).where(eq(schema.users.id, userId)).limit(1);
     if (user.length > 0) {
       break;
     }
-    // Small delay to allow transaction to commit
-    if (attempt < 9) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
+    // Wait longer to allow transaction to commit
+    await new Promise(resolve => setTimeout(resolve, 100));
   }
   
   if (!user || user.length === 0) {
@@ -463,16 +520,17 @@ export async function createTestProject(userId: string, data?: Partial<NewProjec
     throw new Error('Failed to create test project - no project returned from insert');
   }
 
-  // Verify project is persisted and visible
+  // ✅ FIXED: Wait longer before verification, then verify with more retries
+  await new Promise(resolve => setTimeout(resolve, 200));
+  
+  // Verify project is persisted and visible with increased retries
   let verifiedProject;
-  for (let attempt = 0; attempt < 10; attempt++) {
+  for (let attempt = 0; attempt < 30; attempt++) {
     verifiedProject = await db.select().from(schema.projects).where(eq(schema.projects.id, project.id)).limit(1);
     if (verifiedProject.length > 0) {
       break;
     }
-    if (attempt < 9) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
+    await new Promise(resolve => setTimeout(resolve, 100));
   }
   if (!verifiedProject || verifiedProject.length === 0) {
     throw new Error(`Project insert appeared to succeed but project ${project.id} not visible after retries.`);
@@ -506,17 +564,15 @@ export async function createTestRender(
 ) {
   const db = getTestDB();
   
-  // Verify project exists before creating render
+  // ✅ FIXED: Verify project exists before creating render with increased retries
   let project;
-  for (let attempt = 0; attempt < 10; attempt++) {
+  for (let attempt = 0; attempt < 30; attempt++) {
     project = await db.select().from(schema.projects).where(eq(schema.projects.id, projectId)).limit(1);
     if (project.length > 0) {
       break;
     }
-    // Small delay to allow transaction to commit
-    if (attempt < 9) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
+    // Wait longer to allow transaction to commit and replicate
+    await new Promise(resolve => setTimeout(resolve, 100));
   }
   
   if (!project || project.length === 0) {
@@ -526,8 +582,11 @@ export async function createTestRender(
     );
   }
   
+  // ✅ FIXED: Wait a bit before creating render to ensure project is fully committed
+  await new Promise(resolve => setTimeout(resolve, 200));
+  
   let render;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 5; attempt++) {
     try {
       [render] = await db.insert(schema.renders).values({
         userId,
@@ -544,9 +603,15 @@ export async function createTestRender(
       }).returning();
       break;
     } catch (err: any) {
-      if (err?.code === '23503' && attempt < 2) {
-        // FK violation, wait and retry after rechecking project
-        await new Promise(resolve => setTimeout(resolve, 50));
+      if (err?.code === '23503' && attempt < 4) {
+        // FK violation, wait longer and retry after rechecking project
+        await new Promise(resolve => setTimeout(resolve, 200));
+        // Re-verify project exists
+        const recheck = await db.select().from(schema.projects).where(eq(schema.projects.id, projectId)).limit(1);
+        if (recheck.length === 0) {
+          // Project still not visible, wait more
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
         continue;
       }
       throw err;
@@ -557,16 +622,17 @@ export async function createTestRender(
     throw new Error('Failed to create test render - no render returned from insert');
   }
 
-  // Verify render is persisted
+  // ✅ FIXED: Wait longer before verification, then verify with more retries
+  await new Promise(resolve => setTimeout(resolve, 200));
+  
+  // Verify render is persisted with increased retries
   let verifiedRender;
-  for (let attempt = 0; attempt < 10; attempt++) {
+  for (let attempt = 0; attempt < 30; attempt++) {
     verifiedRender = await db.select().from(schema.renders).where(eq(schema.renders.id, render.id)).limit(1);
     if (verifiedRender.length > 0) {
       break;
     }
-    if (attempt < 9) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
+    await new Promise(resolve => setTimeout(resolve, 100));
   }
   if (!verifiedRender || verifiedRender.length === 0) {
     throw new Error(`Render insert appeared to succeed but render ${render.id} not visible after retries.`);

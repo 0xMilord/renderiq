@@ -20,9 +20,10 @@ export class UsersDAL {
   }
 
   static async update(id: string, updates: Partial<NewUser>): Promise<User | null> {
+    // ✅ FIXED: Use SQL NOW() instead of new Date() to ensure database timestamp consistency
     const [updatedUser] = await db
       .update(users)
-      .set({ ...updates, updatedAt: new Date() })
+      .set({ ...updates, updatedAt: sql`NOW()` })
       .where(eq(users.id, id))
       .returning();
     return updatedUser || null;

@@ -5,8 +5,8 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { AmbassadorDAL } from '@/lib/dal/ambassador';
-import { setupTestDB, teardownTestDB, createTestUser, getTestDB } from '../../fixtures/database';
-import { ambassadors, ambassadorLinks, ambassadorReferrals, users } from '@/lib/db/schema';
+import { setupTestDB, teardownTestDB, createTestUser, createTestSubscriptionPlan, getTestDB } from '../../fixtures/database';
+import { ambassadors, ambassadorLinks, ambassadorReferrals, ambassadorCommissions, ambassadorVolumeTiers, users, userSubscriptions, paymentOrders } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 describe('AmbassadorDAL', () => {
@@ -315,9 +315,17 @@ describe('AmbassadorDAL', () => {
         totalReferrals: 0,
       }).returning();
 
-      // Verify ambassador was created
-      const verifyAmbassador = await db.select().from(ambassadors).where(eq(ambassadors.id, ambassador.id)).limit(1);
-      if (verifyAmbassador.length === 0) {
+      // ✅ FIXED: Verify ambassador was created with retry logic
+      let verifyAmbassador = null;
+      for (let attempt = 0; attempt < 30; attempt++) {
+        const check = await db.select().from(ambassadors).where(eq(ambassadors.id, ambassador.id)).limit(1);
+        if (check.length > 0) {
+          verifyAmbassador = check;
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      if (!verifyAmbassador || verifyAmbassador.length === 0) {
         throw new Error(`Ambassador ${ambassador.id} was not created.`);
       }
 
@@ -362,9 +370,17 @@ describe('AmbassadorDAL', () => {
         totalReferrals: 0,
       }).returning();
 
-      // Verify ambassador was created
-      const verifyAmbassador = await db.select().from(ambassadors).where(eq(ambassadors.id, ambassador.id)).limit(1);
-      if (verifyAmbassador.length === 0) {
+      // ✅ FIXED: Verify ambassador was created with retry logic
+      let verifyAmbassador = null;
+      for (let attempt = 0; attempt < 30; attempt++) {
+        const check = await db.select().from(ambassadors).where(eq(ambassadors.id, ambassador.id)).limit(1);
+        if (check.length > 0) {
+          verifyAmbassador = check;
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      if (!verifyAmbassador || verifyAmbassador.length === 0) {
         throw new Error(`Ambassador ${ambassador.id} was not created.`);
       }
 
@@ -415,9 +431,17 @@ describe('AmbassadorDAL', () => {
         applicationData: {},
       }).returning();
 
-      // Verify ambassador was created
-      const verifyAmbassador = await db.select().from(ambassadors).where(eq(ambassadors.id, ambassador.id)).limit(1);
-      if (verifyAmbassador.length === 0) {
+      // ✅ FIXED: Verify ambassador was created with retry logic
+      let verifyAmbassador = null;
+      for (let attempt = 0; attempt < 30; attempt++) {
+        const check = await db.select().from(ambassadors).where(eq(ambassadors.id, ambassador.id)).limit(1);
+        if (check.length > 0) {
+          verifyAmbassador = check;
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      if (!verifyAmbassador || verifyAmbassador.length === 0) {
         throw new Error(`Ambassador ${ambassador.id} was not created.`);
       }
 
@@ -458,9 +482,17 @@ describe('AmbassadorDAL', () => {
         applicationData: {},
       }).returning();
 
-      // Verify ambassador was created
-      const verifyAmbassador = await db.select().from(ambassadors).where(eq(ambassadors.id, ambassador.id)).limit(1);
-      if (verifyAmbassador.length === 0) {
+      // ✅ FIXED: Verify ambassador was created with retry logic
+      let verifyAmbassador = null;
+      for (let attempt = 0; attempt < 30; attempt++) {
+        const check = await db.select().from(ambassadors).where(eq(ambassadors.id, ambassador.id)).limit(1);
+        if (check.length > 0) {
+          verifyAmbassador = check;
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      if (!verifyAmbassador || verifyAmbassador.length === 0) {
         throw new Error(`Ambassador ${ambassador.id} was not created.`);
       }
 
@@ -493,6 +525,391 @@ describe('AmbassadorDAL', () => {
 
       expect(pendingReferrals.length).toBe(1);
       expect(pendingReferrals[0].referral.status).toBe('pending');
+    });
+  });
+
+  describe('getReferralByUserId', () => {
+    it('should return referral by user id', async () => {
+      const db = getTestDB();
+      const [ambassador] = await db.insert(ambassadors).values({
+        userId: testUser.id,
+        code: 'TEST123',
+        status: 'active',
+        applicationData: {},
+      }).returning();
+
+      const referredUser = await createTestUser();
+      
+      await db.insert(ambassadorReferrals).values({
+        ambassadorId: ambassador.id,
+        referredUserId: referredUser.id,
+        referralCode: 'TEST123',
+        status: 'pending',
+      });
+
+      const result = await AmbassadorDAL.getReferralByUserId(referredUser.id);
+
+      expect(result).toBeDefined();
+      expect(result?.referral.referredUserId).toBe(referredUser.id);
+      expect(result?.ambassador.id).toBe(ambassador.id);
+    });
+
+    it('should return null for user with no referral', async () => {
+      const newUser = await createTestUser();
+      const result = await AmbassadorDAL.getReferralByUserId(newUser.id);
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('updateReferralOnSubscription', () => {
+    it('should update referral on first subscription', async () => {
+      const db = getTestDB();
+      const [ambassador] = await db.insert(ambassadors).values({
+        userId: testUser.id,
+        code: 'TEST123',
+        status: 'active',
+        applicationData: {},
+      }).returning();
+
+      const referredUser = await createTestUser();
+      const testPlan = await createTestSubscriptionPlan();
+      
+      // ✅ FIXED: Add required currentPeriodStart and currentPeriodEnd fields
+      const now = new Date();
+      const periodEnd = new Date(now);
+      periodEnd.setMonth(periodEnd.getMonth() + 1); // 1 month from now
+      
+      const [subscription] = await db.insert(userSubscriptions).values({
+        userId: referredUser.id,
+        planId: testPlan.id,
+        status: 'active',
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+      }).returning();
+
+      const [referral] = await db.insert(ambassadorReferrals).values({
+        ambassadorId: ambassador.id,
+        referredUserId: referredUser.id,
+        referralCode: 'TEST123',
+        status: 'pending',
+      }).returning();
+
+      const updated = await AmbassadorDAL.updateReferralOnSubscription(
+        referral.id,
+        subscription.id,
+        true // first subscription
+      );
+
+      expect(updated.subscriptionId).toBe(subscription.id);
+      expect(updated.status).toBe('active');
+      expect(updated.firstSubscriptionAt).toBeInstanceOf(Date);
+    });
+
+    it('should update link conversion count when linkId exists', async () => {
+      const db = getTestDB();
+      const [ambassador] = await db.insert(ambassadors).values({
+        userId: testUser.id,
+        code: 'TEST123',
+        status: 'active',
+        applicationData: {},
+      }).returning();
+
+      const [link] = await db.insert(ambassadorLinks).values({
+        ambassadorId: ambassador.id,
+        code: 'LINK1',
+        url: 'https://example.com',
+        conversionCount: 0,
+      }).returning();
+
+      const referredUser = await createTestUser();
+      const testPlan = await createTestSubscriptionPlan();
+      
+      // ✅ FIXED: Add required currentPeriodStart and currentPeriodEnd fields
+      const now = new Date();
+      const periodEnd = new Date(now);
+      periodEnd.setMonth(periodEnd.getMonth() + 1); // 1 month from now
+      
+      const [subscription] = await db.insert(userSubscriptions).values({
+        userId: referredUser.id,
+        planId: testPlan.id,
+        status: 'active',
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+      }).returning();
+
+      const [referral] = await db.insert(ambassadorReferrals).values({
+        ambassadorId: ambassador.id,
+        referredUserId: referredUser.id,
+        referralCode: 'TEST123',
+        linkId: link.id,
+        status: 'pending',
+      }).returning();
+
+      await AmbassadorDAL.updateReferralOnSubscription(
+        referral.id,
+        subscription.id,
+        true
+      );
+
+      const updatedLink = await db.select().from(ambassadorLinks).where(eq(ambassadorLinks.id, link.id)).limit(1);
+      expect(updatedLink[0].conversionCount).toBe(1);
+    });
+  });
+
+  describe('recordCommission', () => {
+    it('should record commission and update stats', async () => {
+      const db = getTestDB();
+      const [ambassador] = await db.insert(ambassadors).values({
+        userId: testUser.id,
+        code: 'TEST123',
+        status: 'active',
+        applicationData: {},
+        totalEarnings: '0.00',
+        pendingEarnings: '0.00',
+      }).returning();
+
+      const referredUser = await createTestUser();
+      const testPlan = await createTestSubscriptionPlan();
+      
+      // ✅ FIXED: Add required currentPeriodStart and currentPeriodEnd fields
+      const now = new Date();
+      const periodEnd = new Date(now);
+      periodEnd.setMonth(periodEnd.getMonth() + 1); // 1 month from now
+      
+      const [subscription] = await db.insert(userSubscriptions).values({
+        userId: referredUser.id,
+        planId: testPlan.id,
+        status: 'active',
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+      }).returning();
+
+      const [referral] = await db.insert(ambassadorReferrals).values({
+        ambassadorId: ambassador.id,
+        referredUserId: referredUser.id,
+        referralCode: 'TEST123',
+        status: 'active',
+        subscriptionId: subscription.id,
+        totalCommissionEarned: '0.00',
+      }).returning();
+
+      const [paymentOrder] = await db.insert(paymentOrders).values({
+        userId: referredUser.id,
+        type: 'subscription',
+        referenceId: testPlan.id,
+        amount: '80.00',
+        discountAmount: '20.00',
+        currency: 'USD',
+        status: 'completed',
+      }).returning();
+
+      const commission = await AmbassadorDAL.recordCommission(
+        ambassador.id,
+        referral.id,
+        subscription.id,
+        paymentOrder.id,
+        new Date(),
+        new Date(),
+        100, // original amount
+        20,  // discount
+        25,  // commission percentage
+        25,  // commission amount
+        'USD'
+      );
+
+      expect(commission).toBeDefined();
+      expect(commission.commissionAmount).toBe('25.00');
+      expect(commission.status).toBe('pending');
+
+      // Verify ambassador stats updated
+      const updatedAmbassador = await db.select().from(ambassadors).where(eq(ambassadors.id, ambassador.id)).limit(1);
+      expect(parseFloat(updatedAmbassador[0].totalEarnings)).toBe(25);
+      expect(parseFloat(updatedAmbassador[0].pendingEarnings)).toBe(25);
+
+      // Verify referral stats updated
+      const updatedReferral = await db.select().from(ambassadorReferrals).where(eq(ambassadorReferrals.id, referral.id)).limit(1);
+      expect(parseFloat(updatedReferral[0].totalCommissionEarned)).toBe(25);
+    });
+  });
+
+  describe('getCommissions', () => {
+    it('should return commissions for ambassador', async () => {
+      const db = getTestDB();
+      const [ambassador] = await db.insert(ambassadors).values({
+        userId: testUser.id,
+        code: 'TEST123',
+        status: 'active',
+        applicationData: {},
+      }).returning();
+
+      const referredUser = await createTestUser();
+      const testPlan = await createTestSubscriptionPlan();
+      
+      // ✅ FIXED: Add required currentPeriodStart and currentPeriodEnd fields
+      const now = new Date();
+      const periodEnd = new Date(now);
+      periodEnd.setMonth(periodEnd.getMonth() + 1); // 1 month from now
+      
+      const [subscription] = await db.insert(userSubscriptions).values({
+        userId: referredUser.id,
+        planId: testPlan.id,
+        status: 'active',
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+      }).returning();
+
+      const [referral] = await db.insert(ambassadorReferrals).values({
+        ambassadorId: ambassador.id,
+        referredUserId: referredUser.id,
+        referralCode: 'TEST123',
+        status: 'active',
+        subscriptionId: subscription.id,
+      }).returning();
+
+      const [paymentOrder] = await db.insert(paymentOrders).values({
+        userId: referredUser.id,
+        type: 'subscription',
+        referenceId: testPlan.id,
+        amount: '80.00',
+        currency: 'USD',
+        status: 'completed',
+      }).returning();
+
+      await db.insert(ambassadorCommissions).values({
+        ambassadorId: ambassador.id,
+        referralId: referral.id,
+        subscriptionId: subscription.id,
+        paymentOrderId: paymentOrder.id,
+        periodStart: new Date(),
+        periodEnd: new Date(),
+        subscriptionAmount: '100.00',
+        discountAmount: '20.00',
+        commissionPercentage: '25.00',
+        commissionAmount: '25.00',
+        currency: 'USD',
+        status: 'pending',
+      });
+
+      const commissions = await AmbassadorDAL.getCommissions(ambassador.id);
+
+      expect(commissions.length).toBe(1);
+      expect(commissions[0].commission.ambassadorId).toBe(ambassador.id);
+      expect(commissions[0].commission.commissionAmount).toBe('25.00');
+    });
+
+    it('should filter commissions by status', async () => {
+      const db = getTestDB();
+      const [ambassador] = await db.insert(ambassadors).values({
+        userId: testUser.id,
+        code: 'TEST123',
+        status: 'active',
+        applicationData: {},
+      }).returning();
+
+      const referredUser = await createTestUser();
+      const testPlan = await createTestSubscriptionPlan();
+      
+      // ✅ FIXED: Add required currentPeriodStart and currentPeriodEnd fields
+      const now = new Date();
+      const periodEnd = new Date(now);
+      periodEnd.setMonth(periodEnd.getMonth() + 1); // 1 month from now
+      
+      const [subscription] = await db.insert(userSubscriptions).values({
+        userId: referredUser.id,
+        planId: testPlan.id,
+        status: 'active',
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+      }).returning();
+
+      const [referral] = await db.insert(ambassadorReferrals).values({
+        ambassadorId: ambassador.id,
+        referredUserId: referredUser.id,
+        referralCode: 'TEST123',
+        status: 'active',
+        subscriptionId: subscription.id,
+      }).returning();
+
+      const [paymentOrder] = await db.insert(paymentOrders).values({
+        userId: referredUser.id,
+        type: 'subscription',
+        referenceId: testPlan.id,
+        amount: '80.00',
+        currency: 'USD',
+        status: 'completed',
+      }).returning();
+
+      await db.insert(ambassadorCommissions).values([
+        {
+          ambassadorId: ambassador.id,
+          referralId: referral.id,
+          subscriptionId: subscription.id,
+          paymentOrderId: paymentOrder.id,
+          periodStart: new Date(),
+          periodEnd: new Date(),
+          subscriptionAmount: '100.00',
+          discountAmount: '20.00',
+          commissionPercentage: '25.00',
+          commissionAmount: '25.00',
+          currency: 'USD',
+          status: 'pending',
+        },
+        {
+          ambassadorId: ambassador.id,
+          referralId: referral.id,
+          subscriptionId: subscription.id,
+          paymentOrderId: paymentOrder.id,
+          periodStart: new Date(),
+          periodEnd: new Date(),
+          subscriptionAmount: '100.00',
+          discountAmount: '20.00',
+          commissionPercentage: '25.00',
+          commissionAmount: '25.00',
+          currency: 'USD',
+          status: 'paid',
+        },
+      ]);
+
+      const pendingCommissions = await AmbassadorDAL.getCommissions(ambassador.id, { status: 'pending' });
+
+      expect(pendingCommissions.length).toBe(1);
+      expect(pendingCommissions[0].commission.status).toBe('pending');
+    });
+  });
+
+  describe('updateAmbassadorDiscount', () => {
+    it('should update ambassador discount percentage', async () => {
+      const db = getTestDB();
+      const [ambassador] = await db.insert(ambassadors).values({
+        userId: testUser.id,
+        code: 'TEST123',
+        status: 'active',
+        discountPercentage: '20.00',
+        applicationData: {},
+      }).returning();
+
+      const updated = await AmbassadorDAL.updateAmbassadorDiscount(ambassador.id, 25.0);
+
+      expect(parseFloat(updated.discountPercentage)).toBe(25);
+    });
+  });
+
+  describe('getVolumeTiers', () => {
+    it('should return all active volume tiers', async () => {
+      const db = getTestDB();
+      await db.insert(ambassadorVolumeTiers).values([
+        { tierName: 'Bronze', minReferrals: 0, discountPercentage: '20.00', isActive: true },
+        { tierName: 'Silver', minReferrals: 10, discountPercentage: '25.00', isActive: true },
+        { tierName: 'Gold', minReferrals: 50, discountPercentage: '30.00', isActive: false },
+        { tierName: 'Platinum', minReferrals: 100, discountPercentage: '35.00', isActive: true },
+      ]).onConflictDoNothing();
+
+      const tiers = await AmbassadorDAL.getVolumeTiers();
+
+      expect(tiers.length).toBeGreaterThan(0);
+      const activeTiers = tiers.filter(t => t.isActive);
+      expect(activeTiers.length).toBeGreaterThan(0);
     });
   });
 });

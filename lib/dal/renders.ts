@@ -150,6 +150,10 @@ export class RendersDAL {
       .where(eq(renders.id, id))
       .returning();
 
+    if (!updatedRender) {
+      throw new Error(`Render with id ${id} not found or could not be updated`);
+    }
+
     logger.log('✅ Render output updated:', updatedRender.id);
     
     // Trigger webhooks if render completed or failed

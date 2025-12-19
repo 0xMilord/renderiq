@@ -589,10 +589,39 @@ export class RazorpayService {
       // We'll proceed directly to subscription creation which will provide clearer errors
       logger.log('💳 RazorpayService: Attempting to create subscription with plan:', plan.razorpayPlanId);
 
+      // ✅ FIXED: Check for ambassador referral and calculate discount BEFORE creating subscription
+      let discountAmount = 0;
+      let discountPercentage = 0;
+      let originalAmount = parseFloat(plan.price.toString());
+      let referralData = null;
+      let ambassadorId: string | undefined;
+      
+      try {
+        const { AmbassadorDAL } = await import('@/lib/dal/ambassador');
+        referralData = await AmbassadorDAL.getReferralByUserId(userId);
+        
+        if (referralData && referralData.ambassador.status === 'active') {
+          ambassadorId = referralData.ambassador.id;
+          discountPercentage = parseFloat(referralData.ambassador.discountPercentage.toString());
+          discountAmount = (originalAmount * discountPercentage) / 100;
+          
+          logger.log('💰 RazorpayService: Ambassador discount applied:', {
+            ambassadorId,
+            discountPercentage,
+            discountAmount,
+            originalAmount,
+            netAmount: originalAmount - discountAmount,
+          });
+        }
+      } catch (error) {
+        logger.warn('⚠️ RazorpayService: Error checking ambassador referral:', error);
+        // Continue without discount if ambassador check fails
+      }
+
       // Create subscription in Razorpay
       // Note: Razorpay subscriptions use the plan's pre-configured currency
       // Currency metadata is stored in notes for reference
-      const subscriptionOptions = {
+      const subscriptionOptions: any = {
         plan_id: plan.razorpayPlanId,
         customer_notify: 1 as 0 | 1,
         total_count: plan.interval === 'year' ? 1 : 12, // For annual, 1 payment; for monthly, 12
@@ -605,9 +634,28 @@ export class RazorpayService {
             originalAmount: currencyMetadata.originalAmount,
             originalCurrency: currencyMetadata.originalCurrency,
           }),
+          // Store ambassador discount info in notes for webhook handlers
+          ...(discountAmount > 0 && {
+            ambassadorDiscount: discountAmount.toString(),
+            ambassadorDiscountPercentage: discountPercentage.toString(),
+            ambassadorId,
+            originalAmount: originalAmount.toString(),
+          }),
         },
         ...(razorpayCustomerId && { customer_id: razorpayCustomerId }),
       };
+
+      // ✅ FIXED: Store discount info in notes for webhook handlers
+      // Note: Razorpay subscriptions use plan price directly, so discount is applied
+      // in payment orders via webhooks. The discount info is stored here for consistency.
+      if (discountAmount > 0) {
+        logger.log('💰 RazorpayService: Discount will be applied in payment orders:', {
+          discountAmount,
+          discountPercentage,
+          originalAmount,
+          netAmount: originalAmount - discountAmount,
+        });
+      }
 
       logger.log('💳 RazorpayService: Creating subscription with options:', subscriptionOptions);
       logger.log('💳 RazorpayService: Using Razorpay instance with key:', process.env.RAZORPAY_KEY_ID?.substring(0, 10) + '...');
@@ -1596,21 +1644,58 @@ Please verify the plan exists in Razorpay Dashboard.`;
           }
           
           try {
-            // Check for ambassador referral and calculate discount
+            // ✅ FIXED: Check for ambassador referral and calculate discount
+            // First, try to get discount from subscription notes (stored at creation)
             let discountAmount = 0;
+            let discountPercentage = 0;
             let originalAmount = parseFloat(plan.price.toString());
             let referralData = null;
             
+            // Try to get discount from Razorpay subscription notes if available
             try {
-              const { AmbassadorDAL } = await import('@/lib/dal/ambassador');
-              referralData = await AmbassadorDAL.getReferralByUserId(subscription.userId);
+              const razorpaySubscription = await razorpay.subscriptions.fetch(subscriptionId);
+              const notes = razorpaySubscription.notes || {};
               
-              if (referralData && referralData.ambassador.status === 'active') {
-                const discountPercentage = parseFloat(referralData.ambassador.discountPercentage.toString());
-                discountAmount = (originalAmount * discountPercentage) / 100;
+              if (notes.ambassadorDiscount && notes.originalAmount) {
+                discountAmount = parseFloat(notes.ambassadorDiscount);
+                discountPercentage = parseFloat(notes.ambassadorDiscountPercentage || '0');
+                originalAmount = parseFloat(notes.originalAmount);
+                logger.log('💰 RazorpayService: Using discount from subscription notes in payment.authorized:', {
+                  discountAmount,
+                  discountPercentage,
+                  originalAmount,
+                });
               }
             } catch (error) {
-              logger.warn('⚠️ RazorpayService: Error checking ambassador referral in payment.authorized:', error);
+              logger.warn('⚠️ RazorpayService: Could not fetch subscription notes in payment.authorized:', error);
+            }
+            
+            // If discount not found in notes, calculate from referral data
+            if (discountAmount === 0) {
+              try {
+                const { AmbassadorDAL } = await import('@/lib/dal/ambassador');
+                referralData = await AmbassadorDAL.getReferralByUserId(subscription.userId);
+                
+                if (referralData && referralData.ambassador.status === 'active') {
+                  discountPercentage = parseFloat(referralData.ambassador.discountPercentage.toString());
+                  discountAmount = (originalAmount * discountPercentage) / 100;
+                  logger.log('💰 RazorpayService: Calculated discount from referral data in payment.authorized:', {
+                    discountAmount,
+                    discountPercentage,
+                    originalAmount,
+                  });
+                }
+              } catch (error) {
+                logger.warn('⚠️ RazorpayService: Error checking ambassador referral in payment.authorized:', error);
+              }
+            } else {
+              // Get referral data for commission processing
+              try {
+                const { AmbassadorDAL } = await import('@/lib/dal/ambassador');
+                referralData = await AmbassadorDAL.getReferralByUserId(subscription.userId);
+              } catch (error) {
+                logger.warn('⚠️ RazorpayService: Error getting referral data for commission:', error);
+              }
             }
 
             // Create payment order
@@ -2260,23 +2345,52 @@ Please verify the plan exists in Razorpay Dashboard.`;
         .limit(1);
 
       if (plan) {
-        // Check for ambassador referral and calculate discount
+        // ✅ FIXED: Check for ambassador referral and calculate discount
+        // First, try to get discount from subscription notes (stored at creation)
         let discountAmount = 0;
+        let discountPercentage = 0;
         let originalAmount = parseFloat(plan.price.toString());
         
-        // Check for referral first
-        let referralData = null;
+        // Try to get discount from Razorpay subscription notes if available
         try {
-          const { AmbassadorDAL } = await import('@/lib/dal/ambassador');
-          referralData = await AmbassadorDAL.getReferralByUserId(subscription.userId);
+          const razorpay = getRazorpayInstance();
+          const razorpaySubscription = await razorpay.subscriptions.fetch(subscriptionId);
+          const notes = razorpaySubscription.notes || {};
           
-          if (referralData && referralData.ambassador.status === 'active') {
-            const discountPercentage = parseFloat(referralData.ambassador.discountPercentage.toString());
-            discountAmount = (originalAmount * discountPercentage) / 100;
+          if (notes.ambassadorDiscount && notes.originalAmount) {
+            discountAmount = parseFloat(notes.ambassadorDiscount);
+            discountPercentage = parseFloat(notes.ambassadorDiscountPercentage || '0');
+            originalAmount = parseFloat(notes.originalAmount);
+            logger.log('💰 RazorpayService: Using discount from subscription notes:', {
+              discountAmount,
+              discountPercentage,
+              originalAmount,
+            });
           }
         } catch (error) {
-          logger.warn('⚠️ RazorpayService: Error checking ambassador referral:', error);
-          // Continue without discount if ambassador check fails
+          logger.warn('⚠️ RazorpayService: Could not fetch subscription notes, will calculate discount:', error);
+        }
+        
+        // If discount not found in notes, calculate from referral data
+        if (discountAmount === 0) {
+          let referralData = null;
+          try {
+            const { AmbassadorDAL } = await import('@/lib/dal/ambassador');
+            referralData = await AmbassadorDAL.getReferralByUserId(subscription.userId);
+            
+            if (referralData && referralData.ambassador.status === 'active') {
+              discountPercentage = parseFloat(referralData.ambassador.discountPercentage.toString());
+              discountAmount = (originalAmount * discountPercentage) / 100;
+              logger.log('💰 RazorpayService: Calculated discount from referral data:', {
+                discountAmount,
+                discountPercentage,
+                originalAmount,
+              });
+            }
+          } catch (error) {
+            logger.warn('⚠️ RazorpayService: Error checking ambassador referral:', error);
+            // Continue without discount if ambassador check fails
+          }
         }
 
         // Create payment order first

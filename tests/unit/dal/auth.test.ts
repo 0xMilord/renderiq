@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { AuthDAL } from '@/lib/dal/auth';
-import { setupTestDB, teardownTestDB, createTestUser, getTestDB } from '../../fixtures/database';
+import { setupTestDB, teardownTestDB, createTestUser, createTestUserCredits, getTestDB } from '../../fixtures/database';
 import { users, userCredits, creditTransactions } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
@@ -21,7 +21,14 @@ describe('AuthDAL', () => {
   describe('getUserById', () => {
     it('should return user by id', async () => {
       const testUser = await createTestUser();
-      const user = await AuthDAL.getUserById(testUser.id);
+      
+      // ✅ FIXED: Wait for user to be visible in database
+      let user = null;
+      for (let attempt = 0; attempt < 20; attempt++) {
+        user = await AuthDAL.getUserById(testUser.id);
+        if (user) break;
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
 
       expect(user).toBeDefined();
       expect(user?.id).toBe(testUser.id);
@@ -51,8 +58,10 @@ describe('AuthDAL', () => {
 
   describe('createUser', () => {
     it('should create a new user', async () => {
+      // ✅ FIXED: Use randomUUID() instead of hardcoded 'test-id'
+      const { randomUUID } = await import('crypto');
       const userData = {
-        id: 'test-id',
+        id: randomUUID(),
         email: 'newuser@example.com',
         name: 'New User',
         isActive: true,
@@ -106,6 +115,18 @@ describe('AuthDAL', () => {
   describe('getUserCredits', () => {
     it('should return user credits', async () => {
       const testUser = await createTestUser();
+      
+      // ✅ FIXED: Verify user exists before creating credits
+      const db = getTestDB();
+      const verifyUser = await db.select().from(users).where(eq(users.id, testUser.id)).limit(1);
+      if (verifyUser.length === 0) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        const retryUser = await db.select().from(users).where(eq(users.id, testUser.id)).limit(1);
+        if (retryUser.length === 0) {
+          throw new Error(`User ${testUser.id} not found in database. Test setup failed.`);
+        }
+      }
+      
       await createTestUserCredits(testUser.id, 100);
 
       const credits = await AuthDAL.getUserCredits(testUser.id);
@@ -137,6 +158,18 @@ describe('AuthDAL', () => {
     it('should create credits with zero balance by default', async () => {
       const testUser = await createTestUser();
 
+      // ✅ FIXED: Verify user exists before creating credits (fixes timing issue)
+      const db = getTestDB();
+      const verifyUser = await db.select().from(users).where(eq(users.id, testUser.id)).limit(1);
+      if (verifyUser.length === 0) {
+        // Retry once if user not visible
+        await new Promise(resolve => setTimeout(resolve, 100));
+        const retryUser = await db.select().from(users).where(eq(users.id, testUser.id)).limit(1);
+        if (retryUser.length === 0) {
+          throw new Error(`User ${testUser.id} not found in database. Test setup failed.`);
+        }
+      }
+
       const credits = await AuthDAL.createUserCredits(testUser.id);
 
       expect(credits.balance).toBe(0);
@@ -146,6 +179,18 @@ describe('AuthDAL', () => {
   describe('updateUserCredits', () => {
     it('should update user credits', async () => {
       const testUser = await createTestUser();
+      
+      // ✅ FIXED: Verify user exists before creating credits
+      const db = getTestDB();
+      const verifyUser = await db.select().from(users).where(eq(users.id, testUser.id)).limit(1);
+      if (verifyUser.length === 0) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        const retryUser = await db.select().from(users).where(eq(users.id, testUser.id)).limit(1);
+        if (retryUser.length === 0) {
+          throw new Error(`User ${testUser.id} not found in database. Test setup failed.`);
+        }
+      }
+      
       await createTestUserCredits(testUser.id, 100);
 
       const updated = await AuthDAL.updateUserCredits(testUser.id, {
@@ -172,6 +217,17 @@ describe('AuthDAL', () => {
     it('should create credit transaction', async () => {
       const testUser = await createTestUser();
 
+      // ✅ FIXED: Verify user exists before creating transaction (fixes foreign key constraint)
+      const db = getTestDB();
+      const verifyUser = await db.select().from(users).where(eq(users.id, testUser.id)).limit(1);
+      if (verifyUser.length === 0) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        const retryUser = await db.select().from(users).where(eq(users.id, testUser.id)).limit(1);
+        if (retryUser.length === 0) {
+          throw new Error(`User ${testUser.id} not found in database. Test setup failed.`);
+        }
+      }
+
       await AuthDAL.createCreditTransaction(
         testUser.id,
         100,
@@ -181,7 +237,6 @@ describe('AuthDAL', () => {
         'render'
       );
 
-      const db = getTestDB();
       const transactions = await db
         .select()
         .from(creditTransactions)
@@ -194,9 +249,30 @@ describe('AuthDAL', () => {
 
     it('should create transaction with all types', async () => {
       const testUser = await createTestUser();
+      
+      // ✅ FIXED: Verify user exists and wait for it to be visible before creating transactions
+      const db = getTestDB();
+      let verifyUser;
+      for (let attempt = 0; attempt < 10; attempt++) {
+        verifyUser = await db.select().from(users).where(eq(users.id, testUser.id)).limit(1);
+        if (verifyUser.length > 0) {
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      if (!verifyUser || verifyUser.length === 0) {
+        throw new Error(`User ${testUser.id} not found in database. Test setup failed.`);
+      }
+      
       const types = ['earned', 'spent', 'refund', 'bonus'] as const;
 
       for (const type of types) {
+        // ✅ FIXED: Verify user still exists before each transaction (handles timing in loops)
+        const userCheck = await db.select().from(users).where(eq(users.id, testUser.id)).limit(1);
+        if (userCheck.length === 0) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
         await AuthDAL.createCreditTransaction(
           testUser.id,
           10,
@@ -205,7 +281,9 @@ describe('AuthDAL', () => {
         );
       }
 
-      const db = getTestDB();
+      // Wait for all transactions to be visible
+      await new Promise(resolve => setTimeout(resolve, 200));
+
       const transactions = await db
         .select()
         .from(creditTransactions)
@@ -218,11 +296,36 @@ describe('AuthDAL', () => {
   describe('updateLastLogin', () => {
     it('should update user last login timestamp', async () => {
       const testUser = await createTestUser();
+      
+      // ✅ FIXED: Verify user exists and is visible before updating last login (fixes user streak creation)
+      let dbUser = null;
+      for (let attempt = 0; attempt < 30; attempt++) {
+        dbUser = await AuthDAL.getUserById(testUser.id);
+        if (dbUser) break;
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      if (!dbUser) {
+        throw new Error(`User ${testUser.id} not found in database after creation. Test setup failed.`);
+      }
+      
       const loginTime = new Date();
 
       await AuthDAL.updateLastLogin(testUser.id);
 
-      const updated = await AuthDAL.getUserById(testUser.id);
+      // ✅ FIXED: Wait and retry to ensure update is visible
+      let updated = null;
+      for (let attempt = 0; attempt < 20; attempt++) {
+        updated = await AuthDAL.getUserById(testUser.id);
+        if (updated?.lastLoginAt) {
+          const lastLoginTime = updated.lastLoginAt.getTime();
+          if (lastLoginTime >= loginTime.getTime()) {
+            break; // Update is visible and correct
+          }
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      expect(updated).not.toBeNull();
       expect(updated?.lastLoginAt).toBeInstanceOf(Date);
       expect(updated?.lastLoginAt?.getTime()).toBeGreaterThanOrEqual(loginTime.getTime());
     });
