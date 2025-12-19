@@ -15,6 +15,8 @@ export interface AnalyticsData {
   creditStats: Awaited<ReturnType<typeof AnalyticsService.getCreditStats>>;
   apiUsageStats: Awaited<ReturnType<typeof AnalyticsService.getApiUsageStats>>;
   userActivityStats: Awaited<ReturnType<typeof AnalyticsService.getUserActivityStats>>;
+  storageStats: Awaited<ReturnType<typeof AnalyticsService.getStorageStats>>;
+  projectsStats: Awaited<ReturnType<typeof AnalyticsService.getProjectsStats>>;
   dailyUsage: Awaited<ReturnType<typeof AnalyticsService.getDailyUsage>>;
 }
 
@@ -53,12 +55,16 @@ export async function getAnalyticsData(options: GetAnalyticsOptions = {}): Promi
       creditStats,
       apiUsageStats,
       userActivityStats,
+      storageStats,
+      projectsStats,
       dailyUsage,
     ] = await Promise.all([
       AnalyticsService.getRenderStats(user.id, timeRange),
       AnalyticsService.getCreditStats(user.id, timeRange),
       AnalyticsService.getApiUsageStats(user.id, timeRange),
       AnalyticsService.getUserActivityStats(user.id),
+      AnalyticsService.getStorageStats(user.id, timeRange),
+      AnalyticsService.getProjectsStats(user.id, timeRange),
       AnalyticsService.getDailyUsage(user.id, days),
     ]);
 
@@ -69,6 +75,8 @@ export async function getAnalyticsData(options: GetAnalyticsOptions = {}): Promi
         creditStats,
         apiUsageStats,
         userActivityStats,
+        storageStats,
+        projectsStats,
         dailyUsage,
       },
     };

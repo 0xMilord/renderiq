@@ -1,13 +1,31 @@
 'use client';
 
+import * as React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from 'recharts';
 import { CreditStats, DailyUsageData } from '@/lib/services/analytics-service';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from '@/components/ui/chart';
 
 interface CreditUsageChartProps {
   data: CreditStats;
   dailyUsage: DailyUsageData[];
 }
+
+const chartConfig = {
+  credits: {
+    label: 'Credits Spent',
+    color: 'var(--primary)',
+  },
+  value: {
+    label: 'Value',
+    color: 'var(--primary)',
+  },
+} satisfies ChartConfig;
 
 export function CreditUsageChart({ data, dailyUsage }: CreditUsageChartProps) {
   const typeData = [
@@ -18,10 +36,12 @@ export function CreditUsageChart({ data, dailyUsage }: CreditUsageChartProps) {
     { name: 'Bonuses', value: data.byType.bonus },
   ];
 
-  const dailyCreditsData = dailyUsage.map((item) => ({
-    date: item.date.split('T')[0],
-    credits: item.creditsSpent,
-  }));
+  const dailyCreditsData = React.useMemo(() => {
+    return dailyUsage.map((item) => ({
+      date: item.date,
+      credits: item.creditsSpent,
+    }));
+  }, [dailyUsage]);
 
   return (
     <div className="space-y-4">
@@ -32,15 +52,30 @@ export function CreditUsageChart({ data, dailyUsage }: CreditUsageChartProps) {
             <CardDescription>Spending by category</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={typeData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" fill="#8884d8" />
+            <ChartContainer config={chartConfig} className="aspect-auto h-[300px] w-full">
+              <BarChart
+                accessibilityLayer
+                data={typeData}
+                margin={{
+                  left: 12,
+                  right: 12,
+                }}
+              >
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                />
+                <YAxis tickLine={false} axisLine={false} tickMargin={8} />
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent indicator="line" />}
+                />
+                <Bar dataKey="value" fill="var(--color-value)" radius={4} />
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </CardContent>
         </Card>
 
@@ -80,15 +115,62 @@ export function CreditUsageChart({ data, dailyUsage }: CreditUsageChartProps) {
           <CardDescription>Credits spent per day</CardDescription>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={dailyCreditsData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Line type="monotone" dataKey="credits" stroke="#8884d8" strokeWidth={2} />
+          <ChartContainer
+            config={chartConfig}
+            className="aspect-auto h-[300px] w-full"
+          >
+            <LineChart
+              accessibilityLayer
+              data={dailyCreditsData}
+              margin={{
+                left: 12,
+                right: 12,
+              }}
+            >
+              <CartesianGrid vertical={false} />
+              <XAxis
+                dataKey="date"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                minTickGap={32}
+                tickFormatter={(value) => {
+                  const date = new Date(value);
+                  return date.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                  });
+                }}
+              />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+              />
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    className="w-[150px]"
+                    nameKey="credits"
+                    labelFormatter={(value) => {
+                      return new Date(value).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      });
+                    }}
+                  />
+                }
+              />
+              <Line
+                dataKey="credits"
+                type="monotone"
+                stroke="var(--color-credits)"
+                strokeWidth={2}
+                dot={false}
+              />
             </LineChart>
-          </ResponsiveContainer>
+          </ChartContainer>
         </CardContent>
       </Card>
     </div>

@@ -4,7 +4,7 @@ import { memo, useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTheme } from 'next-themes';
-import { Button } from '@/components/ui/button';
+import { RainbowButton } from '@/components/ui/rainbow-button';
 import { Marquee } from '@/components/ui/marquee';
 import { AvatarCircles } from '@/components/ui/avatar-circles';
 import { TickingNumber } from '@/components/ui/ticking-number';
@@ -124,21 +124,22 @@ const HeroSection = memo(function HeroSection({ avatarData, totalUsers, galleryI
                   {/* CTA Buttons Row - Before Stats */}
                   <div className="flex flex-col sm:flex-row gap-4 mb-4 pb-4 border-b-[2px] border-border">
                     <Link href="/render">
-                      <Button 
+                      <RainbowButton 
                         size="lg" 
-                        className={`px-8 py-6 text-lg font-bold ${buttonBgColor} hover:opacity-90 ${buttonTextColor} rounded-lg border border-border w-full sm:w-auto transition-opacity`}
+                        variant="default"
+                        className="px-8 py-6 text-lg font-bold w-full sm:w-auto"
                       >
                         Start Creating
-                      </Button>
+                      </RainbowButton>
                     </Link>
                     <Link href="/demo">
-                      <Button 
+                      <RainbowButton 
                         size="lg" 
                         variant="outline"
-                        className="px-8 py-6 text-lg font-bold rounded-lg border-2 w-full sm:w-auto"
+                        className="px-8 py-6 text-lg font-bold w-full sm:w-auto"
                       >
                         View Demo
-                      </Button>
+                      </RainbowButton>
                     </Link>
                   </div>
                   

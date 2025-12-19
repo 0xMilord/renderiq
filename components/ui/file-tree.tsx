@@ -248,7 +248,7 @@ const Folder = forwardRef<
       >
         <AccordionPrimitive.Trigger
           className={cn(
-            `flex items-center gap-1 rounded-md text-sm`,
+            `flex items-center gap-1 rounded-md text-sm min-w-0`,
             className,
             {
               "bg-muted rounded-md": isSelect && isSelectable,
@@ -260,9 +260,9 @@ const Folder = forwardRef<
           onClick={handleClick}
         >
           {expandedItems?.includes(value)
-            ? (openIcon ?? <FolderOpenIcon className="size-4" />)
-            : (closeIcon ?? <FolderIcon className="size-4" />)}
-          <span>{element}</span>
+            ? (openIcon ?? <FolderOpenIcon className="size-4 shrink-0" />)
+            : (closeIcon ?? <FolderIcon className="size-4 shrink-0" />)}
+          <span className="truncate min-w-0 flex-1">{element}</span>
         </AccordionPrimitive.Trigger>
         <AccordionPrimitive.Content className="data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down relative h-full overflow-hidden text-sm">
           {element && indicator && <TreeIndicator aria-hidden="true" />}
@@ -317,7 +317,7 @@ const File = forwardRef<
         type="button"
         disabled={!isSelectable}
         className={cn(
-          "flex w-fit items-center gap-1 rounded-md pr-1 text-sm duration-200 ease-in-out rtl:pr-0 rtl:pl-1",
+          "flex w-fit items-center gap-1 rounded-md pr-1 text-sm duration-200 ease-in-out rtl:pr-0 rtl:pl-1 min-w-0",
           {
             "bg-muted": isSelected && isSelectable,
           },
@@ -328,8 +328,8 @@ const File = forwardRef<
         onClick={() => selectItem(value)}
         {...props}
       >
-        {fileIcon ?? <FileIcon className="size-4" />}
-        {children}
+        {fileIcon ?? <FileIcon className="size-4 shrink-0" />}
+        <span className="truncate min-w-0">{children}</span>
       </button>
     )
   }

@@ -14,7 +14,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
+import { RainbowButton } from '@/components/ui/rainbow-button';
 import { DecoratedText } from '@/components/ui/decorated-text';
 import { Highlighter } from '@/components/ui/highlighter';
 import { VercelCard } from '@/components/ui/vercel-card';
@@ -328,24 +328,24 @@ export function FAQSection() {
                 <div className="relative mb-8">
                   
                   {showLeftArrow && (
-                    <Button
-                      variant="ghost"
+                    <RainbowButton
+                      variant="outline"
                       size="icon"
                       className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 bg-background/90 shadow-md hover:bg-background/80 text-foreground"
                       onClick={() => scroll('left')}
                     >
                       <ChevronLeft className="h-4 w-4" />
-                    </Button>
+                    </RainbowButton>
                   )}
                   {showRightArrow && (
-                    <Button
-                      variant="ghost"
+                    <RainbowButton
+                      variant="outline"
                       size="icon"
                       className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 bg-background/90 shadow-md hover:bg-background/80 text-foreground"
                       onClick={() => scroll('right')}
                     >
                       <ChevronRight className="h-4 w-4" />
-                    </Button>
+                    </RainbowButton>
                   )}
                   <TabsList 
                     ref={scrollContainerRef}

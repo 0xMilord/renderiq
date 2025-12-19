@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { RainbowButton } from '@/components/ui/rainbow-button';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DecoratedText } from '@/components/ui/decorated-text';
@@ -267,7 +268,7 @@ export default async function Home() {
           </div>
 
           {/* Bento Grid Layout - Full Width */}
-          <VercelCard className="w-full overflow-visible" showIcons={true} bordered={false}>
+          <VercelCard className="w-full overflow-visible" showIcons={true} bordered={true}>
             <div className="relative w-full">
               <ShineBorder borderWidth={0.5} shineColor="white" className="z-20 opacity-60" sides="internal" />
               <div className="flex flex-col w-full">
@@ -275,7 +276,7 @@ export default async function Home() {
               {/* Row 1: Node-Based Editor + Tools (3/4) | Chat-Based Renderer (1/4) */}
               <div className="flex flex-col lg:flex-row lg:min-h-[700px] overflow-visible">
                 {/* Left Column - Node-Based Editor + Tools stacked (65% width) */}
-                <div className="flex flex-col lg:w-[65%]">
+                <div className="flex flex-col lg:w-[65%] h-full">
                   {/* Node-Based Editor */}
                   <div className="p-4 bg-card transition-all duration-300 flex flex-col relative overflow-visible">
                       <ShineBorder borderWidth={0.5} shineColor={["#8B5CF6", "#D1F24A"]} className="z-30 opacity-60" />
@@ -293,7 +294,7 @@ export default async function Home() {
                     </div>
 
                   {/* 24 Specialized Tools */}
-                  <div className="p-4 rounded-none bg-card transition-all duration-300 flex flex-col relative overflow-visible">
+                  <div className="p-4 rounded-none bg-card transition-all duration-300 flex flex-col relative overflow-visible flex-1 min-h-0">
                       <ShineBorder borderWidth={0.5} shineColor={["#D1F24A", "#8B5CF6"]} className="z-30 opacity-60" />
                       <div className="flex items-center gap-3 mb-3 relative z-10">
                         <DecoratedText className="text-xl md:text-2xl font-bold text-card-foreground px-3 py-1.5 flex items-center gap-3">
@@ -451,17 +452,25 @@ export default async function Home() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link href="/signup">
-                  <Button size="lg" variant="secondary" className="px-8 py-4 text-lg font-semibold bg-[hsl(0,0%,7%)] hover:bg-[hsl(0,0%,15%)] text-[hsl(72,87%,62%)]">
+                  <RainbowButton 
+                    size="lg" 
+                    variant="default" 
+                    className="px-8 py-4 text-lg font-semibold !text-[hsl(72,87%,62%)] dark:!text-[hsl(72,87%,62%)] [&]:!bg-[hsl(0,0%,7%)] [&]:hover:!bg-[hsl(0,0%,15%)]"
+                  >
                     <Globe className="h-6 w-6 mr-2" />
                     Get Started Free
                     <ArrowRight className="h-5 w-5 ml-2" />
-                  </Button>
+                  </RainbowButton>
                 </Link>
                 <Link href="/gallery">
-                  <Button size="lg" variant="outline" className="border-2 border-[hsl(0,0%,7%)] text-[hsl(0,0%,7%)] hover:bg-[hsl(0,0%,7%)] hover:text-[hsl(72,87%,62%)] px-8 py-4 text-lg font-semibold">
+                  <RainbowButton 
+                    size="lg" 
+                    variant="outline" 
+                    className="px-8 py-4 text-lg font-semibold border-2 border-[hsl(0,0%,7%)] !text-[hsl(72,87%,62%)] dark:!text-[hsl(72,87%,62%)] [&]:!bg-[hsl(0,0%,7%)] [&]:hover:!bg-[hsl(0,0%,15%)]"
+                  >
                     <GalleryVertical className="h-6 w-6 mr-2" />
                     View Gallery
-                  </Button>
+                  </RainbowButton>
                 </Link>
               </div>
               <div className="flex flex-wrap items-center gap-6 text-sm text-[hsl(0,0%,20%)]">

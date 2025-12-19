@@ -2,33 +2,40 @@
 
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
-import { Upload, Wand2, Download, CheckCircle, ArrowRight } from 'lucide-react';
+import { Upload, Wand2, Download, CheckCircle, ArrowRight, LayoutGrid } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DecoratedText } from '@/components/ui/decorated-text';
 import { Highlighter } from '@/components/ui/highlighter';
 import { VercelCard } from '@/components/ui/vercel-card';
-import { Button } from '@/components/ui/button';
+import { RainbowButton } from '@/components/ui/rainbow-button';
 import { FlickeringGrid } from '@/components/ui/flickering-grid';
 import Link from 'next/link';
 
 const steps = [
   {
     number: '01',
+    icon: LayoutGrid,
+    title: 'Choose Your Tool',
+    description: 'Select your preferred rendering method: chat-based render, Node Canvas, or apps. Choose the workflow that best fits your needs.',
+    details: ['Chat-based render', 'Node Canvas', 'Apps integration', 'Flexible workflow'],
+  },
+  {
+    number: '02',
     icon: Upload,
     title: 'Upload Your Sketch',
     description: 'Upload your architectural sketch, 3D model snapshot, or design concept. We support multiple formats including PNG, JPG, and more.',
     details: ['Drag & drop interface', 'Multiple file formats', 'Batch upload support', 'Cloud storage integration'],
   },
   {
-    number: '02',
+    number: '03',
     icon: Wand2,
     title: 'AI Transforms Your Design',
     description: 'Our advanced AI analyzes your design and transforms it into a photorealistic render. Customize styles, materials, and lighting.',
     details: ['Multiple AI models', 'Style presets', 'Material library', 'Lighting controls'],
   },
   {
-    number: '03',
+    number: '04',
     icon: Download,
     title: 'Download & Share',
     description: 'Get your high-quality render in minutes. Download in multiple formats, share with clients, or publish to your gallery.',
@@ -58,7 +65,7 @@ export function HowItWorksSection() {
         squareSize={4}
         gridGap={6}
         color={gridColor}
-        maxOpacity={0.3}
+        maxOpacity={0.15}
         flickerChance={0.1}
       />
       
@@ -69,14 +76,14 @@ export function HowItWorksSection() {
       <div className="absolute inset-y-0 right-0 hidden md:block md:w-16 lg:w-32 -z-0 overflow-hidden" style={{ 
         backgroundImage: `repeating-linear-gradient(-45deg, transparent, transparent 8px, ${hatchColor} 8px, ${hatchColor} 10px)`
       }}></div>
-      <div className="max-w-7xl mx-auto relative z-10">
+      <div className="container mx-auto relative z-10">
         <div className="text-center mb-16">
           <DecoratedText className="text-sm font-medium px-3 py-1.5 mb-4">
             How It Works
           </DecoratedText>
           <h2 className="text-4xl md:text-5xl font-bold text-card-foreground mb-6">
             From Sketch to Stunning Render
-            <span className="block text-muted-foreground">in 3 Simple Steps</span>
+            <span className="block text-muted-foreground">in 4 Simple Steps</span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
             Our streamlined process makes it easy to create{" "}
@@ -87,7 +94,7 @@ export function HowItWorksSection() {
         </div>
 
         <VercelCard className="overflow-visible mb-12" showIcons={true} bordered>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-0">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-0">
             {steps.map((step, index) => {
               const Icon = step.icon;
               return (
@@ -125,10 +132,10 @@ export function HowItWorksSection() {
 
         <div className="text-center">
           <Link href="/render">
-            <Button size="lg" className="px-8 py-4 text-lg font-semibold">
+            <RainbowButton size="lg" variant="default" className="px-8 py-4 text-lg font-semibold">
               Start Creating Now
               <ArrowRight className="h-5 w-5 ml-2" />
-            </Button>
+            </RainbowButton>
           </Link>
         </div>
       </div>

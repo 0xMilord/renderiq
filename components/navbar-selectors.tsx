@@ -180,10 +180,7 @@ export function NavbarSelectors() {
                   currentProject?.id === project.id && "bg-accent"
                 )}
               >
-                <div className="flex items-center gap-2">
-                  <FolderOpen className="h-3 w-3" />
-                  <span className="text-sm">{project.name}</span>
-                </div>
+                <span className="text-sm truncate block">{project.name}</span>
               </SelectItem>
             ))
           )}
@@ -234,10 +231,7 @@ export function NavbarSelectors() {
                     currentChainId === chain.id && "bg-accent"
                   )}
                 >
-                  <div className="flex items-center gap-2">
-                    <MessageSquare className="h-3 w-3" />
-                    <span className="text-sm">{chain.name}</span>
-                  </div>
+                  <span className="text-sm truncate block">{chain.name}</span>
                 </SelectItem>
               ))
             )}

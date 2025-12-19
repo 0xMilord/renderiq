@@ -48,7 +48,8 @@ export function TasksPageClient() {
 
 
   return (
-    <div className="container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="h-full w-full">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
       {/* Tasks List */}
       {tasksError && (
         <Alert variant="destructive" className="mb-6">
@@ -217,6 +218,7 @@ export function TasksPageClient() {
           <strong>Automatic Tasks:</strong> Tasks marked with "Auto" are completed automatically when you perform the action (e.g., daily login, create render). Manual tasks require you to submit verification.
         </AlertDescription>
       </Alert>
+      </div>
     </div>
   );
 }

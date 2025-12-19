@@ -1,12 +1,25 @@
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ApiUsageStats } from '@/lib/services/analytics-service';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from '@/components/ui/chart';
 
 interface ApiUsageChartProps {
   data: ApiUsageStats;
 }
+
+const chartConfig = {
+  value: {
+    label: 'API Calls',
+    color: 'var(--primary)',
+  },
+} satisfies ChartConfig;
 
 export function ApiUsageChart({ data }: ApiUsageChartProps) {
   const platformData = Object.entries(data.byPlatform).map(([platform, count]) => ({
@@ -64,15 +77,30 @@ export function ApiUsageChart({ data }: ApiUsageChartProps) {
             <CardDescription>API calls by plugin platform</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={platformData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" fill="#8884d8" />
+            <ChartContainer config={chartConfig} className="aspect-auto h-[300px] w-full">
+              <BarChart
+                accessibilityLayer
+                data={platformData}
+                margin={{
+                  left: 12,
+                  right: 12,
+                }}
+              >
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                />
+                <YAxis tickLine={false} axisLine={false} tickMargin={8} />
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent indicator="line" />}
+                />
+                <Bar dataKey="value" fill="var(--color-value)" radius={4} />
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </CardContent>
         </Card>
       )}

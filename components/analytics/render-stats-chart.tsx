@@ -1,19 +1,44 @@
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PolarGrid, RadialBar, RadialBarChart } from 'recharts';
 import { RenderStats } from '@/lib/services/analytics-service';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from '@/components/ui/chart';
 
 interface RenderStatsChartProps {
   data: RenderStats;
 }
 
-const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00'];
+const barChartConfig = {
+  value: {
+    label: 'Value',
+    color: 'var(--primary)',
+  },
+} satisfies ChartConfig;
+
+const radialChartConfig = {
+  renders: {
+    label: 'Renders',
+  },
+  images: {
+    label: 'Images',
+    color: 'var(--primary)',
+  },
+  videos: {
+    label: 'Videos',
+    color: 'var(--primary)',
+  },
+} satisfies ChartConfig;
 
 export function RenderStatsChart({ data }: RenderStatsChartProps) {
   const typeData = [
-    { name: 'Images', value: data.byType.image },
-    { name: 'Videos', value: data.byType.video },
+    { type: 'images', renders: data.byType.image, fill: 'var(--color-images)' },
+    { type: 'videos', renders: data.byType.video, fill: 'var(--color-videos)' },
   ];
 
   const statusData = [
@@ -38,31 +63,25 @@ export function RenderStatsChart({ data }: RenderStatsChartProps) {
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <Card>
-        <CardHeader>
+      <Card className="flex flex-col">
+        <CardHeader className="items-center pb-0">
           <CardTitle>By Type</CardTitle>
           <CardDescription>Image vs Video renders</CardDescription>
         </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={typeData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {typeData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+        <CardContent className="flex-1 pb-0">
+          <ChartContainer
+            config={radialChartConfig}
+            className="mx-auto aspect-square max-h-[300px]"
+          >
+            <RadialBarChart data={typeData} innerRadius={30} outerRadius={100}>
+              <ChartTooltip
+                cursor={false}
+                content={<ChartTooltipContent hideLabel nameKey="type" />}
+              />
+              <PolarGrid gridType="circle" />
+              <RadialBar dataKey="renders" />
+            </RadialBarChart>
+          </ChartContainer>
         </CardContent>
       </Card>
 
@@ -72,15 +91,30 @@ export function RenderStatsChart({ data }: RenderStatsChartProps) {
           <CardDescription>Render completion status</CardDescription>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={statusData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="value" fill="#8884d8" />
+          <ChartContainer config={barChartConfig} className="aspect-auto h-[300px] w-full">
+            <BarChart
+              accessibilityLayer
+              data={statusData}
+              margin={{
+                left: 12,
+                right: 12,
+              }}
+            >
+              <CartesianGrid vertical={false} />
+              <XAxis
+                dataKey="name"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+              />
+              <YAxis tickLine={false} axisLine={false} tickMargin={8} />
+              <ChartTooltip
+                cursor={false}
+                content={<ChartTooltipContent indicator="line" />}
+              />
+              <Bar dataKey="value" fill="var(--color-value)" radius={4} />
             </BarChart>
-          </ResponsiveContainer>
+          </ChartContainer>
         </CardContent>
       </Card>
 
@@ -90,15 +124,30 @@ export function RenderStatsChart({ data }: RenderStatsChartProps) {
           <CardDescription>Quality tier distribution</CardDescription>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={qualityData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="value" fill="#82ca9d" />
+          <ChartContainer config={barChartConfig} className="aspect-auto h-[300px] w-full">
+            <BarChart
+              accessibilityLayer
+              data={qualityData}
+              margin={{
+                left: 12,
+                right: 12,
+              }}
+            >
+              <CartesianGrid vertical={false} />
+              <XAxis
+                dataKey="name"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+              />
+              <YAxis tickLine={false} axisLine={false} tickMargin={8} />
+              <ChartTooltip
+                cursor={false}
+                content={<ChartTooltipContent indicator="line" />}
+              />
+              <Bar dataKey="value" fill="var(--color-value)" radius={4} />
             </BarChart>
-          </ResponsiveContainer>
+          </ChartContainer>
         </CardContent>
       </Card>
 
@@ -108,15 +157,30 @@ export function RenderStatsChart({ data }: RenderStatsChartProps) {
           <CardDescription>Where renders were created</CardDescription>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={platformData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="value" fill="#ffc658" />
+          <ChartContainer config={barChartConfig} className="aspect-auto h-[300px] w-full">
+            <BarChart
+              accessibilityLayer
+              data={platformData}
+              margin={{
+                left: 12,
+                right: 12,
+              }}
+            >
+              <CartesianGrid vertical={false} />
+              <XAxis
+                dataKey="name"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+              />
+              <YAxis tickLine={false} axisLine={false} tickMargin={8} />
+              <ChartTooltip
+                cursor={false}
+                content={<ChartTooltipContent indicator="line" />}
+              />
+              <Bar dataKey="value" fill="var(--color-value)" radius={4} />
             </BarChart>
-          </ResponsiveContainer>
+          </ChartContainer>
         </CardContent>
       </Card>
 

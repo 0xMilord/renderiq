@@ -116,7 +116,7 @@ export function ToolLayout({ tool, children, onProjectChange, hintMessage }: Too
                 <SelectContent>
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
-                      {project.name}
+                      <span className="truncate block">{project.name}</span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -169,7 +169,7 @@ export function ToolLayout({ tool, children, onProjectChange, hintMessage }: Too
                 <SelectContent>
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
-                      {project.name}
+                      <span className="truncate block">{project.name}</span>
                     </SelectItem>
                   ))}
                 </SelectContent>

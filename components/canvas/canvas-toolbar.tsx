@@ -246,7 +246,7 @@ export function CanvasToolbar({
                 project.id === projectId ? 'bg-accent' : ''
               }`}
             >
-              {project.name}
+              <span className="truncate block">{project.name}</span>
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>

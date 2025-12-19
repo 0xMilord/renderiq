@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTheme } from 'next-themes';
-import { Button } from '@/components/ui/button';
+import { RainbowButton } from '@/components/ui/rainbow-button';
 import { Badge } from '@/components/ui/badge';
 import { DecoratedText } from '@/components/ui/decorated-text';
 import { Highlighter } from '@/components/ui/highlighter';
@@ -47,10 +47,14 @@ export function GallerySection({ galleryItems }: GallerySectionProps) {
               created by architects, engineers, and visualizers using our architecture render software
             </p>
             <Link href="/gallery">
-              <Button size="lg" variant="secondary" className="px-8 py-4 text-lg font-semibold mb-8">
+              <RainbowButton 
+                size="lg" 
+                variant="default" 
+                className="px-8 py-4 text-lg font-semibold mb-8 !text-[hsl(72,87%,62%)] dark:!text-[hsl(72,87%,62%)] [&]:!bg-[hsl(0,0%,7%)] [&]:hover:!bg-[hsl(0,0%,15%)]"
+              >
                 View Full Gallery
                 <ArrowRight className="h-5 w-5 ml-2" />
-              </Button>
+              </RainbowButton>
             </Link>
           </div>
         </div>

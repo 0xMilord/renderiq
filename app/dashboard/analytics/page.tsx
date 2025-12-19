@@ -5,15 +5,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, BarChart3, TrendingUp, CreditCard, Zap, Activity } from 'lucide-react';
+import { AlertCircle, BarChart3, TrendingUp, CreditCard, Zap, Database, FolderOpen } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import { RenderStatsChart } from '@/components/analytics/render-stats-chart';
 import { CreditUsageChart } from '@/components/analytics/credit-usage-chart';
 import { ApiUsageChart } from '@/components/analytics/api-usage-chart';
 import { DailyUsageChart } from '@/components/analytics/daily-usage-chart';
+import { StorageStatsChart } from '@/components/analytics/storage-stats-chart';
+import { ProjectsStatsChart } from '@/components/analytics/projects-stats-chart';
 import { StatsCards } from '@/components/analytics/stats-cards';
 
 export default function AnalyticsPage() {
   const { data, loading, error, refetch } = useAnalytics({ days: 30 });
+  const searchParams = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'overview';
 
   if (loading) {
     return (
@@ -63,51 +68,15 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
-        <p className="text-muted-foreground">
-          Track your usage, credits, and API activity
-        </p>
-      </div>
-
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-6">
       {/* Stats Cards */}
       <StatsCards data={data} />
 
       {/* Charts */}
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">
-            <BarChart3 className="mr-2 h-4 w-4" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="renders">
-            <TrendingUp className="mr-2 h-4 w-4" />
-            Renders
-          </TabsTrigger>
-          <TabsTrigger value="credits">
-            <CreditCard className="mr-2 h-4 w-4" />
-            Credits
-          </TabsTrigger>
-          <TabsTrigger value="api">
-            <Zap className="mr-2 h-4 w-4" />
-            API Usage
-          </TabsTrigger>
-        </TabsList>
+      <Tabs value={activeTab} className="space-y-4">
 
         <TabsContent value="overview" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Daily Usage</CardTitle>
-              <CardDescription>
-                Your activity over the last 30 days
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <DailyUsageChart data={data.dailyUsage} />
-            </CardContent>
-          </Card>
+          <DailyUsageChart data={data.dailyUsage} />
         </TabsContent>
 
         <TabsContent value="renders" className="space-y-4">
@@ -120,6 +89,14 @@ export default function AnalyticsPage() {
 
         <TabsContent value="api" className="space-y-4">
           <ApiUsageChart data={data.apiUsageStats} />
+        </TabsContent>
+
+        <TabsContent value="storage" className="space-y-4">
+          <StorageStatsChart data={data.storageStats} />
+        </TabsContent>
+
+        <TabsContent value="projects" className="space-y-4">
+          <ProjectsStatsChart data={data.projectsStats} />
         </TabsContent>
       </Tabs>
     </div>

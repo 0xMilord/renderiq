@@ -1,11 +1,11 @@
 "use client";
 
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
+import { RainbowButton } from '@/components/ui/rainbow-button';
 import { VercelCard } from '@/components/ui/vercel-card';
 import { DecoratedText } from '@/components/ui/decorated-text';
 import { Highlighter } from '@/components/ui/highlighter';
-import { CheckCircle, ArrowRight, Coins, Sparkles } from 'lucide-react';
+import { CheckCircle, ArrowRight } from 'lucide-react';
 import { HomepageCreditPackageCard } from './homepage-credit-package-card';
 import { useCurrency } from '@/lib/hooks/use-currency';
 
@@ -41,16 +41,6 @@ export function HomepagePricingClient({ plans, creditPackages }: HomepagePricing
           {/* Credit Packages Section - 1/4 width */}
           {creditPackages.length > 0 && (
             <div className="lg:col-span-1">
-              <div className="mb-6">
-                <h3 className="text-2xl font-bold mb-2 flex items-center gap-2">
-                  <Coins className="h-6 w-6 text-primary" />
-                  Credit Packages
-                </h3>
-                <p className="text-muted-foreground text-sm">
-                  Pay-as-you-go credits.
-                </p>
-              </div>
-              
               {/* Show top 3 credit packages */}
               <div className="space-y-4">
                 {creditPackages.slice(0, 3).map((pkg: any) => (
@@ -63,26 +53,8 @@ export function HomepagePricingClient({ plans, creditPackages }: HomepagePricing
           {/* Subscription Plans Section - 3/4 width */}
           {plans.length > 0 && (
             <div className="lg:col-span-3 flex flex-col">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-2xl font-bold mb-2 flex items-center gap-2">
-                    <Sparkles className="h-6 w-6 text-primary" />
-                    Subscription Plans
-                  </h3>
-                  <p className="text-muted-foreground">
-                    Unlimited renders with monthly or annual billing. Perfect for regular users.
-                  </p>
-                </div>
-                <Link href="/pricing">
-                  <Button variant="outline">
-                    View All Plans
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </Link>
-              </div>
-
               {/* Show top 3 subscription plans */}
-              <VercelCard className="mb-6 flex-1" animateOnHover glowEffect>
+              <VercelCard className="flex-1" animateOnHover glowEffect>
                 <div className="grid grid-cols-1 md:grid-cols-3 h-full">
                 {plans
                   .filter((plan: any) => plan.interval === 'month') // Only show monthly plans on homepage
@@ -93,6 +65,11 @@ export function HomepagePricingClient({ plans, creditPackages }: HomepagePricing
                     className="p-8 border-r border-b border-border bg-card hover:bg-muted/50 transition-all duration-300 flex flex-col h-full"
                   >
                     <div className="text-center mb-8">
+                      <div className="mb-3 flex justify-center">
+                        <DecoratedText className="text-xs font-medium px-3 py-1">
+                          Monthly Subscription
+                        </DecoratedText>
+                      </div>
                       <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
                       <div className="text-4xl font-bold mb-2">
                         {loading ? '...' : format(convert(Number(plan.price)))}
@@ -135,68 +112,68 @@ export function HomepagePricingClient({ plans, creditPackages }: HomepagePricing
                       )}
                     </ul>
                     <Link href="/pricing">
-                      <Button className="w-full" variant="outline">
+                      <RainbowButton className="w-full" variant="outline">
                         View Plan
-                      </Button>
+                      </RainbowButton>
                     </Link>
                   </div>
                 ))}
-                </div>
-              </VercelCard>
-
-              {/* Pay-as-you-go message row - fills remaining height */}
-              <VercelCard className="flex-1" showIcons={true} bordered>
-                <div className="flex items-center gap-6 w-full p-6">
-                  {/* Text - 70% width */}
-                  <div className="flex-[0.7]">
-                    <p className="text-2xl md:text-3xl font-bold text-foreground leading-tight">
-                      <span className="text-primary">No strings attached.</span> Pay as you go with flexible credit packages. Start rendering with as little as a cup of coffee.
-                    </p>
-                  </div>
-                  
-                  {/* Separator */}
-                  <div className="h-16 w-px bg-border"></div>
-                  
-                  {/* SVG Illustration - 30% width */}
-                  <div className="flex-[0.3] flex items-center justify-center">
-                    <svg
-                      viewBox="0 0 200 200"
-                      className="w-full h-full max-w-[150px] max-h-[150px] text-primary/60"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      {/* Broken chain / cut string illustration */}
-                      <g stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                        {/* Left string segment */}
-                        <path d="M 20 100 Q 40 70, 60 100 Q 80 130, 100 100" />
-                        {/* Right string segment */}
-                        <path d="M 100 100 Q 120 70, 140 100 Q 160 130, 180 100" />
-                        {/* Scissors cutting the string */}
-                        <g transform="translate(100, 100)">
-                          {/* Left blade */}
-                          <path d="M -20 -15 L 0 0 L -20 15" />
-                          {/* Right blade */}
-                          <path d="M 20 -15 L 0 0 L 20 15" />
-                          {/* Scissors handle */}
-                          <circle cx="-8" cy="0" r="4" fill="currentColor" />
-                          <circle cx="8" cy="0" r="4" fill="currentColor" />
-                        </g>
-                      </g>
-                    </svg>
-                  </div>
                 </div>
               </VercelCard>
             </div>
           )}
         </div>
 
+        {/* Pay-as-you-go message row - full width below both columns */}
+        <VercelCard className="mt-8" showIcons={true} bordered>
+          <div className="flex items-center gap-6 w-full p-6">
+            {/* Text - 70% width */}
+            <div className="flex-[0.7]">
+              <p className="text-2xl md:text-3xl font-bold text-foreground leading-tight">
+                <span className="text-primary">No strings attached.</span> Pay as you go with flexible credit packages. Start rendering with as little as a cup of coffee.
+              </p>
+            </div>
+            
+            {/* Separator */}
+            <div className="h-16 w-px bg-border"></div>
+            
+            {/* SVG Illustration - 30% width */}
+            <div className="flex-[0.3] flex items-center justify-center">
+              <svg
+                viewBox="0 0 200 200"
+                className="w-full h-full max-w-[150px] max-h-[150px] text-primary/60"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                {/* Broken chain / cut string illustration */}
+                <g stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                  {/* Left string segment */}
+                  <path d="M 20 100 Q 40 70, 60 100 Q 80 130, 100 100" />
+                  {/* Right string segment */}
+                  <path d="M 100 100 Q 120 70, 140 100 Q 160 130, 180 100" />
+                  {/* Scissors cutting the string */}
+                  <g transform="translate(100, 100)">
+                    {/* Left blade */}
+                    <path d="M -20 -15 L 0 0 L -20 15" />
+                    {/* Right blade */}
+                    <path d="M 20 -15 L 0 0 L 20 15" />
+                    {/* Scissors handle */}
+                    <circle cx="-8" cy="0" r="4" fill="currentColor" />
+                    <circle cx="8" cy="0" r="4" fill="currentColor" />
+                  </g>
+                </g>
+              </svg>
+            </div>
+          </div>
+        </VercelCard>
+
         {/* CTA */}
         <div className="text-center mt-12">
           <Link href="/pricing">
-            <Button size="lg" className="px-8">
+            <RainbowButton size="lg" variant="default" className="px-8">
               View All Pricing Options
               <ArrowRight className="h-5 w-5 ml-2" />
-            </Button>
+            </RainbowButton>
           </Link>
         </div>
       </div>

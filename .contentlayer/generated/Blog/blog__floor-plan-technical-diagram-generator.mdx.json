@@ -1,0 +1,49 @@
+{
+  "title": "Floor Plan Technical Diagrams: Create Annotated Architectural Diagrams",
+  "excerpt": "Convert floor plans into professional technical diagrams with minimal, standard, or detailed annotations, optional dimensions, room labels, and architectural symbols. Perfect for documentation, technical drawings, architectural standards, and construction documentation. Create construction-ready diagrams with proper annotations and dimensions.",
+  "publishedAt": "2025-01-22T00:00:00.000Z",
+  "author": "Renderiq Team",
+  "authorName": "Robert Martinez",
+  "authorBio": "Technical documentation specialist and Renderiq product engineer with expertise in architectural standards and drawing conventions",
+  "coverImage": "/blog/floor-plan-technical-diagram-generator.jpg",
+  "tags": [
+    "technical floor plan",
+    "architectural diagram tool",
+    "floor plan annotations",
+    "technical diagrams",
+    "construction documentation",
+    "architectural standards"
+  ],
+  "keywords": [
+    "floor plan technical diagrams",
+    "architectural diagram generator",
+    "annotated floor plan tool",
+    "technical floor plan generator",
+    "construction diagram tool",
+    "architectural documentation tool",
+    "floor plan annotations tool",
+    "technical drawing generator",
+    "architectural standards diagrams",
+    "construction documentation tool"
+  ],
+  "seoTitle": "Floor Plan Technical Diagrams | Annotated Architectural Diagram Generator | Renderiq",
+  "seoDescription": "Create professional technical floor plan diagrams with annotations, dimensions, and room labels. Perfect for construction documentation and architectural standards. Generate construction-ready diagrams. Try free today.",
+  "featured": false,
+  "readingTime": 6,
+  "category": "Apps\r",
+  "body": {
+    "raw": "\r\n# Floor Plan Technical Diagrams: Create Annotated Architectural Diagrams\r\n\r\nYou've got a floor plan. But does it have room labels? Dimensions? Door swing indicators? All those little details that turn a plan into actual documentation?\r\n\r\nThis tool adds them. Upload your plan, pick an annotation level (minimal, standard, or detailed), and get back a properly annotated technical diagram. The kind contractors and permit offices expect to see.\r\n\r\n## What Gets Added\r\n\r\nRoom labels (Bedroom 1, Kitchen, Living Room). Dimensions showing actual sizes. Door symbols with swing directions. Window indicators. Standard architectural symbols contractors understand.\r\n\r\nYou control how much: minimal annotations for quick reference, standard for most construction docs, or detailed for comprehensive documentation. The AI adds the right symbols in the right places, following architectural drafting standards.\r\n\r\nUpload your plan, pick annotation level (minimal, standard, or detailed), and get back a properly annotated diagram. 30-60 seconds later, you've got construction-ready documentation.\r\n\r\n[Try it](/apps/floor-plan-technical-diagram-generator) and turn plans into technical diagrams.\r\n\r\n",
+    "code": "var Component=(()=>{var m=Object.create;var r=Object.defineProperty;var u=Object.getOwnPropertyDescriptor;var g=Object.getOwnPropertyNames;var p=Object.getPrototypeOf,f=Object.prototype.hasOwnProperty;var w=(t,a)=>()=>(a||t((a={exports:{}}).exports,a),a.exports),y=(t,a)=>{for(var e in a)r(t,e,{get:a[e],enumerable:!0})},c=(t,a,e,i)=>{if(a&&typeof a==\"object\"||typeof a==\"function\")for(let o of g(a))!f.call(t,o)&&o!==e&&r(t,o,{get:()=>a[o],enumerable:!(i=u(a,o))||i.enumerable});return t};var b=(t,a,e)=>(e=t!=null?m(p(t)):{},c(a||!t||!t.__esModule?r(e,\"default\",{value:t,enumerable:!0}):e,t)),D=t=>c(r({},\"__esModule\",{value:!0}),t);var d=w((v,l)=>{l.exports=_jsx_runtime});var T={};y(T,{default:()=>h,frontmatter:()=>x});var n=b(d()),x={title:\"Floor Plan Technical Diagrams: Create Annotated Architectural Diagrams\",excerpt:\"Convert floor plans into professional technical diagrams with minimal, standard, or detailed annotations, optional dimensions, room labels, and architectural symbols. Perfect for documentation, technical drawings, architectural standards, and construction documentation. Create construction-ready diagrams with proper annotations and dimensions.\",publishedAt:\"2025-01-22\",author:\"Renderiq Team\",authorName:\"Robert Martinez\",authorBio:\"Technical documentation specialist and Renderiq product engineer with expertise in architectural standards and drawing conventions\",coverImage:\"/blog/floor-plan-technical-diagram-generator.jpg\",tags:[\"technical floor plan\",\"architectural diagram tool\",\"floor plan annotations\",\"technical diagrams\",\"construction documentation\",\"architectural standards\"],keywords:[\"floor plan technical diagrams\",\"architectural diagram generator\",\"annotated floor plan tool\",\"technical floor plan generator\",\"construction diagram tool\",\"architectural documentation tool\",\"floor plan annotations tool\",\"technical drawing generator\",\"architectural standards diagrams\",\"construction documentation tool\"],seoTitle:\"Floor Plan Technical Diagrams | Annotated Architectural Diagram Generator | Renderiq\",seoDescription:\"Create professional technical floor plan diagrams with annotations, dimensions, and room labels. Perfect for construction documentation and architectural standards. Generate construction-ready diagrams. Try free today.\",featured:!1,readingTime:6,category:\"Apps\"};function s(t){let a={a:\"a\",h1:\"h1\",h2:\"h2\",p:\"p\",...t.components};return(0,n.jsxs)(n.Fragment,{children:[(0,n.jsx)(a.h1,{id:\"floor-plan-technical-diagrams-create-annotated-architectural-diagrams\",children:(0,n.jsx)(a.a,{className:\"anchor\",href:\"#floor-plan-technical-diagrams-create-annotated-architectural-diagrams\",children:\"Floor Plan Technical Diagrams: Create Annotated Architectural Diagrams\"})}),`\n`,(0,n.jsx)(a.p,{children:\"You've got a floor plan. But does it have room labels? Dimensions? Door swing indicators? All those little details that turn a plan into actual documentation?\"}),`\n`,(0,n.jsx)(a.p,{children:\"This tool adds them. Upload your plan, pick an annotation level (minimal, standard, or detailed), and get back a properly annotated technical diagram. The kind contractors and permit offices expect to see.\"}),`\n`,(0,n.jsx)(a.h2,{id:\"what-gets-added\",children:(0,n.jsx)(a.a,{className:\"anchor\",href:\"#what-gets-added\",children:\"What Gets Added\"})}),`\n`,(0,n.jsx)(a.p,{children:\"Room labels (Bedroom 1, Kitchen, Living Room). Dimensions showing actual sizes. Door symbols with swing directions. Window indicators. Standard architectural symbols contractors understand.\"}),`\n`,(0,n.jsx)(a.p,{children:\"You control how much: minimal annotations for quick reference, standard for most construction docs, or detailed for comprehensive documentation. The AI adds the right symbols in the right places, following architectural drafting standards.\"}),`\n`,(0,n.jsx)(a.p,{children:\"Upload your plan, pick annotation level (minimal, standard, or detailed), and get back a properly annotated diagram. 30-60 seconds later, you've got construction-ready documentation.\"}),`\n`,(0,n.jsxs)(a.p,{children:[(0,n.jsx)(a.a,{href:\"/apps/floor-plan-technical-diagram-generator\",children:\"Try it\"}),\" and turn plans into technical diagrams.\"]})]})}function h(t={}){let{wrapper:a}=t.components||{};return a?(0,n.jsx)(a,{...t,children:(0,n.jsx)(s,{...t})}):s(t)}return D(T);})();\n;return Component;"
+  },
+  "_id": "blog/floor-plan-technical-diagram-generator.mdx",
+  "_raw": {
+    "sourceFilePath": "blog/floor-plan-technical-diagram-generator.mdx",
+    "sourceFileName": "floor-plan-technical-diagram-generator.mdx",
+    "sourceFileDir": "blog",
+    "contentType": "mdx",
+    "flattenedPath": "blog/floor-plan-technical-diagram-generator"
+  },
+  "type": "Blog",
+  "slug": "floor-plan-technical-diagram-generator",
+  "url": "/blog/floor-plan-technical-diagram-generator"
+}

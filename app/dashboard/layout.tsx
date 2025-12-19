@@ -10,7 +10,6 @@ import {
   LayoutDashboard,
   FolderOpen,
   FolderOpen as FolderOpenIcon,
-  Folder,
   CreditCard,
   Heart,
   Settings,
@@ -30,7 +29,10 @@ import {
   Paintbrush,
   Image,
   Key,
-  BarChart3
+  BarChart3,
+  Database,
+  TrendingUp,
+  Zap
 } from 'lucide-react';
 import { 
   FaXTwitter, 
@@ -47,12 +49,16 @@ import { DuplicateProjectModal } from '@/components/projects/duplicate-project-m
 import { DeleteProjectDialog } from '@/components/projects/delete-project-dialog';
 import { ShareProjectModal } from '@/components/projects/share-project-modal';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { ProjectTree } from '@/components/dashboard/project-tree';
+import { Tree, Folder, File, type TreeViewElement } from '@/components/ui/file-tree';
 import { Edit, Copy, Trash2, Share2, Globe, Lock } from 'lucide-react';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { toSentenceCase } from '@/lib/utils/string';
 import type { Project, RenderChain } from '@/lib/db/schema';
 import { TasksStatsButtons } from '@/components/tasks/tasks-stats-buttons';
+import { AmbassadorReferralBadge } from '@/components/ambassador/ambassador-referral-badge';
+import { CreateApiKeyButton } from '@/components/api-keys/create-api-key-button';
+import { Suspense } from 'react';
+import { AnalyticsTabsHeader } from '@/components/analytics/analytics-tabs-header';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -322,18 +328,57 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     [chains]
   );
 
-  // Toggle project expansion - memoized with useCallback
-  const toggleProject = useCallback((projectId: string) => {
-    setExpandedProjects(prev => {
-      const newExpanded = new Set(prev);
-      if (newExpanded.has(projectId)) {
-        newExpanded.delete(projectId);
-      } else {
-        newExpanded.add(projectId);
-      }
-      return newExpanded;
+  // Get selected project and chain from pathname
+  const selectedProjectId = useMemo(() => {
+    const projectMatch = pathname.match(/\/project\/([^/]+)/);
+    if (projectMatch && currentProject) {
+      return currentProject.id;
+    }
+    return undefined;
+  }, [pathname, currentProject]);
+
+  const selectedChainId = useMemo(() => {
+    const chainMatch = pathname.match(/\/chain\/([^/]+)/);
+    return chainMatch ? chainMatch[1] : undefined;
+  }, [pathname]);
+
+  // Build tree structure for file-tree component
+  const treeElements: TreeViewElement[] = useMemo(() => {
+    return projects.map(project => {
+      const projectChains = chainsByProject[project.id] || [];
+      return {
+        id: project.id,
+        name: project.name,
+        isSelectable: true,
+        children: projectChains.map(chain => ({
+          id: chain.id,
+          name: chain.name,
+          isSelectable: true,
+        })),
+      };
     });
-  }, []);
+  }, [projects, chainsByProject]);
+
+  // Get initial expanded items (selected project)
+  const initialExpandedItems = useMemo(() => {
+    if (selectedProjectId) {
+      return [selectedProjectId];
+    }
+    return [];
+  }, [selectedProjectId]);
+
+  // Get initial selected item (selected chain or project)
+  const initialSelectedId = useMemo(() => {
+    return selectedChainId || selectedProjectId || undefined;
+  }, [selectedChainId, selectedProjectId]);
+
+  // Handle project click - memoized with useCallback
+  const handleProjectClick = useCallback((projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      router.push(`/dashboard/projects/${project.slug}`);
+    }
+  }, [projects, router]);
 
   // Handle chain selection - memoized with useCallback
   const handleSelectChain = useCallback((chainId: string) => {
@@ -530,9 +575,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                       {isProjectsExpanded && (
                         <div className="ml-1 space-y-1 mt-1">
                           {loading ? (
-                            <div className="text-xs text-muted-foreground px-2 py-1 ml-7">Loading...</div>
+                            <div className="text-xs text-muted-foreground px-2 py-1">Loading...</div>
                           ) : projects.length === 0 ? (
-                            <div className="text-xs text-muted-foreground px-2 py-1 ml-7">
+                            <div className="text-xs text-muted-foreground px-2 py-1">
                               <CreateProjectModal onProjectCreated={() => fetchData()}>
                                 <Button variant="ghost" size="sm" className="h-6 text-xs px-2">
                                   <Plus className="h-3 w-3 mr-1" />
@@ -541,14 +586,50 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                               </CreateProjectModal>
                             </div>
                           ) : (
-                            <div className="w-full ml-7">
-                              <ProjectTree 
-                                projects={projects} 
-                                chains={chains.map(chain => ({
-                                  ...chain,
-                                  projectId: chain.projectId,
-                                }))}
-                              />
+                            <div className="w-full">
+                              <Tree
+                                initialSelectedId={initialSelectedId}
+                                initialExpandedItems={initialExpandedItems}
+                                elements={treeElements}
+                                indicator={true}
+                                className="w-full"
+                              >
+                                {treeElements.map((projectElement) => {
+                                  const isProjectSelected = selectedProjectId === projectElement.id;
+                                  return (
+                                    <Folder
+                                      key={projectElement.id}
+                                      element={projectElement.name}
+                                      value={projectElement.id}
+                                      isSelect={isProjectSelected}
+                                      className={cn(
+                                        "px-2 py-1.5",
+                                        isProjectSelected && "bg-primary/20"
+                                      )}
+                                      onFolderSelect={handleProjectClick}
+                                    >
+                                      {projectElement.children?.map((chainElement) => {
+                                        const isChainSelected = selectedChainId === chainElement.id;
+                                        return (
+                                          <File
+                                            key={chainElement.id}
+                                            value={chainElement.id}
+                                            isSelect={isChainSelected}
+                                            fileIcon={<MessageSquare className="size-4" />}
+                                            className={cn(
+                                              "px-2 py-1.5 w-full text-left",
+                                              isChainSelected && "bg-primary/20"
+                                            )}
+                                            handleSelect={(id) => handleSelectChain(id)}
+                                          >
+                                            {chainElement.name}
+                                          </File>
+                                        );
+                                      })}
+                                    </Folder>
+                                  );
+                                })}
+                              </Tree>
                             </div>
                           )}
                         </div>
@@ -801,10 +882,24 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
             </div>
           ) : (
-            <div className="min-w-0 flex-1 overflow-hidden flex items-center gap-3 h-16">
-              <CurrentPageIcon className="h-5 w-5 text-primary shrink-0" />
-              <h2 className="text-lg font-semibold text-foreground truncate min-w-0">{currentPageDescription}</h2>
+            <div className="min-w-0 flex-1 overflow-hidden flex items-center justify-between gap-3 h-16">
+              <div className="min-w-0 flex-1 overflow-hidden flex items-center gap-3">
+                <CurrentPageIcon className="h-5 w-5 text-primary shrink-0" />
+                <h2 className="text-lg font-semibold text-foreground truncate min-w-0">{currentPageDescription}</h2>
+              </div>
+              {pathname === '/dashboard/ambassador' && (
+                <AmbassadorReferralBadge />
+              )}
+              {pathname === '/dashboard/analytics' && (
+                <AnalyticsTabsHeader />
+              )}
             </div>
+          )}
+          {/* API Keys Page Create Button */}
+          {pathname === '/dashboard/api-keys' && (
+            <Suspense fallback={<div className="h-10 w-32 bg-muted animate-pulse rounded shrink-0" />}>
+              <CreateApiKeyButton />
+            </Suspense>
           )}
           {/* Tasks Page Stats Buttons */}
           {pathname === '/dashboard/tasks' && (

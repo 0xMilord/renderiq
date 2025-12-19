@@ -1,0 +1,49 @@
+{
+  "title": "Exploded Diagram Generator: Create Architectural Axonometric Exploded Views",
+  "excerpt": "Generate exploded axonometric views with tight, medium, or wide component spacing in vertical, horizontal, or diagonal orientations. Perfect for assembly visualization, component breakdown, technical documentation, and design explanation. Create professional exploded diagrams that show architectural components separated with proper spacing.",
+  "publishedAt": "2025-01-22T00:00:00.000Z",
+  "author": "Renderiq Team",
+  "authorName": "Jennifer Park",
+  "authorBio": "Visualization specialist and Renderiq technical designer with expertise in architectural diagramming and technical illustration",
+  "coverImage": "/blog/architectural-exploded-diagram-generator.jpg",
+  "tags": [
+    "exploded diagram",
+    "axonometric exploded view",
+    "architectural diagram generator",
+    "exploded view tool",
+    "assembly visualization",
+    "component breakdown"
+  ],
+  "keywords": [
+    "exploded diagram generator",
+    "architectural exploded view tool",
+    "axonometric exploded diagram",
+    "component breakdown diagram",
+    "assembly visualization tool",
+    "technical exploded view",
+    "architectural diagram tool",
+    "exploded axonometric generator",
+    "construction exploded view",
+    "design explanation diagram"
+  ],
+  "seoTitle": "Exploded Diagram Generator | Architectural Axonometric Exploded Views | Renderiq",
+  "seoDescription": "Create exploded axonometric diagrams from architectural designs. Show components with proper spacing and technical accuracy. Perfect for assembly visualization and technical documentation. Try free today.",
+  "featured": false,
+  "readingTime": 6,
+  "category": "Apps\r",
+  "body": {
+    "raw": "\r\n# Exploded Diagram Generator: Create Architectural Axonometric Exploded Views\r\n\r\nEver tried explaining a wall assembly in a meeting? \"So the sheathing goes here, then the studs, then the insulation...\" while pointing at a flat elevation drawing. Your audience is lost.\r\n\r\nAn exploded diagram fixes that. It pulls the building apart, showing each layer separated with space between them. Like a technical drawing that's been gently pulled apart so you can see inside.\r\n\r\n## The Process\r\n\r\nUpload your render or diagram. The AI identifies the components—walls, floors, structural elements—and \"explodes\" them apart. You control the spacing: tight for detailed views, medium for clarity, or wide for maximum separation.\r\n\r\nThe result is an axonometric exploded view (that technical drawing style architects use) where everything is separated just enough to see how it all fits together. Perfect for explaining construction sequences, showing assembly logic, or documenting how things go together.\r\n\r\nPick spacing: tight (detailed), medium (balanced), or wide (maximum separation). Choose orientation: vertical, horizontal, or diagonal. Upload, configure, generate—30-60 seconds later you've got an exploded view that shows how everything fits together.\r\n\r\n[Try it](/apps/architectural-exploded-diagram-generator) and create exploded diagrams that actually explain how things assemble.\r\n\r\n",
+    "code": "var Component=(()=>{var p=Object.create;var o=Object.defineProperty;var m=Object.getOwnPropertyDescriptor;var g=Object.getOwnPropertyNames;var u=Object.getPrototypeOf,x=Object.prototype.hasOwnProperty;var w=(a,e)=>()=>(e||a((e={exports:{}}).exports,e),e.exports),f=(a,e)=>{for(var i in e)o(a,i,{get:e[i],enumerable:!0})},d=(a,e,i,n)=>{if(e&&typeof e==\"object\"||typeof e==\"function\")for(let r of g(e))!x.call(a,r)&&r!==i&&o(a,r,{get:()=>e[r],enumerable:!(n=m(e,r))||n.enumerable});return a};var v=(a,e,i)=>(i=a!=null?p(u(a)):{},d(e||!a||!a.__esModule?o(i,\"default\",{value:a,enumerable:!0}):i,a)),y=a=>d(o({},\"__esModule\",{value:!0}),a);var c=w((j,l)=>{l.exports=_jsx_runtime});var A={};f(A,{default:()=>h,frontmatter:()=>b});var t=v(c()),b={title:\"Exploded Diagram Generator: Create Architectural Axonometric Exploded Views\",excerpt:\"Generate exploded axonometric views with tight, medium, or wide component spacing in vertical, horizontal, or diagonal orientations. Perfect for assembly visualization, component breakdown, technical documentation, and design explanation. Create professional exploded diagrams that show architectural components separated with proper spacing.\",publishedAt:\"2025-01-22\",author:\"Renderiq Team\",authorName:\"Jennifer Park\",authorBio:\"Visualization specialist and Renderiq technical designer with expertise in architectural diagramming and technical illustration\",coverImage:\"/blog/architectural-exploded-diagram-generator.jpg\",tags:[\"exploded diagram\",\"axonometric exploded view\",\"architectural diagram generator\",\"exploded view tool\",\"assembly visualization\",\"component breakdown\"],keywords:[\"exploded diagram generator\",\"architectural exploded view tool\",\"axonometric exploded diagram\",\"component breakdown diagram\",\"assembly visualization tool\",\"technical exploded view\",\"architectural diagram tool\",\"exploded axonometric generator\",\"construction exploded view\",\"design explanation diagram\"],seoTitle:\"Exploded Diagram Generator | Architectural Axonometric Exploded Views | Renderiq\",seoDescription:\"Create exploded axonometric diagrams from architectural designs. Show components with proper spacing and technical accuracy. Perfect for assembly visualization and technical documentation. Try free today.\",featured:!1,readingTime:6,category:\"Apps\"};function s(a){let e={a:\"a\",h1:\"h1\",h2:\"h2\",p:\"p\",...a.components};return(0,t.jsxs)(t.Fragment,{children:[(0,t.jsx)(e.h1,{id:\"exploded-diagram-generator-create-architectural-axonometric-exploded-views\",children:(0,t.jsx)(e.a,{className:\"anchor\",href:\"#exploded-diagram-generator-create-architectural-axonometric-exploded-views\",children:\"Exploded Diagram Generator: Create Architectural Axonometric Exploded Views\"})}),`\n`,(0,t.jsx)(e.p,{children:'Ever tried explaining a wall assembly in a meeting? \"So the sheathing goes here, then the studs, then the insulation...\" while pointing at a flat elevation drawing. Your audience is lost.'}),`\n`,(0,t.jsx)(e.p,{children:\"An exploded diagram fixes that. It pulls the building apart, showing each layer separated with space between them. Like a technical drawing that's been gently pulled apart so you can see inside.\"}),`\n`,(0,t.jsx)(e.h2,{id:\"the-process\",children:(0,t.jsx)(e.a,{className:\"anchor\",href:\"#the-process\",children:\"The Process\"})}),`\n`,(0,t.jsx)(e.p,{children:'Upload your render or diagram. The AI identifies the components\\u2014walls, floors, structural elements\\u2014and \"explodes\" them apart. You control the spacing: tight for detailed views, medium for clarity, or wide for maximum separation.'}),`\n`,(0,t.jsx)(e.p,{children:\"The result is an axonometric exploded view (that technical drawing style architects use) where everything is separated just enough to see how it all fits together. Perfect for explaining construction sequences, showing assembly logic, or documenting how things go together.\"}),`\n`,(0,t.jsx)(e.p,{children:\"Pick spacing: tight (detailed), medium (balanced), or wide (maximum separation). Choose orientation: vertical, horizontal, or diagonal. Upload, configure, generate\\u201430-60 seconds later you've got an exploded view that shows how everything fits together.\"}),`\n`,(0,t.jsxs)(e.p,{children:[(0,t.jsx)(e.a,{href:\"/apps/architectural-exploded-diagram-generator\",children:\"Try it\"}),\" and create exploded diagrams that actually explain how things assemble.\"]})]})}function h(a={}){let{wrapper:e}=a.components||{};return e?(0,t.jsx)(e,{...a,children:(0,t.jsx)(s,{...a})}):s(a)}return y(A);})();\n;return Component;"
+  },
+  "_id": "blog/architectural-exploded-diagram-generator.mdx",
+  "_raw": {
+    "sourceFilePath": "blog/architectural-exploded-diagram-generator.mdx",
+    "sourceFileName": "architectural-exploded-diagram-generator.mdx",
+    "sourceFileDir": "blog",
+    "contentType": "mdx",
+    "flattenedPath": "blog/architectural-exploded-diagram-generator"
+  },
+  "type": "Blog",
+  "slug": "architectural-exploded-diagram-generator",
+  "url": "/blog/architectural-exploded-diagram-generator"
+}

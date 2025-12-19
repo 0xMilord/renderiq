@@ -262,11 +262,11 @@ export function ChatRendererDemo({ className, galleryRenders = [] }: ChatRendere
             </div>
             {/* Col 2: Upload + Generate stacked */}
             <div className="flex flex-col gap-1.5">
-              <Button size="sm" className="bg-primary text-primary-foreground h-7 px-3 text-[10px] font-medium">
+              <Button size="sm" variant="default" className="h-7 px-3 text-[10px] font-medium">
                 <Send className="h-3 w-3 mr-1" />
                 Generate
               </Button>
-              <Button variant="ghost" size="sm" className="h-7 px-3 text-[10px] text-muted-foreground hover:text-foreground">
+              <Button variant="outline" size="sm" className="h-7 px-3 text-[10px]">
                 <Upload className="h-3 w-3 mr-1" />
                 Upload
               </Button>

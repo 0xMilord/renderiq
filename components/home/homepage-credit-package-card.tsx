@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { VercelCard } from '@/components/ui/vercel-card';
+import { DecoratedText } from '@/components/ui/decorated-text';
 import { memo } from 'react';
 import { useCurrency } from '@/lib/hooks/use-currency';
 
@@ -26,17 +27,26 @@ function HomepageCreditPackageCardComponent({ package: pkg }: HomepageCreditPack
   const pricePerCredit = convert(priceInINR / totalCredits);
 
   return (
-    <VercelCard className="h-full" showIcons={true} bordered>
+    <VercelCard className="w-full" showIcons={true} bordered>
       <div className="p-4">
-        {/* Title */}
-        <div className="mb-3">
-          <h4 className="text-lg font-bold">{pkg.name}</h4>
-          {pkg.description && (
-            <p className="text-xs text-muted-foreground">{pkg.description}</p>
-          )}
-          {pkg.isPopular && (
-            <span className="text-xs text-primary font-medium">Popular</span>
-          )}
+        {/* Badge and Title/Description in same row */}
+        <div className="grid grid-cols-2 gap-3 mb-3 items-center">
+          {/* Title and Description */}
+          <div>
+            <h4 className="text-lg font-bold">{pkg.name}</h4>
+            {pkg.description && (
+              <p className="text-xs text-muted-foreground">{pkg.description}</p>
+            )}
+            {pkg.isPopular && (
+              <span className="text-xs text-primary font-medium">Popular</span>
+            )}
+          </div>
+          {/* Badge */}
+          <div className="flex justify-end">
+            <DecoratedText className="text-xs font-medium px-3 py-1">
+              Credit Package
+            </DecoratedText>
+          </div>
         </div>
 
         {/* Credits and Pricing Information - 1 row, 2 columns */}

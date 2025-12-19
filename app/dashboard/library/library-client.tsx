@@ -160,14 +160,6 @@ export function LibraryClient({ rendersByProject }: LibraryClientProps) {
 
   return (
     <div className="h-full w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-      {/* Header */}
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold mb-2">Library</h1>
-        <p className="text-muted-foreground">
-          All your renders organized by project ({totalRenders} total renders)
-        </p>
-      </div>
-
       {/* Projects List */}
       {rendersByProject.length === 0 ? (
         <Card>

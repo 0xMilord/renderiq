@@ -1,0 +1,49 @@
+{
+  "title": "Floorplan to 3D Model: Convert 2D Plans to 3D Axonometric Diagrams",
+  "excerpt": "Transform 2D floor plans into professional 3D axonometric diagrams with adjustable wall heights (2.4m-3.6m) and technical accuracy. Create isometric, axonometric, or oblique 3D visualizations showing spatial relationships, volumes, and architectural elements. Perfect for 3D visualization, client presentations, and design communication.",
+  "publishedAt": "2025-01-22T00:00:00.000Z",
+  "author": "Renderiq Team",
+  "authorName": "James Liu",
+  "authorBio": "3D visualization specialist and Renderiq technical lead with expertise in architectural modeling and diagram generation",
+  "coverImage": "/blog/convert-2d-floor-plan-to-3d-diagram.jpg",
+  "tags": [
+    "floor plan to 3D",
+    "2D to 3D floor plan",
+    "axonometric diagram generator",
+    "3D floor plan converter",
+    "isometric diagram tool",
+    "spatial visualization"
+  ],
+  "keywords": [
+    "floor plan to 3D converter",
+    "2D to 3D floor plan tool",
+    "axonometric diagram generator",
+    "3D floor plan generator",
+    "isometric floor plan tool",
+    "oblique 3D diagram",
+    "spatial visualization tool",
+    "3D architectural diagram",
+    "floor plan visualization",
+    "architectural 3D diagram"
+  ],
+  "seoTitle": "Floorplan to 3D Model | Convert 2D Plans to 3D Axonometric Diagrams | Renderiq",
+  "seoDescription": "Transform 2D floor plans into professional 3D axonometric diagrams with adjustable wall heights and technical accuracy. Create isometric, axonometric, or oblique visualizations showing spatial relationships. Try free today.",
+  "featured": false,
+  "readingTime": 6,
+  "category": "Apps\r",
+  "body": {
+    "raw": "\r\n# Floorplan to 3D Model: Convert 2D Plans to 3D Axonometric Diagrams\r\n\r\nYour client is staring at a 2D floor plan, trying to understand what 2.4 meters of ceiling height actually feels like. Words don't help. They need to see it.\r\n\r\nSkip the 3D modeling class. Skip the hours in SketchUp. Take that 2D plan, upload it, pick a wall height, and get a 3D axonometric diagram that shows the space as an actual volume—not just lines on paper.\r\n\r\n## How It Actually Works\r\n\r\nThe tool looks at your 2D floor plan, finds the walls, figures out the rooms, then \"stands them up\" into 3D. You control the wall height (2.4m for standard residential, 3m for commercial, whatever your project needs). The result is an axonometric view—that technical drawing style architects love—showing your plan in 3D space.\r\n\r\nIt's not a full 3D model you can walk through. It's better—a clear, technical diagram that shows volumes and relationships without the complexity of full 3D modeling.\r\n\r\nPick a projection: isometric (balanced), axonometric (technical standard), or oblique (simplified). Set wall height—2.4m for residential, 3m for commercial, or any height between 2.4m and 3.6m.\r\n\r\nThe result shows your plan in 3D space with accurate proportions. Perfect for client presentations where 2D plans don't communicate spatial relationships clearly.\r\n\r\n[Try it](/apps/convert-2d-floor-plan-to-3d-diagram) and turn 2D plans into 3D diagrams.\r\n\r\n",
+    "code": "var Component=(()=>{var m=Object.create;var i=Object.defineProperty;var p=Object.getOwnPropertyDescriptor;var u=Object.getOwnPropertyNames;var g=Object.getPrototypeOf,f=Object.prototype.hasOwnProperty;var D=(o,a)=>()=>(a||o((a={exports:{}}).exports,a),a.exports),w=(o,a)=>{for(var t in a)i(o,t,{get:a[t],enumerable:!0})},l=(o,a,t,n)=>{if(a&&typeof a==\"object\"||typeof a==\"function\")for(let r of u(a))!f.call(o,r)&&r!==t&&i(o,r,{get:()=>a[r],enumerable:!(n=p(a,r))||n.enumerable});return o};var x=(o,a,t)=>(t=o!=null?m(g(o)):{},l(a||!o||!o.__esModule?i(t,\"default\",{value:o,enumerable:!0}):t,o)),v=o=>l(i({},\"__esModule\",{value:!0}),o);var c=D((b,s)=>{s.exports=_jsx_runtime});var k={};w(k,{default:()=>d,frontmatter:()=>y});var e=x(c()),y={title:\"Floorplan to 3D Model: Convert 2D Plans to 3D Axonometric Diagrams\",excerpt:\"Transform 2D floor plans into professional 3D axonometric diagrams with adjustable wall heights (2.4m-3.6m) and technical accuracy. Create isometric, axonometric, or oblique 3D visualizations showing spatial relationships, volumes, and architectural elements. Perfect for 3D visualization, client presentations, and design communication.\",publishedAt:\"2025-01-22\",author:\"Renderiq Team\",authorName:\"James Liu\",authorBio:\"3D visualization specialist and Renderiq technical lead with expertise in architectural modeling and diagram generation\",coverImage:\"/blog/convert-2d-floor-plan-to-3d-diagram.jpg\",tags:[\"floor plan to 3D\",\"2D to 3D floor plan\",\"axonometric diagram generator\",\"3D floor plan converter\",\"isometric diagram tool\",\"spatial visualization\"],keywords:[\"floor plan to 3D converter\",\"2D to 3D floor plan tool\",\"axonometric diagram generator\",\"3D floor plan generator\",\"isometric floor plan tool\",\"oblique 3D diagram\",\"spatial visualization tool\",\"3D architectural diagram\",\"floor plan visualization\",\"architectural 3D diagram\"],seoTitle:\"Floorplan to 3D Model | Convert 2D Plans to 3D Axonometric Diagrams | Renderiq\",seoDescription:\"Transform 2D floor plans into professional 3D axonometric diagrams with adjustable wall heights and technical accuracy. Create isometric, axonometric, or oblique visualizations showing spatial relationships. Try free today.\",featured:!1,readingTime:6,category:\"Apps\"};function h(o){let a={a:\"a\",h1:\"h1\",h2:\"h2\",p:\"p\",...o.components};return(0,e.jsxs)(e.Fragment,{children:[(0,e.jsx)(a.h1,{id:\"floorplan-to-3d-model-convert-2d-plans-to-3d-axonometric-diagrams\",children:(0,e.jsx)(a.a,{className:\"anchor\",href:\"#floorplan-to-3d-model-convert-2d-plans-to-3d-axonometric-diagrams\",children:\"Floorplan to 3D Model: Convert 2D Plans to 3D Axonometric Diagrams\"})}),`\n`,(0,e.jsx)(a.p,{children:\"Your client is staring at a 2D floor plan, trying to understand what 2.4 meters of ceiling height actually feels like. Words don't help. They need to see it.\"}),`\n`,(0,e.jsx)(a.p,{children:\"Skip the 3D modeling class. Skip the hours in SketchUp. Take that 2D plan, upload it, pick a wall height, and get a 3D axonometric diagram that shows the space as an actual volume\\u2014not just lines on paper.\"}),`\n`,(0,e.jsx)(a.h2,{id:\"how-it-actually-works\",children:(0,e.jsx)(a.a,{className:\"anchor\",href:\"#how-it-actually-works\",children:\"How It Actually Works\"})}),`\n`,(0,e.jsx)(a.p,{children:'The tool looks at your 2D floor plan, finds the walls, figures out the rooms, then \"stands them up\" into 3D. You control the wall height (2.4m for standard residential, 3m for commercial, whatever your project needs). The result is an axonometric view\\u2014that technical drawing style architects love\\u2014showing your plan in 3D space.'}),`\n`,(0,e.jsx)(a.p,{children:\"It's not a full 3D model you can walk through. It's better\\u2014a clear, technical diagram that shows volumes and relationships without the complexity of full 3D modeling.\"}),`\n`,(0,e.jsx)(a.p,{children:\"Pick a projection: isometric (balanced), axonometric (technical standard), or oblique (simplified). Set wall height\\u20142.4m for residential, 3m for commercial, or any height between 2.4m and 3.6m.\"}),`\n`,(0,e.jsx)(a.p,{children:\"The result shows your plan in 3D space with accurate proportions. Perfect for client presentations where 2D plans don't communicate spatial relationships clearly.\"}),`\n`,(0,e.jsxs)(a.p,{children:[(0,e.jsx)(a.a,{href:\"/apps/convert-2d-floor-plan-to-3d-diagram\",children:\"Try it\"}),\" and turn 2D plans into 3D diagrams.\"]})]})}function d(o={}){let{wrapper:a}=o.components||{};return a?(0,e.jsx)(a,{...o,children:(0,e.jsx)(h,{...o})}):h(o)}return v(k);})();\n;return Component;"
+  },
+  "_id": "blog/convert-2d-floor-plan-to-3d-diagram.mdx",
+  "_raw": {
+    "sourceFilePath": "blog/convert-2d-floor-plan-to-3d-diagram.mdx",
+    "sourceFileName": "convert-2d-floor-plan-to-3d-diagram.mdx",
+    "sourceFileDir": "blog",
+    "contentType": "mdx",
+    "flattenedPath": "blog/convert-2d-floor-plan-to-3d-diagram"
+  },
+  "type": "Blog",
+  "slug": "convert-2d-floor-plan-to-3d-diagram",
+  "url": "/blog/convert-2d-floor-plan-to-3d-diagram"
+}

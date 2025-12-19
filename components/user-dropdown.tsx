@@ -15,6 +15,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 import {
   Tooltip,
@@ -40,11 +43,15 @@ import {
   Zap,
   Workflow,
   Plus,
-  Users
+  Users,
+  Grid3x3,
+  ChevronRight
 } from 'lucide-react';
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { CreateProjectModal } from '@/components/projects/create-project-modal';
+import { getAllTools } from '@/lib/tools/registry';
+import { getEffectiveToolStatus } from '@/lib/tools/feature-flags';
 
 export function UserDropdown() {
   const { user, signOut } = useAuth();
@@ -327,21 +334,61 @@ export function UserDropdown() {
           </Link>
         </DropdownMenuItem>
         
-        {/* Create Project */}
-        <CreateProjectModal onProjectCreated={() => setIsOpen(false)}>
-          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-            <Plus className="mr-2 h-4 w-4" />
-            <span>Create Project</span>
-          </DropdownMenuItem>
-        </CreateProjectModal>
-        
-        {/* Dashboard Link */}
-        <DropdownMenuItem asChild>
-          <Link href="/dashboard" className="flex items-center">
-            <LayoutDashboard className="mr-2 h-4 w-4" />
-            <span>Dashboard</span>
-          </Link>
-        </DropdownMenuItem>
+        {/* Apps Submenu */}
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <Grid3x3 className="mr-2 h-4 w-4" />
+            <span>Apps</span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            {/* All Apps Link */}
+            <DropdownMenuItem asChild>
+              <Link href="/apps" className="flex items-center">
+                <Grid3x3 className="mr-2 h-4 w-4" />
+                <span>All Apps</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {/* Popular/Featured Apps - Show top 6 online apps */}
+            {getAllTools()
+              .filter(tool => getEffectiveToolStatus(tool.id, tool.status) === 'online')
+              .slice(0, 6)
+              .map((tool) => (
+                <DropdownMenuItem key={tool.id} asChild>
+                  <Link href={`/${tool.slug}`} className="flex items-center">
+                    {tool.icon ? (
+                      <img 
+                        src={`/apps/icons/${tool.id}.svg`} 
+                        alt={tool.name}
+                        className="mr-2 h-4 w-4"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <Grid3x3 className="mr-2 h-4 w-4" />
+                    )}
+                    <span>{tool.name}</span>
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+            <DropdownMenuSeparator />
+            {/* Dashboard Link */}
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard" className="flex items-center">
+                <LayoutDashboard className="mr-2 h-4 w-4" />
+                <span>Dashboard</span>
+              </Link>
+            </DropdownMenuItem>
+            {/* Create Project */}
+            <CreateProjectModal onProjectCreated={() => setIsOpen(false)}>
+              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                <Plus className="mr-2 h-4 w-4" />
+                <span>Create Project</span>
+              </DropdownMenuItem>
+            </CreateProjectModal>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
         
         <DropdownMenuSeparator />
         

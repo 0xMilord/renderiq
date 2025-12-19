@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { renders, creditTransactions, accountActivity, pluginApiKeys, users } from '@/lib/db/schema';
+import { renders, creditTransactions, accountActivity, pluginApiKeys, users, projects, fileStorage } from '@/lib/db/schema';
 import { eq, and, gte, lte, desc, sql, count, inArray } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
 import { UsageTrackingDAL } from '@/lib/dal/usage-tracking';
@@ -56,6 +56,21 @@ export interface DailyUsageData {
   creditsSpent: number;
   apiCalls: number;
   storageUsed: number;
+}
+
+export interface StorageStats {
+  totalStorageUsed: number; // in bytes
+  averagePerDay: number; // in bytes
+  fileCount: number;
+  byMimeType: Record<string, number>; // count by mime type
+}
+
+export interface ProjectsStats {
+  totalProjects: number;
+  byPlatform: { render: number; tools: number; canvas: number };
+  byStatus: { processing: number; completed: number; failed: number };
+  averageRendersPerProject: number;
+  totalRenders: number;
 }
 
 export class AnalyticsService {
@@ -155,30 +170,42 @@ export class AnalyticsService {
       .where(and(...whereConditions))
       .orderBy(desc(creditTransactions.createdAt));
 
+    // Schema uses: 'earned' | 'spent' | 'refund' | 'bonus'
+    // Amount is positive for earned, negative (or positive with type='spent') for spent
     const totalSpent = transactions
-      .filter(t => t.type === 'debit')
+      .filter(t => t.type === 'spent')
       .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
     const totalEarned = transactions
-      .filter(t => t.type === 'credit')
-      .reduce((sum, t) => sum + t.amount, 0);
+      .filter(t => t.type === 'earned' || t.type === 'refund' || t.type === 'bonus')
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
+    // Group transactions by type for breakdown
+    // Note: referenceType enum is ['render', 'subscription', 'bonus', 'refund']
+    // But credit_package purchases might be stored with null referenceType or as earned without referenceType
     const byType = {
       render: transactions
-        .filter(t => t.type === 'debit' && t.referenceType === 'render')
+        .filter(t => t.type === 'spent' && t.referenceType === 'render')
         .reduce((sum, t) => sum + Math.abs(t.amount), 0),
       refund: transactions
-        .filter(t => t.type === 'credit' && t.referenceType === 'refund')
-        .reduce((sum, t) => sum + t.amount, 0),
+        .filter(t => t.type === 'refund')
+        .reduce((sum, t) => sum + Math.abs(t.amount), 0),
+      // Purchases: earned credits that are NOT subscriptions, bonuses, or refunds
+      // These are typically credit package purchases (referenceType might be null or non-standard)
       purchase: transactions
-        .filter(t => t.type === 'credit' && t.referenceType === 'purchase')
-        .reduce((sum, t) => sum + t.amount, 0),
+        .filter(t => 
+          t.type === 'earned' && 
+          t.referenceType !== 'subscription' && 
+          t.referenceType !== 'bonus' &&
+          t.referenceType !== 'refund'
+        )
+        .reduce((sum, t) => sum + Math.abs(t.amount), 0),
       subscription: transactions
-        .filter(t => t.type === 'credit' && t.referenceType === 'subscription')
-        .reduce((sum, t) => sum + t.amount, 0),
+        .filter(t => t.type === 'earned' && t.referenceType === 'subscription')
+        .reduce((sum, t) => sum + Math.abs(t.amount), 0),
       bonus: transactions
-        .filter(t => t.type === 'credit' && t.referenceType === 'bonus')
-        .reduce((sum, t) => sum + t.amount, 0),
+        .filter(t => t.type === 'bonus')
+        .reduce((sum, t) => sum + Math.abs(t.amount), 0),
     };
 
     const days = timeRange
@@ -230,31 +257,36 @@ export class AnalyticsService {
       .from(renders)
       .where(and(...whereConditions));
 
-    const totalCalls = apiRenders.length;
+    // Count API calls from renders with plugin metadata
+    const totalCallsFromRenders = apiRenders.length;
 
-    // Group by platform
+    // Group by platform from renders (for detailed breakdown)
     const byPlatform: Record<string, number> = {};
     apiRenders.forEach(render => {
       const platform = render.metadata?.sourcePlatform as string || 'unknown';
       byPlatform[platform] = (byPlatform[platform] || 0) + 1;
     });
 
-    // Get usage tracking data
+    // Get usage tracking data (aggregated daily data - source of truth for totals)
     const usageData = await UsageTrackingDAL.getUserUsage(
       userId,
       timeRange?.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
       timeRange?.endDate || new Date()
     );
 
+    // Use usage tracking for total calls (more accurate aggregate)
+    // But if no usage tracking data exists, fall back to render count
     const totalApiCallsFromTracking = usageData.reduce((sum, u) => sum + (u.apiCalls || 0), 0);
+    const totalCalls = totalApiCallsFromTracking > 0 ? totalApiCallsFromTracking : totalCallsFromRenders;
+    
     const days = timeRange
       ? Math.ceil((timeRange.endDate.getTime() - timeRange.startDate.getTime()) / (1000 * 60 * 60 * 24))
       : 30;
-    const averagePerDay = days > 0 ? (totalCalls + totalApiCallsFromTracking) / days : 0;
+    const averagePerDay = days > 0 ? totalCalls / days : 0;
 
     return {
-      totalCalls: totalCalls + totalApiCallsFromTracking,
-      byPlatform,
+      totalCalls,
+      byPlatform, // Keep platform breakdown from renders (more detailed than usage tracking)
       byRoute: {}, // Would need separate API route tracking table
       averagePerDay,
       uniqueApiKeys,
@@ -345,6 +377,130 @@ export class AnalyticsService {
     });
 
     return Array.from(dateMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  /**
+   * Get storage statistics
+   */
+  static async getStorageStats(
+    userId: string,
+    timeRange?: AnalyticsTimeRange
+  ): Promise<StorageStats> {
+    logger.log('📊 AnalyticsService: Fetching storage stats', { userId, timeRange });
+
+    const whereConditions = [eq(fileStorage.userId, userId)];
+    if (timeRange) {
+      whereConditions.push(
+        gte(fileStorage.createdAt, timeRange.startDate),
+        lte(fileStorage.createdAt, timeRange.endDate)
+      );
+    }
+
+    const files = await db
+      .select()
+      .from(fileStorage)
+      .where(and(...whereConditions));
+
+    const totalStorageUsed = files.reduce((sum, file) => sum + Number(file.size || 0), 0);
+    const fileCount = files.length;
+
+    // Group by mime type
+    const byMimeType: Record<string, number> = {};
+    files.forEach(file => {
+      const mimeType = file.mimeType?.split('/')[0] || 'unknown'; // image, video, etc.
+      byMimeType[mimeType] = (byMimeType[mimeType] || 0) + 1;
+    });
+
+    // Get usage tracking data for average calculation
+    const usageData = await UsageTrackingDAL.getUserUsage(
+      userId,
+      timeRange?.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      timeRange?.endDate || new Date()
+    );
+
+    const totalStorageFromTracking = usageData.reduce((sum, u) => sum + (u.storageUsed || 0), 0);
+    const days = timeRange
+      ? Math.ceil((timeRange.endDate.getTime() - timeRange.startDate.getTime()) / (1000 * 60 * 60 * 24))
+      : 30;
+    const averagePerDay = days > 0 ? totalStorageFromTracking / days : 0;
+
+    return {
+      totalStorageUsed,
+      averagePerDay,
+      fileCount,
+      byMimeType,
+    };
+  }
+
+  /**
+   * Get projects statistics
+   */
+  static async getProjectsStats(
+    userId: string,
+    timeRange?: AnalyticsTimeRange
+  ): Promise<ProjectsStats> {
+    logger.log('📊 AnalyticsService: Fetching projects stats', { userId, timeRange });
+
+    const whereConditions = [eq(projects.userId, userId)];
+    if (timeRange) {
+      whereConditions.push(
+        gte(projects.createdAt, timeRange.startDate),
+        lte(projects.createdAt, timeRange.endDate)
+      );
+    }
+
+    const allProjects = await db
+      .select()
+      .from(projects)
+      .where(and(...whereConditions));
+
+    const totalProjects = allProjects.length;
+
+    const byPlatform = {
+      render: allProjects.filter(p => p.platform === 'render' || !p.platform).length,
+      tools: allProjects.filter(p => p.platform === 'tools').length,
+      canvas: allProjects.filter(p => p.platform === 'canvas').length,
+    };
+
+    const byStatus = {
+      processing: allProjects.filter(p => p.status === 'processing').length,
+      completed: allProjects.filter(p => p.status === 'completed').length,
+      failed: allProjects.filter(p => p.status === 'failed').length,
+    };
+
+    // Get render counts for projects (apply same timeRange filter if provided)
+    const projectIds = allProjects.map(p => p.id);
+    let renderCounts: Array<{ projectId: string; count: number }> = [];
+    
+    if (projectIds.length > 0) {
+      const renderWhereConditions = [inArray(renders.projectId, projectIds)];
+      if (timeRange) {
+        renderWhereConditions.push(
+          gte(renders.createdAt, timeRange.startDate),
+          lte(renders.createdAt, timeRange.endDate)
+        );
+      }
+      
+      renderCounts = await db
+        .select({
+          projectId: renders.projectId,
+          count: sql<number>`COUNT(*)::int`,
+        })
+        .from(renders)
+        .where(and(...renderWhereConditions))
+        .groupBy(renders.projectId);
+    }
+
+    const totalRenders = renderCounts.reduce((sum, rc) => sum + rc.count, 0);
+    const averageRendersPerProject = totalProjects > 0 ? totalRenders / totalProjects : 0;
+
+    return {
+      totalProjects,
+      byPlatform,
+      byStatus,
+      averageRendersPerProject,
+      totalRenders,
+    };
   }
 
   /**

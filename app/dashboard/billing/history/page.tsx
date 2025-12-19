@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Download, Filter, Loader2, Calendar, FileText } from 'lucide-react';
+import { Download, Loader2, Calendar, FileText } from 'lucide-react';
 import { usePaymentHistory } from '@/lib/hooks/use-payment-history';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -72,74 +72,62 @@ export default function PaymentHistoryPage() {
   }, []);
 
   return (
-    <div className="h-full w-full p-4 sm:p-6 lg:p-8">
-      <div className="w-full space-y-4 sm:space-y-6">
-        {/* Header */}
-        <div>
-          <p className="text-muted-foreground mt-2 text-sm sm:text-base">
-            View all your payment transactions and download receipts
-          </p>
+    <div className="h-full w-full flex flex-col overflow-hidden">
+      {/* Filters in Header Area */}
+      <div className="px-4 sm:px-6 lg:px-8 py-3 border-b bg-background shrink-0">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+          <Select
+            value={filters.type}
+            onValueChange={(value) => setFilters({ ...filters, type: value as any })}
+          >
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Payment Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="credit_package">Credit Package</SelectItem>
+              <SelectItem value="subscription">Subscription</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={filters.status}
+            onValueChange={(value) => setFilters({ ...filters, status: value as any })}
+          >
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="processing">Processing</SelectItem>
+              <SelectItem value="failed">Failed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Input
+            type="date"
+            placeholder="Start Date"
+            value={filters.startDate}
+            onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+            className="w-full sm:w-[180px]"
+          />
+
+          <Input
+            type="date"
+            placeholder="End Date"
+            value={filters.endDate}
+            onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+            className="w-full sm:w-[180px]"
+          />
         </div>
+      </div>
 
-        {/* Filters */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Filter className="h-5 w-5" />
-              <span>Filters</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-              <Select
-                value={filters.type}
-                onValueChange={(value) => setFilters({ ...filters, type: value as any })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Payment Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="credit_package">Credit Package</SelectItem>
-                  <SelectItem value="subscription">Subscription</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={filters.status}
-                onValueChange={(value) => setFilters({ ...filters, status: value as any })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="processing">Processing</SelectItem>
-                  <SelectItem value="failed">Failed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Input
-                type="date"
-                placeholder="Start Date"
-                value={filters.startDate}
-                onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-              />
-
-              <Input
-                type="date"
-                placeholder="End Date"
-                value={filters.endDate}
-                onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Payment History Table */}
+      {/* Payment History Table */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <div className="w-full space-y-4 sm:space-y-6">
         <Card>
           <CardHeader>
             <CardTitle>Transactions</CardTitle>
@@ -246,6 +234,7 @@ export default function PaymentHistoryPage() {
             )}
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );

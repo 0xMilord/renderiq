@@ -17,6 +17,7 @@ import { ReferralList } from './referral-list';
 import { AmbassadorApplicationForm } from './application-form';
 import { PendingReview } from './pending-review';
 import { AmbassadorFeatures } from './ambassador-features';
+import { AmbassadorTierInfo } from './ambassador-tier-info';
 import type { Ambassador } from '@/lib/db/schema';
 
 interface AmbassadorDashboardProps {
@@ -118,14 +119,8 @@ export function AmbassadorDashboard({ initialAmbassador, initialDashboardData }:
           </Alert>
         );
       case 'active':
-        return (
-          <Alert className="mb-6 border-green-500 bg-green-50 dark:bg-green-950">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-800 dark:text-green-200">
-              Your ambassador account is active! Start sharing your referral links to earn commissions.
-            </AlertDescription>
-          </Alert>
-        );
+        // Active status message is shown in the tier info sidebar, so return null here
+        return null;
       case 'suspended':
         return (
           <Alert variant="destructive" className="mb-6">
@@ -154,38 +149,15 @@ export function AmbassadorDashboard({ initialAmbassador, initialDashboardData }:
       <div className="grid lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
         {/* Main Content - 3/4 width */}
         <div className="lg:col-span-3 space-y-4 sm:space-y-6">
-          {/* Status Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-            <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
-                <h2 className="text-xl sm:text-2xl font-bold">Ambassador Dashboard</h2>
-                <Badge variant={ambassador.status === 'active' ? 'default' : 'secondary'}>
-                  {ambassador.status.charAt(0).toUpperCase() + ambassador.status.slice(1)}
-                </Badge>
-              </div>
-              <div className="space-y-1">
-                {ambassador.code && (
-                  <p className="text-sm sm:text-base text-muted-foreground break-words">
-                    Your referral code: <code className="bg-muted px-2 py-1 rounded break-all">{ambassador.code}</code>
-                  </p>
-                )}
-                {!ambassador.code && ambassador.status === 'active' && (
-                  <Alert variant="destructive" className="mt-2">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      Your ambassador code is not set. Please contact support to activate your referral code.
-                    </AlertDescription>
-                  </Alert>
-                )}
-                {dashboardData?.volumeTier && (
-                  <p className="text-xs sm:text-sm text-muted-foreground">
-                    Current tier: <span className="font-medium">{dashboardData.volumeTier.tierName}</span> 
-                    {' '}({dashboardData.volumeTier.discountPercentage}% discount for referrals)
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
+          {/* Alert if code is missing */}
+          {!ambassador.code && ambassador.status === 'active' && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Your ambassador code is not set. Please contact support to activate your referral code.
+              </AlertDescription>
+            </Alert>
+          )}
 
         {/* Show pending review screen if pending */}
         {ambassador.status === 'pending' ? (
@@ -247,10 +219,18 @@ export function AmbassadorDashboard({ initialAmbassador, initialDashboardData }:
         )}
       </div>
 
-      {/* Features Sidebar - 1/4 width */}
+      {/* Sidebar - 1/4 width */}
       <div className="lg:col-span-1">
         <div className="sticky top-4">
-          <AmbassadorFeatures />
+          {ambassador.status === 'active' ? (
+            <AmbassadorTierInfo
+              ambassador={ambassador}
+              currentTier={dashboardData?.volumeTier}
+              totalReferrals={ambassador.totalReferrals || 0}
+            />
+          ) : (
+            <AmbassadorFeatures />
+          )}
         </div>
       </div>
       </div>

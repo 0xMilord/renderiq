@@ -15,7 +15,7 @@ const UseCasesSection = memo(function UseCasesSection() {
   return (
     <section id="use-cases" className="w-full overflow-x-hidden relative bg-background/80 backdrop-blur-sm">
       {/* Header Section */}
-      <div className={`w-full relative border-l-[5px] border-r-[5px] border-b-[5px] ${borderClass}`}>
+      <div className={`w-full relative border-l-[3px] border-r-[3px] border-b-[3px] ${borderClass}`}>
         <div className="flex items-center justify-center">
           <div className="text-center p-8 flex flex-col items-center">
             <DecoratedText className="text-sm font-medium px-3 py-1.5 mb-4">

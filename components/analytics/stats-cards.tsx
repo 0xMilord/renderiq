@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AnalyticsData } from '@/lib/actions/analytics.actions';
-import { BarChart3, CreditCard, Zap, TrendingUp, CheckCircle, XCircle } from 'lucide-react';
+import { BarChart3, CreditCard, Zap, TrendingUp, CheckCircle, XCircle, Database, FolderOpen } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface StatsCardsProps {
@@ -10,7 +10,15 @@ interface StatsCardsProps {
 }
 
 export function StatsCards({ data }: StatsCardsProps) {
-  const { renderStats, creditStats, apiUsageStats, userActivityStats } = data;
+  const { renderStats, creditStats, apiUsageStats, userActivityStats, storageStats, projectsStats } = data;
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+  };
 
   const cards = [
     {
@@ -35,6 +43,20 @@ export function StatsCards({ data }: StatsCardsProps) {
       trend: `Avg ${apiUsageStats.averagePerDay.toFixed(1)}/day`,
     },
     {
+      title: 'Storage Used',
+      value: formatBytes(storageStats.totalStorageUsed),
+      description: `${storageStats.fileCount.toLocaleString()} files`,
+      icon: Database,
+      trend: `Avg ${formatBytes(storageStats.averagePerDay)}/day`,
+    },
+    {
+      title: 'Projects',
+      value: projectsStats.totalProjects.toLocaleString(),
+      description: `${projectsStats.totalRenders.toLocaleString()} total renders`,
+      icon: FolderOpen,
+      trend: `${projectsStats.averageRendersPerProject.toFixed(1)} renders/project`,
+    },
+    {
       title: 'Account Activity',
       value: userActivityStats.totalLogins.toLocaleString(),
       description: userActivityStats.lastLoginAt
@@ -46,7 +68,7 @@ export function StatsCards({ data }: StatsCardsProps) {
   ];
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
       {cards.map((card) => {
         const Icon = card.icon;
         return (

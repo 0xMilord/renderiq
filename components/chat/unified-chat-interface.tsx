@@ -2693,7 +2693,7 @@ export const UnifiedChatInterface = React.memo(function UnifiedChatInterface({
                           
                           return (
                             <div key={project.id}>
-                              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase border-b border-border">
+                              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase border-b border-border truncate">
                                 {project.name}
                               </div>
                               {projectChains.map((chainItem) => {
