@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/hooks/use-auth';
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
 import { useUserBillingStats } from '@/lib/hooks/use-subscription';
 import { useAmbassador } from '@/lib/hooks/use-ambassador';
+import { useStreak } from '@/lib/hooks/use-tasks';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -23,6 +24,7 @@ import {
 } from '@/components/ui/tooltip';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { RadialProgress } from '@/components/ui/radial-progress';
 import { 
   User, 
   Settings, 
@@ -50,6 +52,7 @@ export function UserDropdown() {
   // ✅ BATCHED: Single hook replaces 3 separate hooks to prevent N+1 queries
   const { data: billingStats, loading: billingLoading } = useUserBillingStats(profile?.id);
   const { isAmbassador, isActiveAmbassador, loading: ambassadorLoading } = useAmbassador();
+  const { streak, loading: streakLoading } = useStreak();
   const [isOpen, setIsOpen] = useState(false);
   
   // Extract data from batched stats
@@ -236,6 +239,61 @@ export function UserDropdown() {
               <p className="text-xs leading-none text-muted-foreground">
                 {profile?.email || user.email}
               </p>
+              {/* Streak Display with Radial Progress */}
+              <div className="flex items-center gap-2 pt-2 mt-1 border-t border-border/50">
+                {streakLoading ? (
+                  <>
+                    <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+                    <div className="flex-1 space-y-1 min-w-0">
+                      <Skeleton className="h-3 w-24" />
+                      <Skeleton className="h-2 w-32" />
+                    </div>
+                  </>
+                ) : streak ? (
+                  <>
+                    <div className="shrink-0">
+                      <RadialProgress
+                        value={streak.currentStreak}
+                        max={streak.currentStreak < 7 ? 7 : streak.currentStreak < 30 ? 30 : 100}
+                        size={36}
+                        strokeWidth={3}
+                        color="hsl(72, 87%, 62%)"
+                      >
+                        <span className="text-xs font-bold" style={{ color: 'hsl(72, 87%, 62%)' }}>
+                          {streak.currentStreak}
+                        </span>
+                      </RadialProgress>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <Zap className="h-3 w-3 shrink-0" style={{ color: 'hsl(72, 87%, 62%)' }} />
+                        <span className="text-xs font-semibold text-foreground">
+                          {streak.currentStreak} Day{streak.currentStreak !== 1 ? 's' : ''} Streak
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {streak.currentStreak < 7 
+                          ? `${7 - streak.currentStreak} day${7 - streak.currentStreak !== 1 ? 's' : ''} to 7-day milestone`
+                          : streak.currentStreak < 30
+                          ? `${30 - streak.currentStreak} day${30 - streak.currentStreak !== 1 ? 's' : ''} to 30-day milestone`
+                          : streak.currentStreak < 100
+                          ? `${100 - streak.currentStreak} day${100 - streak.currentStreak !== 1 ? 's' : ''} to 100-day milestone`
+                          : 'Max streak achieved!'}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2 w-full">
+                    <div className="h-9 w-9 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center shrink-0">
+                      <Zap className="h-4 w-4 text-muted-foreground/50" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-xs font-semibold text-muted-foreground">No streak yet</span>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">Start your daily login streak!</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />

@@ -12,6 +12,7 @@ import { getUserFromAction } from '@/lib/utils/get-user-from-action';
 import { getCachedUser } from '@/lib/services/auth-cache';
 import { uploadSchema, createRenderSchema } from '@/lib/types';
 import { logger } from '@/lib/utils/logger';
+import { TaskAutomationService } from '@/lib/services/task-automation.service';
 
 const renderService = new RenderService();
 
@@ -99,6 +100,10 @@ export async function createProject(formData: FormData) {
       const project = await ProjectsDAL.create(projectData);
       logger.log('✅ [createProject] Project created successfully:', project.id);
 
+      // ✅ Trigger task automation for project creation (non-blocking)
+      TaskAutomationService.onProjectCreated(userId, project.id)
+        .catch((error) => logger.warn('⚠️ Task automation failed for project creation:', error));
+
       revalidatePath('/dashboard/projects');
       revalidatePath('/render');
       
@@ -125,6 +130,10 @@ export async function createProject(formData: FormData) {
 
       const project = await ProjectsDAL.create(projectData);
       logger.log('✅ [createProject] Tools project created successfully:', project.id);
+
+      // ✅ Trigger task automation for project creation (non-blocking)
+      TaskAutomationService.onProjectCreated(userId, project.id)
+        .catch((error) => logger.warn('⚠️ Task automation failed for project creation:', error));
 
       revalidatePath('/dashboard/projects');
       revalidatePath('/render');
@@ -153,8 +162,13 @@ export async function createProject(formData: FormData) {
         platform
       );
 
-      if (result.success) {
+      if (result.success && result.data) {
         logger.log('✅ [createProject] Project created successfully, revalidating paths...');
+        
+        // ✅ Trigger task automation for project creation (non-blocking)
+        TaskAutomationService.onProjectCreated(userId, result.data.id)
+          .catch((error) => logger.warn('⚠️ Task automation failed for project creation:', error));
+        
         revalidatePath('/dashboard/projects');
         revalidatePath('/render');
         revalidatePath('/canvas');

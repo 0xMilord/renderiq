@@ -284,6 +284,7 @@ export class TasksDAL {
 
   /**
    * Create a new user task completion
+   * Checks for existing completion today to prevent duplicate key errors
    */
   static async createUserTask(
     userId: string, 
@@ -292,6 +293,13 @@ export class TasksDAL {
   ): Promise<UserTask> {
     logger.log('📋 TasksDAL: Creating user task:', userId, taskId);
     try {
+      // Check if task was already completed today
+      const todayCompletion = await this.getUserTaskCompletion(userId, taskId);
+      if (todayCompletion) {
+        logger.log('⚠️ TasksDAL: Task already completed today, returning existing:', todayCompletion.id);
+        return todayCompletion;
+      }
+
       const [result] = await db
         .insert(userTasks)
         .values({
@@ -304,7 +312,15 @@ export class TasksDAL {
 
       logger.log('✅ TasksDAL: User task created:', result.id);
       return result;
-    } catch (error) {
+    } catch (error: any) {
+      // Handle duplicate key error gracefully
+      if (error?.code === '23505' && error?.constraint_name === 'idx_user_task_cooldown') {
+        logger.log('⚠️ TasksDAL: Duplicate task completion detected, fetching existing');
+        const todayCompletion = await this.getUserTaskCompletion(userId, taskId);
+        if (todayCompletion) {
+          return todayCompletion;
+        }
+      }
       logger.error('❌ TasksDAL: Error creating user task:', error);
       throw error;
     }
@@ -671,12 +687,47 @@ export class TasksDAL {
         }
       }
 
-      // Check cooldown
+      // Check if task was already completed today (pending or verified)
+      // This prevents duplicate key errors from the unique constraint
+      const todayCompletion = await this.getUserTaskCompletion(userId, taskId);
+      if (todayCompletion) {
+        if (todayCompletion.status === 'verified') {
+          // Check cooldown for verified completions
+          if (task.cooldownHours > 0) {
+            const hoursSinceCompletion = 
+              (Date.now() - new Date(todayCompletion.createdAt).getTime()) / (1000 * 60 * 60);
+            const cooldownRemaining = task.cooldownHours - hoursSinceCompletion;
+            
+            if (cooldownRemaining > 0) {
+              return { 
+                canComplete: false, 
+                reason: 'Task is on cooldown',
+                cooldownRemaining: Math.ceil(cooldownRemaining)
+              };
+            }
+          } else {
+            // One-time task already completed
+            return { 
+              canComplete: false, 
+              reason: 'Task already completed today'
+            };
+          }
+        } else {
+          // Task is pending verification
+          return { 
+            canComplete: false, 
+            reason: 'Task completion is pending verification'
+          };
+        }
+      }
+
+      // Check cooldown for tasks completed before today
       if (task.cooldownHours > 0) {
-        const lastCompletion = await this.getUserTaskCompletion(userId, taskId);
-        if (lastCompletion && lastCompletion.status === 'verified') {
+        const lastCompletion = await this.getUserTasks(userId, { taskId, status: 'verified' });
+        if (lastCompletion.length > 0) {
+          const mostRecent = lastCompletion[0]; // Already sorted by createdAt DESC
           const hoursSinceCompletion = 
-            (Date.now() - new Date(lastCompletion.createdAt).getTime()) / (1000 * 60 * 60);
+            (Date.now() - new Date(mostRecent.createdAt).getTime()) / (1000 * 60 * 60);
           const cooldownRemaining = task.cooldownHours - hoursSinceCompletion;
           
           if (cooldownRemaining > 0) {

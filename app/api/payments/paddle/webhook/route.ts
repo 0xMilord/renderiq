@@ -4,6 +4,15 @@ import { logger } from '@/lib/utils/logger';
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if Paddle is configured
+    if (!process.env.PADDLE_API_KEY) {
+      logger.error('❌ Paddle Webhook: Paddle is not configured. PADDLE_API_KEY is missing.');
+      return NextResponse.json(
+        { success: false, error: 'Paddle is not configured' },
+        { status: 503 }
+      );
+    }
+
     const body = await request.text();
     const signature = request.headers.get('paddle-signature');
 

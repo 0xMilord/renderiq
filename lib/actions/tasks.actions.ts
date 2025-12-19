@@ -30,6 +30,12 @@ export async function getAvailableTasksAction() {
 
     const tasks = await TasksService.getAvailableTasks(user.id);
     
+    logger.log(`✅ TasksAction: Found ${tasks.length} tasks for user ${user.id}`);
+    
+    if (tasks.length === 0) {
+      logger.warn('⚠️ TasksAction: No tasks found. Tasks may need to be seeded.');
+    }
+    
     return {
       success: true,
       data: tasks,

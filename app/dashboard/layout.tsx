@@ -50,8 +50,9 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { ProjectTree } from '@/components/dashboard/project-tree';
 import { Edit, Copy, Trash2, Share2, Globe, Lock } from 'lucide-react';
 import { useProjects } from '@/lib/hooks/use-projects';
-import { toSentenceCase } from '@/lib/utils';
+import { toSentenceCase } from '@/lib/utils/string';
 import type { Project, RenderChain } from '@/lib/db/schema';
+import { TasksStatsButtons } from '@/components/tasks/tasks-stats-buttons';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -804,6 +805,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <CurrentPageIcon className="h-5 w-5 text-primary shrink-0" />
               <h2 className="text-lg font-semibold text-foreground truncate min-w-0">{currentPageDescription}</h2>
             </div>
+          )}
+          {/* Tasks Page Stats Buttons */}
+          {pathname === '/dashboard/tasks' && (
+            <TasksStatsButtons />
           )}
           {/* Projects Page Actions */}
           {pathname === '/dashboard/projects' && (

@@ -1,229 +1,160 @@
 ---
-title: Creating Your First Chain - Render Chain Management Guide
-description: Learn how to create and manage render chains in Renderiq. Complete guide covering automatic chain creation, manual chain management, version references, and chain organization.
+title: Creating Your First Chain
+description: Learn how chains (chats) organize renders into conversations with multiple versions. Only available for render projects.
 order: 5
 category: Projects
 ---
 
 # Creating Your First Chain
 
-Render chains are the backbone of iteration management in Renderiq. They organize related renders into sequences, allowing you to track design evolution and reference previous versions. This guide covers everything about creating and managing render chains.
+**Chains = Chats**. Each chain is a conversation that tracks multiple render versions as you iterate on your design.
 
-## What is a Render Chain?
+## What is a Chain?
 
-A render chain is a collection of renders organized in sequential order. Each chain:
+A chain is a chat conversation that:
+- Groups related renders together (like a conversation thread)
+- Maintains version history (each render is a version)
+- Preserves context between renders (AI remembers previous turns)
+- Tracks design evolution (see how your design changes)
 
-- **Groups Related Renders**: Keeps related iterations together
-- **Maintains Version History**: Tracks render sequence and order
-- **Enables References**: Allows referencing previous renders in new generations
-- **Tracks Iteration Progress**: Shows how designs evolve over time
-- **Preserves Context**: Maintains context between related renders
+**Important**: Chains only work on **render projects**. They don't work with tools or canvas projects.
 
-### Chain Structure
+## How Chains Work
 
-Each chain includes:
-- **Chain ID**: Unique identifier (UUID)
-- **Project ID**: Parent project reference
-- **Name**: Descriptive chain name
-- **Description**: Optional chain description
-- **Renders**: Array of renders in sequence
-- **Chain Position**: Position of each render in sequence
-- **Timestamps**: Created and updated dates
+Think of a chain as a conversation:
+- **First render** = First message in chat (v1)
+- **Second render** = Second message (v2)
+- **Third render** = Third message (v3)
+- And so on...
 
-## Why Use Chains?
-
-Chains are useful for:
-- **Iteration Tracking**: See how your design evolves
-- **Version Control**: Reference specific versions
-- **Context Preservation**: Maintain context between renders
-- **Organization**: Keep related work together
+Each render is a **version** in the conversation. The AI remembers previous versions, so you can say "make it brighter" and it knows what "it" refers to.
 
 ## Creating a Chain
 
-### Method 1: Automatic Creation (Recommended)
+### Automatic Creation (Recommended)
 
-When you create your first render in a project, a default chain is automatically created:
+Chains are created automatically when you generate your first render:
 
-**Automatic Chain Creation Process**:
-1. User generates first render in a project
-2. System checks for existing chains in the project
-3. If no chains exist, creates a new default chain
-4. Chain name: `[Project Name] - Iterations`
-5. Description: "Automatic chain for render iterations"
-6. Render is added to the chain at position 0
+1. Go to [Render](/render)
+2. Select a **render project** (not tools or canvas)
+3. Generate your first render
+4. A chain is created automatically named: `[Project Name] - Iterations`
+5. Your render becomes **v1** in the chain
 
-**Benefits**:
-- No manual setup required
-- Consistent naming convention
-- Automatic organization
-- Seamless workflow
+**That's it!** No setup needed.
 
-### Method 2: Manual Creation via API
+### Using Existing Chains
 
-Chains can be created manually using the `createRenderChain` server action:
+1. Go to [Render](/render)
+2. Select your render project
+3. Choose an existing chain from the dropdown
+4. Generate a render (it becomes the next version in that chain)
 
-```typescript
-const result = await createRenderChain(
-  projectId,
-  'My Custom Chain',
-  'Description of the chain'
-);
-```
+## Multiple Versions in a Chain
 
-**Use Cases**:
-- Creating multiple chains for different design directions
-- Organizing renders by client or phase
-- Separating experimental from production renders
+Each chain can have many versions:
 
-### Method 3: From Render Page
+- **v1** — First render
+- **v2** — Second render (references v1)
+- **v3** — Third render (references v1 and v2)
+- **v4+** — More iterations
 
-1. Navigate to `/render`
-2. Select your project from the dropdown
-3. **Automatic**: If no chain exists, one is created automatically
-4. **Manual Selection**: Select an existing chain from the chain dropdown
-5. Generate render (it will be added to selected chain)
+The AI uses previous versions as context, so later renders understand the full conversation history.
+
+## Referencing Previous Versions
+
+### In Chat
+
+When generating a new render, reference previous versions:
+
+- `@v1` — Reference the first render
+- `@v2` — Reference the second render
+- `@latest` — Reference the most recent render
+
+### Visual References
+
+Previous renders in the chain are shown above the chat:
+- Click any render to use as reference
+- The reference appears in your prompt automatically
+- AI uses it to maintain consistency
 
 ## Managing Chains
 
-### Viewing Chains
+### View All Chains
 
-View all chains in a project:
-1. Go to project detail page
+1. Go to your render project
 2. Navigate to the "Chains" section
-3. See all chains with render counts
+3. See all chains with version counts
 
 ### Chain Details
 
 Each chain shows:
 - Chain name and description
-- Number of renders
+- Number of versions (renders)
 - Creation date
 - Last updated date
-- Render previews
+- Render previews (all versions)
 
-### Editing Chains
+### Edit Chain
 
-1. Go to chain detail page
-2. Click "Edit Chain"
+1. Go to your chain
+2. Click **"Edit Chain"**
 3. Update name or description
 4. Save changes
 
-### Deleting Chains
+### Delete Chain
 
-1. Go to chain detail page
-2. Click "Delete Chain"
+1. Go to your chain
+2. Click **"Delete Chain"**
 3. Confirm deletion
 
-**Warning**: Deleting a chain will not delete the renders, but they will be removed from the chain.
+**Note**: Deleting a chain doesn't delete the renders, but removes them from the chain organization.
 
-## Adding Renders to Chains
+## Platform Limitations
 
-### Automatic Addition
+**Chains only work on render projects**:
+- ✅ **Render projects** — Chains work here
+- ❌ **Tools projects** — No chains (each tool execution is independent)
+- ❌ **Canvas projects** — No chains (uses files and node graphs instead)
 
-When generating a render:
-- If a chain is selected, the render is automatically added
-- Renders are added in sequence
-- Each render gets a position number
+If you're using tools or canvas, you don't need chains—those platforms work differently.
 
-### Manual Addition
+## Best Practices
 
-1. Go to render detail page
-2. Click "Add to Chain"
-3. Select the chain
-4. Choose position (optional)
-
-## Chain Navigation
-
-### Viewing Chain Renders
-
-1. Navigate to chain detail page
-2. See all renders in sequence
-3. Click any render to view details
-4. Use navigation arrows to move between renders
-
-### Chain Position
-
-Each render in a chain has a position:
-- Position 0: First render
-- Position 1: Second render
-- And so on...
-
-Positions help maintain order and allow referencing by position.
-
-## Referencing Previous Renders
-
-### Using Mentions
-
-In the unified chat interface, you can reference previous renders:
-- Use `@v1` to reference the first render
-- Use `@v2` to reference the second render
-- Use `@latest` to reference the most recent render
-
-### Visual References
-
-When creating a new render:
-- Previous renders in the chain are shown
-- Click to use as reference
-- Reference render appears in the prompt
-
-## Chain Best Practices
-
-### Naming Conventions
-
+**Naming**:
 - Use descriptive names: "Exterior Design Iterations"
-- Include version info: "Kitchen Design v2"
-- Use consistent naming across projects
+- Include context: "Kitchen Design - Client Feedback"
+- Be consistent across projects
 
-### Organization
-
+**Organization**:
 - One chain per design direction
 - Create new chains for major changes
 - Archive completed chains
 
-### Documentation
-
-- Add descriptions to chains
-- Use render notes to document changes
-- Keep track of what worked and what didn't
-
-## Advanced Features
-
-### Chain Branching
-
-Create variations by:
-1. Selecting a render as starting point
-2. Creating a new chain
-3. Adding the selected render as first render
-4. Building from there
-
-### Chain Merging
-
-Currently not available, but you can:
-- Manually add renders from one chain to another
-- Reference renders across chains
+**Version Control**:
+- Each render is a version—don't delete old versions
+- Use version references (`@v1`, `@v2`) to maintain consistency
+- Review version history to see evolution
 
 ## Troubleshooting
 
-### Can't Create Chain
-
-- Ensure you have a project selected
-- Check if you have permission
+**Can't create chain**:
+- Make sure you're using a **render project** (not tools or canvas)
+- Check project permissions
 - Verify project isn't archived
 
-### Renders Not Appearing in Chain
-
+**Renders not appearing in chain**:
 - Check if render was added to chain
 - Verify you're viewing the correct chain
 - Refresh the page
 
-### Chain Not Updating
-
+**Chain not updating**:
 - Refresh the page
 - Check if render generation completed
-- Verify chain selection
+- Verify chain selection in dropdown
 
 ## Next Steps
 
-- [Unified Chat Interface](/docs/unified-chat-interface) - Learn how to generate renders
-- [Prompt Engineering](/docs/prompt-engineering) - Master the art of prompts
-
+- [Unified Chat Interface](/docs/unified-chat-interface) — Learn how to generate renders
+- [Prompt Engineering](/docs/prompt-engineering) — Master prompt writing
+- [Creating Your First Project](/docs/creating-your-first-project) — Set up render projects

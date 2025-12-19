@@ -17,12 +17,25 @@ import { eq } from 'drizzle-orm';
 
 export class PaymentProviderFactory {
   /**
+   * Check if Paddle is configured
+   */
+  private static isPaddleConfigured(): boolean {
+    return !!process.env.PADDLE_API_KEY;
+  }
+
+  /**
    * Get payment provider for a country code
    */
   static getProvider(country: string): PaymentProvider {
     const providerType = getPaymentProviderForCountry(country);
     
     if (providerType === 'razorpay') {
+      return new RazorpayServiceAdapter();
+    }
+    
+    // Check if Paddle is configured before using it
+    if (!this.isPaddleConfigured()) {
+      logger.warn('⚠️ PaymentProviderFactory: Paddle not configured, falling back to Razorpay');
       return new RazorpayServiceAdapter();
     }
     
@@ -42,7 +55,11 @@ export class PaymentProviderFactory {
       return this.getProvider(country);
     } catch (error) {
       logger.error('❌ PaymentProviderFactory: Error getting provider for user:', error);
-      // Default to Paddle (international) on error
+      // Default to Razorpay if Paddle is not configured, otherwise use Paddle
+      if (!this.isPaddleConfigured()) {
+        logger.warn('⚠️ PaymentProviderFactory: Paddle not configured, falling back to Razorpay');
+        return new RazorpayServiceAdapter();
+      }
       return new PaddleService();
     }
   }
@@ -55,6 +72,10 @@ export class PaymentProviderFactory {
       case 'razorpay':
         return new RazorpayServiceAdapter();
       case 'paddle':
+        // Check if Paddle is configured
+        if (!this.isPaddleConfigured()) {
+          throw new Error('Paddle is not configured. Please set PADDLE_API_KEY environment variable.');
+        }
         return new PaddleService();
       default:
         throw new Error(`Unknown payment provider type: ${providerType}`);

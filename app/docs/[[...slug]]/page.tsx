@@ -188,7 +188,7 @@ export default async function DocPage({ params }: DocPageProps) {
   const nextDoc = currentIndex < sortedDocs.length - 1 ? sortedDocs[currentIndex + 1] : null;
 
   return (
-    <DocsLayout>
+    <DocsLayout pageTitle={doc.title}>
       <div className="flex gap-8">
         <article className="prose prose-slate dark:prose-invert max-w-none flex-1">
           {/* Breadcrumbs */}

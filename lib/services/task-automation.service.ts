@@ -175,4 +175,69 @@ export class TaskAutomationService {
       logger.error('❌ TaskAutomation: Error processing daily login:', error);
     }
   }
+
+  /**
+   * Trigger task completion for project creation
+   * Called automatically when project is created
+   */
+  static async onProjectCreated(userId: string, projectId: string): Promise<void> {
+    try {
+      logger.log('📋 TaskAutomation: Project created, checking tasks:', userId, projectId);
+      
+      const task = await TasksDAL.getTaskBySlug('create-project');
+      if (!task || !task.isActive) {
+        return;
+      }
+
+      const canComplete = await TasksService.canCompleteTask(userId, task.id);
+      if (!canComplete.canComplete) {
+        logger.log('📋 TaskAutomation: Cannot complete create-project task:', canComplete.reason);
+        return;
+      }
+
+      const result = await TasksService.completeTask(userId, task.id, {
+        projectId,
+        event: 'project_created',
+      });
+
+      if (result.success) {
+        logger.log('✅ TaskAutomation: Project creation task completed:', result.creditsAwarded);
+      }
+    } catch (error) {
+      logger.error('❌ TaskAutomation: Error processing project creation task:', error);
+      // Don't throw - task automation shouldn't break project creation
+    }
+  }
+
+  /**
+   * Trigger task completion for onboarding completion
+   * Called when user completes onboarding
+   */
+  static async onOnboardingCompleted(userId: string): Promise<void> {
+    try {
+      logger.log('📋 TaskAutomation: Onboarding completed, checking tasks:', userId);
+      
+      const task = await TasksDAL.getTaskBySlug('complete-onboarding');
+      if (!task || !task.isActive) {
+        return;
+      }
+
+      const canComplete = await TasksService.canCompleteTask(userId, task.id);
+      if (!canComplete.canComplete) {
+        logger.log('📋 TaskAutomation: Cannot complete onboarding task:', canComplete.reason);
+        return;
+      }
+
+      const result = await TasksService.completeTask(userId, task.id, {
+        event: 'onboarding_completed',
+      });
+
+      if (result.success) {
+        logger.log('✅ TaskAutomation: Onboarding completion task completed:', result.creditsAwarded);
+      }
+    } catch (error) {
+      logger.error('❌ TaskAutomation: Error processing onboarding completion task:', error);
+      // Don't throw - task automation shouldn't break onboarding
+    }
+  }
 }

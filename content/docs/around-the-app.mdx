@@ -1,454 +1,226 @@
 ---
-title: Around the App - Complete Guide to Renderiq Routes, Pages, and Features
-description: Comprehensive guide to all routes, pages, and features in Renderiq. Learn about dashboard, projects, rendering, canvas editor, gallery, and all available pages.
+title: Around the App
+description: A tour of Renderiq's interface. Learn about Apps, Chat, Canvas, and how to navigate the platform.
 order: 3
-category: Getting Started
+category: Apps
 ---
 
 # Around the App
 
-This comprehensive guide covers all routes, pages, and features in Renderiq, helping you navigate and understand the entire platform.
+Welcome to Renderiq! Here's a quick tour of everything you can do.
 
-## Application Architecture
+## Three Ways to Create
 
-Renderiq is built with Next.js 15 using the App Router pattern:
+### 1. Apps — 24 Specialized Tools
 
-- **Server-Side Rendering (SSR)**: Dashboard and project pages
-- **Client Components**: Interactive UI elements
-- **Server Actions**: Internal operations (rendering, project creation)
-- **API Routes**: External integrations and webhooks
-- **Static Generation**: Documentation and public pages
+Visit [Apps](/apps) to browse our collection of AI-powered tools. Each app is designed for a specific task:
 
-## Main Navigation
+- **Sketch to Render** — Turn hand drawings into photorealistic renders
+- **Render to CAD** — Generate floor plans, elevations, and sections
+- **Change Texture** — Replace interior materials and textures
+- **Render Upscale** — Enhance resolution up to 8x
+- **3D to Render** — Convert 3D model screenshots to renders
+- **Change Lighting** — Adjust interior lighting conditions
+- **Presentation Board Maker** — Create client presentation boards
+- And 17 more...
 
-### Top Navigation Bar
+**How it works**: Upload your image, configure settings, and generate. No prompt writing needed.
 
-Available on all pages (when authenticated):
+### 2. Chat Interface — Conversational Rendering
 
-- **Logo**: Click to return to home page (`/`)
-- **Navigation Links**:
-  - **Home** (`/`) - Landing page
-  - **Gallery** (`/gallery`) - Public renders
-  - **Pricing** (`/pricing`) - Pricing plans and credit packages
-  - **Dashboard** (`/dashboard`) - User dashboard (when signed in)
-- **User Menu** (when signed in):
-  - Profile
-  - Settings
-  - Billing
-  - Sign Out
-- **Authentication Links** (when not signed in):
-  - Sign In (`/login`)
-  - Sign Up (`/signup`)
+The [Render page](/render) lets you chat with AI to create and refine designs:
 
-### Bottom Navigation (Mobile)
+- Natural conversation to describe what you want
+- Upload sketches and reference images
+- Iterate on designs with version control
+- Reference previous renders with @mentions (@v1, @v2, @latest)
 
-Mobile-optimized bottom navigation bar:
+**Best for**: Exploring ideas, refining concepts, and iterative design.
 
-- **Home** (`/`) - Landing page
-- **Render** (`/render`) - Main rendering interface
-- **Gallery** (`/gallery`) - Public gallery
-- **Profile** (`/dashboard/profile`) - User profile
-- **Settings** (`/dashboard/settings`) - Account settings
+### 3. Canvas — Node-Based Editor
 
-**Note**: Bottom nav is hidden on render and project routes for better UX.
+The [Canvas](/canvas) is a visual workflow editor for complex pipelines:
 
-## Public Pages
+- Drag-and-drop node editor
+- Chain multiple AI operations
+- Create reusable workflows
+- Automate batch processing
 
-### Home Page (`/`)
+**Best for**: Production workflows, multi-step processes, and advanced users.
 
-The main landing page featuring:
+## Main Pages
 
-- **Hero Section**: Value proposition and call-to-action
-- **Feature Highlights**: Key platform features
-- **Use Case Examples**: Real-world applications
-- **Testimonials**: User feedback (if available)
-- **Pricing Preview**: Link to plans page
-- **Sign Up CTA**: Prominent signup button
+### [Home](/)
 
-### Gallery (`/gallery`)
+The landing page with:
+- Platform overview
+- Feature highlights
+- Use case examples
+- Sign up options
+
+### [Apps](/apps)
+
+Browse all 24 specialized tools organized by category:
+- Render Transformations
+- Floor Plan Tools
+- Diagram & Visualization
+- Material & Texture
+- Interior Design
+- 3D & Model
+- Presentation & Portfolio
+- Video Generation
+
+### [Render](/render)
+
+The main chat interface for conversational rendering:
+- Project and chain selection
+- Message history
+- Image upload
+- Settings panel (style, quality, aspect ratio)
+- Real-time preview
+
+### [Canvas](/canvas)
+
+Node-based workflow editor:
+- Browse canvas projects
+- Create projects and files
+- Visual node editor for each file
+- Create and save workflows
+- Auto-save functionality
+
+### [Gallery](/gallery)
 
 Public gallery of community renders:
+- Browse and discover renders
+- Search by prompt or user
+- Like and remix renders
+- View render popularity
 
-- **Search Functionality**: Search renders by prompt or user
-- **Grid View**: Visual grid of renders
-- **Infinite Scroll**: Load more renders as you scroll
-- **Like System**: Like renders you enjoy
-- **View Counts**: See render popularity
-- **Remix Functionality**: Use prompts to create new renders
-- **User Attribution**: See who created each render
+### [Dashboard](/dashboard)
 
-**Features**:
-- Real-time search filtering
-- Responsive grid layout
-- Lazy loading for performance
-- Public render discovery
-
-### Pricing (`/pricing`)
-
-Pricing page with subscription plans and credit packages:
-
-- **Subscription Plans Tab**: 
-  - Monthly/Annual billing options
-  - Fixed credit allocations per month
-  - Recurring payments via Razorpay
-  - Plans: Free, Pro, Enterprise
-  
-- **Credit Packages Tab**:
-  - One-time credit purchases
-  - Pay-as-you-go model
-  - Bonus credits on select packages
-  - Instant credit allocation
-
-### Use Cases (`/use-cases`)
-
-Explore different use cases:
-
-- **Real-time Visualization** (`/use-cases/real-time-visualization`)
-- **Initial Prototyping** (`/use-cases/initial-prototyping`)
-- **Material Testing** (`/use-cases/material-testing`)
-- **Design Iteration** (`/use-cases/design-iteration`)
-
-### Legal Pages
-
-- **Privacy Policy** (`/privacy`) - Data privacy information
-- **Terms of Service** (`/terms`) - Terms and conditions
-
-## Authentication Pages
-
-### Sign Up (`/signup`)
-
-Account creation page:
-
-- **Email/Password Form**: Traditional signup
-- **OAuth Buttons**: Google and GitHub signup
-- **Terms Acceptance**: Required checkbox
-- **Email Verification**: Automatic email sent
-- **Success State**: Confirmation after signup
+Your workspace with:
+- Quick stats (projects, renders, credits)
+- Recent activity
+- Quick actions
+- Recent projects
 
-**Features**:
-- Password strength indicator
-- Email validation
-- OAuth redirect handling
-- Error message display
-
-### Sign In (`/login`)
+### [Projects](/dashboard/projects)
 
-Account login page:
+Manage all your projects:
+- Create, edit, and organize projects
+- Search and filter
+- View project details
+- Manage render chains
 
-- **Email/Password Form**: Traditional login
-- **OAuth Buttons**: Google and GitHub login
-- **Remember Me**: Stay signed in option
-- **Forgot Password**: Password reset link
-- **Sign Up Link**: Link to signup page
+### [Library](/dashboard/library)
 
-**Features**:
-- Auto-focus on email field
-- Enter key submission
-- Error handling
-- Redirect after login
+All your renders in one place:
+- Browse all generated renders
+- Filter by project, date, or status
+- Download and share
 
-### Email Verification Dialog
+### [Likes](/dashboard/likes)
 
-Email verification is shown as a closable dialog on the signup page after successful signup. Users can resend the verification email from the dialog.
-
-### Auth Callback (`/auth/callback`)
+Your liked renders:
+- View all renders you've liked
+- Quick access to favorites
+- Organize your inspiration
 
-OAuth callback handler (internal route) for processing OAuth redirects.
+### [Tasks](/dashboard/tasks)
 
-## Dashboard Pages
+Earn credits by completing tasks:
+- Complete tasks to earn credits
+- All tasks happen inside Renderiq
+- Track your progress
 
-### Dashboard Home (`/dashboard`)
+### [Ambassador](/dashboard/ambassador)
 
-Main user dashboard with:
+Ambassador program:
+- Manage your ambassador account
+- Track referrals
+- View earnings
 
-- **Quick Stats**:
-  - Total Projects count
-  - Total Renders count
-  - Success Rate percentage
-  - Credit Balance
-- **Quick Actions**:
-  - AI Chat button (links to `/render`)
-  - Projects button (links to `/dashboard/projects`)
-- **Recent Activity**:
-  - Latest renders with status
-  - Render timestamps
-  - Status badges
-- **Recent Projects**:
-  - Latest 5 projects
-  - Project status
-  - Quick view links
-- **Community Section**:
-  - Link to gallery
-  - Community highlights
-- **Billing Card**:
-  - Credit balance
-  - Link to billing page
-
-**Data Loading**: Server-side rendered with dynamic data fetching.
-
-### Projects Page (`/dashboard/projects`)
-
-Project management interface:
-
-- **Project Grid/List View**: Toggle between views
-- **Search Bar**: Search projects by name or description
-- **Sort Options**: Newest, Oldest, Name (A-Z)
-- **Filter by Status**: All, Completed, Processing, Failed
-- **View Modes**: Default, Compact, List
-- **Create Project Button**: Opens project creation modal
-- **Project Cards**: Display project info and actions
-- **Project Actions**: View, Edit, Duplicate, Delete
+### [API Keys](/dashboard/api-keys)
 
-**Features**:
-- Real-time search filtering
-- Responsive grid layouts
-- Project statistics
-- Bulk operations (coming soon)
+Manage API access:
+- Create and manage API keys
+- Programmatic access to Renderiq
+- Track API usage
 
-### Project Detail (`/dashboard/projects/[slug]`)
+### [Analytics](/dashboard/analytics)
 
-Individual project page:
+Usage statistics:
+- View your usage analytics
+- Track render generation
+- Monitor credit usage
 
-- **Project Header**: Name, description, status
-- **Project Metadata**: Created date, updated date, tags
-- **Renders Section**: All renders in the project
-- **Render Chains**: List of chains in the project
-- **Project Actions**: Edit, Delete, Duplicate
-- **Export Options**: Export project data
-- **Settings**: Project-specific settings
+### [Profile](/dashboard/profile)
 
-**URL Structure**: Uses project slug (URL-friendly identifier) instead of ID.
+Your public profile:
+- View your statistics
+- See your public renders
+- Edit profile information
 
-### Project Chain (`/dashboard/projects/[slug]/chain/[chainId]`)
+### [Settings](/dashboard/settings)
 
-View a specific render chain:
+Account management:
+- Profile information
+- Security settings
+- Notification preferences
+- Render preferences
 
-- **Chain Header**: Name and description
-- **Chain Metadata**: Creation date, render count
-- **Render Sequence**: All renders in order
-- **Version Navigation**: Navigate between versions
-- **Chain Actions**: Edit, Delete
-- **Reference Links**: Link to related renders
+### [Billing](/dashboard/billing)
 
-### Profile (`/dashboard/profile`)
+Credit and subscription management:
+- View credit balance
+- Purchase credits
+- Manage subscription
+- Transaction history
 
-User profile page:
+### [Billing History](/dashboard/billing/history)
 
-- **Profile Information**: Name, email, avatar
-- **Statistics**: Total projects, renders, credits used
-- **Recent Activity**: Latest renders and projects
-- **Edit Profile Button**: Opens edit modal
-- **Account Settings Link**: Quick link to settings
+Payment and transaction history:
+- View all payment transactions
+- Download invoices
+- Track credit transactions
 
-### Settings (`/dashboard/settings`)
+## Navigation
 
-Account settings page:
+### Top Navigation
 
-- **Profile Settings**: Name, email, avatar
-- **Security Settings**: Password change, 2FA (coming soon)
-- **Notification Preferences**: Email and in-app notifications
-- **Render Preferences**: Default quality, aspect ratio, style
-- **Billing Information**: Link to billing page
-- **Danger Zone**: Account deletion
-
-### Billing (`/dashboard/billing`)
-
-Billing and credit management:
-
-- **Credit Balance**: Current available credits
-- **Subscription Status**: Active plan information
-- **Transaction History**: All credit transactions
-- **Purchase Credits**: Buy additional credits
-- **Subscription Management**: Upgrade, downgrade, cancel
-- **Payment Methods**: Manage payment information
-
-## Rendering Pages
-
-### Render Page (`/render`)
-
-Main rendering interface with unified chat:
-
-- **Project Selection**: Dropdown to select project
-- **Chain Selection**: Dropdown to select chain
-- **Chat Interface**: Conversational rendering
-- **Message History**: All previous messages and renders
-- **Input Area**: Text input with controls
-- **Settings Panel**: Style, quality, aspect ratio
-- **Render Preview**: Real-time preview area
-- **Version References**: Reference previous renders
-
-**Features**:
-- Real-time render generation
-- Image upload support
-- Version mention system (@v1, @v2, @latest)
-- Style transfer
-- Advanced settings (temperature, seed, etc.)
-
-**Data Loading**: Server-side rendered with initial projects and chains.
-
-### Project Render (`/project/[projectSlug]`)
-
-Render within a specific project context (legacy route, redirects to `/render`).
-
-### Project Chain Render (`/project/[projectSlug]/chain/[chainId]`)
-
-Render within a specific chain context (legacy route, redirects to `/render`).
-
-## Canvas Pages
-
-### Canvas Home (`/canvas`)
-
-Canvas editor landing page:
-
-- **Project Browser**: Browse all projects
-- **Chain Browser**: Browse all chains
-- **Grid/List View**: Toggle view modes
-- **Search**: Search projects and chains
-- **Create Canvas**: Create new canvas workflow
-- **Recent Canvases**: Quick access to recent work
-
-**Data Loading**: Server-side rendered with projects and chains.
-
-### Canvas Editor (`/canvas/[projectSlug]/[chatId]`)
-
-Node-based visual editor:
-
-- **React Flow Canvas**: Interactive node editor
-- **Node Types**: Text, Image, Variants nodes
-- **Connection System**: Connect nodes visually
-- **Toolbar**: Add nodes, save, export
-- **Minimap**: Navigate large canvases
-- **Auto-save**: Automatic state saving
-- **Graph State**: Stored in database
-
-**Features**:
-- Drag-and-drop node creation
-- Visual workflow building
-- Real-time data flow
-- Export workflows
-
-## API Routes
-
-### AI Endpoints
-
-**Text Completion** (`/api/ai/completion`):
-- POST: Generate text completions
-- Uses Gemini 2.5 Flash
-
-**Chat** (`/api/ai/chat`):
-- POST: Streaming chat interface
-- Uses Gemini 2.5 Flash
-- Supports conversation history
-
-**Generate Image** (`/api/ai/generate-image`):
-- POST: Direct image generation
-- Uses advanced AI image generation models
-- Returns image data or URL
-
-**Generate Video** (`/api/ai/generate-video`):
-- POST: Video generation
-- Supports duration and quality settings
-- Returns video URL
-
-**Enhance Prompt** (`/api/ai/enhance-prompt`):
-- POST: Improve prompts with AI
-- Returns enhanced prompt suggestions
-
-### Canvas Endpoints
-
-**Graph State** (`/api/canvas/[chainId]/graph`):
-- GET: Retrieve canvas graph state
-- POST: Save canvas graph state
-- Updates database with graph data
-
-**Generate Variants** (`/api/canvas/generate-variants`):
-- POST: Generate multiple variants
-- Batch processing support
-
-### Render Endpoints
-
-**Renders** (`/api/renders`):
-- GET: List renders (with optional project filter)
-- POST: Create render (deprecated, use server actions)
-- **Note**: This route is deprecated in favor of server actions
-
-### Other Endpoints
-
-**QR Signup** (`/api/qr-signup`):
-- GET: Generate QR code for signup
-- Mobile-friendly signup flow
-
-**Video** (`/api/video`):
-- POST: Video generation endpoint
-- Handles video-specific parameters
-
-## Key Features Overview
-
-### Unified Chat Interface
-
-The main rendering interface combining:
-- Chat-based interaction
-- Image upload and processing
-- Style selection and customization
-- Quality and aspect ratio controls
-- Real-time render preview
-- Version-controlled render history
-- Reference system for iterations
-
-See [Unified Chat Interface](/docs/unified-chat-interface) for detailed information.
-
-### Render Chains
-
-Organize renders into chains for:
-- Version control and history
-- Iteration tracking
-- Reference management
-- Workflow organization
-- Automatic chain creation
-
-See [Creating Your First Chain](/docs/creating-your-first-chain) for details.
-
-### Canvas Editor
-
-Node-based workflow editor for:
-- Complex workflow creation
-- Visual programming
-- Workflow automation
-- Advanced rendering pipelines
-- Reusable workflow templates
-
-### Project Management
-
-Comprehensive project organization:
-- Multiple projects per user
-- Project slugs for URLs
-- Project metadata and tags
-- Project status tracking
-- Project sharing (coming soon)
-
-## Navigation Tips
-
-1. **Quick Access**: Use bottom nav on mobile for main features
-2. **Breadcrumbs**: Use browser back button or navigation links
-3. **Search**: Use search in projects and gallery pages
-4. **Keyboard Shortcuts**: Enter to submit, Esc to close modals
-5. **Deep Links**: Share project URLs using slugs
-
-## URL Structure
-
-Renderiq uses clean, SEO-friendly URLs:
-
-- **Projects**: `/dashboard/projects/[slug]` (not ID)
-- **Chains**: `/dashboard/projects/[slug]/chain/[chainId]`
-- **Canvas**: `/canvas/[projectSlug]/[chatId]`
-- **Public**: `/gallery`, `/pricing`, `/use-cases`
-
-## Next Steps
-
-- [Creating Your First Project](/docs/creating-your-first-project) - Start creating
-- [Creating Your First Chain](/docs/creating-your-first-chain) - Organize renders
-- [Unified Chat Interface](/docs/unified-chat-interface) - Master rendering
-
-## SEO Keywords
-
-Renderiq routes, dashboard pages, project management, rendering interface, canvas editor, API endpoints, navigation guide, app structure, page overview
+Available on all pages:
+- **Logo** — Return to home
+- **Home** — Landing page
+- **Apps** — Browse tools
+- **Gallery** — Public renders
+- **Pricing** — Plans and credits
+- **Dashboard** — Your workspace (when signed in)
+
+### User Menu
+
+When signed in, access:
+- Profile
+- Settings
+- Billing
+- Sign Out
+
+### Mobile Navigation
+
+Bottom navigation bar (mobile):
+- Home
+- Render
+- Gallery
+- Profile
+- Settings
+
+## Quick Links
+
+- [Getting Started](/docs/getting-started) — Start creating
+- [Creating Your First Project](/docs/creating-your-first-project) — Organize your work
+- [Unified Chat Interface](/docs/unified-chat-interface) — Master the chat
+- [Prompt Engineering](/docs/prompt-engineering) — Write better prompts
+
+## Need Help?
+
+- Check [Known Issues](/docs/known-issues) for common solutions
+- Email us at support@renderiq.io

@@ -8,6 +8,7 @@ import {
   Menu, 
   X, 
   ChevronRight, 
+  ChevronLeft,
   Search,
   Home,
   User,
@@ -15,7 +16,9 @@ import {
   MessageSquare,
   Lightbulb,
   AlertCircle,
-  FileText
+  FileText,
+  Network,
+  Grid3x3
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -39,10 +42,12 @@ const docsNav = [
     ],
   },
   {
-    title: 'Features',
+    title: 'Apps',
     items: [
       { title: 'Unified Chat Interface', href: '/docs/unified-chat-interface', icon: MessageSquare },
       { title: 'Prompt Engineering', href: '/docs/prompt-engineering', icon: Lightbulb },
+      { title: 'Node Editor', href: '/docs/node-editor', icon: Network },
+      { title: 'Apps', href: '/docs/apps', icon: Grid3x3 },
     ],
   },
   {
@@ -56,10 +61,12 @@ const docsNav = [
 
 interface DocsLayoutProps {
   children: React.ReactNode;
+  pageTitle?: string;
 }
 
-export function DocsLayout({ children }: DocsLayoutProps) {
+export function DocsLayout({ children, pageTitle }: DocsLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const pathname = usePathname();
 
@@ -67,6 +74,11 @@ export function DocsLayout({ children }: DocsLayoutProps) {
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
+
+  // Get current page title from nav if not provided
+  const currentPageTitle = pageTitle || docsNav
+    .flatMap(section => section.items)
+    .find(item => item.href === pathname)?.title || 'Documentation';
 
   const filteredNav = docsNav.map(section => ({
     ...section,
@@ -99,79 +111,99 @@ export function DocsLayout({ children }: DocsLayoutProps) {
         {/* Sidebar */}
         <aside
           className={cn(
-            'fixed left-0 z-40 w-64 border-r bg-background transition-transform',
+            'fixed left-0 z-40 border-r bg-background transition-all duration-300',
             'top-[calc(1rem+2.75rem)] h-[calc(100vh-1rem-2.75rem)]',
-            'lg:translate-x-0 lg:top-[calc(1rem+2.75rem)] lg:h-[calc(100vh-1rem-2.75rem)]',
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+            'lg:sticky lg:top-[calc(1rem+2.75rem)] lg:h-[calc(100vh-1rem-2.75rem)]',
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+            sidebarCollapsed ? 'w-16' : 'w-64'
           )}
         >
-          <div className="flex h-full flex-col">
+          <div className="flex h-full flex-col overflow-hidden">
             {/* Desktop Header */}
-            <div className="hidden border-b px-6 py-4 lg:block">
-              <Link href="/docs" className="flex items-center space-x-2">
-                <BookOpen className="h-6 w-6" />
-                <span className="text-lg font-semibold">Documentation</span>
-              </Link>
+            <div className={cn(
+              'hidden border-b px-6 py-4 lg:flex items-center justify-between',
+              sidebarCollapsed && 'px-2 justify-center'
+            )}>
+              {!sidebarCollapsed ? (
+                <Link href="/docs" className="flex items-center space-x-2">
+                  <BookOpen className="h-6 w-6" />
+                  <span className="text-lg font-semibold">Documentation</span>
+                </Link>
+              ) : (
+                <Link href="/docs" className="flex items-center justify-center">
+                  <BookOpen className="h-6 w-6" />
+                </Link>
+              )}
             </div>
 
-            {/* Search */}
-            <div className="border-b p-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search docs..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
+            {/* Search - hidden when collapsed */}
+            {!sidebarCollapsed && (
+              <div className="border-b p-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Search docs..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Navigation */}
-            <ScrollArea className="flex-1">
-              <nav className="p-4 space-y-6">
-                {filteredNav.map((section) => (
-                  <div key={section.title}>
-                    <h3 className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      {section.title}
-                    </h3>
-                    <ul className="space-y-1">
-                      {section.items.map((item) => {
-                        const isActive = pathname === item.href;
-                        const Icon = item.icon;
-                        return (
-                          <li key={item.href}>
-                            <Link
-                              href={item.href}
-                              className={cn(
-                                'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
-                                isActive
-                                  ? 'bg-primary text-primary-foreground font-medium'
-                                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                              )}
-                            >
-                              <Icon className="h-4 w-4" />
-                              <span>{item.title}</span>
-                            </Link>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                ))}
-              </nav>
-            </ScrollArea>
-
-            {/* Footer */}
-            <div className="border-t p-4">
-              <Link
-                href="/"
-                className="text-sm text-muted-foreground hover:text-foreground"
-              >
-                ← Back to Renderiq
-              </Link>
+            <div className="flex-1 overflow-hidden">
+              <ScrollArea className="h-full">
+                <nav className={cn('p-4 space-y-6', sidebarCollapsed && 'px-2')}>
+                  {filteredNav.map((section) => (
+                    <div key={section.title}>
+                      {!sidebarCollapsed && (
+                        <h3 className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          {section.title}
+                        </h3>
+                      )}
+                      <ul className="space-y-1">
+                        {section.items.map((item) => {
+                          const isActive = pathname === item.href;
+                          const Icon = item.icon;
+                          return (
+                            <li key={item.href}>
+                              <Link
+                                href={item.href}
+                                className={cn(
+                                  'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
+                                  sidebarCollapsed && 'justify-center px-2',
+                                  isActive
+                                    ? 'bg-primary text-primary-foreground font-medium'
+                                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                )}
+                                title={sidebarCollapsed ? item.title : undefined}
+                              >
+                                <Icon className="h-4 w-4 flex-shrink-0" />
+                                {!sidebarCollapsed && <span>{item.title}</span>}
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ))}
+                </nav>
+              </ScrollArea>
             </div>
+
+            {/* Footer - hidden when collapsed */}
+            {!sidebarCollapsed && (
+              <div className="border-t p-4">
+                <Link
+                  href="/"
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                >
+                  ← Back to Renderiq
+                </Link>
+              </div>
+            )}
           </div>
         </aside>
 
@@ -183,12 +215,39 @@ export function DocsLayout({ children }: DocsLayoutProps) {
           />
         )}
 
-        {/* Main Content - account for navbar on all screens and docs header on mobile */}
-        <main className="flex-1 lg:ml-64 pt-[calc(1rem+2.75rem+3.5rem)] lg:pt-[calc(1rem+2.75rem)]">
-          <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
-            {children}
-          </div>
-        </main>
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Secondary Header - shows page title with collapse button */}
+          <header className={cn(
+            'sticky top-[calc(1rem+2.75rem)] z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60',
+            'hidden lg:flex',
+            'min-h-[73px] items-center gap-3 px-8 py-4'
+          )}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="h-8 w-8 -ml-2"
+            >
+              {sidebarCollapsed ? (
+                <ChevronRight className="h-4 w-4" />
+              ) : (
+                <ChevronLeft className="h-4 w-4" />
+              )}
+            </Button>
+            <h1 className="text-lg font-semibold">{currentPageTitle}</h1>
+          </header>
+
+          {/* Main Content */}
+          <main className={cn(
+            'flex-1',
+            'pt-[calc(1rem+2.75rem+3.5rem)] lg:pt-0'
+          )}>
+            <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   );

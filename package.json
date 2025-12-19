@@ -28,6 +28,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx scripts/seed-pricing.ts",
+    "db:seed-tasks": "tsx -r tsconfig-paths/register lib/db/seed-tasks.ts",
+    "db:check-tasks": "tsx -r tsconfig-paths/register scripts/check-tasks.ts",
     "generate-paddle-price-mapping": "tsx scripts/generate-paddle-price-mapping.ts",
     "contentlayer": "contentlayer dev",
     "pwa:icons": "tsx scripts/generate-pwa-icons.ts",

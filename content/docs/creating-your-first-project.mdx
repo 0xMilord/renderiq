@@ -1,364 +1,135 @@
 ---
-title: Creating Your First Project - Complete Guide to Project Management in Renderiq
-description: Learn how to create, manage, and organize projects in Renderiq. Step-by-step guide covering project creation, upload options, organization, and best practices.
+title: Creating Your First Project
+description: Learn how to create projects for rendering, tools, and canvas workflows. Quick setup with auto-filled details.
 order: 4
 category: Projects
 ---
 
 # Creating Your First Project
 
-Projects are the foundation of your work in Renderiq. Each project contains your sketches, renders, and render chains. This comprehensive guide covers everything you need to know about creating and managing projects.
-
-## What is a Project?
-
-A project in Renderiq is a container that organizes:
-
-- **Original Sketches/Images**: Your uploaded source materials
-- **All Renders**: Every render generated from those sketches
-- **Render Chains**: Organized sequences of related renders
-- **Project Metadata**: Name, description, tags, status
-- **Project Settings**: Default preferences and configurations
-
-### Project Structure
-
-Each project includes:
-- **Unique ID**: UUID for database reference
-- **Slug**: URL-friendly identifier (e.g., `modern-house-design`)
-- **User ID**: Owner of the project
-- **Name**: Display name
-- **Description**: Optional project description
-- **Original Image ID**: Reference to uploaded sketch
-- **Status**: Processing, Completed, or Failed
-- **Tags**: Array of tags for organization
-- **Metadata**: JSON object for additional data
-- **Timestamps**: Created and updated dates
-
-## Creating a Project
+Projects organize your work. Each project can contain renders, chains, or canvas files depending on the platform.
 
-### Method 1: From the Dashboard Projects Page
-
-1. **Navigate to Projects**: Go to `/dashboard/projects`
-2. **Click "New Project"**: Button in the top right
-3. **Fill Project Details**:
-   - **Project Name**: Enter a descriptive name (required)
-   - **Description**: Add optional description
-4. **Upload Initial Image** (optional):
-   - **Drag & Drop**: Drag image file into upload area
-   - **Click to Browse**: Click upload area to select file
-   - **Supported Formats**: JPG, PNG, WebP
-   - **Maximum Size**: 10MB recommended
-5. **Use Shape Generator** (alternative):
-   - Click "Generate Shape" button
-   - Select shape type
-   - Shape becomes project's initial image
-6. **Create Project**: Click "Create Project" button
+## Quick Project Creation
 
-**What Happens**:
-- Image is uploaded to Supabase Storage
-- Project record is created in database
-- Unique slug is generated from project name
-- Project status is set to "processing"
-- You're redirected to project detail page
+Creating a project is fast—all fields are pre-filled for you:
 
-### Method 2: From the Render Page
+1. Click **"New Project"** anywhere you see it
+2. The modal opens with **auto-filled details**:
+   - Project name (e.g., "Creative Studio")
+   - Description (e.g., "A creative project for exploring new ideas")
+   - Tags (e.g., "design, creative, art")
+3. **Optionally customize** any field
+4. **Optionally upload** a logo/image (or leave blank for auto-generated avatar)
+5. Click **"Create Project"**
 
-1. **Navigate to Render**: Go to `/render`
-2. **No Project Selected**: If no project is selected, you'll see a prompt
-3. **Click "Create New Project"**: Button in the prompt
-4. **Follow Steps**: Same as Method 1
+That's it! You can always edit details later.
 
-### Method 3: Using Server Actions
+## Three Types of Projects
 
-Projects can be created programmatically using the `createProject` server action:
+### Render Projects (Default)
 
-```typescript
-const formData = new FormData();
-formData.append('file', imageFile);
-formData.append('projectName', 'My Project');
-formData.append('description', 'Project description');
+For chat-based rendering and iterative design:
 
-const result = await createProject(formData);
-```
+- Created from [Render page](/render) or [Projects dashboard](/dashboard/projects)
+- Used for conversational AI rendering
+- Contains render chains for tracking iterations
+- Platform: `render`
 
-## Project Upload Options
+**When to use**: Chat-based design, iterative refinement, version control
 
-### Image Upload
+### Tools Projects
 
-**Supported Formats**:
-- JPEG/JPG
-- PNG
-- WebP
+For using specialized apps:
 
-**Size Recommendations**:
-- **Maximum**: 10MB
-- **Recommended**: 2-5MB
-- **Resolution**: 1024x1024 or higher for best results
+- Created automatically when you use an [app](/apps)
+- No file upload needed
+- Organizes tool executions
+- Platform: `tools`
 
-**Upload Methods**:
-1. **Drag & Drop**: Drag file directly onto upload area
-2. **Click to Browse**: Click upload area to open file browser
-3. **Paste from Clipboard**: Copy image and paste (if supported by browser)
+**When to use**: Using any of the 24 specialized tools
 
-### Shape Generator
+### Canvas Projects
 
-Generate basic shapes as starting points:
+For node-based workflows:
 
-- **Square**: Perfect square shape
-- **Rectangle**: Rectangular shape
-- **Circle**: Circular shape
-- **Custom**: Define custom dimensions
+- Created from [Canvas page](/canvas)
+- Contains **files** (like Figma: Project → File → Canvas)
+- Each file has its own node-based workflow
+- Platform: `canvas`
 
-**Use Cases**:
-- Quick prototyping
-- Testing workflows
-- Learning the platform
-- Creating placeholder projects
+**When to use**: Complex multi-step pipelines, visual programming, automation
 
-### Dicebear Avatars
+## Creating Canvas Files
 
-Use Dicebear-generated avatars as project images:
+Canvas projects work differently—they contain files:
 
-- **Automatic Generation**: Unique avatar per project
-- **Consistent Style**: Cohesive visual identity
-- **No Upload Required**: Instant project creation
+1. Go to [Canvas](/canvas)
+2. Select or create a canvas project
+3. Click **"New File"** in the project
+4. Enter file name and description
+5. File opens at `/canvas/[projectSlug]/[fileId]` for editing
 
-## Project Organization
+Each file is a separate node-based workflow within the project.
 
-### Using Tags
+## Managing Projects
 
-Tags help organize projects:
+### View All Projects
 
-- **Add Tags**: When creating or editing project
-- **Multiple Tags**: Add multiple tags per project
-- **Filter by Tags**: Filter projects by tags (coming soon)
-- **Tag Suggestions**: Common tags suggested
+- [Projects Dashboard](/dashboard/projects) — All your projects
+- Filter by platform (render, tools, canvas)
+- Search and sort
 
-**Best Practices**:
-- Use consistent naming (e.g., "residential", "commercial")
-- Create tag hierarchy (e.g., "architecture", "interior-design")
-- Use descriptive tags (e.g., "modern", "traditional")
+### Edit Project
 
-### Project Status
+1. Go to your project
+2. Click **"Edit"**
+3. Update name, description, or tags
+4. Save changes
 
-Projects have three statuses:
+**Note**: Project URLs (slugs) can't be changed after creation.
 
-- **Processing**: Project is being set up or processed
-- **Completed**: Project is ready for use
-- **Failed**: Project creation or processing failed
+### Organize with Tags
 
-**Status Updates**:
-- Automatically updated during project lifecycle
-- Can be manually updated in project settings
-- Affects project visibility and actions
+Add tags when creating or editing:
+- Use consistent tags (e.g., "residential", "commercial")
+- Multiple tags per project
+- Helps with filtering (coming soon)
 
-### Project Metadata
+### Delete Project
 
-Store additional information in metadata:
+1. Go to your project
+2. Click **"Delete"**
+3. Confirm deletion
 
-- **Custom Fields**: Add custom key-value pairs
-- **Project Notes**: Internal notes and reminders
-- **Client Information**: Client details (if applicable)
-- **Timeline**: Project timeline and milestones
-
-## Project Management
-
-### Viewing Projects
-
-**Projects Page** (`/dashboard/projects`):
-- Grid view with project cards
-- List view for detailed information
-- Compact view for quick browsing
-- Search and filter functionality
-
-**Project Detail** (`/dashboard/projects/[slug]`):
-- Full project information
-- All renders in project
-- Render chains
-- Project settings
-
-### Editing Projects
-
-1. **Navigate to Project**: Go to project detail page
-2. **Click "Edit"**: Button in project header
-3. **Update Information**:
-   - Change project name
-   - Update description
-   - Modify tags
-   - Update metadata
-4. **Save Changes**: Click "Save" button
-
-**Note**: Project slug cannot be changed after creation.
-
-### Duplicating Projects
-
-Create a copy of an existing project:
-
-1. **Navigate to Projects**: Go to `/dashboard/projects`
-2. **Find Project**: Locate project to duplicate
-3. **Click Duplicate**: Duplicate button on project card
-4. **Confirm**: Confirm duplication
-5. **New Project Created**: Copy created with "- Copy" suffix
-
-**What Gets Duplicated**:
-- Project name and description
-- Tags and metadata
-- Original image (reference copied)
-- Project settings
-
-**What Doesn't Get Duplicated**:
-- Renders (empty project)
-- Render chains (empty project)
-- Project slug (new slug generated)
-
-### Deleting Projects
-
-1. **Navigate to Project**: Go to project detail page
-2. **Click "Delete"**: Delete button in project header
-3. **Confirm Deletion**: Type project name to confirm
-4. **Project Deleted**: Project and all associated data removed
-
-**Warning**: Deletion is permanent and cannot be undone.
-
-**What Gets Deleted**:
-- Project record
-- All renders in project
-- All render chains
-- Project metadata
-
-**What's Preserved**:
-- Public gallery renders (if made public)
-- Storage files (may be cleaned up later)
-
-## Project Settings
-
-### Basic Settings
-
-Access from project detail page:
-
-- **Name**: Project display name
-- **Description**: Project description
-- **Tags**: Project tags
-- **Visibility**: Public or private (coming soon)
-
-### Advanced Settings
-
-- **Default Style**: Set default rendering style
-- **Default Quality**: Set default quality level
-- **Default Aspect Ratio**: Set default aspect ratio
-- **Auto-save**: Enable/disable auto-save
-- **Notifications**: Project-specific notifications
-
-## Project URLs and Sharing
-
-### Project Slugs
-
-Projects use URL-friendly slugs:
-
-- **Format**: Generated from project name
-- **Example**: "Modern House Design" → `modern-house-design`
-- **Uniqueness**: Automatically ensures uniqueness
-- **Persistence**: Cannot be changed after creation
-
-### Project URLs
-
-- **Detail Page**: `/dashboard/projects/[slug]`
-- **Shareable**: Can be shared with team members (coming soon)
-- **SEO-Friendly**: Clean URLs for better SEO
+**Warning**: This permanently deletes the project and all its content.
 
 ## Best Practices
 
-### Naming Projects
+**Naming**:
+- Use descriptive names: "Modern House - 2024"
+- Include context: "Client ABC - Office Building"
+- Avoid generic: "Project 1", "Test"
 
-- **Be Descriptive**: Use clear, descriptive names
-- **Include Context**: Add project type or client name
-- **Use Dates**: Include dates for time-based projects
-- **Avoid Special Characters**: Keep names simple
-
-**Good Examples**:
-- "Modern Residential House - 2024"
-- "Commercial Office Building - Client ABC"
-- "Interior Design - Living Room"
-
-**Poor Examples**:
-- "Project 1"
-- "Test"
-- "New Project"
-
-### Organizing Projects
-
-- **Use Tags**: Tag projects consistently
-- **Group Related**: Keep related projects together
-- **Archive Old**: Archive completed projects
-- **Regular Cleanup**: Delete unused projects
-
-### Project Workflow
-
-1. **Create Project**: Start with clear name and description
-2. **Upload Sketch**: Add initial sketch or use shape generator
-3. **Generate Renders**: Create renders using unified chat
-4. **Organize Chains**: Group related renders into chains
-5. **Iterate**: Refine and improve renders
-6. **Export**: Export final renders when complete
+**Organization**:
+- One project per major design direction
+- Use tags consistently
+- Archive completed projects
+- Delete unused projects
 
 ## Troubleshooting
 
-### Can't Upload Image
+**Can't create project**:
+- Check you're signed in
+- Verify project limits (check billing)
+- Try refreshing the page
 
-**Common Issues**:
-- File format not supported
-- File size too large
-- Browser compatibility
-- Network issues
-
-**Solutions**:
-- Check file format (JPG, PNG, WebP)
-- Compress image if too large
-- Try different browser
-- Check internet connection
-- Clear browser cache
-
-### Project Not Appearing
-
-**Common Issues**:
-- Project creation failed
-- Wrong account
-- Filter applied
-- Search query active
-
-**Solutions**:
+**Project not appearing**:
+- Check filters/search
+- Verify correct account
 - Refresh the page
-- Check if you're on correct account
-- Clear filters
-- Clear search query
-- Check project status
-
-### Upload Fails
-
-**Common Issues**:
-- File corrupted
-- Network timeout
-- Storage quota exceeded
-- Server error
-
-**Solutions**:
-- Try different image
-- Check file isn't corrupted
-- Reduce file size
-- Try again later
-- Contact support
-
-### Slug Conflicts
-
-**Note**: Slugs are automatically made unique. If a slug exists, a number is appended (e.g., `project-name-2`).
 
 ## Next Steps
 
-After creating your project:
-
-- [Creating Your First Chain](/docs/creating-your-first-chain) - Organize renders
-- [Unified Chat Interface](/docs/unified-chat-interface) - Generate renders
-- [Prompt Engineering](/docs/prompt-engineering) - Write better prompts
-
-## SEO Keywords
-
-Renderiq projects, project management, create project, upload sketches, project organization, project tags, project settings, architectural projects, design projects
+- [Creating Your First Chain](/docs/creating-your-first-chain) — Organize renders
+- [Unified Chat Interface](/docs/unified-chat-interface) — Start rendering
+- [Prompt Engineering](/docs/prompt-engineering) — Write better prompts

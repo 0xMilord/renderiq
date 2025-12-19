@@ -62,6 +62,11 @@ export class RenderService {
         .then(() => logger.log('✅ File storage updated with project slug'))
         .catch((updateError) => logger.warn('⚠️ Failed to update file storage with project slug:', updateError));
 
+      // ✅ Trigger task automation for project creation (non-blocking)
+      const { TaskAutomationService } = await import('./task-automation.service');
+      TaskAutomationService.onProjectCreated(userId, project.id)
+        .catch((error) => logger.warn('⚠️ Task automation failed for project creation:', error));
+
       return { success: true, data: project };
     } catch (error) {
       logger.error('❌ Project creation failed:', error);

@@ -40,14 +40,22 @@ function getPaddleInstance(): Paddle {
     const apiKey = process.env.PADDLE_API_KEY;
     
     if (!apiKey) {
-      throw new Error('Paddle API key is not configured. Please set PADDLE_API_KEY environment variable.');
+      const error = new Error('Paddle API key is not configured. Please set PADDLE_API_KEY environment variable.');
+      logger.error('❌ PaddleService: PADDLE_API_KEY is not set', error);
+      throw error;
     }
     
     // Initialize Paddle SDK
     // Paddle uses environment-based initialization (sandbox vs production)
-    paddleInstance = new Paddle(apiKey, {
-      environment: process.env.PADDLE_ENVIRONMENT === 'production' ? 'production' : 'sandbox',
-    });
+    try {
+      paddleInstance = new Paddle(apiKey, {
+        environment: process.env.PADDLE_ENVIRONMENT === 'production' ? 'production' : 'sandbox',
+      });
+      logger.log('✅ PaddleService: Paddle SDK initialized successfully');
+    } catch (error) {
+      logger.error('❌ PaddleService: Failed to initialize Paddle SDK', error);
+      throw error;
+    }
   }
   
   return paddleInstance;

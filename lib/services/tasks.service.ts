@@ -43,7 +43,10 @@ export class TasksService {
       // ✅ OPTIMIZED: Single query to get all active tasks
       const allTasks = await TasksDAL.getAllTasks({ isActive: true });
       
+      logger.log(`📋 TasksService: Found ${allTasks.length} active tasks in database`);
+      
       if (allTasks.length === 0) {
+        logger.warn('⚠️ TasksService: No active tasks found in database. Tasks may need to be seeded.');
         return [];
       }
 
@@ -63,7 +66,7 @@ export class TasksService {
           }
         });
 
-      // Combine results
+      // Combine results - include all tasks (automatic and manual)
       const availableTasks: AvailableTask[] = allTasks.map(task => {
         const eligibility = eligibilityMap.get(task.id) || { canComplete: true };
         const lastCompletedAt = lastCompletedMap.get(task.id);
@@ -210,8 +213,18 @@ export class TasksService {
         };
       }
 
-      // Award credits
-      const creditsToAward = task.creditsReward;
+      // Calculate credits to award
+      // For daily login task, use streak-based calculation from verification data
+      let creditsToAward = task.creditsReward;
+      if (task.slug === 'daily-login' && userTask.verificationData?.credits) {
+        creditsToAward = userTask.verificationData.credits;
+      } else if (task.verificationConfig?.useStreak && userTask.verificationData?.streakDays) {
+        // Use streak formula if configured
+        const streakDays = userTask.verificationData.streakDays;
+        const baseCredits = task.verificationConfig.baseCredits || task.creditsReward;
+        creditsToAward = this.calculateStreakCredits(streakDays, baseCredits);
+      }
+      
       const creditResult = await this.awardCreditsForTask(
         userTask.userId,
         task.id,
@@ -318,25 +331,29 @@ export class TasksService {
    * - Day 8-30: +2 credits/day
    * - Cap: 3 credits/day max
    */
+  /**
+   * Calculate credits based on streak using quadratic equation
+   * Formula: credits = baseCredits * (streakDays^2 / 4)
+   * This means each doubling of streak time roughly quadruples the reward
+   * 
+   * Examples:
+   * - Day 1: 1 credit (1 * 1^2 / 4 = 0.25, rounded to 1)
+   * - Day 2: 1 credit (1 * 4/4 = 1)
+   * - Day 4: 4 credits (1 * 16/4 = 4)
+   * - Day 7: 12 credits (1 * 49/4 = 12.25, rounded to 12)
+   * - Day 14: 49 credits (1 * 196/4 = 49)
+   * - Day 30: 225 credits (1 * 900/4 = 225)
+   * - Day 60: 900 credits (1 * 3600/4 = 900, but capped at 500)
+   */
   static calculateStreakCredits(streakDays: number, baseCredits: number = 1): number {
     if (streakDays <= 0) return 0;
-    if (streakDays === 1) return baseCredits;
-
-    let credits: number;
+    if (streakDays === 1) return baseCredits; // First day gets base
     
-    if (streakDays <= 7) {
-      // Days 1-7: +1 credit/day
-      credits = baseCredits;
-    } else if (streakDays <= 30) {
-      // Days 8-30: +2 credits/day
-      credits = baseCredits * 2;
-    } else {
-      // Day 31+: Still +2 credits/day (no further increase)
-      credits = baseCredits * 2;
-    }
-
-    // Cap at 3 credits per day (VC-safe limit)
-    return Math.min(credits, 3);
+    // Quadratic formula: base * (streak^2 / 4)
+    const credits = Math.round(baseCredits * (Math.pow(streakDays, 2) / 4));
+    
+    // Cap at reasonable maximum (500 credits per day as per document)
+    return Math.min(credits, 500);
   }
 
   /**
@@ -475,6 +492,7 @@ export class TasksService {
   /**
    * Award daily login credits (helper method)
    * ✅ VC-SAFE: Includes milestone bonuses
+   * Also creates the daily login task completion record
    */
   private static async awardDailyLoginCredits(
     userId: string,
@@ -482,17 +500,37 @@ export class TasksService {
     streakDays: number
   ): Promise<void> {
     try {
-      // Award base daily credits
-      await BillingService.addCredits(
-        userId,
-        credits,
-        'earned',
-        `Daily login (${streakDays} day streak)`,
-        undefined,
-        'bonus'
-      );
+      // Get daily login task and create completion record
+      const dailyLoginTask = await TasksDAL.getTaskBySlug('daily-login');
+      if (dailyLoginTask && dailyLoginTask.isActive) {
+        // Check if already completed today
+        const canComplete = await this.canCompleteTask(userId, dailyLoginTask.id);
+        if (canComplete.canComplete) {
+          // Create the daily login task with streak-based credits
+          const userTask = await TasksDAL.createUserTask(userId, dailyLoginTask.id, {
+            streakDays,
+            credits, // Pre-calculated streak credits
+            event: 'daily_login',
+          });
+          
+          // Verify immediately (automatic task) - will use credits from verification data
+          await this.verifyTask(userTask.id, 'automatic');
+          // Note: Base streak credits are awarded in verifyTask
+        }
+      } else {
+        // Fallback: Award credits directly if task system isn't working
+        // This should rarely happen, but ensures users still get credits
+        await BillingService.addCredits(
+          userId,
+          credits,
+          'earned',
+          `Daily login (${streakDays} day streak)`,
+          undefined,
+          'bonus'
+        );
+      }
 
-      // Award milestone bonuses (one-time)
+      // Award milestone bonuses (one-time) - always award these separately
       if (streakDays === 7) {
         await BillingService.addCredits(
           userId,
