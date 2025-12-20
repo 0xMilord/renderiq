@@ -1,11 +1,12 @@
 'use client';
 
+import { Suspense } from 'react';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { BarChart3, TrendingUp, CreditCard, Zap, Database, FolderOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export function AnalyticsTabsHeader() {
+function AnalyticsTabsHeaderContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -56,6 +57,15 @@ export function AnalyticsTabsHeader() {
         );
       })}
     </div>
+  );
+}
+
+// ✅ FIX: Export wrapped component with Suspense boundary
+export function AnalyticsTabsHeader() {
+  return (
+    <Suspense fallback={<div className="flex-1 h-10 bg-muted animate-pulse rounded shrink-0" />}>
+      <AnalyticsTabsHeaderContent />
+    </Suspense>
   );
 }
 

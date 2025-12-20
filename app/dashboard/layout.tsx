@@ -897,14 +897,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <AnalyticsTabsHeader />
               ) : pathname.match(/^\/dashboard\/projects\/[^/]+$/) ? (
                 /* Project Detail: Tabs on the left, New Chain button shown conditionally */
-                <Suspense fallback={<div className="flex-1 h-10 bg-muted animate-pulse rounded shrink-0" />}>
-                  <ProjectHeaderTabs />
-                </Suspense>
+                <ProjectHeaderTabs />
               ) : pathname === '/dashboard/settings' ? (
                 /* Settings: Tabs on the left, full width, no icon/description */
-                <Suspense fallback={<div className="flex-1 h-10 bg-muted animate-pulse rounded shrink-0" />}>
-                  <SettingsTabsHeader />
-                </Suspense>
+                <SettingsTabsHeader />
               ) : pathname === '/dashboard/api-keys' ? (
                 /* API Keys: Stats on the left, create button on the right */
                 <>

@@ -16,7 +16,6 @@ import { StorageStatsChart } from '@/components/analytics/storage-stats-chart';
 import { ProjectsStatsChart } from '@/components/analytics/projects-stats-chart';
 import { StatsCards } from '@/components/analytics/stats-cards';
 
-// ✅ FIX: Extract component that uses useSearchParams() to wrap in Suspense
 function AnalyticsContent() {
   const { data, loading, error, refetch } = useAnalytics({ days: 30 });
   const searchParams = useSearchParams();
@@ -105,8 +104,7 @@ function AnalyticsContent() {
   );
 }
 
-// ✅ FIX: Wrap the component that uses useSearchParams() in Suspense
-export default function AnalyticsPage() {
+export function AnalyticsClient() {
   return (
     <Suspense fallback={
       <div className="container mx-auto py-8 space-y-6">

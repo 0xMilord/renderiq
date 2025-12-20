@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Plus, Loader2 } from 'lucide-react';
@@ -9,7 +10,7 @@ import { toast } from 'sonner';
 import { useState } from 'react';
 import { useProjects } from '@/lib/hooks/use-projects';
 
-export function ProjectHeaderTabs() {
+function ProjectHeaderTabsContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -111,6 +112,15 @@ export function ProjectHeaderTabs() {
         )}
       </div>
     </>
+  );
+}
+
+// ✅ FIX: Export wrapped component with Suspense boundary
+export function ProjectHeaderTabs() {
+  return (
+    <Suspense fallback={<div className="flex-1 h-10 bg-muted animate-pulse rounded shrink-0" />}>
+      <ProjectHeaderTabsContent />
+    </Suspense>
   );
 }
 

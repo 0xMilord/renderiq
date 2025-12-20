@@ -5,6 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 
+// ✅ FIX: Make page dynamic to avoid useSearchParams() Suspense boundary error
+// This page doesn't use useSearchParams directly, but components in the layout do
+export const dynamic = 'force-dynamic';
+
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
 
 export const metadata: Metadata = {

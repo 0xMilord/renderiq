@@ -12,14 +12,13 @@ const nextConfig: NextConfig = {
   
   // Server components external packages - these won't be bundled, use node_modules directly
   // ✅ FIX: Added for Turbopack compatibility - ensures these packages are resolved correctly
-  // ✅ FIX: Added React and tldraw to prevent server-side bundling issues
+  // ❌ REMOVED: React and react-dom should NOT be externalized - Next.js needs to bundle them for SSR
+  // ✅ FIX: Added tldraw to prevent server-side bundling issues
   serverExternalPackages: [
     '@ai-sdk/google', 
     'ai', 
     '@google/genai', 
     '@google-cloud/vertexai',
-    'react',
-    'react-dom',
     'tldraw',
     '@tldraw/store',
     '@tldraw/utils',
@@ -140,26 +139,8 @@ const nextConfig: NextConfig = {
       };
       
       // ✅ CRITICAL FIX: Ensure React resolves to the correct version
-      // This prevents the "createContext is not a function" error
-      try {
-        const reactPath = require.resolve('react', { paths: [process.cwd()] });
-        const reactDomPath = require.resolve('react-dom', { paths: [process.cwd()] });
-        config.resolve.alias['react'] = reactPath;
-        config.resolve.alias['react-dom'] = reactDomPath;
-        config.resolve.alias['react/jsx-runtime'] = require.resolve('react/jsx-runtime', { paths: [process.cwd()] });
-        config.resolve.alias['react/jsx-dev-runtime'] = require.resolve('react/jsx-dev-runtime', { paths: [process.cwd()] });
-        
-        if (dev) {
-          console.log('✅ Module resolution: React resolved to', reactPath);
-        }
-      } catch (e) {
-        if (dev) {
-          console.warn('⚠️ Module resolution: Could not resolve React, using default');
-        }
-      }
-      
-      // ✅ CRITICAL FIX: Ensure React resolves to the correct version FIRST
-      // This prevents the "createContext is not a function" error
+      // This prevents the "createContext is not a function" error and ensures single React instance
+      // Note: React is now bundled by Next.js (not externalized), so this alias ensures consistency
       try {
         const reactPath = require.resolve('react', { paths: [process.cwd()] });
         const reactDomPath = require.resolve('react-dom', { paths: [process.cwd()] });
@@ -197,15 +178,12 @@ const nextConfig: NextConfig = {
       }
       
       // ✅ FIX: Ensure these packages are not bundled (externalized)
-      // This prevents React and tldraw from being bundled on the server, avoiding multiple instances
+      // ❌ REMOVED: React and react-dom should NOT be externalized - Next.js needs to bundle them for SSR
+      // ✅ FIX: This prevents tldraw from being bundled on the server, avoiding multiple instances
       config.externals = config.externals || [];
       const externalPackages = [
         '@ai-sdk/google', 
         'ai',
-        'react',
-        'react-dom',
-        'react/jsx-runtime',
-        'react/jsx-dev-runtime',
         'tldraw',
         '@tldraw/store',
         '@tldraw/utils',
@@ -220,7 +198,7 @@ const nextConfig: NextConfig = {
       } else if (typeof config.externals === 'function') {
         const originalExternals = config.externals;
         config.externals = (context: any, request: string, callback: any) => {
-          if (externalPackages.includes(request) || request.startsWith('react/') || request.startsWith('@tldraw/')) {
+          if (externalPackages.includes(request) || request.startsWith('@tldraw/')) {
             return callback(null, `commonjs ${request}`);
           }
           return originalExternals(context, request, callback);

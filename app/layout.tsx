@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
+import { Suspense } from "react";
 import { TopLoader } from "@/components/top-loader";
 import "./globals.css";
 import { ConditionalNavbar } from "@/components/conditional-navbar";
@@ -175,7 +176,10 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased m-0 p-0`}
       >
-        <TopLoader />
+        {/* ✅ FIX: Wrap TopLoader in Suspense since it uses useSearchParams() */}
+        <Suspense fallback={null}>
+          <TopLoader />
+        </Suspense>
         {/* Google Tag Manager (noscript) */}
         <noscript>
           <iframe 

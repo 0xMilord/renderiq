@@ -1,9 +1,5 @@
 'use client';
 
-// ✅ FIX: Make page dynamic to avoid useSearchParams() Suspense boundary error
-// This page doesn't use useSearchParams directly, but components in the layout do
-export const dynamic = 'force-dynamic';
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -15,7 +11,7 @@ import { Mail, Loader2, CheckCircle2, AlertCircle, ArrowLeft } from 'lucide-reac
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/lib/hooks/use-auth';
 
-export default function ForgotPasswordPage() {
+export function ForgotPasswordPageClient() {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
