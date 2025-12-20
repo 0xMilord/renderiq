@@ -35,8 +35,8 @@ export function ArchitectureAppsSection() {
   }, []);
 
   const isDarkMode = mounted && (resolvedTheme === 'dark' || theme === 'dark');
-  // Primary color (lime green) for strokes in both light and dark mode
-  const borderClass = 'border-[hsl(72,87%,62%)]';
+  // Theme-aware neutral border color
+  const borderClass = 'border-border';
 
   const tools = getAllTools();
   // ✅ OPTIMIZED: Memoize sorted tools to avoid recalculating on every render

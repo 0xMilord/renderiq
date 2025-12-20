@@ -122,10 +122,15 @@ export async function createPaymentOrderAction(
     }
 
     // Detect user country and get appropriate payment provider
-    const country = await detectUserCountry();
-    const provider = await PaymentProviderFactory.getProviderForUser(user.id);
+    // Pass currency to factory - if INR, it will use Razorpay regardless of country
+    const country = await detectUserCountry(undefined, user.id);
+    const provider = await PaymentProviderFactory.getProviderForUser(user.id, undefined, currency);
     
-    logger.log('🌍 PaymentActions: Using payment provider based on country:', { country, providerType: provider.getProviderType() });
+    logger.log('🌍 PaymentActions: Using payment provider based on country and currency:', { 
+      country, 
+      currency,
+      providerType: provider.getProviderType() 
+    });
 
     // Simple currency logic: India → INR, Not India → USD
     const isRazorpay = provider.getProviderType() === 'razorpay';
@@ -197,12 +202,14 @@ export async function createPaymentSubscriptionAction(
     }
 
     // Detect user country and get appropriate payment provider
-    const country = await detectUserCountry();
-    const provider = await PaymentProviderFactory.getProviderForUser(user.id);
+    // Pass currency to factory - if INR, it will use Razorpay regardless of country
+    const country = await detectUserCountry(undefined, user.id);
+    const provider = await PaymentProviderFactory.getProviderForUser(user.id, undefined, currency);
     const isRazorpay = provider.getProviderType() === 'razorpay';
 
     // Simple currency logic: India → INR, Not India → USD
-    const finalCurrency = isRazorpay ? 'INR' : 'USD';
+    // If currency is provided, use it; otherwise determine from provider
+    const finalCurrency = currency || (isRazorpay ? 'INR' : 'USD');
 
     logger.log('📥 PaymentActions: Received subscription request:', {
       planId,
@@ -218,7 +225,13 @@ export async function createPaymentSubscriptionAction(
     const existingSubscription = await BillingDAL.getUserSubscription(user.id);
     
     if (existingSubscription) {
-      const isActive = existingSubscription.subscription.status === 'active';
+      // ✅ FIXED: Check if subscription is valid (not just active) - handles canceled subscriptions with valid period
+      const status = existingSubscription.subscription.status;
+      const currentPeriodEnd = existingSubscription.subscription.currentPeriodEnd ? new Date(existingSubscription.subscription.currentPeriodEnd) : null;
+      const now = new Date();
+      const isValidStatus = status !== 'unpaid';
+      const isPeriodValid = currentPeriodEnd ? currentPeriodEnd > now : false;
+      const isActive = isValidStatus && isPeriodValid; // Valid subscription (not just status='active')
       const isDifferentPlan = existingSubscription.subscription.planId !== planId;
       
       logger.log('🔍 PaymentActions: Existing subscription check:', {

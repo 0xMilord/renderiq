@@ -206,10 +206,15 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
       setProcessingDialog({ open: true, message: 'Please wait while process is being started...' });
       
       // Determine if this is a plan change (upgrade/downgrade)
-      // If user has active subscription and is selecting a different plan, it's a plan change
-      const hasActiveSubscription = userSubscription?.subscription?.status === 'active';
+      // ✅ FIXED: Check if subscription is valid (not just status='active') - handles canceled subscriptions with valid period
+      const subscriptionStatus = userSubscription?.subscription?.status;
+      const currentPeriodEnd = userSubscription?.subscription?.currentPeriodEnd ? new Date(userSubscription.subscription.currentPeriodEnd) : null;
+      const now = new Date();
+      const hasValidSubscription = subscriptionStatus && 
+        subscriptionStatus !== 'unpaid' && 
+        (currentPeriodEnd ? currentPeriodEnd > now : false);
       const isDifferentPlan = userSubscription?.subscription?.planId !== planId;
-      const isPlanChange = hasActiveSubscription && isDifferentPlan; // Any plan change (upgrade or downgrade)
+      const isPlanChange = hasValidSubscription && isDifferentPlan; // Any plan change (upgrade or downgrade)
       
       // Get plan details for logging
       const newPlan = plans.find(p => p.id === planId);
@@ -521,7 +526,13 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
 
           // Check if this is the user's current plan
           const isCurrentPlan = userSubscription?.subscription?.planId === currentPlan.id;
-          const hasActiveSubscription = userSubscription?.subscription?.status === 'active';
+          // ✅ FIXED: Check if subscription is valid (not just status='active') - handles canceled subscriptions with valid period
+          const subscriptionStatus = userSubscription?.subscription?.status;
+          const currentPeriodEnd = userSubscription?.subscription?.currentPeriodEnd ? new Date(userSubscription.subscription.currentPeriodEnd) : null;
+          const now = new Date();
+          const hasActiveSubscription = subscriptionStatus && 
+            subscriptionStatus !== 'unpaid' && 
+            (currentPeriodEnd ? currentPeriodEnd > now : false);
           
           // Get user's current plan details for proper comparison
           const userPlan = userSubscription?.plan;

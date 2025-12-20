@@ -44,13 +44,24 @@ export class PaymentProviderFactory {
 
   /**
    * Get payment provider for a user (detects country automatically)
+   * Also checks currency - if INR, uses Razorpay
    */
-  static async getProviderForUser(userId: string, request?: Request): Promise<PaymentProvider> {
+  static async getProviderForUser(
+    userId: string, 
+    request?: Request,
+    currency?: string
+  ): Promise<PaymentProvider> {
     try {
-      // Detect country from request
-      const country = await detectUserCountry(request);
+      // Priority 1: If currency is INR, use Razorpay
+      if (currency === 'INR') {
+        logger.log('🌍 PaymentProviderFactory: Currency is INR, using Razorpay', { userId, currency });
+        return new RazorpayServiceAdapter();
+      }
+
+      // Priority 2: Detect country from request and user profile
+      const country = await detectUserCountry(request, userId);
       
-      logger.log('🌍 PaymentProviderFactory: Detected country for user:', { userId, country });
+      logger.log('🌍 PaymentProviderFactory: Detected country for user:', { userId, country, currency });
       
       return this.getProvider(country);
     } catch (error) {

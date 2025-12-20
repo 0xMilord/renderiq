@@ -46,6 +46,7 @@
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
   --animate-shine: shine var(--duration) infinite linear;
+  --animate-cell-ripple: cell-ripple var(--duration, 200ms) ease-out none 1 var(--delay, 0ms);
 
   @keyframes shine {
     0% {
@@ -58,6 +59,19 @@
       background-position: 0% 0%;
     }
   }
+
+  @keyframes cell-ripple {
+    0% {
+      opacity: 0.4;
+    }
+    50% {
+      opacity: 0.8;
+    }
+    100% {
+      opacity: 0.4;
+    }
+  }
+
   @keyframes orbit-spin {
   from {
     transform: rotate(0deg);
@@ -551,6 +565,37 @@ div[class*="tlui-"][style*="z-index"] {
   z-index: 1000;
 }
 
+/* Top Loader - Ensure it's above everything including navbar */
+#nprogress {
+  pointer-events: none;
+  z-index: 99999 !important;
+}
+
+#nprogress .bar {
+  background: hsl(var(--primary)) !important;
+  position: fixed !important;
+  z-index: 99999 !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 3px !important;
+}
+
+#nprogress .peg {
+  display: block;
+  position: absolute;
+  right: 0px;
+  width: 100px;
+  height: 100%;
+  box-shadow: 0 0 10px hsl(var(--primary)), 0 0 5px hsl(var(--primary)) !important;
+  opacity: 1;
+  transform: rotate(3deg) translate(0px, -4px);
+}
+
+#nprogress .spinner {
+  display: none !important;
+}
+
 :root {
   /* Light mode - Map to our app's color variables */
   --tl-color-background: hsl(var(--background));
@@ -661,14 +706,26 @@ div[class*="tlui-"][style*="z-index"] {
   animation: shine var(--duration, 14s) infinite linear;
 }
 
-@keyframes shine {
-  0% {
-    background-position: 0% 0%;
+  @keyframes shine {
+    0% {
+      background-position: 0% 0%;
+    }
+    50% {
+      background-position: 100% 100%;
+    }
+    100% {
+      background-position: 0% 0%;
+    }
   }
-  50% {
-    background-position: 100% 100%;
+
+  @keyframes cell-ripple {
+    0% {
+      opacity: 0.4;
+    }
+    50% {
+      opacity: 0.8;
+    }
+    100% {
+      opacity: 0.4;
+    }
   }
-  100% {
-    background-position: 0% 0%;
-  }
-}

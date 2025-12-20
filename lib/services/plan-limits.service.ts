@@ -31,13 +31,33 @@ export interface PlanLimits {
 export class PlanLimitsService {
   /**
    * Get user's plan limits
-   * Returns Free plan limits if no subscription
+   * Returns Free plan limits if no subscription or subscription is not valid
+   * ✅ FIXED: Uses isUserPro() to check if subscription is valid (handles canceled subscriptions with valid period)
    */
   static async getUserPlanLimits(userId: string): Promise<PlanLimits> {
+    // ✅ FIXED: Check if user is pro first (this validates subscription period)
+    const isPro = await BillingDAL.isUserPro(userId);
+    
+    if (!isPro) {
+      // Free plan defaults
+      return {
+        maxProjects: 3,
+        maxRendersPerProject: 5,
+        creditsPerMonth: 10,
+        allowsHighQuality: false,
+        allowsUltraQuality: false,
+        allowsVideo: false,
+        allowsAPI: false,
+        planName: 'Free',
+      };
+    }
+
+    // User is pro, get subscription details
     const subscription = await BillingDAL.getUserSubscription(userId);
     
     if (!subscription || !subscription.plan) {
-      // Free plan defaults
+      // Fallback to free if subscription not found (shouldn't happen if isPro is true)
+      logger.log('⚠️ PlanLimitsService: User is pro but subscription not found, using free limits');
       return {
         maxProjects: 3,
         maxRendersPerProject: 5,

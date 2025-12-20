@@ -4,6 +4,7 @@ import { memo, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Marquee } from '@/components/ui/marquee';
+import { VercelCard } from '@/components/ui/vercel-card';
 import type { GalleryItemWithDetails } from '@/lib/types';
 
 interface PinterestGalleryProps {
@@ -52,8 +53,8 @@ const PinterestGallery = memo(function PinterestGallery({ items }: PinterestGall
         href={`/gallery/${item.id}`}
         className="block mb-2 group cursor-pointer"
       >
-        <div className="relative w-full overflow-hidden rounded-lg bg-card border border-border hover:shadow-lg transition-all duration-300">
-          <div className={`relative w-full ${aspectRatioClass}`}>
+        <VercelCard className="w-full bg-[hsl(72,87%,62%)] overflow-visible border-2 border-black/[0.2] dark:border-black/[0.2]" showIcons={true} bordered={true} iconClassName="text-black dark:text-black">
+          <div className={`relative w-full ${aspectRatioClass} overflow-hidden rounded-none`}>
             {item.render.type === 'image' ? (
               // Use regular img tag for external storage URLs to avoid Next.js 16 private IP blocking
               (imageUrl?.includes('supabase.co') || imageUrl?.includes('storage.googleapis.com') || imageUrl?.includes(process.env.NEXT_PUBLIC_GCS_CDN_DOMAIN || '')) ? (
@@ -84,7 +85,7 @@ const PinterestGallery = memo(function PinterestGallery({ items }: PinterestGall
               />
             )}
           </div>
-        </div>
+        </VercelCard>
       </Link>
     );
   };
@@ -94,10 +95,7 @@ const PinterestGallery = memo(function PinterestGallery({ items }: PinterestGall
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div
-            key={i}
-            className="group relative overflow-hidden rounded-lg bg-card border border-border aspect-video hover:shadow-lg transition-all duration-300"
-          >
+          <VercelCard key={i} className="bg-[hsl(72,87%,62%)] overflow-visible border-2 border-black/[0.2] dark:border-black/[0.2] aspect-video relative" showIcons={true} bordered={true} iconClassName="text-black dark:text-black">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-primary/5"></div>
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center">
@@ -105,7 +103,7 @@ const PinterestGallery = memo(function PinterestGallery({ items }: PinterestGall
                 <p className="text-muted-foreground font-medium">Sample Render {i}</p>
               </div>
             </div>
-          </div>
+          </VercelCard>
         ))}
       </div>
     );
@@ -120,11 +118,12 @@ const PinterestGallery = memo(function PinterestGallery({ items }: PinterestGall
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 h-[600px] md:h-[800px] overflow-hidden">
-      {/* Column 1: Top to Bottom */}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 h-full overflow-hidden">
+      {/* Column 1: Bottom to Top (Reverse) */}
       <div className="relative h-full overflow-hidden">
         <Marquee
           vertical
+          reverse
           repeat={getRepeatCount(columns[0].length)}
           className="h-full [--duration:50s] [--gap:0.5rem]"
           pauseOnHover
@@ -133,11 +132,10 @@ const PinterestGallery = memo(function PinterestGallery({ items }: PinterestGall
         </Marquee>
       </div>
 
-      {/* Column 2: Bottom to Top (Reverse) */}
+      {/* Column 2: Top to Bottom */}
       <div className="relative h-full overflow-hidden">
         <Marquee
           vertical
-          reverse
           repeat={getRepeatCount(columns[1].length)}
           className="h-full [--duration:60s] [--gap:0.5rem]"
           pauseOnHover
@@ -146,10 +144,11 @@ const PinterestGallery = memo(function PinterestGallery({ items }: PinterestGall
         </Marquee>
       </div>
 
-      {/* Column 3: Top to Bottom */}
+      {/* Column 3: Bottom to Top (Reverse) */}
       <div className="relative h-full overflow-hidden">
         <Marquee
           vertical
+          reverse
           repeat={getRepeatCount(columns[2].length)}
           className="h-full [--duration:55s] [--gap:0.5rem]"
           pauseOnHover

@@ -23,7 +23,7 @@ export type CountryCode = string; // ISO 3166-1 alpha-2 country code
  * 3. Browser locale (fallback)
  * 4. Default to 'US' (international)
  */
-export async function detectUserCountry(request?: Request): Promise<CountryCode> {
+export async function detectUserCountry(request?: Request, userId?: string): Promise<CountryCode> {
   try {
     // Method 1: Check Cloudflare/Vercel geolocation headers (most accurate)
     if (request) {
@@ -31,12 +31,12 @@ export async function detectUserCountry(request?: Request): Promise<CountryCode>
       const vercelCountry = request.headers.get('x-vercel-ip-country');
       
       if (cfCountry && cfCountry !== 'XX' && cfCountry.length === 2) {
-        logger.log('🌍 Country detected from Cloudflare:', cfCountry);
+        logger.log('🌍 Country detected from Cloudflare header:', cfCountry);
         return cfCountry.toUpperCase();
       }
       
       if (vercelCountry && vercelCountry !== 'XX' && vercelCountry.length === 2) {
-        logger.log('🌍 Country detected from Vercel:', vercelCountry);
+        logger.log('🌍 Country detected from Vercel header:', vercelCountry);
         return vercelCountry.toUpperCase();
       }
     }
@@ -60,7 +60,23 @@ export async function detectUserCountry(request?: Request): Promise<CountryCode>
       // headers() only works in server components, ignore if called from client
     }
 
-    // Method 3: Default to US (international) if no geolocation available
+    // Method 3: Check Accept-Language header for locale hints
+    try {
+      if (request) {
+        const acceptLanguage = request.headers.get('accept-language');
+        if (acceptLanguage) {
+          // Check if language includes Indian locales (hi-IN, en-IN, etc.)
+          if (acceptLanguage.toLowerCase().includes('in')) {
+            logger.log('🌍 Country hint from Accept-Language header (contains "in"):', acceptLanguage);
+            // This is just a hint, not definitive, but can help
+          }
+        }
+      }
+    } catch (error) {
+      // Ignore errors
+    }
+
+    // Method 4: Default to US (international) if no geolocation available
     logger.log('🌍 No country detected, defaulting to US (international)');
     return 'US';
   } catch (error) {

@@ -88,6 +88,7 @@ export class BillingDAL {
 
   /**
    * Check if user has an active pro subscription
+   * ✅ FIXED: Consistent with getUserBillingStats logic
    */
   static async isUserPro(userId: string): Promise<boolean> {
     logger.log('🔍 BillingDAL: Checking if user is pro:', userId);
@@ -96,20 +97,39 @@ export class BillingDAL {
       const subscription = await this.getUserSubscription(userId);
       
       if (!subscription || !subscription.plan) {
-        logger.log('❌ BillingDAL: User is not pro');
+        logger.log('❌ BillingDAL: User is not pro - no subscription found');
         return false;
       }
 
-      // Check if subscription is active and not past due
-      const isActive = subscription.subscription.status === 'active';
-      const isPeriodValid = new Date(subscription.subscription.currentPeriodEnd) > new Date();
+      const status = subscription.subscription.status;
+      const currentPeriodEnd = subscription.subscription.currentPeriodEnd ? new Date(subscription.subscription.currentPeriodEnd) : null;
+      const now = new Date();
       
-      const isPro = isActive && isPeriodValid;
-      logger.log(`✅ BillingDAL: User pro status: ${isPro}`);
+      // Check if subscription is in a valid status
+      // - 'active', 'pending', 'past_due' are always valid if period is valid
+      // - 'canceled' is valid if period hasn't ended (user paid for this period, should have access)
+      // - 'unpaid' is NOT valid (hard cancellation, no access)
+      const invalidStatuses = ['unpaid'];
+      const isValidStatus = !invalidStatuses.includes(status);
+      // Check if period is still valid (not expired)
+      const isPeriodValid = currentPeriodEnd ? currentPeriodEnd > now : false;
+      
+      const isPro = isValidStatus && isPeriodValid;
+      
+      logger.log('🔍 BillingDAL: Pro status calculation:', {
+        status,
+        isValidStatus,
+        currentPeriodEnd: currentPeriodEnd?.toISOString(),
+        now: now.toISOString(),
+        isPeriodValid,
+        isPro,
+        subscriptionId: subscription.id,
+        planName: subscription.plan?.name,
+      });
       
       return isPro;
     } catch (error) {
-      console.error('❌ BillingDAL: Error checking pro status:', error);
+      logger.error('❌ BillingDAL: Error checking pro status:', error);
       return false;
     }
   }
@@ -276,7 +296,8 @@ export class BillingDAL {
     logger.log('💰 BillingDAL: Getting batched billing stats for user:', userId);
     
     try {
-      // Get credits with active subscription info in one query
+      // ✅ FIXED: Don't filter by status in JOIN - get all subscriptions and check validity after
+      // This ensures we don't miss subscriptions that might be in 'trialing', 'past_due', etc.
       const [creditsResult] = await db
         .select({
           credits: userCredits,
@@ -286,10 +307,7 @@ export class BillingDAL {
         .from(userCredits)
         .leftJoin(
           userSubscriptions,
-          and(
-            eq(userCredits.userId, userSubscriptions.userId),
-            eq(userSubscriptions.status, 'active')
-          )
+          eq(userCredits.userId, userSubscriptions.userId)
         )
         .leftJoin(subscriptionPlans, eq(userSubscriptions.planId, subscriptionPlans.id))
         .where(eq(userCredits.userId, userId))
@@ -305,42 +323,92 @@ export class BillingDAL {
         };
       }
 
-      // ✅ FIXED: Don't call getUserSubscription again - we already have subscription data from the JOIN
-      // Only fetch full subscription details if we need payment method (lazy load)
-      // For pricing page, we don't need payment method, so skip the extra query
-      const subscription = creditsResult.subscription ? {
-        subscription: creditsResult.subscription,
-        plan: creditsResult.plan,
-        paymentMethod: null, // Payment method not needed for pricing page
-      } : null;
+      logger.log('🔍 BillingDAL: Subscription data found:', {
+        hasSubscription: !!creditsResult.subscription,
+        subscriptionStatus: creditsResult.subscription?.status,
+        subscriptionId: creditsResult.subscription?.id,
+        planId: creditsResult.plan?.id,
+        planName: creditsResult.plan?.name,
+        currentPeriodEnd: creditsResult.subscription?.currentPeriodEnd,
+        cancelAtPeriodEnd: creditsResult.subscription?.cancelAtPeriodEnd,
+      });
 
-      // Calculate isPro from subscription
+      // ✅ FIXED: Check subscription validity properly
+      // Consider subscriptions valid if:
+      // 1. Status is 'active', 'pending', 'past_due', OR 'canceled' (user still has access until period ends)
+      // 2. Status is NOT 'unpaid' (hard cancellation)
+      // 3. Current period hasn't ended yet
       let isPro = false;
-      if (subscription?.subscription && subscription?.plan) {
-        const isActive = subscription.subscription.status === 'active';
-        const isPeriodValid = new Date(subscription.subscription.currentPeriodEnd) > new Date();
-        isPro = isActive && isPeriodValid;
+      let validSubscription = null;
+      
+      if (creditsResult.subscription && creditsResult.plan) {
+        const subscription = creditsResult.subscription;
+        const status = subscription.status;
+        const cancelAtPeriodEnd = subscription.cancelAtPeriodEnd || false;
+        const currentPeriodEnd = subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd) : null;
+        const now = new Date();
+        
+        // Check if subscription is in a valid status
+        // - 'active', 'pending', 'past_due' are always valid if period is valid
+        // - 'canceled' is valid if period hasn't ended (user paid for this period, should have access)
+        // - 'unpaid' is NOT valid (hard cancellation, no access)
+        const invalidStatuses = ['unpaid'];
+        const isValidStatus = !invalidStatuses.includes(status);
+        // Check if period is still valid (not expired)
+        const isPeriodValid = currentPeriodEnd ? currentPeriodEnd > now : false;
+        
+        isPro = isValidStatus && isPeriodValid;
+        
+        logger.log('🔍 BillingDAL: Pro status calculation:', {
+          status,
+          cancelAtPeriodEnd,
+          isValidStatus,
+          currentPeriodEnd: currentPeriodEnd?.toISOString(),
+          now: now.toISOString(),
+          isPeriodValid,
+          isPro,
+          planName: creditsResult.plan.name,
+          planId: creditsResult.plan.id,
+        });
+
+        if (isPro) {
+          validSubscription = {
+            subscription: subscription,
+            plan: creditsResult.plan,
+            paymentMethod: null, // Payment method not needed for pricing page
+          };
+        } else {
+          logger.log('⚠️ BillingDAL: Subscription found but not valid for pro:', {
+            status,
+            cancelAtPeriodEnd,
+            isValidStatus,
+            isPeriodValid,
+            reason: !isValidStatus ? `status is invalid (${status})` : !isPeriodValid ? 'period expired' : 'unknown',
+          });
+        }
+      } else {
+        logger.log('⚠️ BillingDAL: No subscription or plan found for user');
       }
 
       const resetDate = creditsResult.subscription?.currentPeriodEnd 
         ? new Date(creditsResult.subscription.currentPeriodEnd)
-        : subscription?.subscription?.currentPeriodEnd
-        ? new Date(subscription.subscription.currentPeriodEnd)
         : null;
 
       logger.log('✅ BillingDAL: Batched billing stats retrieved', {
         credits: creditsResult.credits.balance,
-        hasSubscription: !!subscription,
+        hasSubscription: !!validSubscription,
+        subscriptionStatus: creditsResult.subscription?.status,
         isPro,
+        resetDate: resetDate?.toISOString(),
       });
 
       return {
         credits: {
           ...creditsResult.credits,
           nextResetDate: resetDate,
-          plan: creditsResult.plan || subscription?.plan,
+          plan: creditsResult.plan || validSubscription?.plan,
         },
-        subscription: subscription || {
+        subscription: validSubscription || {
           subscription: creditsResult.subscription,
           plan: creditsResult.plan,
           paymentMethod: null,
@@ -348,7 +416,7 @@ export class BillingDAL {
         isPro,
       };
     } catch (error) {
-      console.error('❌ BillingDAL: Error getting batched billing stats:', error);
+      logger.error('❌ BillingDAL: Error getting batched billing stats:', error);
       throw error;
     }
   }

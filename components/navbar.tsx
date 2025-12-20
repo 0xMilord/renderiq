@@ -13,7 +13,7 @@ import { UserDropdown } from '@/components/user-dropdown';
 import { AlphaBanner } from '@/components/alpha-banner';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Menu, Home, Sparkles, Images, Lightbulb, CreditCard, FileText, Newspaper, Play, Wrench, Layout, Coins } from 'lucide-react';
+import { Menu, Home, Sparkles, Images, Lightbulb, CreditCard, FileText, Newspaper, Play, Wrench, Layout, Coins, HelpCircle, Info } from 'lucide-react';
 import { 
   FaGithub, 
   FaXTwitter, 
@@ -87,20 +87,10 @@ export function Navbar() {
   const hamburgerMenuItems = [
     { href: '/pricing', icon: CreditCard, label: 'Pricing' },
     { href: '/blog', icon: Newspaper, label: 'Blog' },
-    { 
-      href: '/use-cases', 
-      icon: Lightbulb, 
-      label: 'Use Cases',
-      dropdown: [
-        { href: '/use-cases', label: 'All Use Cases' },
-        { href: '/use-cases/real-time-visualization', label: 'Real-time Visualization' },
-        { href: '/use-cases/initial-prototyping', label: 'Initial Prototyping' },
-        { href: '/use-cases/material-testing-built-spaces', label: 'Material Testing' },
-        { href: '/use-cases/rapid-concept-video', label: 'Rapid Concept Video' },
-        { href: '/use-cases/presentation-ready-graphics', label: 'Presentation Graphics' },
-        { href: '/use-cases/social-media-content', label: 'Social Media Content' },
-      ]
-    },
+    { href: '/use-cases', icon: Lightbulb, label: 'Use Cases' },
+    { href: '/docs', icon: FileText, label: 'Docs' },
+    { href: '/support', icon: HelpCircle, label: 'Support' },
+    { href: '/about', icon: Info, label: 'About' },
   ];
 
   // Check if item is active
@@ -318,7 +308,7 @@ export function Navbar() {
                     </div>
                   )}
                   
-                  {/* Hamburger Menu Button - Show on desktop when authenticated, always on mobile */}
+                  {/* Hamburger Menu Button - Always show */}
                   <Sheet open={isOpen} onOpenChange={setIsOpen}>
                     <SheetTrigger asChild>
                       <Button
@@ -326,7 +316,7 @@ export function Navbar() {
                         size="sm"
                         className={cn(
                           "h-8 w-8 p-0 text-muted-foreground hover:text-primary rounded-full",
-                          user ? "bg-muted/80 backdrop-blur-sm border border-border/50" : "md:hidden" // Hide on desktop when not authenticated
+                          user ? "bg-muted/80 backdrop-blur-sm border border-border/50" : "bg-muted/80 backdrop-blur-sm border border-border/50"
                         )}
                       >
                         <Menu className="h-4 w-4" />
@@ -343,8 +333,8 @@ export function Navbar() {
                         <SheetTitle>Menu</SheetTitle>
                       </SheetHeader>
                       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-                        {/* Apps Grid - 4 columns, 5 rows (20 items) */}
-                        <div className="grid grid-cols-4 gap-3">
+                        {/* Apps Grid - 2 columns */}
+                        <div className="grid grid-cols-2 gap-3">
                           {getAllTools().slice(0, 20).map((tool) => {
                             const iconPath = getAppIconPath(tool.id);
                             return (
@@ -399,58 +389,24 @@ export function Navbar() {
                         {/* Separator */}
                         <div className="h-px bg-border" />
 
-                        {/* Pricing, Blog, and Use Cases - Moved from main navbar */}
+                        {/* Pricing, Blog, Use Cases, Docs, Support, About */}
                         <div className="space-y-2">
                           {hamburgerMenuItems.map((item) => {
                             const Icon = item.icon;
                             const active = isActive(item.href);
-                            const hasDropdown = item.dropdown && item.dropdown.length > 0;
-
-                            if (hasDropdown) {
-                              return (
-                                <div key={item.href} className="space-y-1">
-                                  <Link
-                                    href={item.href}
-                                    className={cn(
-                                      "flex items-center space-x-3 text-muted-foreground hover:text-foreground block px-3 py-2.5 rounded-md text-base font-medium transition-colors border border-transparent hover:bg-primary/20 hover:border-primary",
-                                      active && "text-foreground bg-primary/10 border-primary"
-                                    )}
-                                    onClick={() => setIsOpen(false)}
-                                  >
-                                    <Icon className="h-5 w-5" />
-                                    <span>{item.label}</span>
-                                  </Link>
-                                  <div className="pl-11 space-y-1">
-                                    {item.dropdown?.map((dropdownItem) => (
-                                      <Link
-                                        key={dropdownItem.href}
-                                        href={dropdownItem.href}
-                                        className={cn(
-                                          "block px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground rounded-md transition-colors hover:bg-primary/10",
-                                          isActive(dropdownItem.href) && "text-foreground bg-primary/10"
-                                        )}
-                                        onClick={() => setIsOpen(false)}
-                                      >
-                                        {dropdownItem.label}
-                                      </Link>
-                                    ))}
-                                  </div>
-                                </div>
-                              );
-                            }
 
                             return (
                               <Link
                                 key={item.href}
                                 href={item.href}
                                 className={cn(
-                                  "flex items-center space-x-3 text-muted-foreground hover:text-foreground block px-3 py-2.5 rounded-md text-base font-medium transition-colors border border-transparent hover:bg-primary/20 hover:border-primary",
+                                  "flex flex-row items-center gap-3 text-muted-foreground hover:text-foreground px-3 py-2.5 rounded-md text-base font-medium transition-colors border border-transparent hover:bg-primary/20 hover:border-primary",
                                   active && "text-foreground bg-primary/10 border-primary"
                                 )}
                                 onClick={() => setIsOpen(false)}
                               >
-                                <Icon className="h-5 w-5" />
-                                <span>{item.label}</span>
+                                <Icon className="h-5 w-5 shrink-0" />
+                                <span className="flex-1">{item.label}</span>
                               </Link>
                             );
                           })}

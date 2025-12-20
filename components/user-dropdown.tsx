@@ -7,6 +7,7 @@ import { useUserBillingStats } from '@/lib/hooks/use-subscription';
 import { useAmbassador } from '@/lib/hooks/use-ambassador';
 import { useStreak } from '@/lib/hooks/use-tasks';
 import { Button } from '@/components/ui/button';
+import { RainbowButton } from '@/components/ui/rainbow-button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   DropdownMenu,
@@ -94,9 +95,9 @@ export function UserDropdown() {
     return (
       <div className="flex items-center space-x-2">
         <Link href="/login">
-          <Button size="sm">
+          <RainbowButton size="sm">
             Get Started
-          </Button>
+          </RainbowButton>
         </Link>
       </div>
     );
@@ -113,16 +114,18 @@ export function UserDropdown() {
   const subscriptionStatus = subscription?.subscription?.status || creditsData?.subscription?.status;
   const isActiveSubscription = subscriptionStatus === 'active';
   const isPendingSubscription = subscriptionStatus === 'pending';
-  const isFailedSubscription = subscriptionStatus === 'past_due' || subscriptionStatus === 'unpaid' || subscriptionStatus === 'canceled';
+  // ✅ FIXED: Only show "Failed" for truly failed subscriptions (unpaid, past_due)
+  // Canceled subscriptions with valid period should still show as pro (handled by isPro check)
+  const isFailedSubscription = subscriptionStatus === 'past_due' || subscriptionStatus === 'unpaid';
   
-  // Only show plan name for active subscriptions (not pending/failed/canceled)
-  // Also check isPro to ensure user is actually pro
-  const planName = (isActiveSubscription && isPro) ? creditsData?.plan?.name : null;
-  const hasPlan = !!planName && isActiveSubscription && isPro;
+  // ✅ FIXED: Show plan name if user is pro (regardless of subscription status)
+  // This handles canceled subscriptions that still have valid period
+  const planName = isPro ? (creditsData?.plan?.name || subscription?.plan?.name) : null;
+  const hasPlan = !!planName && isPro;
   
-  // Show status badge if subscription is pending or failed
-  const showStatusBadge = isPendingSubscription || isFailedSubscription;
-  const statusBadgeText = isPendingSubscription ? 'Pending' : isFailedSubscription ? 'Failed' : null;
+  // Show status badge if subscription is pending or failed (but not canceled with valid period)
+  const showStatusBadge = isPendingSubscription || (isFailedSubscription && !isPro);
+  const statusBadgeText = isPendingSubscription ? 'Pending' : (isFailedSubscription && !isPro) ? 'Failed' : null;
 
   return (
     <TooltipProvider>
@@ -212,7 +215,7 @@ export function UserDropdown() {
                   {(profile?.name || user.email)?.charAt(0).toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
-              {isPro && isActiveSubscription && (
+              {isPro && (
                 <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
                   <Crown className="w-2.5 h-2.5 text-white" />
                 </div>
@@ -231,7 +234,7 @@ export function UserDropdown() {
                 <p className="text-sm font-medium leading-none">
                   {profile?.name || user.user_metadata?.name || user.user_metadata?.full_name || 'User'}
                 </p>
-                {isPro && isActiveSubscription && (
+                {isPro && (
                   <Badge variant="default" className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0">
                     <Crown className="w-3 h-3 mr-1" />
                     Pro

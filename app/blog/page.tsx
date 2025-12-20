@@ -1,8 +1,6 @@
 import { Metadata } from 'next';
-import Link from 'next/link';
-import { BlogCard } from '@/components/blog/blog-card';
-import { Badge } from '@/components/ui/badge';
 import Script from 'next/script';
+import { BlogClient } from '@/components/blog/blog-client';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
 
@@ -185,52 +183,18 @@ export default function BlogPage() {
             <h1 className="text-4xl md:text-5xl font-bold mb-2">
               Renderiq Blog
             </h1>
-            <p className="text-xl text-muted-foreground mb-2">
+            <p className="text-xl text-muted-foreground mb-6">
               Insights, tutorials, and guides on AI-powered architectural rendering, 
               visualization tools, and design workflows for architects and designers.
             </p>
-            
-            {/* Categories */}
-            {categories.length > 0 && (
-              <div className="flex flex-wrap gap-3">
-                <Link href="/blog">
-                  <Badge variant="secondary" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors">
-                    All Posts
-                  </Badge>
-                </Link>
-                {categories.map((category) => {
-                  const catSlug = category.toLowerCase().replace(/\s+/g, '-');
-                  return (
-                    <Link key={category} href={`/blog/category/${catSlug}`}>
-                      <Badge 
-                        variant="secondary" 
-                        className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-                      >
-                        {category}
-                      </Badge>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
           </div>
         </div>
       </section>
 
-      {/* Blog List */}
+      {/* Blog List with Client-Side Filtering */}
       <section className="py-5 px-4 sm:px-6 lg:px-8">
         <div className="container mx-auto">
-          {blogs.length === 0 ? (
-            <div className="text-center py-5">
-              <p className="text-muted-foreground">No blog posts yet. Check back soon!</p>
-            </div>
-          ) : (
-            <div className="grid gap-6 md:gap-6 lg:gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {blogs.map((blog: any) => (
-                <BlogCard key={blog.slug} blog={blog} />
-              ))}
-            </div>
-          )}
+          <BlogClient blogs={blogs} categories={categories} />
         </div>
       </section>
       </div>

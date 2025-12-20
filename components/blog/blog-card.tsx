@@ -27,9 +27,10 @@ interface BlogCardProps {
     featured?: boolean;
   };
   className?: string;
+  onCategoryClick?: (category: string) => void;
 }
 
-export function BlogCard({ blog, className }: BlogCardProps) {
+export function BlogCard({ blog, className, onCategoryClick }: BlogCardProps) {
 
   const handleShare = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -188,7 +189,14 @@ export function BlogCard({ blog, className }: BlogCardProps) {
             {/* Category Badge */}
             {(blog.category || blog.collection) && (
               <>
-                <Badge variant="outline" className="text-xs font-medium shrink-0">
+                <Badge 
+                  variant="outline" 
+                  className={cn(
+                    "text-xs font-medium shrink-0",
+                    onCategoryClick && "cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                  )}
+                  onClick={onCategoryClick ? () => onCategoryClick((blog.category || blog.collection)!.toLowerCase()) : undefined}
+                >
                   {blog.category || blog.collection}
                 </Badge>
                 {/* Vertical Separator */}

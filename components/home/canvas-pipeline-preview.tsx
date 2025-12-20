@@ -190,15 +190,17 @@ export function CanvasPipelinePreview() {
     },
   ], []);
 
-  // Apply auto-layout using dagre
+  // Apply auto-layout using dagre (same as main canvas)
   const initialNodes = useMemo(() => {
-    return AutoLayout.applyDagreLayout(rawNodes, initialEdges, {
-      direction: 'LR',
-      nodeWidth: 320,
-      nodeHeight: 200,
-      rankSep: 150,
-      nodeSep: 80,
+    // Use dagre algorithm to auto-layout nodes based on their connections
+    const layoutedNodes = AutoLayout.applyDagreLayout(rawNodes, initialEdges, {
+      direction: 'LR', // Left to Right layout
+      nodeWidth: 320,   // Standard node width
+      nodeHeight: 200,  // Standard node height
+      rankSep: 150,     // Vertical spacing between ranks
+      nodeSep: 80,      // Horizontal spacing between nodes in same rank
     });
+    return layoutedNodes;
   }, [rawNodes, initialEdges]);
 
   return (

@@ -54,12 +54,12 @@ export function AECFeaturesGrid() {
   const duplicatedFeatures = [...features, ...features];
 
   return (
-    <div className="relative w-full h-full min-h-[200px] overflow-hidden">
-      <div className="flex animate-marquee-aec h-full">
+    <div className="relative w-full h-full overflow-hidden flex items-center justify-center">
+      <div className="flex animate-marquee-aec h-full items-center">
         {duplicatedFeatures.map((feature, index) => (
           <div
             key={`${feature.title}-${index}`}
-            className="flex-shrink-0 w-1/3 md:w-1/3 lg:w-1/4 h-full border-r border-border last:border-r-0"
+            className="flex-shrink-0 w-[280px] md:w-[320px] lg:w-[360px] h-full border-r border-border last:border-r-0"
           >
             <Feature {...feature} />
           </div>
@@ -79,9 +79,9 @@ const Feature = ({
   icon: React.ReactNode;
 }) => {
   return (
-    <div className="flex flex-col justify-center h-full py-4 md:py-6 px-3 md:px-4 relative group/feature">
+    <div className="flex flex-col justify-center items-center h-full py-4 md:py-6 px-3 md:px-4 relative group/feature text-center">
       <div className="opacity-0 group-hover/feature:opacity-100 transition duration-200 absolute inset-0 h-full w-full bg-gradient-to-t from-primary/5 to-transparent pointer-events-none" />
-      <div className="mb-2 md:mb-3 relative z-10 text-muted-foreground group-hover/feature:text-primary transition-colors">
+      <div className="mb-2 md:mb-3 relative z-10 text-muted-foreground group-hover/feature:text-primary transition-colors flex items-center justify-center">
         {icon}
       </div>
       <div className="text-xs md:text-sm lg:text-base font-semibold mb-1 md:mb-2 relative z-10">

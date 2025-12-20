@@ -58,7 +58,7 @@ export function HowItWorksSection() {
   const gridColor = isDarkMode ? 'rgb(107, 114, 128)' : 'rgb(107, 114, 128)'; // gray-500
 
   return (
-    <section id="how-it-works" className="relative py-20 px-4 sm:px-6 lg:px-8 bg-background/80 backdrop-blur-sm overflow-hidden">
+    <section id="how-it-works" className="relative py-8 px-8 bg-background/80 backdrop-blur-sm overflow-hidden">
       {/* Flickering Grid Background */}
       <FlickeringGrid
         className="absolute inset-0 z-0 size-full"

@@ -477,14 +477,17 @@ export class RendersDAL {
           id: users.id,
           name: users.name,
           avatar: users.avatar,
-          // ✅ FIXED: Use raw SQL column names with aliases in EXISTS subquery
+          // ✅ FIXED: Use EXISTS subquery with new pro logic - allows canceled subscriptions with valid period
+          // Status can be 'active', 'canceled', 'pending', 'past_due' (not 'unpaid')
+          // Period must not be expired (currentPeriodEnd > now)
           isPro: sql<boolean>`EXISTS (
             SELECT 1 
             FROM ${userSubscriptions} us
             INNER JOIN ${subscriptionPlans} sp ON us.plan_id = sp.id
             WHERE us.user_id = ${users.id}
-              AND us.status = 'active'
-              AND sp.name IN ('Pro', 'Starter', 'Enterprise')
+              AND us.status != 'unpaid'
+              AND us.current_period_end > NOW()
+              AND sp.name IN ('Pro', 'Starter', 'Enterprise', 'Pro Annual', 'Enterprise Annual')
             LIMIT 1
           )`.as('is_pro'),
         },
@@ -765,14 +768,17 @@ export class RendersDAL {
           id: users.id,
           name: users.name,
           avatar: users.avatar,
-          // ✅ OPTIMIZED: Use EXISTS subquery instead of JOIN - much faster
+          // ✅ FIXED: Use EXISTS subquery with new pro logic - allows canceled subscriptions with valid period
+          // Status can be 'active', 'canceled', 'pending', 'past_due' (not 'unpaid')
+          // Period must not be expired (currentPeriodEnd > now)
           isPro: sql<boolean>`EXISTS (
             SELECT 1 
             FROM ${userSubscriptions} us
             INNER JOIN ${subscriptionPlans} sp ON us.plan_id = sp.id
             WHERE us.user_id = ${users.id}
-              AND us.status = 'active'
-              AND sp.name IN ('Pro', 'Starter', 'Enterprise')
+              AND us.status != 'unpaid'
+              AND us.current_period_end > NOW()
+              AND sp.name IN ('Pro', 'Starter', 'Enterprise', 'Pro Annual', 'Enterprise Annual')
             LIMIT 1
           )`.as('is_pro'),
         },

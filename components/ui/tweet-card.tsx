@@ -1,5 +1,4 @@
-/* eslint-disable @next/next/no-img-element */
-import { Suspense, useMemo } from "react"
+import { Suspense } from "react"
 import { enrichTweet, type EnrichedTweet, type TweetProps } from "react-tweet"
 import { getTweet, type Tweet } from "react-tweet/api"
 
@@ -102,10 +101,13 @@ export const TweetHeader = ({ tweet }: { tweet: EnrichedTweet }) => (
         <img
           title={`Profile picture of ${tweet.user.name}`}
           alt={tweet.user.screen_name}
-          height={48}
-          width={48}
+          height={72}
+          width={72}
           src={tweet.user.profile_image_url_https}
           className="overflow-hidden rounded-full border border-transparent"
+          loading="lazy"
+          crossOrigin="anonymous"
+          referrerPolicy="no-referrer"
         />
       </a>
       <div>
@@ -113,12 +115,12 @@ export const TweetHeader = ({ tweet }: { tweet: EnrichedTweet }) => (
           href={tweet.user.url}
           target="_blank"
           rel="noreferrer"
-          className="flex items-center font-semibold whitespace-nowrap"
+          className="flex items-center font-semibold whitespace-nowrap text-lg"
         >
           {truncate(tweet.user.name, 20)}
           {tweet.user.verified ||
             (tweet.user.is_blue_verified && (
-              <Verified className="ml-1 inline size-4 text-blue-500" />
+              <Verified className="ml-1 inline size-6 text-blue-500" />
             ))}
         </a>
         <div className="flex items-center space-x-1">
@@ -126,7 +128,7 @@ export const TweetHeader = ({ tweet }: { tweet: EnrichedTweet }) => (
             href={tweet.user.url}
             target="_blank"
             rel="noreferrer"
-            className="text-sm text-gray-500 transition-all duration-75"
+            className="text-base text-gray-500 transition-all duration-75"
           >
             @{truncate(tweet.user.screen_name, 16)}
           </a>
@@ -135,7 +137,7 @@ export const TweetHeader = ({ tweet }: { tweet: EnrichedTweet }) => (
     </div>
     <a href={tweet.url} target="_blank" rel="noreferrer">
       <span className="sr-only">Link to tweet</span>
-      <Twitter className="size-5 items-start text-[#3BA9EE] transition-all ease-in-out hover:scale-105" />
+      <Twitter className="size-7 items-start text-[#3BA9EE] transition-all ease-in-out hover:scale-105" />
     </a>
   </div>
 )
@@ -154,7 +156,7 @@ export const TweetBody = ({ tweet }: { tweet: EnrichedTweet }) => (
               href={entity.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm font-normal text-gray-500"
+              className="text-base font-normal text-gray-500"
             >
               <span>{entity.text}</span>
             </a>
@@ -163,7 +165,7 @@ export const TweetBody = ({ tweet }: { tweet: EnrichedTweet }) => (
           return (
             <span
               key={idx}
-              className="text-sm font-normal"
+              className="text-base font-normal"
               dangerouslySetInnerHTML={{ __html: entity.text }}
             />
           )
@@ -223,7 +225,6 @@ export const TweetMedia = ({ tweet }: { tweet: EnrichedTweet }) => {
   )
 }
 
-// ✅ OPTIMIZED: Memoize enriched tweet calculation
 export const MagicTweet = ({
   tweet,
   className,
@@ -232,12 +233,11 @@ export const MagicTweet = ({
   tweet: Tweet
   className?: string
 }) => {
-  // ✅ REACT 19 OPTIMIZED: Memoize expensive enrichTweet operation
-  const enrichedTweet = useMemo(() => enrichTweet(tweet), [tweet])
+  const enrichedTweet = enrichTweet(tweet)
   return (
     <div
       className={cn(
-        "relative flex h-fit w-full max-w-lg flex-col gap-2 overflow-hidden rounded-lg border p-4 backdrop-blur-md",
+        "relative flex h-fit w-full max-w-full flex-col gap-3 overflow-hidden rounded-lg border p-6 backdrop-blur-md",
         className
       )}
       {...props}
@@ -282,10 +282,3 @@ export const TweetCard = async ({
     </Suspense>
   )
 }
-
-
-
-
-
-
-

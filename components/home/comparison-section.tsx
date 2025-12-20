@@ -178,10 +178,10 @@ export function ComparisonSection() {
   };
 
   return (
-    <section id="comparison" className="py-12 sm:py-16 lg:py-20 px-0 bg-background/80 backdrop-blur-sm w-full">
+    <section id="comparison" className="py-8 px-8 bg-background/80 backdrop-blur-sm w-full">
       <div className="w-full max-w-full mx-auto">
         {/* Header */}
-        <div className="px-4 sm:px-6 lg:px-8 mb-6 sm:mb-8 lg:mb-12">
+        <div className="mb-6 sm:mb-8 lg:mb-12">
           <div className="text-center">
             <DecoratedText className="text-xs sm:text-sm font-medium px-3 py-1.5 mb-3 sm:mb-4">
               Comparison
@@ -200,7 +200,7 @@ export function ComparisonSection() {
         </div>
 
         {/* Comparison Table - Full Width */}
-        <div className="w-full px-2 sm:px-4 lg:px-8">
+        <div className="w-full">
           <VercelCard className="overflow-visible" showIcons={true} bordered>
             <div className="bg-card/95 backdrop-blur-md overflow-x-auto overflow-y-visible">
             {/* Table Header */}

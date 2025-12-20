@@ -239,23 +239,8 @@ export default async function Home() {
       {/* How It Works Section */}
       <HowItWorksSection />
 
-      {/* Gallery Preview - Full Width */}
-      <GallerySection galleryItems={galleryItems} />
-
-      {/* Architecture Apps Section */}
-      <ArchitectureAppsSection />
-
-      {/* Pricing Section - Fetched from Database */}
-      <HomepagePricing />
-
-      {/* Testimonials Section - With Twitter - Full Width */}
-      <TestimonialsSection testimonials={twitterTestimonials} />
-
-      {/* Use Cases Section - AEC Professionals */}
-      <UseCasesSection />
-
       {/* Features Section - Full Width Grid */}
-      <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 bg-card/80 backdrop-blur-sm">
+      <section id="features" className="py-8 px-8 bg-card/80 backdrop-blur-sm">
         <div className="w-full">
           <div className="text-center lg:text-left mb-16">
             <DecoratedText className="text-sm font-medium px-3 py-1.5 mb-4">
@@ -276,149 +261,167 @@ export default async function Home() {
               {/* Row 1: Node-Based Editor + Tools (3/4) | Chat-Based Renderer (1/4) */}
               <div className="flex flex-col lg:flex-row lg:min-h-[700px] overflow-visible">
                 {/* Left Column - Node-Based Editor + Tools stacked (65% width) */}
-                <div className="flex flex-col lg:w-[65%] h-full">
+                <div className="flex flex-col lg:w-[65%] self-stretch min-h-0">
                   {/* Node-Based Editor */}
-                  <div className="p-4 bg-card transition-all duration-300 flex flex-col relative overflow-visible">
-                      <ShineBorder borderWidth={0.5} shineColor={["#8B5CF6", "#D1F24A"]} className="z-30 opacity-60" />
-                      <div className="flex items-center gap-3 mb-3 relative z-10">
-                        <DecoratedText className="text-xl md:text-2xl font-bold text-card-foreground px-3 py-1.5 flex items-center gap-3">
-                          <Network className="h-5 w-5 text-foreground" />
-                          <span className="w-px h-6 bg-foreground/30 mx-2" />
-                          Node-Based Editor
-                        </DecoratedText>
+                  <div className="relative">
+                    <ShineBorder borderWidth={0.5} shineColor={["#8B5CF6", "#D1F24A"]} sides="external" className="z-30 opacity-60" style={{ borderRadius: 0, '--border-radius': '0px' } as React.CSSProperties} />
+                    <VercelCard className="bg-card transition-all duration-300 flex flex-col relative overflow-visible rounded-none" showIcons={true} bordered={true}>
+                      <div className="p-4">
+                        <div className="flex items-center gap-3 mb-3 relative z-10">
+                          <DecoratedText className="text-xl md:text-2xl font-bold text-card-foreground px-3 py-1.5 flex items-center gap-3">
+                            <Network className="h-5 w-5 text-foreground" />
+                            <span className="w-px h-6 bg-foreground/30 mx-2" />
+                            Node-Based Editor
+                          </DecoratedText>
+                        </div>
+                        <div className="w-full h-px bg-border mb-6 relative z-10"></div>
+                        <div className="h-[300px] md:h-[350px] lg:h-[400px] relative z-10">
+                          <CanvasPipelinePreview />
+                        </div>
                       </div>
-                      <div className="w-full h-px bg-border mb-6 relative z-10"></div>
-                      <div className="h-[300px] md:h-[350px] lg:h-[400px] relative z-10">
-                        <CanvasPipelinePreview />
-                      </div>
-                    </div>
+                    </VercelCard>
+                  </div>
 
                   {/* 24 Specialized Tools */}
-                  <div className="p-4 rounded-none bg-card transition-all duration-300 flex flex-col relative overflow-visible flex-1 min-h-0">
-                      <ShineBorder borderWidth={0.5} shineColor={["#D1F24A", "#8B5CF6"]} className="z-30 opacity-60" />
-                      <div className="flex items-center gap-3 mb-3 relative z-10">
-                        <DecoratedText className="text-xl md:text-2xl font-bold text-card-foreground px-3 py-1.5 flex items-center gap-3">
-                          <Grid3x3 className="h-5 w-5 text-foreground" />
-                          <span className="w-px h-6 bg-foreground/30 mx-2" />
-                          {toolCount} Specialized AEC Tools
-                        </DecoratedText>
+                  <div className="relative flex-1 min-h-0">
+                    <ShineBorder borderWidth={0.5} shineColor={["#D1F24A", "#8B5CF6"]} sides="external" className="z-30 opacity-60" style={{ borderRadius: 0, '--border-radius': '0px' } as React.CSSProperties} />
+                    <VercelCard className="h-full rounded-none bg-card transition-all duration-300 flex flex-col relative overflow-visible" showIcons={true} bordered={true}>
+                      <div className="p-4 flex flex-col h-full">
+                        <div className="flex items-center gap-3 mb-3 relative z-10">
+                          <DecoratedText className="text-xl md:text-2xl font-bold text-card-foreground px-3 py-1.5 flex items-center gap-3">
+                            <Grid3x3 className="h-5 w-5 text-foreground" />
+                            <span className="w-px h-6 bg-foreground/30 mx-2" />
+                            {toolCount} Specialized AEC Tools
+                          </DecoratedText>
+                        </div>
+                        <div className="w-full h-px bg-border mb-6 relative z-10"></div>
+                        <div className="flex-1 relative z-10 flex items-center overflow-visible">
+                          <LogoStepper
+                            logos={tools.slice(0, 18).map(tool => ({
+                              icon: (
+                                <img
+                                  src={`/apps/icons/${tool.id}.svg`}
+                                  alt={tool.name}
+                                  className="w-full h-full object-contain"
+                                />
+                              ),
+                              label: tool.name,
+                            }))}
+                            direction="loop"
+                            animationDelay={1.5}
+                            animationDuration={0.5}
+                            visibleCount={7}
+                          />
+                        </div>
                       </div>
-                      <div className="w-full h-px bg-border mb-6 relative z-10"></div>
-                      <div className="min-h-[280px] relative z-10 flex items-center overflow-visible">
-                        <LogoStepper
-                          logos={tools.slice(0, 18).map(tool => ({
-                            icon: (
-                              <img
-                                src={`/apps/icons/${tool.id}.svg`}
-                                alt={tool.name}
-                                className="w-full h-full object-contain"
-                              />
-                            ),
-                            label: tool.name,
-                          }))}
-                          direction="loop"
-                          animationDelay={1.5}
-                          animationDuration={0.5}
-                          visibleCount={7}
-                        />
-                      </div>
-                    </div>
+                    </VercelCard>
+                  </div>
                 </div>
 
                 {/* Right Column - Chat-Based Renderer (35% width, max 600px) */}
-                <div className="lg:w-[35%] lg:max-w-[600px] self-stretch min-h-[500px] md:min-h-[600px] lg:min-h-0">
-                  <div className="h-full p-4 bg-card transition-all duration-300 flex flex-col relative overflow-visible">
-                    <ShineBorder borderWidth={0.5} shineColor={["#3B82F6", "#8B5CF6"]} className="z-30 opacity-60" />
-                    <div className="flex-shrink-0 flex items-center gap-2 mb-2 relative z-10">
-                      <DecoratedText className="text-xl md:text-2xl font-bold text-card-foreground px-3 py-1.5 flex items-center gap-3">
-                        <MessageSquare className="h-5 w-5 text-foreground" />
-                        <span className="w-px h-6 bg-foreground/30 mx-2" />
-                        Chat-Based Renderer
-                      </DecoratedText>
+                <div className="lg:w-[35%] lg:max-w-[600px] self-stretch min-h-[500px] md:min-h-[600px] lg:min-h-0 relative">
+                  <ShineBorder borderWidth={0.5} shineColor={["#3B82F6", "#8B5CF6"]} sides="external" className="z-30 opacity-60" style={{ borderRadius: 0, '--border-radius': '0px' } as React.CSSProperties} />
+                  <VercelCard className="h-full bg-card transition-all duration-300 flex flex-col relative overflow-visible rounded-none" showIcons={true} bordered={true}>
+                    <div className="p-4 flex flex-col h-full">
+                      <div className="flex-shrink-0 flex items-center gap-2 mb-2 relative z-10">
+                        <DecoratedText className="text-xl md:text-2xl font-bold text-card-foreground px-3 py-1.5 flex items-center gap-3">
+                          <MessageSquare className="h-5 w-5 text-foreground" />
+                          <span className="w-px h-6 bg-foreground/30 mx-2" />
+                          Chat-Based Renderer
+                        </DecoratedText>
+                      </div>
+                      <div className="flex-shrink-0 w-full h-px bg-border mb-2 relative z-10"></div>
+                      <div className="flex-1 min-h-[400px] md:min-h-[500px] relative z-10 overflow-hidden border border-border">
+                        <ChatRendererDemo className="h-full" galleryRenders={chatDemoRenders} />
+                      </div>
                     </div>
-                    <div className="flex-shrink-0 w-full h-px bg-border mb-2 relative z-10"></div>
-                    <div className="flex-1 min-h-[400px] md:min-h-[500px] relative z-10 overflow-hidden border border-border">
-                      <ChatRendererDemo className="h-full" galleryRenders={chatDemoRenders} />
-                    </div>
-                  </div>
+                  </VercelCard>
                 </div>
               </div>
 
               {/* Row 2: AI Models (35%) | Native Plugins (65%) */}
               <div className="flex flex-col lg:flex-row">
                 {/* AI Models - 35% width */}
-                <div className="lg:w-[35%]">
-                  <div className="h-full p-4 rounded-none bg-card transition-all duration-300 flex flex-col relative overflow-visible ">
-                    <ShineBorder borderWidth={0.5} shineColor={["#A855F7", "#D1F24A"]} className="z-30 opacity-60" />
-                    <div className="flex items-center gap-3 mb-3 relative z-10">
-                      <DecoratedText className="text-xl md:text-2xl font-bold text-card-foreground px-3 py-1.5 flex items-center gap-3">
-                        <Brain className="h-5 w-5 text-foreground" />
-                        <span className="w-px h-6 bg-foreground/30 mx-2" />
-                        All Your Favorite Models
-                      </DecoratedText>
+                <div className="lg:w-[35%] relative">
+                  <ShineBorder borderWidth={0.5} shineColor={["#A855F7", "#D1F24A"]} sides="external" className="z-30 opacity-60" style={{ borderRadius: 0, '--border-radius': '0px' } as React.CSSProperties} />
+                  <VercelCard className="h-full rounded-none bg-card transition-all duration-300 flex flex-col relative overflow-visible" showIcons={true} bordered={true}>
+                    <div className="p-4">
+                      <div className="flex items-center gap-3 mb-3 relative z-10">
+                        <DecoratedText className="text-xl md:text-2xl font-bold text-card-foreground px-3 py-1.5 flex items-center gap-3">
+                          <Brain className="h-5 w-5 text-foreground" />
+                          <span className="w-px h-6 bg-foreground/30 mx-2" />
+                          All Your Favorite Models
+                        </DecoratedText>
+                      </div>
+                      <div className="w-full h-px bg-border mb-6 relative z-10"></div>
+                      <div className="flex-1 min-h-[200px] relative z-10">
+                        <AnimatedBeamMultipleOutputDemo className="h-full" />
+                      </div>
                     </div>
-                    <div className="w-full h-px bg-border mb-6 relative z-10"></div>
-                    <div className="flex-1 min-h-[200px] relative z-10">
-                      <AnimatedBeamMultipleOutputDemo className="h-full" />
-                    </div>
-                  </div>
+                  </VercelCard>
                 </div>
 
                 {/* Native Plugins - 65% width */}
-                <div className="lg:w-[65%] min-h-[300px] md:min-h-[350px]">
-                  <div className="h-full p-4 rounded-none bg-card transition-all duration-300 flex flex-col relative overflow-visible group">
-                    <ShineBorder borderWidth={0.5} shineColor={["#F97316", "#A855F7"]} className="z-30 opacity-60" />
-                    <div className="flex items-center gap-3 mb-3 relative z-10">
-                      <DecoratedText className="text-xl md:text-2xl font-bold text-card-foreground px-3 py-1.5 flex items-center gap-3">
-                        <Puzzle className="h-5 w-5 text-foreground" />
-                        <span className="w-px h-6 bg-foreground/30 mx-2" />
-                        Native Plugins
-                      </DecoratedText>
+                <div className="lg:w-[65%] min-h-[300px] md:min-h-[350px] relative">
+                  <ShineBorder borderWidth={0.5} shineColor={["#F97316", "#A855F7"]} sides="external" className="z-30 opacity-60" style={{ borderRadius: 0, '--border-radius': '0px' } as React.CSSProperties} />
+                  <VercelCard className="h-full rounded-none bg-card transition-all duration-300 flex flex-col relative overflow-visible group" showIcons={true} bordered={true}>
+                    <div className="p-4">
+                      <div className="flex items-center gap-3 mb-3 relative z-10">
+                        <DecoratedText className="text-xl md:text-2xl font-bold text-card-foreground px-3 py-1.5 flex items-center gap-3">
+                          <Puzzle className="h-5 w-5 text-foreground" />
+                          <span className="w-px h-6 bg-foreground/30 mx-2" />
+                          Native Plugins
+                        </DecoratedText>
+                      </div>
+                      <div className="w-full h-px bg-border mb-6 relative z-10"></div>
+                      <div className="flex-1 min-h-[200px] relative z-10 flex items-stretch">
+                        <PluginsExpandableDemo />
+                      </div>
                     </div>
-                    <div className="w-full h-px bg-border mb-6 relative z-10"></div>
-                    <div className="flex-1 min-h-[200px] relative z-10 flex items-stretch">
-                      <PluginsExpandableDemo />
-                    </div>
-                  </div>
+                  </VercelCard>
                 </div>
               </div>
 
               {/* Row 3: Platform Built for AEC (3/4) | API Access (1/4) */}
               <div className="flex flex-col lg:flex-row">
                 {/* Platform Built for AEC - 3/4 width */}
-                <div className="lg:w-3/4">
-                  <div className="h-full p-4 bg-card transition-all duration-300 flex flex-col relative overflow-visible">
-                    <ShineBorder borderWidth={0.5} shineColor={["#10B981", "#F97316"]} className="z-30 opacity-60" />
-                    <div className="flex items-center gap-3 mb-3 relative z-10">
-                      <DecoratedText className="text-xl md:text-2xl font-bold text-card-foreground px-3 py-1.5 flex items-center gap-3">
-                        <Layers className="h-5 w-5 text-foreground" />
-                        <span className="w-px h-6 bg-foreground/30 mx-2" />
-                        Platform Built for AEC
-                      </DecoratedText>
+                <div className="lg:w-3/4 relative">
+                  <ShineBorder borderWidth={0.5} shineColor={["#10B981", "#F97316"]} sides="external" className="z-30 opacity-60" style={{ borderRadius: 0, '--border-radius': '0px' } as React.CSSProperties} />
+                  <VercelCard className="h-full bg-card transition-all duration-300 flex flex-col relative overflow-visible rounded-none" showIcons={true} bordered={true}>
+                    <div className="p-4">
+                      <div className="flex items-center gap-3 mb-3 relative z-10">
+                        <DecoratedText className="text-xl md:text-2xl font-bold text-card-foreground px-3 py-1.5 flex items-center gap-3">
+                          <Layers className="h-5 w-5 text-foreground" />
+                          <span className="w-px h-6 bg-foreground/30 mx-2" />
+                          Platform Built for AEC
+                        </DecoratedText>
+                      </div>
+                      <div className="w-full h-px bg-border mb-6 relative z-10"></div>
+                      <div className="flex-1 relative z-10 flex items-center justify-center min-h-0">
+                        <AECFeaturesGrid />
+                      </div>
                     </div>
-                    <div className="w-full h-px bg-border mb-6 relative z-10"></div>
-                    <div className="flex-1 relative z-10">
-                      <AECFeaturesGrid />
-                    </div>
-                  </div>
+                  </VercelCard>
                 </div>
 
                 {/* API Access - 1/4 width */}
-                <div className="lg:w-1/4">
-                  <div className="h-full p-4 bg-card transition-all duration-300 flex flex-col relative overflow-visible">
-                    <ShineBorder borderWidth={0.5} shineColor={["#6366F1", "#10B981"]} className="z-30 opacity-60" />
-                    <div className="flex items-center gap-3 mb-3 relative z-10">
-                      <DecoratedText className="text-xl md:text-2xl font-bold text-card-foreground px-3 py-1.5 flex items-center gap-3">
-                        <Key className="h-5 w-5 text-foreground" />
-                        <span className="w-px h-6 bg-foreground/30 mx-2" />
-                        API Access
-                      </DecoratedText>
+                <div className="lg:w-1/4 relative">
+                  <ShineBorder borderWidth={0.5} shineColor={["#6366F1", "#10B981"]} sides="external" className="z-30 opacity-60" style={{ borderRadius: 0, '--border-radius': '0px' } as React.CSSProperties} />
+                  <VercelCard className="h-full bg-card transition-all duration-300 flex flex-col relative overflow-visible rounded-none" showIcons={true} bordered={true}>
+                    <div className="p-4">
+                      <div className="flex items-center gap-3 mb-3 relative z-10">
+                        <DecoratedText className="text-xl md:text-2xl font-bold text-card-foreground px-3 py-1.5 flex items-center gap-3">
+                          <Key className="h-5 w-5 text-foreground" />
+                          <span className="w-px h-6 bg-foreground/30 mx-2" />
+                          API Access
+                        </DecoratedText>
+                      </div>
+                      <div className="w-full h-px bg-border mb-6 relative z-10"></div>
+                      <div className="flex-1 h-[250px] md:h-[280px] lg:h-[300px] relative z-10 flex items-center justify-center">
+                        <ApiOrbitDemo className="w-full h-full" />
+                      </div>
                     </div>
-                    <div className="w-full h-px bg-border mb-6 relative z-10"></div>
-                    <div className="flex-1 h-[250px] md:h-[280px] lg:h-[300px] relative z-10 flex items-center justify-center">
-                      <ApiOrbitDemo className="w-full h-full" />
-                    </div>
-                  </div>
+                  </VercelCard>
                 </div>
               </div>
 
@@ -427,6 +430,21 @@ export default async function Home() {
           </VercelCard>
         </div>
       </section>
+
+      {/* Gallery Preview - Full Width */}
+      <GallerySection galleryItems={galleryItems} />
+
+      {/* Architecture Apps Section */}
+      <ArchitectureAppsSection />
+
+      {/* Pricing Section - Fetched from Database */}
+      <HomepagePricing />
+
+      {/* Testimonials Section - With Twitter - Full Width */}
+      <TestimonialsSection testimonials={twitterTestimonials} />
+
+      {/* Use Cases Section - AEC Professionals */}
+      <UseCasesSection />
 
       {/* Comparison Section */}
       <ComparisonSection />
@@ -438,62 +456,66 @@ export default async function Home() {
       <FAQSection />
 
       {/* CTA Section - With Clock Component */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-[hsl(72,87%,62%)] relative overflow-hidden">
-        <div className="max-w-7xl mx-auto relative border-[2px] border-[hsl(0,0%,7%)] p-8 md:p-12">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-8 md:gap-16">
-            {/* Left Column - Text Content */}
-            <div className="flex flex-col items-start text-left space-y-6 flex-1">
-              <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[hsl(0,0%,7%)]">
-                <span className="block">Render Faster</span>
-                <span className="block">Than Ever</span>
-              </h2>
-              <p className="text-lg md:text-xl text-[hsl(0,0%,20%)] max-w-lg">
-                Join thousands of AEC professionals creating stunning visualizations with Renderiq
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/signup">
-                  <RainbowButton 
-                    size="lg" 
-                    variant="default" 
-                    className="px-8 py-4 text-lg font-semibold !text-[hsl(72,87%,62%)] dark:!text-[hsl(72,87%,62%)] [&]:!bg-[hsl(0,0%,7%)] [&]:hover:!bg-[hsl(0,0%,15%)]"
-                  >
-                    <Globe className="h-6 w-6 mr-2" />
-                    Get Started Free
-                    <ArrowRight className="h-5 w-5 ml-2" />
-                  </RainbowButton>
-                </Link>
-                <Link href="/gallery">
-                  <RainbowButton 
-                    size="lg" 
-                    variant="outline" 
-                    className="px-8 py-4 text-lg font-semibold border-2 border-[hsl(0,0%,7%)] !text-[hsl(72,87%,62%)] dark:!text-[hsl(72,87%,62%)] [&]:!bg-[hsl(0,0%,7%)] [&]:hover:!bg-[hsl(0,0%,15%)]"
-                  >
-                    <GalleryVertical className="h-6 w-6 mr-2" />
-                    View Gallery
-                  </RainbowButton>
-                </Link>
-              </div>
-              <div className="flex flex-wrap items-center gap-6 text-sm text-[hsl(0,0%,20%)]">
-                <div className="flex items-center gap-2">
-                  <FileCheck className="h-4 w-4" />
-                  <span>No credit card required</span>
+      <section className="py-8 px-8 bg-[hsl(72,87%,62%)] relative overflow-hidden">
+        <div className="w-full max-w-full mx-auto relative">
+          <VercelCard className="w-full bg-[hsl(72,87%,62%)] overflow-visible border-2 border-black/[0.2] dark:border-black/[0.2]" showIcons={true} bordered={true} iconClassName="text-black dark:text-black">
+            <div className="py-8 px-8">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-8 md:gap-16">
+                {/* Left Column - Text Content */}
+                <div className="flex flex-col items-start text-left space-y-6 flex-1">
+                  <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[hsl(0,0%,7%)]">
+                    <span className="block">Render Faster</span>
+                    <span className="block">Than Ever</span>
+                  </h2>
+                  <p className="text-lg md:text-xl text-[hsl(0,0%,20%)] max-w-lg">
+                    Join thousands of AEC professionals creating stunning visualizations with Renderiq
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <Link href="/signup">
+                      <RainbowButton 
+                        size="lg" 
+                        variant="default" 
+                        className="px-8 py-4 text-lg font-semibold !text-[hsl(72,87%,62%)] dark:!text-[hsl(72,87%,62%)] [&]:!bg-[hsl(0,0%,7%)] [&]:hover:!bg-[hsl(0,0%,15%)]"
+                      >
+                        <Globe className="h-6 w-6 mr-2" />
+                        Get Started Free
+                        <ArrowRight className="h-5 w-5 ml-2" />
+                      </RainbowButton>
+                    </Link>
+                    <Link href="/gallery">
+                      <RainbowButton 
+                        size="lg" 
+                        variant="outline" 
+                        className="px-8 py-4 text-lg font-semibold border-2 border-[hsl(0,0%,7%)] !text-[hsl(72,87%,62%)] dark:!text-[hsl(72,87%,62%)] [&]:!bg-[hsl(0,0%,7%)] [&]:hover:!bg-[hsl(0,0%,15%)]"
+                      >
+                        <GalleryVertical className="h-6 w-6 mr-2" />
+                        View Gallery
+                      </RainbowButton>
+                    </Link>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-6 text-sm text-[hsl(0,0%,20%)]">
+                    <div className="flex items-center gap-2">
+                      <FileCheck className="h-4 w-4" />
+                      <span>No credit card required</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <ClockIcon className="h-4 w-4" />
+                      <span>Setup in 2 minutes</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Award className="h-4 w-4" />
+                      <span>25 free credits to start</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <ClockIcon className="h-4 w-4" />
-                  <span>Setup in 2 minutes</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Award className="h-4 w-4" />
-                  <span>10 free credits to start</span>
-                </div>
-              </div>
-            </div>
 
-            {/* Right Column - Clock */}
-            <div className="w-full md:w-[320px] lg:w-[380px] aspect-square flex-shrink-0">
-              <Clock />
+                {/* Right Column - Clock */}
+                <div className="w-full md:w-[320px] lg:w-[380px] aspect-square flex-shrink-0">
+                  <Clock />
+                </div>
+              </div>
             </div>
-          </div>
+          </VercelCard>
         </div>
       </section>
 

@@ -18,7 +18,7 @@ export function HomepagePricingClient({ plans, creditPackages }: HomepagePricing
   const { convert, format, loading } = useCurrency();
 
   return (
-    <section className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
+    <section className="py-8 px-8 bg-muted/30">
       <div className="w-full">
         {/* Header */}
         <div className="text-center lg:text-left mb-12">

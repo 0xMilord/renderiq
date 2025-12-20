@@ -36,45 +36,51 @@ export async function GET(request: Request) {
       // Only create profile if email is confirmed
       // OAuth providers (Google, GitHub) auto-confirm emails
       if (data.user.email_confirmed_at) {
-        // ✅ REMOVED: Avatar generation - now handled by UserOnboardingService
-        // Pass avatar from OAuth metadata, or undefined to let service generate it
-        const avatarUrl = data.user.user_metadata?.avatar_url || undefined;
-        
-        // ✅ Use centralized fingerprint parser utility
-        const { getFingerprintFromRequest } = await import('@/lib/utils/fingerprint-parser');
-        const deviceFingerprint = getFingerprintFromRequest(request);
-        
-        // Create user profile with sybil detection (only for verified users)
-        logger.log('👤 Auth Callback: Creating user profile for verified user:', data.user.email);
-        const ipAddress = getClientIdentifier(request);
-        const profileResult = await UserOnboardingService.createUserProfile(
-          {
-            id: data.user.id,
-            email: data.user.email!,
-            name: data.user.user_metadata?.name || data.user.user_metadata?.full_name || data.user.email?.split('@')[0],
-            avatar: avatarUrl,
-          },
-          {
-            deviceFingerprint,
-            request,
-            ipAddress,
-          }
-        );
-        
-        if (!profileResult.success) {
-          logger.error('❌ Auth Callback: Failed to create user profile:', profileResult.error);
-          // Profile creation failure is handled by UserOnboardingService
-          // Credits initialization and ambassador tracking are handled there
+        // ✅ OPTIMIZED: Early check if user already exists to avoid unnecessary service call
+        const existingUser = await AuthDAL.getUserById(data.user.id);
+        if (existingUser) {
+          logger.log('✅ Auth Callback: User already exists, skipping profile creation:', data.user.id);
         } else {
-          logger.log('✅ Auth Callback: User profile created successfully');
-          if (profileResult.sybilDetection) {
-            logger.log('🔍 Auth Callback: Sybil detection result', {
-              riskScore: profileResult.sybilDetection.riskScore,
-              riskLevel: profileResult.sybilDetection.riskLevel,
-            });
+          // ✅ REMOVED: Avatar generation - now handled by UserOnboardingService
+          // Pass avatar from OAuth metadata, or undefined to let service generate it
+          const avatarUrl = data.user.user_metadata?.avatar_url || undefined;
+          
+          // ✅ Use centralized fingerprint parser utility
+          const { getFingerprintFromRequest } = await import('@/lib/utils/fingerprint-parser');
+          const deviceFingerprint = getFingerprintFromRequest(request);
+          
+          // Create user profile with sybil detection (only for verified users)
+          logger.log('👤 Auth Callback: Creating user profile for verified user:', data.user.email);
+          const ipAddress = getClientIdentifier(request);
+          const profileResult = await UserOnboardingService.createUserProfile(
+            {
+              id: data.user.id,
+              email: data.user.email!,
+              name: data.user.user_metadata?.name || data.user.user_metadata?.full_name || data.user.email?.split('@')[0],
+              avatar: avatarUrl,
+            },
+            {
+              deviceFingerprint,
+              request,
+              ipAddress,
+            }
+          );
+          
+          if (!profileResult.success) {
+            logger.error('❌ Auth Callback: Failed to create user profile:', profileResult.error);
+            // Profile creation failure is handled by UserOnboardingService
+            // Credits initialization and ambassador tracking are handled there
+          } else {
+            logger.log('✅ Auth Callback: User profile created successfully');
+            if (profileResult.sybilDetection) {
+              logger.log('🔍 Auth Callback: Sybil detection result', {
+                riskScore: profileResult.sybilDetection.riskScore,
+                riskLevel: profileResult.sybilDetection.riskLevel,
+              });
+            }
+            // ✅ REMOVED: Ambassador referral tracking - now handled in UserOnboardingService
+            // ✅ REMOVED: Credits initialization fallback - now handled in UserOnboardingService
           }
-          // ✅ REMOVED: Ambassador referral tracking - now handled in UserOnboardingService
-          // ✅ REMOVED: Credits initialization fallback - now handled in UserOnboardingService
         }
       } else {
         logger.log('⚠️ Auth Callback: Email not verified yet, profile creation skipped');

@@ -7,7 +7,9 @@ import Image from 'next/image';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import DotGrid from '@/components/ui/dot-grid';
+import { BackgroundRippleEffect } from '@/components/ui/background-ripple-effect';
+import { VercelCard } from '@/components/ui/vercel-card';
+import { TestimonialSlideshow } from '@/components/auth/testimonial-slideshow';
 import { Eye, EyeOff, Loader2, CheckCircle, Mail, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { logger } from '@/lib/utils/logger';
@@ -217,23 +219,14 @@ export default function SignupPage() {
 
   return (
     <div className="h-screen bg-background relative overflow-hidden pt-[3.55rem]" style={{ cursor: 'auto' }}>
-      {/* DotGrid Background - shown on all devices */}
-      <div className="absolute inset-0 overflow-hidden z-0 opacity-30">
-        <DotGrid
-          dotSize={10}
-          gap={15}
-          proximity={120}
-          shockRadius={250}
-          shockStrength={5}
-          resistance={750}
-          returnDuration={1.5}
-          className="h-full w-full"
-        />
+      {/* Background Ripple Effect */}
+      <div className="absolute inset-0 overflow-hidden z-[5]">
+        <BackgroundRippleEffect />
       </div>
 
       <div className="flex h-full">
         {/* Signup Form - 1/4 width on desktop, full width on mobile */}
-        <div className="w-full lg:w-1/4 flex flex-col border-r border-border relative z-20 bg-background/80 lg:bg-background backdrop-blur-sm lg:backdrop-blur-none">
+        <VercelCard className="w-full lg:w-1/4 flex flex-col border-r border-border relative z-20 bg-background/80 lg:bg-background backdrop-blur-sm lg:backdrop-blur-none overflow-visible" showIcons={true} bordered={true}>
            {/* Header Banner - matches SVG dimensions (1282x645), 0 padding */}
            <div className="w-full aspect-[1282/645] relative flex-shrink-0">
               <Image
@@ -266,7 +259,7 @@ export default function SignupPage() {
                 className="w-full flex items-center justify-center space-x-1.5 py-3 text-base font-semibold relative z-10 shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-all duration-300"
               >
                 <svg 
-                  className="h-5 w-5 text-foreground"
+                  className="h-5 w-5 text-primary-foreground"
                   viewBox="0 0 24 24"
                   fill="currentColor"
                   xmlns="http://www.w3.org/2000/svg"
@@ -451,21 +444,72 @@ export default function SignupPage() {
           </div>
           </div>
           </div>
-        </div>
+        </VercelCard>
 
-        {/* Desktop Right Side - 3/4 width with text overlay */}
-        <div className="hidden lg:flex lg:w-3/4 relative z-10">
-          {/* Text Overlay */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="text-center px-4 max-w-4xl">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground mb-1.5 leading-tight">
-                Create what you imagine
-              </h1>
-              <h2 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground leading-tight">
-                Build what you imagine
-              </h2>
-            </div>
-          </div>
+        {/* Desktop Right Side - 3/4 width */}
+        <div className="hidden lg:flex lg:w-3/4 relative z-10 pointer-events-auto">
+          {/* Twitter Testimonials Slideshow */}
+          <TestimonialSlideshow
+            testimonials={[
+              {
+                url: 'https://x.com/CasshyapSa79802/status/1995905411946611051',
+                fallback: {
+                  text: 'Renderiq has completely transformed how we present designs to clients. The AI renders are incredibly realistic and save us hours of work.',
+                  author: 'CasshyapSa79802',
+                  username: 'CasshyapSa79802',
+                },
+              },
+              {
+                url: 'https://x.com/0xmilords/status/1995907216311025866',
+                fallback: {
+                  text: 'Amazing AI rendering tool for architecture!',
+                  author: '0xmilords',
+                  username: '0xmilords',
+                },
+              },
+              {
+                url: 'https://x.com/titanidex/status/1995907578480787870',
+                fallback: {
+                  text: 'Renderiq is a game-changer for architectural visualization.',
+                  author: 'titanidex',
+                  username: 'titanidex',
+                },
+              },
+              {
+                url: 'https://x.com/mogisterate/status/1995907751596490837',
+                fallback: {
+                  text: 'Love using Renderiq for my design projects!',
+                  author: 'mogisterate',
+                  username: 'mogisterate',
+                },
+              },
+              {
+                url: 'https://x.com/retrobrah/status/1995908179365105973',
+                fallback: {
+                  text: 'Best AI rendering tool I\'ve tried. Highly recommend!',
+                  author: 'retrobrah',
+                  username: 'retrobrah',
+                },
+              },
+              {
+                url: 'https://x.com/spymilking/status/1995908547490840802',
+                fallback: {
+                  text: 'Renderiq makes architectural rendering so easy and fast.',
+                  author: 'spymilking',
+                  username: 'spymilking',
+                },
+              },
+              {
+                url: 'https://x.com/0xK4471L/status/1995908727111909851',
+                fallback: {
+                  text: 'Incredible results with Renderiq! The quality is outstanding.',
+                  author: '0xK4471L',
+                  username: '0xK4471L',
+                },
+              },
+            ]}
+            interval={6000}
+          />
         </div>
       </div>
 
