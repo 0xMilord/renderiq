@@ -18,18 +18,18 @@ export function HomepagePricingClient({ plans, creditPackages }: HomepagePricing
   const { convert, format, loading } = useCurrency();
 
   return (
-    <section className="py-8 px-8 bg-muted/30">
+    <section className="py-8 px-8 bg-muted/30 border border-dotted border-black/[0.2] dark:border-white/[0.2] -mt-[1px]">
       <div className="w-full">
         {/* Header */}
-        <div className="text-center lg:text-left mb-12">
+        <div className="text-center lg:text-left mb-12" style={{ minHeight: '200px' }}>
           <DecoratedText className="text-sm font-medium px-3 py-1.5 mb-4">
             Pricing
           </DecoratedText>
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6" style={{ minHeight: '3.5rem' }}>
             Simple, Transparent Pricing
           </h2>
-          <p className="text-xl text-muted-foreground max-w-3xl">
-            <Highlighter action="highlight" color="#D1F24A" textColor="#000000">
+          <p className="text-xl text-muted-foreground max-w-3xl relative" style={{ minHeight: '1.8em', position: 'relative', zIndex: 1 }}>
+            <Highlighter action="highlight" color="#D1F24A" textColor="#000000" isView={false}>
               Start creating
             </Highlighter>{" "}
             professional renders today with flexible plans designed for every workflow

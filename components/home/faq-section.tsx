@@ -256,10 +256,36 @@ export function FAQSection() {
   // Prevent hydration mismatch by not rendering Radix components until mounted
   if (!mounted) {
     return (
-      <section id="faq" className="bg-[hsl(72,87%,62%)] w-full overflow-x-hidden relative">
-        <div className="w-full px-4 sm:px-6 lg:px-8 relative border-l-[2px] border-r-[2px] border-b-[2px] border-[hsl(0,0%,7%)]">
+      <section id="faq" className="relative bg-[hsl(72,87%,62%)] w-full overflow-x-hidden overflow-hidden py-4 px-8 border-l border-r border-b border-dotted border-black/[0.2] -mt-[1px]">
+        {/* Horizontal Separator Lines - Full Width Grid Structure */}
+        {/* Top separator - shows where top padding starts */}
+        <div className="absolute top-0 left-0 w-screen h-px border-t border-dotted border-black/[0.2] z-20" style={{ marginLeft: 'calc((100vw - 100%) / -2)' }}></div>
+        
+        {/* Line where top padding ends and main container starts */}
+        <div className="absolute top-4 left-0 w-screen h-px border-t border-dotted border-black/[0.2] z-20" style={{ marginLeft: 'calc((100vw - 100%) / -2)' }}></div>
+        
+        {/* Line where main container ends and bottom padding starts */}
+        <div className="absolute bottom-4 left-0 w-screen h-px border-t border-dotted border-black/[0.2] z-20" style={{ marginLeft: 'calc((100vw - 100%) / -2)' }}></div>
+        
+        {/* Bottom separator - shows where bottom padding ends */}
+        <div className="absolute bottom-0 left-0 w-screen h-px border-b border-dotted border-black/[0.2] z-20" style={{ marginLeft: 'calc((100vw - 100%) / -2)' }}></div>
+        
+        {/* Vertical Separator Lines - Full Height Grid Structure */}
+        {/* Left separator - shows where left padding starts */}
+        <div className="absolute top-0 left-0 h-full w-px border-l border-dotted border-black/[0.2] z-20" style={{ marginLeft: 'calc((100vw - 100%) / -2)' }}></div>
+        
+        {/* Line where left padding ends and main container starts */}
+        <div className="absolute top-0 left-8 h-full w-px border-l border-dotted border-black/[0.2] z-20" style={{ marginLeft: 'calc((100vw - 100%) / -2)' }}></div>
+        
+        {/* Line where main container ends and right padding starts */}
+        <div className="absolute top-0 right-8 h-full w-px border-r border-dotted border-black/[0.2] z-20" style={{ marginRight: 'calc((100vw - 100%) / -2)' }}></div>
+        
+        {/* Right separator - shows where right padding ends */}
+        <div className="absolute top-0 right-0 h-full w-px border-r border-dotted border-black/[0.2] z-20" style={{ marginRight: 'calc((100vw - 100%) / -2)' }}></div>
+        
+        <div className="w-full relative z-10 pt-8 pb-8 px-8">
           <div className="w-full relative">
-            <div className="text-left relative pt-8">
+            <div className="text-left relative">
               <DecoratedText className="text-sm font-medium px-3 py-1.5 mb-4 text-neutral-800 dark:text-neutral-800">
                 FAQs
               </DecoratedText>
@@ -272,12 +298,12 @@ export function FAQSection() {
             </div>
           </div>
         </div>
-        <div className="w-full relative border-l-[2px] border-b-[2px] border-[hsl(0,0%,7%)]">
+        <div className="w-full relative mt-8">
           <div className="absolute inset-0 bg-black -z-10"></div>
           <div className="flex flex-col lg:flex-row w-full overflow-hidden relative">
-            <div className="w-full lg:w-[60%] order-1 lg:order-1 px-4 sm:px-6 lg:px-8 py-8 bg-[hsl(72,87%,62%)] relative flex flex-col">
+            <div className="w-full lg:w-[60%] order-1 lg:order-1 px-0 py-0 bg-[hsl(72,87%,62%)] relative flex flex-col">
               <VercelCard className="w-full flex-1 bg-background overflow-visible border-black/[0.2] dark:border-black/[0.2]" showIcons={true} bordered={true} iconClassName="text-black dark:text-black">
-                <div className="px-4 sm:px-6 lg:px-8 py-6 min-h-[400px]">
+                <div className="px-8 py-6 min-h-[400px]">
                   {/* Loading state */}
                 </div>
               </VercelCard>
@@ -302,10 +328,36 @@ export function FAQSection() {
   }
 
   return (
-    <section id="faq" className="bg-[hsl(72,87%,62%)] w-full overflow-x-hidden relative">
-      <div className="w-full px-4 sm:px-6 lg:px-8 relative border-l-[2px] border-r-[2px] border-b-[2px] border-[hsl(0,0%,7%)]">
+    <section id="faq" className="relative bg-[hsl(72,87%,62%)] w-full overflow-x-hidden overflow-hidden py-4 px-8 border-l border-r border-b border-dotted border-black/[0.2] -mt-[1px]">
+      {/* Horizontal Separator Lines - Full Width Grid Structure */}
+      {/* Top separator - shows where top padding starts */}
+      <div className="absolute top-0 left-0 w-screen h-px border-t border-dotted border-black/[0.2] z-20" style={{ marginLeft: 'calc((100vw - 100%) / -2)' }}></div>
+      
+      {/* Line where top padding ends and main container starts */}
+      <div className="absolute top-4 left-0 w-screen h-px border-t border-dotted border-black/[0.2] z-20" style={{ marginLeft: 'calc((100vw - 100%) / -2)' }}></div>
+      
+      {/* Line where main container ends and bottom padding starts */}
+      <div className="absolute bottom-4 left-0 w-screen h-px border-t border-dotted border-black/[0.2] z-20" style={{ marginLeft: 'calc((100vw - 100%) / -2)' }}></div>
+      
+      {/* Bottom separator - shows where bottom padding ends */}
+      <div className="absolute bottom-0 left-0 w-screen h-px border-b border-dotted border-black/[0.2] z-20" style={{ marginLeft: 'calc((100vw - 100%) / -2)' }}></div>
+      
+      {/* Vertical Separator Lines - Full Height Grid Structure */}
+      {/* Left separator - shows where left padding starts */}
+      <div className="absolute top-0 left-0 h-full w-px border-l border-dotted border-black/[0.2] z-20" style={{ marginLeft: 'calc((100vw - 100%) / -2)' }}></div>
+      
+      {/* Line where left padding ends and main container starts */}
+      <div className="absolute top-0 left-8 h-full w-px border-l border-dotted border-black/[0.2] z-20" style={{ marginLeft: 'calc((100vw - 100%) / -2)' }}></div>
+      
+      {/* Line where main container ends and right padding starts */}
+      <div className="absolute top-0 right-8 h-full w-px border-r border-dotted border-black/[0.2] z-20" style={{ marginRight: 'calc((100vw - 100%) / -2)' }}></div>
+      
+      {/* Right separator - shows where right padding ends */}
+      <div className="absolute top-0 right-0 h-full w-px border-r border-dotted border-black/[0.2] z-20" style={{ marginRight: 'calc((100vw - 100%) / -2)' }}></div>
+      
+      <div className="w-full relative z-10 pt-8 pb-8 px-8">
         <div className="w-full relative">
-          <div className="text-left relative pt-8">
+          <div className="text-left relative">
             <DecoratedText className="text-sm font-medium px-3 py-1.5 mb-4 text-neutral-800 dark:text-neutral-800">
               FAQs
             </DecoratedText>
@@ -322,15 +374,15 @@ export function FAQSection() {
         </div>
       </div>
 
-      <div className="w-full relative border-l-[2px] border-b-[2px] border-[hsl(0,0%,7%)]">
+      <div className="w-full relative mt-8">
         {/* Black container behind FAQ */}
         <div className="absolute inset-0 bg-black -z-10"></div>
         
         <div className="flex flex-col lg:flex-row w-full overflow-hidden relative">
           {/* Left Column - 60% - FAQ Content */}
-          <div className="w-full lg:w-[60%] order-1 lg:order-1 px-4 sm:px-6 lg:px-8 py-8 bg-[hsl(72,87%,62%)] relative flex flex-col">
+          <div className="w-full lg:w-[60%] order-1 lg:order-1 px-0 py-0 bg-[hsl(72,87%,62%)] relative flex flex-col">
             <VercelCard className="w-full flex-1 bg-background overflow-visible border-black/[0.2] dark:border-black/[0.2]" showIcons={true} bordered={true} iconClassName="text-black dark:text-black">
-              <div className="px-4 sm:px-6 lg:px-8 py-6">
+              <div className="px-8 py-6">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <div className="relative mb-8">
                   

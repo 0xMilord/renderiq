@@ -56,8 +56,8 @@ export function ArchitectureAppsSection() {
   }, [tools]);
 
   return (
-    <section id="architecture-apps" className="w-full overflow-x-hidden relative bg-background/80 backdrop-blur-sm">
-      <div className={`w-full relative border-l-[2px] border-r-[2px] border-b-[2px] ${borderClass}`}>
+    <section id="architecture-apps" className="w-full overflow-x-hidden relative border border-dotted border-black/[0.2] dark:border-white/[0.2] -mt-[1px]">
+      <div className="w-full relative">
         <div className="w-full">
           <div className="px-4 sm:px-6 lg:px-8 py-8">
             <DecoratedText className="text-sm font-medium px-3 py-1.5 mb-4">

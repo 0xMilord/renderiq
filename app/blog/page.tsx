@@ -4,6 +4,9 @@ import { BlogClient } from '@/components/blog/blog-client';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
 
+// Force dynamic rendering to avoid SSR context issues
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Blog | Renderiq - AI Architectural Rendering Insights',
   description: 'Learn about AI rendering tools, architectural visualization, and best practices for architects and designers.',

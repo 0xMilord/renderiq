@@ -7,6 +7,9 @@ import { Badge } from "@/components/ui/badge";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://renderiq.io';
 
+// Force dynamic rendering to avoid SSR context issues
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: "Refund Policy | Renderiq - AI Architectural Visualization",
   description: "Learn about Renderiq's refund policy for subscriptions, credit packages, and services. Understand your rights and our refund process.",

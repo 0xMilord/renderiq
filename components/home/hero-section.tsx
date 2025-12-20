@@ -78,10 +78,10 @@ const HeroSection = memo(function HeroSection({ avatarData, totalUsers, galleryI
   return (
     <section className={`relative overflow-hidden w-full ${heroBgColor}`} style={{ paddingTop: 'var(--navbar-height)' }}>
       {/* Diagonal Stripe Pattern on Sides - Responsive - 2px width to match stroke */}
-      <div className="absolute inset-y-0 left-0 hidden md:block md:w-8 lg:w-16 -z-0" style={{ 
+      <div className="absolute inset-y-0 left-0 hidden md:block md:w-8 lg:w-16 -z-0 border border-dotted border-black/[0.2] dark:border-white/[0.2]" style={{ 
         backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 8px, ${borderColor} 8px, ${borderColor} 10px)`
       }}></div>
-      <div className="absolute inset-y-0 right-0 hidden md:block md:w-8 lg:w-16 -z-0" style={{ 
+      <div className="absolute inset-y-0 right-0 hidden md:block md:w-8 lg:w-16 -z-0 border border-dotted border-black/[0.2] dark:border-white/[0.2]" style={{ 
         backgroundImage: `repeating-linear-gradient(-45deg, transparent, transparent 8px, ${borderColor} 8px, ${borderColor} 10px)`
       }}></div>
 

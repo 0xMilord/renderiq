@@ -26,7 +26,7 @@ function VercelCard({
     <motion.div
       className={cn(
         "group/canvas-card relative w-full h-full",
-        bordered && "border border-black/[0.2] dark:border-white/[0.2]",
+        bordered && "border border-dotted border-black/[0.2] dark:border-white/[0.2]",
         className
       )}
       whileHover={animateOnHover ? { scale: 1.02 } : {}}

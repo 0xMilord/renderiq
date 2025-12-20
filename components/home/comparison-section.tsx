@@ -178,7 +178,7 @@ export function ComparisonSection() {
   };
 
   return (
-    <section id="comparison" className="py-8 px-8 bg-background/80 backdrop-blur-sm w-full">
+    <section id="comparison" className="py-8 px-8 bg-background/80 backdrop-blur-sm w-full border border-dotted border-black/[0.2] dark:border-white/[0.2] -mt-[1px]">
       <div className="w-full max-w-full mx-auto">
         {/* Header */}
         <div className="mb-6 sm:mb-8 lg:mb-12">

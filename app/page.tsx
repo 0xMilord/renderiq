@@ -240,8 +240,34 @@ export default async function Home() {
       <HowItWorksSection />
 
       {/* Features Section - Full Width Grid */}
-      <section id="features" className="py-8 px-8 bg-card/80 backdrop-blur-sm">
-        <div className="w-full">
+      <section id="features" className="relative py-8 px-8 overflow-hidden border border-dotted border-black/[0.2] dark:border-white/[0.2] -mt-[1px]">
+        {/* Horizontal Separator Lines - Full Width Grid Structure */}
+        {/* Top separator - shows where top padding starts */}
+        <div className="absolute top-0 left-0 w-screen h-px border-t border-dotted border-black/[0.2] dark:border-white/[0.2] z-20" style={{ marginLeft: 'calc((100vw - 100%) / -2)' }}></div>
+        
+        {/* Line where top padding ends and main container starts */}
+        <div className="absolute top-8 left-0 w-screen h-px border-t border-dotted border-black/[0.2] dark:border-white/[0.2] z-20" style={{ marginLeft: 'calc((100vw - 100%) / -2)' }}></div>
+        
+        {/* Line where main container ends and bottom padding starts */}
+        <div className="absolute bottom-8 left-0 w-screen h-px border-t border-dotted border-black/[0.2] dark:border-white/[0.2] z-20" style={{ marginLeft: 'calc((100vw - 100%) / -2)' }}></div>
+        
+        {/* Bottom separator - shows where bottom padding ends */}
+        <div className="absolute bottom-0 left-0 w-screen h-px border-b border-dotted border-black/[0.2] dark:border-white/[0.2] z-20" style={{ marginLeft: 'calc((100vw - 100%) / -2)' }}></div>
+        
+        {/* Vertical Separator Lines - Full Height Grid Structure */}
+        {/* Left separator - shows where left padding starts */}
+        <div className="absolute top-0 left-0 h-full w-px border-l border-dotted border-black/[0.2] dark:border-white/[0.2] z-20" style={{ marginLeft: 'calc((100vw - 100%) / -2)' }}></div>
+        
+        {/* Line where left padding ends and main container starts */}
+        <div className="absolute top-0 left-8 h-full w-px border-l border-dotted border-black/[0.2] dark:border-white/[0.2] z-20" style={{ marginLeft: 'calc((100vw - 100%) / -2)' }}></div>
+        
+        {/* Line where main container ends and right padding starts */}
+        <div className="absolute top-0 right-8 h-full w-px border-r border-dotted border-black/[0.2] dark:border-white/[0.2] z-20" style={{ marginRight: 'calc((100vw - 100%) / -2)' }}></div>
+        
+        {/* Right separator - shows where right padding ends */}
+        <div className="absolute top-0 right-0 h-full w-px border-r border-dotted border-black/[0.2] dark:border-white/[0.2] z-20" style={{ marginRight: 'calc((100vw - 100%) / -2)' }}></div>
+        
+        <div className="w-full relative z-10 pt-8 pb-8 px-8">
           <div className="text-center lg:text-left mb-16">
             <DecoratedText className="text-sm font-medium px-3 py-1.5 mb-4">
               Features
@@ -456,7 +482,7 @@ export default async function Home() {
       <FAQSection />
 
       {/* CTA Section - With Clock Component */}
-      <section className="py-8 px-8 bg-[hsl(72,87%,62%)] relative overflow-hidden">
+      <section className="py-8 px-8 bg-[hsl(72,87%,62%)] relative overflow-hidden border border-dotted border-black/[0.2] dark:border-white/[0.2] -mt-[1px]">
         <div className="w-full max-w-full mx-auto relative">
           <VercelCard className="w-full bg-[hsl(72,87%,62%)] overflow-visible border-2 border-black/[0.2] dark:border-black/[0.2]" showIcons={true} bordered={true} iconClassName="text-black dark:text-black">
             <div className="py-8 px-8">

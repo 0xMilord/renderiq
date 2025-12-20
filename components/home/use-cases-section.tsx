@@ -8,11 +8,12 @@ import { DecoratedText } from '@/components/ui/decorated-text';
 import { Highlighter } from '@/components/ui/highlighter';
 import { VercelCard } from '@/components/ui/vercel-card';
 import { primaryUseCases } from '@/lib/data/use-cases';
+import { cn } from '@/lib/utils';
 
 const UseCasesSection = memo(function UseCasesSection() {
   return (
-    <section id="use-cases" className="w-full overflow-x-hidden relative bg-background py-8 px-8">
-      <VercelCard className="w-full bg-background overflow-visible border-2 border-border" showIcons={true} bordered={true}>
+    <section id="use-cases" className="w-full overflow-x-hidden relative bg-background py-8 px-8 border border-dotted border-black/[0.2] dark:border-white/[0.2] -mt-[1px]">
+      <VercelCard className="w-full bg-background overflow-visible" showIcons={true} bordered={true}>
         <div className="w-full">
           {/* Header Section */}
           <div className="w-full relative">
@@ -39,19 +40,35 @@ const UseCasesSection = memo(function UseCasesSection() {
           {/* Cards Grid */}
           <div className="w-full relative">
             <div className="w-full px-8 py-8 bg-background">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-0">
-                {primaryUseCases.map((useCase) => {
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                {primaryUseCases.map((useCase, index) => {
                   const isVideo = useCase.slug === 'rapid-concept-video';
+                  const totalCols = 5; // xl:grid-cols-5
+                  const row = Math.floor(index / totalCols);
+                  const col = index % totalCols;
+                  const isFirstInRow = col === 0;
+                  const isLastInRow = col === totalCols - 1;
+                  const isFirstRow = row === 0;
+                  const isLastRow = row === Math.floor((primaryUseCases.length - 1) / totalCols);
+                  
+                  // Calculate negative margins to overlap borders
+                  const marginLeft = isFirstInRow ? '0' : '-ml-[1px]';
+                  const marginTop = isFirstRow ? '0' : '-mt-[1px]';
+                  
                   return (
                     <VercelCard 
                       key={useCase.slug}
-                      className="overflow-visible rounded-none" 
-                      showIcons={true} 
+                      className={cn(
+                        "overflow-visible rounded-none",
+                        marginLeft,
+                        marginTop
+                      )} 
+                      showIcons={false} 
                       bordered={true}
                     >
                       <Link 
                         href={`/use-cases/${useCase.slug}`} 
-                        className="group block bg-card hover:bg-muted/50 transition-all duration-300"
+                        className="group block bg-card hover:bg-muted/50 transition-all duration-300 h-full"
                       >
                         <div className="relative w-full aspect-video overflow-hidden bg-muted">
                           {isVideo ? (

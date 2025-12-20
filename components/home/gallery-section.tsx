@@ -17,7 +17,7 @@ interface GallerySectionProps {
 export function GallerySection({ galleryItems }: GallerySectionProps) {
 
   return (
-    <section id="gallery" className="w-full overflow-x-hidden relative bg-[hsl(72,87%,62%)] py-8 px-8">
+    <section id="gallery" className="w-full overflow-x-hidden relative bg-[hsl(72,87%,62%)] py-8 px-8 border border-dotted border-black/[0.2] dark:border-white/[0.2] -mt-[1px]">
       <div className="w-full relative mb-8">
         <VercelCard className="w-full bg-[hsl(72,87%,62%)] overflow-visible border-2 border-black/[0.2] dark:border-black/[0.2] z-50" showIcons={true} bordered={true} iconClassName="text-black dark:text-black">
           <div className="px-8 py-8">

@@ -34,8 +34,8 @@ export function TestimonialsSection({ testimonials }: TestimonialsSectionProps) 
   const borderClass = isDarkMode ? 'border-[hsl(0,0%,3%)]' : 'border-[hsl(0,0%,100%)]';
 
   return (
-    <section id="testimonials" className="w-full overflow-x-hidden relative bg-[hsl(72,87%,62%)]">
-      <div className={`w-full px-4 sm:px-6 lg:px-8 relative border-l-[2px] border-r-[2px] border-b-[2px] ${borderClass}`}>
+    <section id="testimonials" className="w-full overflow-x-hidden relative bg-[hsl(72,87%,62%)] border border-dotted border-black/[0.2] dark:border-white/[0.2] -mt-[1px]">
+      <div className="w-full px-4 sm:px-6 lg:px-8 relative">
         <div className="w-full relative">
           <div className="text-left relative pt-8">
             <DecoratedText className="text-sm font-medium px-3 py-1.5 mb-4 text-neutral-800 dark:text-neutral-800">
