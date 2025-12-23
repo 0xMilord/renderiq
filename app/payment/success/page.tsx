@@ -19,7 +19,8 @@ function PaymentSuccessContent() {
   const razorpayOrderId = searchParams.get('razorpay_order_id');
   const razorpaySubscriptionId = searchParams.get('razorpay_subscription_id');
   const razorpayPaymentId = searchParams.get('razorpay_payment_id');
-  const paddleTransactionId = searchParams.get('paddle_transaction_id');
+  // Handle both paddle_transaction_id and _ptxn (Paddle's redirect parameter)
+  const paddleTransactionId = searchParams.get('paddle_transaction_id') || searchParams.get('_ptxn');
   const paddleSubscriptionId = searchParams.get('paddle_subscription_id');
   const verification = searchParams.get('verification');
 

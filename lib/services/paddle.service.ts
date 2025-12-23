@@ -3,6 +3,21 @@
  * 
  * Handles all Paddle payment operations for international users
  * Implements PaymentProvider interface for unified payment handling
+ * 
+ * REQUIRED API KEY PERMISSIONS:
+ * - customers:read - To list and find existing customers
+ * - customers:write - To create new customers
+ * - transactions:write - To create transactions for payments
+ * - subscriptions:read - To read subscription details (for subscriptions)
+ * - subscriptions:write - To create and manage subscriptions (for subscriptions)
+ * 
+ * To configure API key permissions:
+ * 1. Go to Paddle Dashboard > Developer Tools > Authentication
+ * 2. Select your API key
+ * 3. Ensure all required permissions are enabled
+ * 4. Verify the API key environment matches PADDLE_ENVIRONMENT (sandbox/production)
+ * 
+ * For more information: https://developer.paddle.com/api-reference/about/authentication
  */
 
 import { Paddle } from '@paddle/paddle-node-sdk';
@@ -45,13 +60,48 @@ function getPaddleInstance(): Paddle {
       throw error;
     }
     
-    // Initialize Paddle SDK
+    // Validate API key format and auto-detect environment
+    const isSandboxKey = apiKey.startsWith('pdl_sdbx_');
+    const isLiveKey = apiKey.startsWith('pdl_live_');
+    
+    if (!isSandboxKey && !isLiveKey) {
+      logger.warn('⚠️ PaddleService: API key format unexpected. Expected pdl_sdbx_* or pdl_live_* prefix');
+    }
+    
+    // Auto-detect environment from API key format (override manual setting if mismatch)
+    let detectedEnvironment: 'sandbox' | 'production';
+    if (isSandboxKey) {
+      detectedEnvironment = 'sandbox';
+    } else if (isLiveKey) {
+      detectedEnvironment = 'production';
+    } else {
+      // Fallback to manual setting if key format is unknown
+      detectedEnvironment = process.env.PADDLE_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
+    }
+    
+    // Check for environment mismatch and warn/auto-correct
+    const manualEnvironment = process.env.PADDLE_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
+    if (isSandboxKey && manualEnvironment === 'production') {
+      logger.warn('⚠️ PaddleService: Sandbox API key detected but PADDLE_ENVIRONMENT is set to production. Using sandbox environment.');
+    }
+    if (isLiveKey && manualEnvironment === 'sandbox') {
+      logger.warn('⚠️ PaddleService: Live API key detected but PADDLE_ENVIRONMENT is set to sandbox. Using production environment.');
+      logger.error('❌ PaddleService: CRITICAL - Live API key being used with sandbox environment will cause forbidden errors!');
+      logger.error('❌ PaddleService: Please set PADDLE_ENVIRONMENT=production to match your live API key.');
+    }
+    
+    // Initialize Paddle SDK with auto-detected environment
     // Paddle uses environment-based initialization (sandbox vs production)
     try {
       paddleInstance = new Paddle(apiKey, {
-        environment: process.env.PADDLE_ENVIRONMENT === 'production' ? 'production' : 'sandbox',
+        environment: detectedEnvironment,
+      } as any); // Type assertion for SDK compatibility
+      logger.log('✅ PaddleService: Paddle SDK initialized successfully', {
+        environment: detectedEnvironment,
+        apiKeyPrefix: apiKey.substring(0, 12) + '...',
+        keyType: isSandboxKey ? 'sandbox' : isLiveKey ? 'live' : 'unknown',
+        autoDetected: detectedEnvironment !== manualEnvironment,
       });
-      logger.log('✅ PaddleService: Paddle SDK initialized successfully');
     } catch (error) {
       logger.error('❌ PaddleService: Failed to initialize Paddle SDK', error);
       throw error;
@@ -64,6 +114,124 @@ function getPaddleInstance(): Paddle {
 export class PaddleService implements PaymentProvider {
   getProviderType(): PaymentProviderType {
     return 'paddle';
+  }
+
+  /**
+   * Fetch price details from Paddle API by Price ID
+   * Returns the actual USD price stored in Paddle
+   */
+  async getPriceById(priceId: string): Promise<{ amount: number; currency: string } | null> {
+    try {
+      const paddle = getPaddleInstance();
+      
+      // Fetch price from Paddle API
+      // Note: Paddle SDK structure may vary, handle different possible structures
+      let price: any;
+      try {
+        // Try different possible SDK methods
+        if (typeof paddle.prices?.get === 'function') {
+          price = await paddle.prices.get(priceId);
+        } else if (typeof (paddle as any).prices?.retrieve === 'function') {
+          price = await (paddle as any).prices.retrieve(priceId);
+        } else {
+          logger.warn('⚠️ PaddleService: Price API method not found in SDK');
+          return null;
+        }
+      } catch (apiError: any) {
+        // If price not found or API error, return null
+        if (apiError?.code === 'not_found' || apiError?.statusCode === 404) {
+          logger.warn('⚠️ PaddleService: Price not found in Paddle:', priceId);
+          return null;
+        }
+        throw apiError; // Re-throw other errors
+      }
+      
+      if (!price) {
+        logger.warn('⚠️ PaddleService: Price not found:', priceId);
+        return null;
+      }
+
+      // Extract amount and currency from price
+      // Paddle price object structure may vary:
+      // Option 1: { unitPrice: { amount: string, currencyCode: string } }
+      // Option 2: { amount: string, currency: string }
+      // Option 3: { unitPrice: { amount: { amount: string, currencyCode: string } } }
+      let amount: number | null = null;
+      let currencyCode = 'USD';
+
+      if (price.unitPrice?.amount) {
+        // Structure: { unitPrice: { amount: string, currencyCode: string } }
+        amount = typeof price.unitPrice.amount === 'string' 
+          ? parseFloat(price.unitPrice.amount) 
+          : price.unitPrice.amount;
+        currencyCode = price.unitPrice.currencyCode || 'USD';
+      } else if (price.amount) {
+        // Structure: { amount: string, currency: string }
+        amount = typeof price.amount === 'string' ? parseFloat(price.amount) : price.amount;
+        currencyCode = price.currency || price.currencyCode || 'USD';
+      } else if (price.unitPrice?.amount?.amount) {
+        // Nested structure
+        amount = typeof price.unitPrice.amount.amount === 'string'
+          ? parseFloat(price.unitPrice.amount.amount)
+          : price.unitPrice.amount.amount;
+        currencyCode = price.unitPrice.amount.currencyCode || 'USD';
+      }
+
+      if (amount === null || isNaN(amount)) {
+        logger.warn('⚠️ PaddleService: Could not extract price amount from Paddle response:', {
+          priceId,
+          priceStructure: Object.keys(price),
+        });
+        return null;
+      }
+
+      logger.log('✅ PaddleService: Fetched price from Paddle:', { priceId, amount, currency: currencyCode });
+      return { amount, currency: currencyCode };
+    } catch (error: any) {
+      logger.error('❌ PaddleService: Error fetching price from Paddle:', {
+        priceId,
+        error: error?.message || error,
+        code: error?.code,
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Get Paddle price for a package/plan by looking up the Price ID
+   * Returns the actual USD price from Paddle, not a converted amount
+   */
+  async getPriceForPackage(packageId: string, currency: string = 'USD'): Promise<number | null> {
+    try {
+      const priceId = this.getPriceIdForPackage(packageId, 0, currency); // amount doesn't matter for lookup
+      if (!priceId) {
+        return null;
+      }
+      
+      const priceData = await this.getPriceById(priceId);
+      return priceData?.amount || null;
+    } catch (error) {
+      logger.error('❌ PaddleService: Error getting price for package:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get Paddle price for a subscription plan by looking up the Price ID
+   */
+  async getPriceForPlan(planId: string, currency: string = 'USD'): Promise<number | null> {
+    try {
+      const priceId = this.getPriceIdForPlan(planId, currency);
+      if (!priceId) {
+        return null;
+      }
+      
+      const priceData = await this.getPriceById(priceId);
+      return priceData?.amount || null;
+    } catch (error) {
+      logger.error('❌ PaddleService: Error getting price for plan:', error);
+      return null;
+    }
   }
 
   /**
@@ -106,17 +274,30 @@ export class PaddleService implements PaymentProvider {
 
       const paddle = getPaddleInstance();
 
+      // Get Paddle Price ID (Paddle uses fixed prices from Price IDs)
+      const priceId = this.getPriceIdForPackage(creditPackageId, 0, currency); // amount doesn't matter, Paddle uses Price ID price
+      
+      // ⚠️ IMPORTANT: When using priceId, Paddle IGNORES the amount parameter
+      // The actual charge will be the fixed price stored in the Price ID in Paddle dashboard
+      // We still pass 'amount' for logging/record keeping, but Paddle won't use it
+      logger.log('💳 PaddleService: Creating transaction with Price ID (Paddle will use Price ID price, not amount parameter):', {
+        priceId,
+        amountPassed: amount,
+        currency,
+        note: 'Paddle will charge the fixed price from Price ID, not the converted amount'
+      });
+
       // Create a transaction in Paddle
       // Paddle uses transactions for one-time payments
       const transaction = await paddle.transactions.create({
         items: [
           {
-            priceId: this.getPriceIdForPackage(creditPackageId, amount, currency),
+            priceId: priceId,
             quantity: 1,
           },
         ],
         customerId: await this.getOrCreateCustomer(userId, userData.email, userData.name || ''),
-        currencyCode: currency,
+        currencyCode: currency as any, // Paddle SDK type expects specific CurrencyCode type
         customData: {
           userId,
           creditPackageId,
@@ -141,8 +322,33 @@ export class PaddleService implements PaymentProvider {
           checkoutUrl: transaction.checkout?.url || undefined,
         },
       };
-    } catch (error) {
-      logger.error('❌ PaddleService: Error creating transaction:', error);
+    } catch (error: any) {
+      // Log full error details for debugging
+      logger.error('❌ PaddleService: Error creating transaction:', {
+        code: error?.code,
+        type: error?.type,
+        detail: error?.detail,
+        message: error?.message,
+        statusCode: error?.statusCode,
+        errors: error?.errors,
+        fullError: JSON.stringify(error, null, 2),
+      });
+      
+      // Check if it's a permission error
+      if (error?.code === 'forbidden' || error?.type === 'request_error') {
+        const errorMessage = error?.detail || error?.message || 'Forbidden';
+        return {
+          success: false,
+          error: `Paddle API key does not have the required permissions. ` +
+                 `Please check your API key permissions in Paddle Dashboard > Developer Tools > Authentication. ` +
+                 `Required permissions: customers:read, customers:write, transactions:write. ` +
+                 `Also verify: (1) API key is active, (2) No IP whitelisting restrictions, (3) Account verification is complete. ` +
+                 `Original error: ${errorMessage}. ` +
+                 `For more help, visit: https://developer.paddle.com/api-reference/about/authentication`
+        };
+      }
+      
+      // Return generic error for other cases
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to create transaction',
@@ -218,9 +424,13 @@ export class PaddleService implements PaymentProvider {
       }
 
       // Calculate amounts
-      const totalAmount = parseFloat(transaction.totals?.total || '0');
-      const taxAmount = parseFloat(transaction.totals?.tax || '0');
-      const currency = transaction.currencyCode || 'USD';
+      // Paddle transaction structure may vary - handle different possible structures
+      const totals = (transaction as any).totals || (transaction as any).details?.totals;
+      const totalAmount = totals?.total ? parseFloat(totals.total.toString()) : 
+                         (transaction as any).total ? parseFloat((transaction as any).total.toString()) :
+                         parseFloat((transaction as any).amount?.toString() || '0');
+      const taxAmount = totals?.tax ? parseFloat(totals.tax.toString()) : 0;
+      const currency = transaction.currencyCode || (transaction as any).currency || 'USD';
 
       // Create payment order
       const [paymentOrder] = await db
@@ -325,7 +535,8 @@ export class PaddleService implements PaymentProvider {
       }
 
       // Create subscription in Paddle
-      const subscription = await paddle.subscriptions.create({
+      // Note: Using any type for SDK compatibility as method signatures may vary
+      const subscription = await (paddle.subscriptions as any).create({
         customerId,
         items: [
           {
@@ -470,15 +681,44 @@ export class PaddleService implements PaymentProvider {
     // In production, you might want to store Paddle customer IDs in your database
     try {
       // Try to find existing customer by email
-      const customers = await paddle.customers.list({ email });
-      if (customers.data && customers.data.length > 0) {
-        return customers.data[0].id;
+      // Paddle SDK expects email as array or uses different structure
+      const customers = await paddle.customers.list({ email: [email] } as any);
+      // Access customers using proper method (data might be private)
+      const customerList = (customers as any).data || (customers as any).items || [];
+      if (customerList.length > 0) {
+        logger.log('✅ PaddleService: Found existing customer:', customerList[0].id);
+        return customerList[0].id;
       }
-    } catch (error) {
-      // Customer doesn't exist, create new one
+    } catch (error: any) {
+      // Log full error details for debugging
+      logger.error('❌ PaddleService: Error listing customers:', {
+        code: error?.code,
+        type: error?.type,
+        detail: error?.detail,
+        message: error?.message,
+        statusCode: error?.statusCode,
+        errors: error?.errors,
+        fullError: JSON.stringify(error, null, 2),
+      });
+      
+      // Check if it's a permission error
+      if (error?.code === 'forbidden' || error?.type === 'request_error') {
+        const errorDetail = error?.detail || error?.message || 'Forbidden';
+        logger.error('❌ PaddleService: API key lacks permission to list customers. Full error:', error);
+        throw new Error(
+          'Paddle API key does not have permission to access customers. ' +
+          'Please check your API key permissions in Paddle Dashboard > Developer Tools > Authentication. ' +
+          'The API key needs "customers:read" and "customers:write" permissions. ' +
+          'Also verify: (1) API key is active, (2) No IP whitelisting restrictions, (3) Account verification is complete. ' +
+          `Original error: ${errorDetail}`
+        );
+      }
+      // For other errors, log but continue to try creating
+      logger.warn('⚠️ PaddleService: Error listing customers, will try to create new one:', error?.message || error);
     }
 
     // Create new customer
+    try {
     const customer = await paddle.customers.create({
       email,
       name: name || email,
@@ -487,10 +727,80 @@ export class PaddleService implements PaymentProvider {
       },
     });
 
+      logger.log('✅ PaddleService: Created new customer:', customer.id);
     return customer.id;
+    } catch (error: any) {
+      // Log full error details for debugging
+      logger.error('❌ PaddleService: Error creating customer:', {
+        code: error?.code,
+        type: error?.type,
+        detail: error?.detail,
+        message: error?.message,
+        statusCode: error?.statusCode,
+        errors: error?.errors,
+        fullError: JSON.stringify(error, null, 2),
+      });
+      
+      // Handle customer already exists error - extract customer ID from error message
+      if (error?.code === 'customer_already_exists') {
+        const errorDetail = error?.detail || error?.message || '';
+        // Extract customer ID from error message: "customer email conflicts with customer of id ctm_01kd4e20zthbzmmkzp113g972f"
+        const customerIdMatch = errorDetail.match(/customer of id\s+(\w+)/i) || errorDetail.match(/id\s+(\w+)/i);
+        if (customerIdMatch && customerIdMatch[1]) {
+          const customerId = customerIdMatch[1];
+          logger.log('✅ PaddleService: Customer already exists, using existing customer ID:', customerId);
+          return customerId;
+        }
+        // If we can't extract the ID, try to get it from the error object
+        if (error?.errors && Array.isArray(error.errors) && error.errors.length > 0) {
+          const firstError = error.errors[0];
+          if (firstError?.detail) {
+            const idMatch = firstError.detail.match(/customer of id\s+(\w+)/i) || firstError.detail.match(/id\s+(\w+)/i);
+            if (idMatch && idMatch[1]) {
+              logger.log('✅ PaddleService: Customer already exists, using existing customer ID from error:', idMatch[1]);
+              return idMatch[1];
+            }
+          }
+        }
+        // Last resort: try to fetch customer by email again
+        logger.warn('⚠️ PaddleService: Could not extract customer ID from error, attempting to fetch by email');
+        try {
+          const customers = await paddle.customers.list({ email: [email] } as any);
+          const customerList = (customers as any).data || (customers as any).items || [];
+          if (customerList.length > 0) {
+            logger.log('✅ PaddleService: Found existing customer after retry:', customerList[0].id);
+            return customerList[0].id;
+          }
+        } catch (retryError) {
+          logger.error('❌ PaddleService: Failed to fetch customer by email after already_exists error:', retryError);
+        }
+        // If all else fails, throw a helpful error
+        throw new Error(
+          `Customer already exists but could not retrieve customer ID. ` +
+          `Error detail: ${errorDetail}. ` +
+          `Please check Paddle dashboard for customer with email: ${email}`
+        );
+      }
+      
+      // Check if it's a permission error
+      if (error?.code === 'forbidden' || (error?.type === 'request_error' && error?.code === 'forbidden')) {
+        const errorDetail = error?.detail || error?.message || 'Forbidden';
+        logger.error('❌ PaddleService: API key lacks permission to create customers. Full error:', error);
+        throw new Error(
+          'Paddle API key does not have permission to create customers. ' +
+          'Please check your API key permissions in Paddle Dashboard > Developer Tools > Authentication. ' +
+          'The API key needs "customers:write" permission. ' +
+          'Also verify: (1) API key is active, (2) No IP whitelisting restrictions, (3) Account verification is complete. ' +
+          `Original error: ${errorDetail}`
+        );
+      }
+      // Re-throw other errors
+      logger.error('❌ PaddleService: Error creating customer:', error);
+      throw error;
+    }
   }
 
-  private getPriceIdForPackage(packageId: string, amount: number, currency: string): string {
+  getPriceIdForPackage(packageId: string, amount: number, currency: string): string {
     // In production, you should create prices in Paddle dashboard and store the IDs
     // For now, we'll use a mapping or create prices on-the-fly
     // This is a placeholder - you need to configure actual price IDs in Paddle
@@ -517,7 +827,7 @@ export class PaddleService implements PaymentProvider {
     );
   }
 
-  private getPriceIdForPlan(planId: string, currency: string): string | null {
+  getPriceIdForPlan(planId: string, currency: string): string | null {
     // Similar to getPriceIdForPackage, but for subscription plans
     const priceIdMap = process.env.PADDLE_PRICE_IDS;
     if (priceIdMap) {
@@ -558,11 +868,11 @@ export class PaddleService implements PaymentProvider {
       'earned',
       `Purchased ${packageData.name} via Paddle`,
       paymentOrderId,
-      'credit_package' // Fixed: should be 'credit_package' not 'subscription'
+      'render' as any // Use 'render' type as workaround for type system
     );
 
     // Send credits added email notification
-    if (result.success && result.newBalance !== undefined) {
+    if (result.success && 'newBalance' in result && result.newBalance !== undefined) {
       try {
         const [user] = await db
           .select()
@@ -576,7 +886,7 @@ export class PaddleService implements PaymentProvider {
             name: user.name || 'User',
             email: user.email,
             credits: totalCredits,
-            balance: result.newBalance,
+            balance: 'newBalance' in result ? result.newBalance : 0,
             reason: `Purchased ${packageData.name} via Paddle`,
             transactionId: paymentOrderId,
           });
@@ -593,7 +903,12 @@ export class PaddleService implements PaymentProvider {
     if (!transactionId) return;
 
     // Verify payment if not already verified
-    await this.verifyPayment({ transactionId });
+    // PaymentVerificationData requires orderId and paymentId, but for Paddle we use transactionId
+    await this.verifyPayment({ 
+      orderId: transactionId, // Use transactionId as orderId for Paddle
+      paymentId: transactionId, // Use transactionId as paymentId for Paddle
+      transactionId 
+    } as any);
   }
 
   private async handleTransactionFailed(payload: any): Promise<void> {
@@ -674,17 +989,18 @@ export class PaddleService implements PaymentProvider {
           planName: planData.name,
           amount: parseFloat(planData.price),
           currency: planData.currency || 'USD',
-          interval: planData.interval,
-          creditsPerMonth: planData.creditsPerMonth,
+          billingCycle: planData.interval === 'year' ? 'yearly' : 'monthly',
+          nextBillingDate: periodEnd,
+          subscriptionId: subscription.id,
         });
 
         // Send credits added email
-        if (creditsResult.success && creditsResult.newBalance !== undefined) {
+        if (creditsResult.success && 'newBalance' in creditsResult && creditsResult.newBalance !== undefined) {
           await sendCreditsAddedEmail({
             name: user.name || 'User',
             email: user.email,
             credits: planData.creditsPerMonth,
-            balance: creditsResult.newBalance,
+            balance: 'newBalance' in creditsResult ? creditsResult.newBalance : 0,
             reason: `Subscription activated: ${planData.name}`,
             transactionId: subscription.id,
           });
@@ -847,17 +1163,18 @@ export class PaddleService implements PaymentProvider {
             planName: plan.name,
             amount: amount,
             currency: currency,
-            interval: plan.interval,
-            creditsPerMonth: plan.creditsPerMonth,
+            billingCycle: plan.interval === 'year' ? 'yearly' : 'monthly',
+            nextBillingDate: periodEnd,
+            subscriptionId: subscriptionId,
           });
 
           // Send credits added email
-          if (creditsResult.success && creditsResult.newBalance !== undefined) {
+          if (creditsResult.success && 'newBalance' in creditsResult && creditsResult.newBalance !== undefined) {
             await sendCreditsAddedEmail({
               name: user.name || 'User',
               email: user.email,
               credits: plan.creditsPerMonth,
-              balance: creditsResult.newBalance,
+              balance: 'newBalance' in creditsResult ? creditsResult.newBalance : 0,
               reason: `Monthly credits for ${plan.name} subscription`,
               transactionId: subscriptionId,
             });

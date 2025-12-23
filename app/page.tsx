@@ -30,6 +30,7 @@ import Clock from '@/components/ui/clock';
 import { LogoStepper } from '@/components/ui/logo-stepper';
 import { AECFeaturesGrid } from '@/components/home/aec-features-grid';
 import { ApiOrbitDemo } from '@/components/home/api-orbit-demo';
+// Paddle redirect is now handled server-side for immediate redirect
 import { 
   Wand2, 
   GalleryVertical, 
@@ -103,6 +104,7 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 export default async function Home() {
+
   // Get dynamic tool count
   const tools = getAllTools();
   const toolCount = tools.length;

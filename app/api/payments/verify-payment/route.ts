@@ -28,9 +28,9 @@ export const POST = withAuthenticatedApiRoute(
       // Razorpay payment
       paymentProvider = PaymentProviderFactory.getProviderByType('razorpay');
       verificationData = {
-        orderId: razorpay_order_id,
-        paymentId: razorpay_payment_id,
-        signature: razorpay_signature,
+        razorpayOrderId: razorpay_order_id,
+        razorpayPaymentId: razorpay_payment_id,
+        razorpaySignature: razorpay_signature,
       };
 
       // Check for duplicate payment (Razorpay)

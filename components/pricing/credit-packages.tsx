@@ -20,11 +20,32 @@ const formatNumberCompact = (num: number | string | null | undefined): string =>
   return Math.round(value).toLocaleString();
 };
 
-// Helper function to format currency (no compact formatting)
+// Helper function to format currency with proper decimal places
 const formatCurrencyCompact = (amount: number, currency: string): string => {
   const currencyInfo = SUPPORTED_CURRENCIES[currency] || SUPPORTED_CURRENCIES['INR'];
   const symbol = currencyInfo.symbol;
-  const formatted = Math.round(amount).toLocaleString();
+  
+  // INR: Show whole numbers (no decimals for 100, but show decimals if needed like 100.50)
+  // USD: Always show 2 decimal places (1.00, 1.10)
+  // JPY: No decimals
+  let formatted: string;
+  if (currency === 'JPY') {
+    formatted = Math.round(amount).toLocaleString('en-US');
+  } else if (currency === 'INR') {
+    // For INR, only show decimals if they exist (not .00)
+    const hasDecimals = amount % 1 !== 0;
+    formatted = amount.toLocaleString('en-US', {
+      minimumFractionDigits: hasDecimals ? 2 : 0,
+      maximumFractionDigits: 2,
+    });
+  } else {
+    // USD and other currencies: Always show 2 decimal places
+    formatted = amount.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+  
   return `${symbol}${formatted}`;
 };
 
@@ -44,6 +65,7 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
   const [mounted, setMounted] = useState(false);
   const { currency, currencyInfo, exchangeRate, format, loading: currencyLoading } = useCurrency();
   const [convertedPrices, setConvertedPrices] = useState<Record<string, number>>({});
+  const [currencyUpdateTrigger, setCurrencyUpdateTrigger] = useState(0); // Force re-calculation
   
   // Use simplified shared Razorpay SDK loader
   const { isLoaded: razorpayLoaded, isLoading: razorpayLoading, Razorpay } = useRazorpaySDK();
@@ -51,26 +73,90 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
   // Determine if dark mode is active
   const isDarkMode = mounted && (resolvedTheme === 'dark' || theme === 'dark');
 
-  // Convert all prices when currency or exchange rate changes
+  // Use Paddle USD prices directly (no conversion)
   useEffect(() => {
     if (packages.length === 0) {
       return;
     }
 
-    // If currency is loading or exchange rate not ready, wait
-    if (currencyLoading || (currency === 'USD' && !exchangeRate)) {
-      return;
-    }
-
-    // Convert prices synchronously using the exchange rate
+    // ✅ FIXED: Use Paddle USD prices directly from database (no conversion)
+    // Paddle prices are stored in the database and match Paddle's Price IDs exactly
     const converted: Record<string, number> = {};
     for (const pkg of packages) {
-      const priceInINR = parseFloat(pkg.price);
-      // Convert using exchange rate directly (no async needed)
-      converted[pkg.id] = currency === 'INR' ? priceInINR : priceInINR * exchangeRate;
+      // For USD (international/Paddle users): MUST use Paddle USD price directly
+      // paddlePriceUSD is stored as decimal (e.g., 1.00 = $1.00) - matches Paddle Price ID exactly
+      if (currency === 'USD') {
+        // Check if this is a free package (price = 0)
+        const basePrice = typeof pkg.price === 'string' ? parseFloat(pkg.price) : Number(pkg.price);
+        const isFreePackage = !isNaN(basePrice) && basePrice === 0;
+        
+        // CRITICAL: For USD, we MUST use paddlePriceUSD, never fall back to INR price
+        // Check both camelCase and snake_case field names (database might return either)
+        const paddlePrice = pkg.paddlePriceUSD || pkg.paddle_price_usd;
+        
+        if (paddlePrice != null && paddlePrice !== '' && paddlePrice !== undefined) {
+          const price = typeof paddlePrice === 'string' 
+            ? parseFloat(paddlePrice) 
+            : Number(paddlePrice);
+          if (!isNaN(price)) {
+            converted[pkg.id] = price; // Allow 0 for free packages
+            if (price > 0) {
+              console.log(`✅ Using paddlePriceUSD for ${pkg.name}: ${price}`);
+            }
+            continue;
+          }
+        }
+        
+        // Handle free packages: if base price is 0, use 0.00 for USD
+        if (isFreePackage) {
+          converted[pkg.id] = 0;
+          continue;
+        }
+        
+        // If paddlePriceUSD is missing for paid packages, log error with full package data for debugging
+        console.error(`⚠️ Missing paddlePriceUSD for package ${pkg.id} (${pkg.name}).`, {
+          paddlePriceUSD: pkg.paddlePriceUSD,
+          paddle_price_usd: pkg.paddle_price_usd,
+          price: pkg.price,
+          fullPackage: pkg
+        });
+        converted[pkg.id] = 0;
+        continue;
+      }
+
+      // For INR (India/Razorpay users): Use INR price directly
+      // price is stored in rupees (e.g., 100 = ₹100, not ₹1.00)
+      if (currency === 'INR') {
+        const price = typeof pkg.price === 'string' 
+          ? parseFloat(pkg.price) 
+          : Number(pkg.price);
+        converted[pkg.id] = isNaN(price) ? 0 : price;
+        continue;
+      }
+
+      // Fallback for other currencies (shouldn't happen)
+      const price = typeof pkg.price === 'string' 
+        ? parseFloat(pkg.price) 
+        : Number(pkg.price);
+      converted[pkg.id] = isNaN(price) ? 0 : price;
     }
     setConvertedPrices(converted);
-  }, [currency, exchangeRate, packages, currencyLoading]);
+  }, [currency, packages, currencyLoading, currencyUpdateTrigger]); // Added currencyUpdateTrigger to force updates
+
+  // Listen for currency changes from CurrencyToggle (same tab)
+  // Force re-calculation when currency changes via custom event
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const handleCurrencyChange = () => {
+      // Force re-calculation by incrementing trigger
+      // This ensures the price conversion useEffect runs again with updated currency
+      setCurrencyUpdateTrigger(prev => prev + 1);
+    };
+    
+    window.addEventListener('currencyChanged', handleCurrencyChange);
+    return () => window.removeEventListener('currencyChanged', handleCurrencyChange);
+  }, []); // Empty deps - just listen for events
 
   useEffect(() => {
     setMounted(true);
@@ -223,28 +309,76 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
         order_id: orderId,
         handler: async (response: any) => {
           try {
+            // CRITICAL: Close Razorpay modal and processing dialog FIRST
+            // This ensures the verification dialog is visible immediately
+            if (razorpayInstanceRef.current) {
+              try {
+                razorpayInstanceRef.current.close();
+              } catch (e) {
+                // Ignore errors when closing
+              }
+              razorpayInstanceRef.current = null;
+            }
+            setRazorpayOpen(false);
             setProcessingDialog({ open: false, message: '' });
-            // Show verification dialog
-            setVerificationDialog({ open: true, message: 'We are verifying your payment. Please wait...' });
             
-            // Verify payment
+            // Show verification dialog IMMEDIATELY - user needs feedback right away
+            setVerificationDialog({ open: true, message: 'Payment successful! Verifying your payment...' });
+            
+            // Small delay to ensure UI updates (dialog becomes visible)
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Log the response to debug field names
+            console.log('🔍 Razorpay handler response:', response);
+            
+            // Razorpay response can have either format:
+            // - razorpay_order_id, razorpay_payment_id, razorpay_signature (newer)
+            // - order_id, payment_id, signature (older)
+            const orderId = response.razorpay_order_id || response.order_id;
+            const paymentId = response.razorpay_payment_id || response.payment_id;
+            const signature = response.razorpay_signature || response.signature;
+            
+            // Ensure all required Razorpay fields are present
+            if (!orderId || !paymentId || !signature) {
+              console.error('❌ Missing Razorpay fields:', {
+                orderId: !!orderId,
+                paymentId: !!paymentId,
+                signature: !!signature,
+                responseKeys: Object.keys(response),
+                fullResponse: response
+              });
+              throw new Error('Missing Razorpay payment verification data');
+            }
+
             const verifyResponse = await fetch('/api/payments/verify-payment', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
+                razorpay_order_id: orderId,
+                razorpay_payment_id: paymentId,
+                razorpay_signature: signature,
               }),
             });
+
+            if (!verifyResponse.ok) {
+              const errorData = await verifyResponse.json().catch(() => ({ error: 'Payment verification failed' }));
+              throw new Error(errorData.error || `Payment verification failed: ${verifyResponse.status}`);
+            }
 
             const verifyResult = await verifyResponse.json();
 
             if (verifyResult.success) {
+              // Update dialog message to show success before redirect
+              setVerificationDialog({ open: true, message: 'Payment verified! Redirecting to success page...' });
               setLoading(null);
-              setVerificationDialog({ open: false, message: '' });
-              // ✅ OPTIMIZED: Redirect immediately without delay
-              window.location.href = `/payment/success?payment_order_id=${verifyResult.data.paymentOrderId}&razorpay_order_id=${response.razorpay_order_id}&razorpay_payment_id=${response.razorpay_payment_id}`;
+              
+              // Small delay to show success message, then redirect
+              await new Promise(resolve => setTimeout(resolve, 500));
+              
+              // ✅ OPTIMIZED: Redirect immediately after showing success
+              const orderId = response.razorpay_order_id || response.order_id;
+              const paymentId = response.razorpay_payment_id || response.payment_id;
+              window.location.href = `/payment/success?payment_order_id=${verifyResult.data.paymentOrderId}&razorpay_order_id=${orderId}&razorpay_payment_id=${paymentId}`;
             } else {
               setVerificationDialog({ open: false, message: '' });
               throw new Error(verifyResult.error || 'Payment verification failed');
@@ -309,19 +443,15 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
       const razorpay = new Razorpay(options);
       razorpayInstanceRef.current = razorpay;
       
-      // CRITICAL: Close processing dialog BEFORE opening Razorpay iframe
-      // This prevents dialog from blocking interaction with Razorpay
-      setProcessingDialog({ open: false, message: '' });
-      
       // CRITICAL: Add payment failure handler
       // Note: Webhook will update order status to "failed", so we don't need to do it here
       razorpay.on('payment.failed', async (response: any) => {
-        console.error('Payment failed:', response);
+        console.error('❌ Razorpay payment failed:', response);
         setLoading(null);
         setProcessingDialog({ open: false, message: '' });
         setVerificationDialog({ open: false, message: '' });
         razorpayInstanceRef.current = null; // Clear reference
-        const errorDescription = response.error?.description || 'Unknown error';
+        const errorDescription = response.error?.description || response.error?.reason || 'Unknown error';
         
         logger.log('🚫 Payment failed:', { orderId, error: errorDescription });
         
@@ -330,6 +460,10 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
         // Webhook will handle updating order status to "failed"
         window.location.href = `/payment/failure?razorpay_order_id=${orderId}&error_description=${encodeURIComponent(errorDescription)}`;
       });
+      
+      // CRITICAL: Close processing dialog BEFORE opening Razorpay iframe
+      // This prevents dialog from blocking interaction with Razorpay
+      setProcessingDialog({ open: false, message: '' });
       
       // Small delay to ensure dialog closes before opening Razorpay iframe
       setTimeout(() => {
@@ -406,8 +540,10 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
           <div className="grid grid-cols-4 gap-4">
             {sortedPackages.slice(0, 8).map((pkg) => {
               const totalCredits = pkg.credits + (pkg.bonusCredits || 0);
-              // Use pricePerCredit from database if available, otherwise calculate
-              const pricePerCredit = pkg.pricePerCredit ? parseFloat(pkg.pricePerCredit.toString()) : (parseFloat(pkg.price) / totalCredits);
+              // Calculate price per credit: price / totalCredits
+              // Use the converted price (USD or INR) for accurate calculation
+              const packagePrice = convertedPrices[pkg.id] || (currency === 'USD' && pkg.paddlePriceUSD ? parseFloat(pkg.paddlePriceUSD) : parseFloat(pkg.price));
+              const pricePerCredit = totalCredits > 0 ? packagePrice / totalCredits : 0;
 
               return (
                 <GradientCard
@@ -483,7 +619,7 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
                           <span>Buy Now</span>
                           {!currencyLoading && convertedPrices[pkg.id] && (
                             <span className="text-[8px] font-normal opacity-75 leading-tight">
-                              {formatCurrencyCompact(Math.round(pricePerCredit), currency)}/credit
+                              {formatCurrencyCompact(pricePerCredit, currency)}/credit
                             </span>
                           )}
                         </>
@@ -553,6 +689,39 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
                 width: 100% !important;
                 height: 100% !important;
               }
+              
+              /* CRITICAL: Ensure verification dialog is always on top of everything */
+              [data-verification-dialog="true"] {
+                z-index: 9999 !important;
+                position: fixed !important;
+              }
+              
+              /* Ensure overlay for verification dialog is also on top */
+              [data-slot="dialog-overlay"]:has(+ [data-slot="dialog-content"][data-verification-dialog="true"]) {
+                z-index: 9998 !important;
+              }
+            `,
+          }}
+        />
+      )}
+      
+      {/* Additional style for verification dialog z-index - ensure it's always on top */}
+      {verificationDialog.open && (
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+              /* Force verification dialog overlay to be on top of everything */
+              [data-slot="dialog-overlay"] {
+                z-index: 9998 !important;
+                position: fixed !important;
+              }
+              
+              /* Force verification dialog content to be on top of everything */
+              [data-verification-dialog="true"],
+              [data-slot="dialog-content"][data-verification-dialog="true"] {
+                z-index: 9999 !important;
+                position: fixed !important;
+              }
             `,
           }}
         />
@@ -573,11 +742,28 @@ export function CreditPackages({ packages, userCredits, onPurchaseComplete }: Cr
         </DialogContent>
       </Dialog>
 
-      {/* Verification Dialog - disabled when Razorpay is open */}
-      <Dialog open={verificationDialog.open && !razorpayOpen} onOpenChange={(open) => !open && setVerificationDialog({ open: false, message: '' })}>
-        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+      {/* Verification Dialog - shows immediately after payment */}
+      <Dialog 
+        open={verificationDialog.open} 
+        onOpenChange={(open) => {
+          // Prevent closing during verification - user must wait
+          if (!open && verificationDialog.open) {
+            // Only allow closing if verification is complete (check if message contains "Redirecting")
+            if (verificationDialog.message.includes('Redirecting')) {
+              setVerificationDialog({ open: false, message: '' });
+            }
+          }
+        }}
+      >
+        <DialogContent 
+          className="sm:max-w-md" 
+          data-verification-dialog="true"
+          style={{ zIndex: 9999 }}
+          onPointerDownOutside={(e) => e.preventDefault()} 
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
           <DialogHeader>
-            <DialogTitle>Verifying Payment</DialogTitle>
+            <DialogTitle>Processing Payment</DialogTitle>
             <DialogDescription>
               {verificationDialog.message}
             </DialogDescription>

@@ -12,7 +12,7 @@ import { paymentOrders, creditPackages, subscriptionPlans, userSubscriptions } f
 import { eq, and, desc } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
 import { checkRateLimit } from '@/lib/utils/payment-security';
-import { convertCurrency } from '@/lib/utils/currency';
+// Removed convertCurrency - Paddle uses fixed prices from Price IDs, no conversion needed
 import { detectUserCountry } from '@/lib/utils/country-detection';
 import { headers } from 'next/headers';
 
@@ -151,11 +151,22 @@ export async function createPaymentOrderAction(
       return { success: false, error: 'Credit package is not available' };
     }
 
-    // Convert price: INR base prices → USD for international users
+    // ⚠️ IMPORTANT: For Paddle, we don't convert the amount
+    // Paddle uses the fixed price from the Price ID, not the amount parameter
+    // The amount parameter is ignored when using priceId in Paddle transactions
     let orderAmount = parseFloat(packageData.price);
-    if (!isRazorpay && packageData.currency === 'INR') {
-      // Convert INR to USD: 1 INR = 0.012 USD (83 INR = 1 USD)
-      orderAmount = await convertCurrency(orderAmount, 'USD');
+    
+    // Only convert for Razorpay (which uses INR)
+    // For Paddle, the price is already set in the Price ID in Paddle dashboard
+    if (isRazorpay && packageData.currency !== 'INR') {
+      // This shouldn't happen, but handle edge case
+      logger.warn('⚠️ PaymentActions: Package currency mismatch for Razorpay');
+    }
+    
+    // For Paddle: amount is ignored, but we pass it for logging/record keeping
+    // The actual charge will be from the Paddle Price ID's fixed price
+    if (!isRazorpay) {
+      logger.log('💳 PaymentActions: Using Paddle - price will be from Price ID, not converted amount');
     }
 
     // Create order using appropriate provider

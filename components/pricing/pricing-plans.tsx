@@ -20,11 +20,32 @@ const formatNumberCompact = (num: number | string | null | undefined): string =>
   return Math.round(value).toLocaleString();
 };
 
-// Helper function to format currency (no compact formatting)
+// Helper function to format currency with proper decimal places
 const formatCurrencyCompact = (amount: number, currency: string): string => {
   const currencyInfo = SUPPORTED_CURRENCIES[currency] || SUPPORTED_CURRENCIES['INR'];
   const symbol = currencyInfo.symbol;
-  const formatted = Math.round(amount).toLocaleString();
+  
+  // INR: Show whole numbers (no decimals for 100, but show decimals if needed like 100.50)
+  // USD: Always show 2 decimal places (1.00, 1.10)
+  // JPY: No decimals
+  let formatted: string;
+  if (currency === 'JPY') {
+    formatted = Math.round(amount).toLocaleString('en-US');
+  } else if (currency === 'INR') {
+    // For INR, only show decimals if they exist (not .00)
+    const hasDecimals = amount % 1 !== 0;
+    formatted = amount.toLocaleString('en-US', {
+      minimumFractionDigits: hasDecimals ? 2 : 0,
+      maximumFractionDigits: 2,
+    });
+  } else {
+    // USD and other currencies: Always show 2 decimal places
+    formatted = amount.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+  
   return `${symbol}${formatted}`;
 };
 
@@ -54,6 +75,7 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
   const isDarkMode = resolvedTheme === 'dark' || theme === 'dark';
   const { currency, currencyInfo, exchangeRate, format, convert, loading: currencyLoading } = useCurrency();
   const [convertedPrices, setConvertedPrices] = useState<Record<string, number>>({});
+  const [currencyUpdateTrigger, setCurrencyUpdateTrigger] = useState(0); // Force re-calculation
   const razorpayInstanceRef = useRef<any>(null); // Prevent duplicate instances
   
   // Use simplified shared Razorpay SDK loader
@@ -66,19 +88,85 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
       return;
     }
 
-    // If currency is loading or exchange rate not ready, wait
-    if (currencyLoading || (currency === 'USD' && !exchangeRate)) {
-      return;
-    }
-
+    // ✅ FIXED: Use Paddle prices if available (for international users)
+    // Use Paddle USD prices directly from database (no conversion)
+    // Note: We don't wait for currencyLoading because we use database prices, not exchange rates
     const converted: Record<string, number> = {};
     for (const plan of plans) {
-      const priceInINR = parseFloat(plan.price);
-      // Convert directly without using convert function to avoid dependency issues
-      converted[plan.id] = currency === 'INR' ? priceInINR : priceInINR * exchangeRate;
+      // For USD (international/Paddle users): MUST use Paddle USD price directly
+      // paddlePriceUSD is stored as decimal (e.g., 1.00 = $1.00) - matches Paddle Price ID exactly
+      if (currency === 'USD') {
+        // Check if this is a free plan (price = 0)
+        const basePrice = typeof plan.price === 'string' ? parseFloat(plan.price) : Number(plan.price);
+        const isFreePlan = !isNaN(basePrice) && basePrice === 0;
+        
+        // CRITICAL: For USD, we MUST use paddlePriceUSD, never fall back to INR price
+        // Check both camelCase and snake_case field names (database might return either)
+        const paddlePrice = plan.paddlePriceUSD || plan.paddle_price_usd;
+        
+        if (paddlePrice != null && paddlePrice !== '' && paddlePrice !== undefined) {
+          const price = typeof paddlePrice === 'string' 
+            ? parseFloat(paddlePrice) 
+            : Number(paddlePrice);
+          if (!isNaN(price)) {
+            converted[plan.id] = price; // Allow 0 for free plans
+            if (price > 0) {
+              console.log(`✅ Using paddlePriceUSD for ${plan.name}: ${price}`);
+            }
+            continue;
+          }
+        }
+        
+        // Handle free plans: if base price is 0, use 0.00 for USD
+        if (isFreePlan) {
+          converted[plan.id] = 0;
+          continue;
+        }
+        
+        // If paddlePriceUSD is missing for paid plans, log error with full plan data for debugging
+        console.error(`⚠️ Missing paddlePriceUSD for plan ${plan.id} (${plan.name}).`, {
+          paddlePriceUSD: plan.paddlePriceUSD,
+          paddle_price_usd: plan.paddle_price_usd,
+          price: plan.price,
+          fullPlan: plan
+        });
+        converted[plan.id] = 0;
+        continue;
+      }
+
+      // For INR (India/Razorpay users): Use INR price directly
+      // price is stored in rupees (e.g., 100 = ₹100, not ₹1.00)
+      if (currency === 'INR') {
+        const price = typeof plan.price === 'string' 
+          ? parseFloat(plan.price) 
+          : Number(plan.price);
+        converted[plan.id] = isNaN(price) ? 0 : price;
+        continue;
+      }
+
+      // Fallback for other currencies (shouldn't happen)
+      const price = typeof plan.price === 'string' 
+        ? parseFloat(plan.price) 
+        : Number(plan.price);
+      converted[plan.id] = isNaN(price) ? 0 : price;
     }
     setConvertedPrices(converted);
-  }, [currency, exchangeRate, plans, currencyLoading]);
+  }, [currency, plans, currencyLoading, exchangeRate, currencyUpdateTrigger]); // Added currencyUpdateTrigger to force updates
+
+  // Listen for currency changes from CurrencyToggle (same tab)
+  // Force re-calculation when currency changes via custom event
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const handleCurrencyChange = () => {
+      // Force re-calculation by incrementing trigger
+      // This ensures the price conversion useEffect runs again with updated currency
+      setCurrencyUpdateTrigger(prev => prev + 1);
+    };
+    
+    window.addEventListener('currencyChanged', handleCurrencyChange);
+    return () => window.removeEventListener('currencyChanged', handleCurrencyChange);
+  }, []); // Empty deps - just listen for events
 
   // Monitor for Razorpay iframe and disable dialogs when it's open
   useEffect(() => {
@@ -508,14 +596,20 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
           const planGroup = groupedPlans[planBaseName];
           const selectedInterval = cardBillingInterval[planBaseName] || 'month';
           
+          // Use converted price (already handles paddlePriceUSD for USD, price for INR)
           const priceInINR = parseFloat(plan.price);
-          const convertedPrice = convertedPrices[plan.id] || (currency === 'INR' ? priceInINR : priceInINR * exchangeRate);
+          const convertedPrice = convertedPrices[plan.id] || (currency === 'USD' && plan.paddlePriceUSD ? parseFloat(plan.paddlePriceUSD) : priceInINR);
           
           // Calculate prices for both intervals
           const monthlyPlan = planGroup?.monthly;
           const annualPlan = planGroup?.annual;
-          const monthlyPrice = monthlyPlan ? (convertedPrices[monthlyPlan.id] || (currency === 'INR' ? parseFloat(monthlyPlan.price) : parseFloat(monthlyPlan.price) * exchangeRate)) : convertedPrice;
-          const annualPrice = annualPlan ? (convertedPrices[annualPlan.id] || (currency === 'INR' ? parseFloat(annualPlan.price) : parseFloat(annualPlan.price) * exchangeRate)) : convertedPrice * 12;
+          const getPlanPrice = (p: any) => {
+            if (convertedPrices[p.id]) return convertedPrices[p.id];
+            if (currency === 'USD' && p.paddlePriceUSD) return parseFloat(p.paddlePriceUSD);
+            return parseFloat(p.price);
+          };
+          const monthlyPrice = monthlyPlan ? getPlanPrice(monthlyPlan) : convertedPrice;
+          const annualPrice = annualPlan ? getPlanPrice(annualPlan) : convertedPrice * 12;
           
           // Calculate savings for annual
           const savings = annualPlan && monthlyPlan ? Math.round((1 - (annualPrice / 12) / monthlyPrice) * 100) : 0;
@@ -523,6 +617,13 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
           // Current plan price based on selected interval
           const currentPrice = selectedInterval === 'year' && annualPlan ? annualPrice : monthlyPrice;
           const currentPlan = selectedInterval === 'year' && annualPlan ? annualPlan : monthlyPlan || plan;
+          
+          // Helper to get current plan's base price (use paddlePriceUSD for USD, price for INR)
+          const getCurrentPlanBasePrice = () => {
+            if (currency === 'USD' && currentPlan.paddlePriceUSD) return parseFloat(currentPlan.paddlePriceUSD);
+            return parseFloat(currentPlan.price);
+          };
+          const currentPlanBasePrice = getCurrentPlanBasePrice();
 
           // Check if this is the user's current plan
           const isCurrentPlan = userSubscription?.subscription?.planId === currentPlan.id;
@@ -537,7 +638,12 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
           // Get user's current plan details for proper comparison
           const userPlan = userSubscription?.plan;
           const userPlanInterval = userPlan?.interval || 'month';
-          const userPlanBasePrice = userPlan ? parseFloat(userPlan.price) : 0;
+          // Get user plan price (use paddlePriceUSD for USD, price for INR)
+          const userPlanBasePrice = userPlan ? (
+            currency === 'USD' && userPlan.paddlePriceUSD 
+              ? parseFloat(userPlan.paddlePriceUSD) 
+              : parseFloat(userPlan.price)
+          ) : 0;
           
           // Convert user's plan price to match the selected interval for comparison
           // If user is on monthly and viewing annual, convert monthly to annual equivalent
@@ -684,7 +790,7 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
                     !razorpayLoaded || 
                     razorpayLoading || 
                     !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 
-                    parseFloat(currentPlan.price) === 0 ||
+                    currentPlanBasePrice === 0 ||
                     (isCurrentPlan && hasActiveSubscription)
                   }
                   variant={isCurrentPlan && hasActiveSubscription ? 'outline' : 'default'}
@@ -708,7 +814,7 @@ export function PricingPlans({ plans, userCredits, userSubscription }: PricingPl
                     'Upgrade Plan'
                   ) : isDowngrade ? (
                     'Downgrade Plan'
-                  ) : parseFloat(currentPlan.price) === 0 ? (
+                  ) : currentPlanBasePrice === 0 ? (
                     'Get Started'
                   ) : (
                     'Subscribe Now'

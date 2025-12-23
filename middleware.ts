@@ -12,6 +12,21 @@ import * as Sentry from '@sentry/nextjs';
 export async function middleware(request: NextRequest) {
   const hostname = request.nextUrl.hostname;
   const pathname = request.nextUrl.pathname;
+  const searchParams = request.nextUrl.searchParams;
+
+  // ========================================
+  // 0. Handle Paddle payment redirect (_ptxn parameter)
+  // ========================================
+  // Paddle redirects to homepage with ?_ptxn=transaction_id
+  // Redirect immediately to payment success page (fastest approach)
+  if (pathname === '/' && searchParams.has('_ptxn')) {
+    const ptxn = searchParams.get('_ptxn');
+    if (ptxn) {
+      const redirectUrl = new URL('/payment/success', request.url);
+      redirectUrl.searchParams.set('paddle_transaction_id', ptxn);
+      return NextResponse.redirect(redirectUrl);
+    }
+  }
 
   // ========================================
   // 1. Handle auth.renderiq.io subdomain proxying

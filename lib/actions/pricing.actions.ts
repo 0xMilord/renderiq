@@ -6,6 +6,9 @@ import { db } from '@/lib/db';
 import { creditPackages, subscriptionPlans } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
+import { PaddleService } from '@/lib/services/paddle.service';
+import { detectUserCountry } from '@/lib/utils/country-detection';
+import { getPaymentProviderForCountry } from '@/lib/utils/country-detection';
 
 /**
  * Get all active credit packages
@@ -173,6 +176,7 @@ export async function getSubscriptionPlanAction(planId: string) {
 /**
  * ✅ BATCHED: Get all pricing page data in a single optimized call
  * Fetches plans, packages, and user billing stats in parallel
+ * Also fetches Paddle prices for international users
  * Prevents N+1 queries and sequential auth calls
  */
 export async function getPricingPageDataAction() {
@@ -216,13 +220,104 @@ export async function getPricingPageDataAction() {
       }
     }
 
+    // ✅ NEW: Fetch Paddle prices for international users
+    // Determine if user should see Paddle prices (non-India users)
+    let shouldFetchPaddlePrices = false;
+    if (user) {
+      try {
+        const country = await detectUserCountry(undefined, user.id);
+        const providerType = getPaymentProviderForCountry(country);
+        shouldFetchPaddlePrices = providerType === 'paddle';
+      } catch (error) {
+        // Default to showing Paddle prices if detection fails (safer for international)
+        shouldFetchPaddlePrices = true;
+        logger.warn('⚠️ PricingAction: Error detecting country, defaulting to Paddle prices');
+      }
+    } else {
+      // For non-authenticated users, default to Paddle prices (international)
+      shouldFetchPaddlePrices = true;
+    }
+
+    // Fetch Paddle prices if needed
+    let paddlePrices: Record<string, number> = {};
+    if (shouldFetchPaddlePrices && process.env.PADDLE_API_KEY) {
+      try {
+        const paddleService = new PaddleService();
+        
+        // Fetch prices for all packages in parallel
+        const packagePricePromises = packagesResult.map(async (pkg) => {
+          try {
+            const price = await paddleService.getPriceForPackage(pkg.id, 'USD');
+            return { packageId: pkg.id, price };
+          } catch (error) {
+            logger.warn(`⚠️ PricingAction: Failed to fetch Paddle price for package ${pkg.id}:`, error);
+            return { packageId: pkg.id, price: null };
+          }
+        });
+
+        // Fetch prices for all plans in parallel
+        const planPricePromises = plansResult.map(async (plan) => {
+          try {
+            const price = await paddleService.getPriceForPlan(plan.id, 'USD');
+            return { planId: plan.id, price };
+          } catch (error) {
+            logger.warn(`⚠️ PricingAction: Failed to fetch Paddle price for plan ${plan.id}:`, error);
+            return { planId: plan.id, price: null };
+          }
+        });
+
+        const [packagePrices, planPrices] = await Promise.all([
+          Promise.all(packagePricePromises),
+          Promise.all(planPricePromises),
+        ]);
+
+        // Build price map
+        packagePrices.forEach(({ packageId, price }) => {
+          if (price !== null) {
+            paddlePrices[`package_${packageId}`] = price;
+          }
+        });
+
+        planPrices.forEach(({ planId, price }) => {
+          if (price !== null) {
+            paddlePrices[`plan_${planId}`] = price;
+          }
+        });
+
+        logger.log('✅ PricingAction: Fetched Paddle prices:', {
+          packageCount: packagePrices.filter(p => p.price !== null).length,
+          planCount: planPrices.filter(p => p.price !== null).length,
+        });
+      } catch (error) {
+        logger.error('❌ PricingAction: Error fetching Paddle prices:', error);
+        // Continue without Paddle prices - will fall back to converted prices
+      }
+    }
+
+    // Attach Paddle prices to packages and plans
+    // CRITICAL: Use database paddlePriceUSD FIRST, only use API fetch as fallback
+    const packagesWithPaddlePrices = packagesResult.map((pkg) => ({
+      ...pkg,
+      // Use database value first (already has paddlePriceUSD from schema)
+      // Only use API-fetched price if database value is missing
+      paddlePriceUSD: pkg.paddlePriceUSD || pkg.paddle_price_usd || paddlePrices[`package_${pkg.id}`] || null,
+    }));
+
+    const plansWithPaddlePrices = plansResult.map((plan) => ({
+      ...plan,
+      // Use database value first (already has paddlePriceUSD from schema)
+      // Only use API-fetched price if database value is missing
+      paddlePriceUSD: plan.paddlePriceUSD || plan.paddle_price_usd || paddlePrices[`plan_${plan.id}`] || null,
+    }));
+
     return {
       success: true,
       data: {
-        plans: plansResult,
-        creditPackages: packagesResult,
+        plans: plansWithPaddlePrices,
+        creditPackages: packagesWithPaddlePrices,
         userCredits,
         userSubscription,
+        shouldUsePaddlePrices: shouldFetchPaddlePrices,
       },
     };
   } catch (error) {

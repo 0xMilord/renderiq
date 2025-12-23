@@ -26,6 +26,7 @@ export const subscriptionPlans = pgTable('subscription_plans', {
   description: text('description'),
   price: decimal('price', { precision: 10, scale: 2 }).notNull(),
   currency: text('currency').default('INR').notNull(),
+  paddlePriceUSD: decimal('paddle_price_usd', { precision: 10, scale: 2 }), // Fixed USD price from Paddle (no conversion)
   interval: text('interval', { enum: ['month', 'year'] }).notNull(),
   creditsPerMonth: integer('credits_per_month').notNull(),
   maxProjects: integer('max_projects'),
@@ -45,6 +46,7 @@ export const creditPackages = pgTable('credit_packages', {
   credits: integer('credits').notNull(),
   price: decimal('price', { precision: 10, scale: 2 }).notNull(),
   currency: text('currency').default('INR').notNull(), // Razorpay uses INR
+  paddlePriceUSD: decimal('paddle_price_usd', { precision: 10, scale: 2 }), // Fixed USD price from Paddle (no conversion)
   bonusCredits: integer('bonus_credits').default(0).notNull(), // Bonus credits (like "Buy 100, Get 10 free")
   isPopular: boolean('is_popular').default(false).notNull(),
   isActive: boolean('is_active').default(true).notNull(),

@@ -15,6 +15,13 @@
       "when": 1765986391105,
       "tag": "0001_white_tony_stark",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1766456687013,
+      "tag": "0002_add_paddle_price_usd",
+      "breakpoints": true
     }
   ]
 }

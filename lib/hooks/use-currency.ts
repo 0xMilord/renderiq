@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { formatCurrency, SUPPORTED_CURRENCIES, type CurrencyInfo } from '@/lib/utils/currency';
-import { detectCountryClientSide, shouldUseRazorpay } from '@/lib/utils/country-detection.client';
+import { detectCountryClientSide, detectCountryClientSideAsync, shouldUseRazorpay } from '@/lib/utils/country-detection.client';
 
 /**
  * Currency Hook with Manual Toggle Support
@@ -59,12 +59,12 @@ export function useCurrency() {
       }
     } else {
       // Auto-detect based on country (first time only)
-      const country = detectCountryClientSide();
-      const isIndia = shouldUseRazorpay(country);
-      
-      // Simple logic: India → INR, Not India → USD
+      // Use synchronous detection first (fast), then async API (accurate)
+      const syncCountry = detectCountryClientSide();
+      const isIndia = shouldUseRazorpay(syncCountry);
       const detectedCurrency = isIndia ? 'INR' : 'USD';
       
+      // Set immediately with sync result
       setCurrency(detectedCurrency);
       localStorage.setItem('user_currency', detectedCurrency);
       
@@ -75,10 +75,32 @@ export function useCurrency() {
         setExchangeRate(1); // No conversion needed for INR
         setLoading(false);
       }
+      
+      // Then try async API detection in background (more accurate)
+      detectCountryClientSideAsync().then((apiCountry) => {
+        const apiIsIndia = shouldUseRazorpay(apiCountry);
+        const apiCurrency = apiIsIndia ? 'INR' : 'USD';
+        
+        // Only update if different from sync result
+        if (apiCurrency !== detectedCurrency) {
+          setCurrency(apiCurrency);
+          localStorage.setItem('user_currency', apiCurrency);
+          
+          if (apiCurrency === 'USD') {
+            loadExchangeRate('USD');
+          } else {
+            setExchangeRate(1);
+            setLoading(false);
+          }
+        }
+      }).catch(() => {
+        // Silently fail - already have sync result
+      });
     }
   }, [loadExchangeRate]);
 
   // Listen for storage changes (when currency is changed in another tab/window)
+  // AND listen for custom currencyChanged events (when changed in same tab)
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
@@ -96,14 +118,36 @@ export function useCurrency() {
       }
     };
 
+    const handleCurrencyChange = (e: CustomEvent) => {
+      const newCurrency = e.detail?.currency;
+      if (newCurrency && (newCurrency === 'INR' || newCurrency === 'USD')) {
+        setCurrency(newCurrency);
+        if (newCurrency === 'USD') {
+          loadExchangeRate('USD');
+        } else {
+          setExchangeRate(1);
+          setLoading(false);
+        }
+      }
+    };
+
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('currencyChanged', handleCurrencyChange as EventListener);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('currencyChanged', handleCurrencyChange as EventListener);
+    };
   }, [loadExchangeRate]);
 
   const changeCurrency = useCallback(async (newCurrency: 'INR' | 'USD') => {
     // Update currency immediately to trigger re-render
     setCurrency(newCurrency);
     localStorage.setItem('user_currency', newCurrency);
+    
+    // Dispatch custom event to notify all components using useCurrency
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('currencyChanged', { detail: { currency: newCurrency } }));
+    }
     
     if (newCurrency === 'USD') {
       // Load exchange rate for USD

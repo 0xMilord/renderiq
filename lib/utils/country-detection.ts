@@ -76,7 +76,36 @@ export async function detectUserCountry(request?: Request, userId?: string): Pro
       // Ignore errors
     }
 
-    // Method 4: Default to US (international) if no geolocation available
+    // Method 4: Try IP geolocation API (fallback)
+    try {
+      // Only try API if we have a request (server-side)
+      if (request) {
+        const forwarded = request.headers.get('x-forwarded-for');
+        const ip = forwarded ? forwarded.split(',')[0] : 
+                   request.headers.get('x-real-ip') || '';
+        
+        if (ip && ip !== '::1' && !ip.startsWith('127.')) {
+          // Use free IP-API service (no API key needed, 45 req/min limit)
+          const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,countryCode`, {
+            headers: { 'Accept': 'application/json' },
+            next: { revalidate: 3600 } // Cache for 1 hour
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.status === 'success' && data.countryCode && data.countryCode.length === 2) {
+              logger.log('🌍 Country detected from IP-API:', data.countryCode);
+              return data.countryCode.toUpperCase();
+            }
+          }
+        }
+      }
+    } catch (error) {
+      // Silently fail - API might be rate limited or unavailable
+      logger.warn('⚠️ IP geolocation API failed, using fallback');
+    }
+
+    // Method 5: Default to US (international) if no geolocation available
     logger.log('🌍 No country detected, defaulting to US (international)');
     return 'US';
   } catch (error) {
